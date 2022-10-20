@@ -29,9 +29,9 @@ from magnum.common import clients
 from magnum.drivers.common import driver
 from magnum.common import neutron
 from magnum import objects
+from magnum.drivers.common import k8s_monitor
 
 from magnum_cluster_api import resources
-
 
 
 class BaseDriver(driver.Driver):
@@ -58,19 +58,7 @@ class BaseDriver(driver.Driver):
         ).apply()
 
         for node_group in cluster.nodegroups:
-            resources.OpenStackMachineTemplate(k8s, cluster, node_group).apply()
-            if node_group.role == "master":
-                resources.KubeadmControlPlane(
-                    k8s,
-                    cluster,
-                    node_group,
-                    auth_url=osc.auth_url,
-                    region_name=osc.cinder_region_name(),
-                    credential=credential,
-                ).apply()
-            else:
-                resources.KubeadmConfigTemplate(k8s, cluster).apply()
-                resources.MachineDeployment(k8s, cluster, node_group).apply()
+            self.create_nodegroup(context, cluster, node_group, credential=credential)
 
         resources.OpenStackCluster(k8s, cluster, context).apply()
         resources.Cluster(k8s, cluster).apply()
@@ -79,8 +67,50 @@ class BaseDriver(driver.Driver):
         osc = clients.OpenStackClients(context)
         k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
 
+        capi_cluster = resources.Cluster(k8s, cluster).get_object()
+
+        if cluster.status in (
+            objects.fields.ClusterStatus.CREATE_IN_PROGRESS,
+            objects.fields.ClusterStatus.UPDATE_IN_PROGRESS,
+        ):
+            capi_cluster.reload()
+            status_map = {
+                c["type"]: c["status"] for c in capi_cluster.obj["status"]["conditions"]
+            }
+
+            # health_status
+            # node_addresses
+            # master_addreses
+            # discovery_url = ???
+            # docker_volume_size
+            # container_version
+            # health_status_reason
+
+            if status_map.get("ControlPlaneReady") == "True":
+                cluster.api_address = f"https://{capi_cluster.obj['spec']['controlPlaneEndpoint']['host']}:{capi_cluster.obj['spec']['controlPlaneEndpoint']['port']}"
+
+            for node_group in cluster.nodegroups:
+                ng = self.update_nodegroup_status(context, cluster, node_group)
+                if ng.status != objects.fields.ClusterStatus.CREATE_COMPLETE:
+                    return
+
+                if node_group.role == "master":
+                    kcp = resources.KubeadmControlPlane(
+                        k8s, cluster, node_group
+                    ).get_object()
+                    kcp.reload()
+
+                    cluster.coe_version = kcp.obj["status"]["version"]
+
+            if cluster.status == objects.fields.ClusterStatus.CREATE_IN_PROGRESS:
+                cluster.status = objects.fields.ClusterStatus.CREATE_COMPLETE
+
+            if cluster.status == objects.fields.ClusterStatus.UPDATE_IN_PROGRESS:
+                cluster.status = objects.fields.ClusterStatus.UPDATE_COMPLETE
+
+            cluster.save()
+
         if cluster.status == objects.fields.ClusterStatus.DELETE_IN_PROGRESS:
-            capi_cluster = resources.Cluster(k8s, cluster).get_object()
             if capi_cluster.exists():
                 return
 
@@ -125,19 +155,13 @@ class BaseDriver(driver.Driver):
         raise NotImplementedError("Subclasses must implement " "'upgrade_cluster'.")
 
     def delete_cluster(self, context, cluster):
-        osc = clients.OpenStackClients(context)
         k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
 
         resources.Cluster(k8s, cluster).delete()
         resources.OpenStackCluster(k8s, cluster, context).delete()
 
         for node_group in cluster.nodegroups:
-            resources.OpenStackMachineTemplate(k8s, cluster, node_group).delete()
-            if node_group.role == "master":
-                resources.KubeadmControlPlane(k8s, cluster, node_group).delete()
-            else:
-                resources.MachineDeployment(k8s, cluster, node_group).delete()
-                resources.KubeadmConfigTemplate(k8s, cluster).delete()
+            self.delete_nodegroup(context, cluster, node_group)
 
     def create_federation(self, context, federation):
         raise NotImplementedError("Subclasses must implement " "'create_federation'.")
@@ -148,19 +172,75 @@ class BaseDriver(driver.Driver):
     def delete_federation(self, context, federation):
         raise NotImplementedError("Subclasses must implement " "'delete_federation'.")
 
-    def create_nodegroup(self, context, cluster, nodegroup):
-        raise NotImplementedError("Subclasses must implement " "'create_nodegroup'.")
+    def create_nodegroup(self, context, cluster, nodegroup, credential=None):
+        k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
+        osc = clients.OpenStackClients(context)
+
+        resources.OpenStackMachineTemplate(k8s, cluster, nodegroup).delete()
+
+        if nodegroup.role == "master":
+            resources.KubeadmControlPlane(
+                k8s,
+                cluster,
+                nodegroup,
+                auth_url=osc.auth_url,
+                region_name=osc.cinder_region_name(),
+                credential=credential,
+            ).apply()
+        else:
+            resources.KubeadmConfigTemplate(k8s, cluster).apply()
+            resources.MachineDeployment(k8s, cluster, nodegroup).apply()
+
+    def update_nodegroup_status(self, context, cluster, nodegroup):
+        k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
+
+        action = nodegroup.status.split("_")[0]
+
+        if nodegroup.role == "master":
+            kcp = resources.KubeadmControlPlane(k8s, cluster, nodegroup).get_object()
+            kcp.reload()
+
+            ready = kcp.obj["status"].get("ready", False)
+            failure_message = kcp.obj["status"].get("failureMessage")
+
+            if ready:
+                nodegroup.status = f"{action}_COMPLETE"
+            nodegroup.status_reason = failure_message
+
+            #
+        else:
+            md = resources.MachineDeployment(k8s, cluster, nodegroup).get_object()
+            md.reload()
+
+            phase = md.obj["status"]["phase"]
+
+            if phase in ("ScalingUp", "ScalingDown"):
+                nodegroup.status = f"{action}_IN_PROGRESS"
+            elif phase == "Running":
+                nodegroup.status = f"{action}_COMPLETE"
+            elif phase in ("Failed", "Unknown"):
+                nodegroup.status = f"{action}_FAILED"
+
+        nodegroup.save()
+
+        return nodegroup
 
     def update_nodegroup(self, context, cluster, nodegroup):
         raise NotImplementedError("Subclasses must implement " "'update_nodegroup'.")
 
     def delete_nodegroup(self, context, cluster, nodegroup):
-        raise NotImplementedError("Subclasses must implement " "'delete_nodegroup'.")
+        k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
+
+        if nodegroup.role == "master":
+            resources.KubeadmControlPlane(k8s, cluster, nodegroup).delete()
+        else:
+            resources.MachineDeployment(k8s, cluster, nodegroup).delete()
+            resources.KubeadmConfigTemplate(k8s, cluster).delete()
+
+        resources.OpenStackMachineTemplate(k8s, cluster, nodegroup).delete()
 
     def get_monitor(self, context, cluster):
-        """return the monitor with container data for this driver."""
-
-        return None
+        return k8s_monitor.K8sMonitor(context, cluster)
 
     def get_scale_manager(self, context, osclient, cluster):
         """return the scale manager for this driver."""
