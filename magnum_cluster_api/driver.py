@@ -176,7 +176,7 @@ class BaseDriver(driver.Driver):
         k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
         osc = clients.OpenStackClients(context)
 
-        resources.OpenStackMachineTemplate(k8s, cluster, nodegroup).delete()
+        resources.OpenStackMachineTemplate(k8s, cluster, nodegroup).apply()
 
         if nodegroup.role == "master":
             resources.KubeadmControlPlane(
