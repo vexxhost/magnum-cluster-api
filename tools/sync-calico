@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# This script is used to sync the Calico manifests from the Calico repo to the
+# manifests folder.
+
+declare -a VERSIONS=(
+  v3.24.2
+)
+
+for i in "${VERSIONS[@]}"; do
+  curl -q https://raw.githubusercontent.com/projectcalico/calico/${i}/manifests/calico.yaml > magnum_cluster_api/manifests/calico/${i}.yaml
+done
