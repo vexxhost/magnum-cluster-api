@@ -57,6 +57,11 @@ class BaseDriver(driver.Driver):
             k8s, cluster, osc.auth_url, osc.cinder_region_name(), credential
         ).apply()
 
+        resources.ApiCertificateAuthoritySecret(k8s, cluster).apply()
+        resources.EtcdCertificateAuthoritySecret(k8s, cluster).apply()
+        resources.FrontProxyCertificateAuthoritySecret(k8s, cluster).apply()
+        resources.ServiceAccountCertificateAuthoritySecret(k8s, cluster).apply()
+
         for node_group in cluster.nodegroups:
             self.create_nodegroup(context, cluster, node_group, credential=credential)
 
@@ -86,8 +91,10 @@ class BaseDriver(driver.Driver):
             # container_version
             # health_status_reason
 
-            if status_map.get("ControlPlaneReady") == "True":
-                cluster.api_address = f"https://{capi_cluster.obj['spec']['controlPlaneEndpoint']['host']}:{capi_cluster.obj['spec']['controlPlaneEndpoint']['port']}"
+            if status_map.get("ControlPlaneReady") != "True":
+                return
+
+            cluster.api_address = f"https://{capi_cluster.obj['spec']['controlPlaneEndpoint']['host']}:{capi_cluster.obj['spec']['controlPlaneEndpoint']['port']}"
 
             for node_group in cluster.nodegroups:
                 ng = self.update_nodegroup_status(context, cluster, node_group)
@@ -123,7 +130,12 @@ class BaseDriver(driver.Driver):
                 ).delete()
             except keystoneauth1.exceptions.http.NotFound:
                 pass
+
             resources.CloudConfigSecret(k8s, cluster).delete()
+            resources.ApiCertificateAuthoritySecret(k8s, cluster).delete()
+            resources.EtcdCertificateAuthoritySecret(k8s, cluster).delete()
+            resources.FrontProxyCertificateAuthoritySecret(k8s, cluster).delete()
+            resources.ServiceAccountCertificateAuthoritySecret(k8s, cluster).delete()
 
             cluster.status = objects.fields.ClusterStatus.DELETE_COMPLETE
             cluster.save()

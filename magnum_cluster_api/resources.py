@@ -10,7 +10,10 @@ import types
 from oslo_serialization import base64
 
 from magnum_cluster_api import objects
+from magnum.common.x509 import operations as x509
 from magnum.common import neutron
+from magnum.common import cert_manager
+from oslo_utils import encodeutils
 
 KUBE_TAG = "v1.25.3"
 CLOUD_PROVIDER_TAG = "v1.25.3"
@@ -204,6 +207,56 @@ class CalicoClusterResourceSet(ClusterBase):
                 },
             },
         )
+
+
+class CertificateAuthoritySecret(ClusterBase):
+    def get_object(self) -> pykube.Secret:
+        ca_cert = cert_manager.get_backend().CertManager.get_cert(
+            getattr(self.cluster, self.REF),
+            resource_ref=self.cluster.uuid,
+        )
+
+        return pykube.Secret(
+            self.api,
+            {
+                "apiVersion": pykube.Secret.version,
+                "kind": pykube.Secret.kind,
+                "type": "kubernetes.io/tls",
+                "metadata": {
+                    "name": f"{name_from_cluster(self.cluster)}-{self.CERT}",
+                    "namespace": "magnum-system",
+                },
+                "stringData": {
+                    "tls.crt": encodeutils.safe_decode(ca_cert.get_certificate()),
+                    "tls.key": encodeutils.safe_decode(
+                        x509.decrypt_key(
+                            ca_cert.get_private_key(),
+                            ca_cert.get_private_key_passphrase()
+                        )
+                    ),
+                },
+            },
+        )
+
+
+class ApiCertificateAuthoritySecret(CertificateAuthoritySecret):
+    CERT = "ca"
+    REF = "ca_cert_ref"
+
+
+class EtcdCertificateAuthoritySecret(CertificateAuthoritySecret):
+    CERT = "etcd"
+    REF = "etcd_ca_cert_ref"
+
+
+class FrontProxyCertificateAuthoritySecret(CertificateAuthoritySecret):
+    CERT = "proxy"
+    REF = "front_proxy_ca_cert_ref"
+
+
+class ServiceAccountCertificateAuthoritySecret(CertificateAuthoritySecret):
+    CERT = "sa"
+    REF = "magnum_cert_ref"
 
 
 class CloudConfigSecret(ClusterBase):
