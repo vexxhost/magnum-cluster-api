@@ -106,9 +106,8 @@ to use [DevStack](https://docs.openstack.org/magnum/latest/contributor/quickstar
 
 ## TODO:
 - audit all labels + options to make sure it works
-- csi
-- autohealing
-- autoscaling
+- autohealing => https://cluster-api.sigs.k8s.io/tasks/automated-machine-management/healthchecking.html
+- autoscaling => https://cluster-api.sigs.k8s.io/tasks/automated-machine-management/autoscaling.html
 - pre-commit
 - boot from volume
 - custom image location
