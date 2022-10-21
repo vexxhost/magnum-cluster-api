@@ -1,0 +1,137 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-cinder-controller-sa
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: csi-cinder-controllerplugin
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: csi-cinder-controllerplugin
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: csi-cinder-controllerplugin
+    spec:
+      containers:
+      - args:
+        - --csi-address=$(ADDRESS)
+        - --timeout=3m
+        - --leader-election=true
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        image: k8s.gcr.io/sig-storage/csi-attacher:v3.4.0
+        imagePullPolicy: IfNotPresent
+        name: csi-attacher
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+      - args:
+        - --csi-address=$(ADDRESS)
+        - --timeout=3m
+        - --default-fstype=ext4
+        - --feature-gates=Topology=true
+        - --extra-create-metadata
+        - --leader-election=true
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        image: k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0
+        imagePullPolicy: IfNotPresent
+        name: csi-provisioner
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+      - args:
+        - --csi-address=$(ADDRESS)
+        - --timeout=3m
+        - --extra-create-metadata
+        - --leader-election=true
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        image: k8s.gcr.io/sig-storage/csi-snapshotter:v6.0.1
+        imagePullPolicy: Always
+        name: csi-snapshotter
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+      - args:
+        - --csi-address=$(ADDRESS)
+        - --timeout=3m
+        - --handle-volume-inuse-error=false
+        - --leader-election=true
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        image: k8s.gcr.io/sig-storage/csi-resizer:v1.4.0
+        imagePullPolicy: IfNotPresent
+        name: csi-resizer
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+      - args:
+        - --csi-address=$(ADDRESS)
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        image: k8s.gcr.io/sig-storage/livenessprobe:v2.7.0
+        name: liveness-probe
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+      - args:
+        - /bin/cinder-csi-plugin
+        - --endpoint=$(CSI_ENDPOINT)
+        - --cloud-config=$(CLOUD_CONFIG)
+        - --cluster=$(CLUSTER_NAME)
+        env:
+        - name: CSI_ENDPOINT
+          value: unix://csi/csi.sock
+        - name: CLOUD_CONFIG
+          value: /etc/config/cloud.conf
+        - name: CLUSTER_NAME
+          value: kubernetes
+        image: docker.io/k8scloudprovider/cinder-csi-plugin:latest
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /healthz
+            port: healthz
+          initialDelaySeconds: 10
+          periodSeconds: 60
+          timeoutSeconds: 10
+        name: cinder-csi-plugin
+        ports:
+        - containerPort: 9808
+          name: healthz
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /csi
+          name: socket-dir
+        - mountPath: /etc/config/cloud.conf
+          name: secret-cinderplugin
+          readOnly: true
+      securityContext:
+        runAsUser: 0
+      serviceAccount: csi-cinder-controller-sa
+      volumes:
+      - emptyDir: null
+        name: socket-dir
+      - hostPath:
+          path: /etc/kubernetes/cloud.conf
+          type: File
+        name: secret-cinderplugin

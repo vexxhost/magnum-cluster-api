@@ -1,0 +1,117 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-cinder-node-sa
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: csi-cinder-nodeplugin
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-cinder-nodeplugin
+  template:
+    metadata:
+      labels:
+        app: csi-cinder-nodeplugin
+    spec:
+      containers:
+      - args:
+        - --csi-address=$(ADDRESS)
+        - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
+        env:
+        - name: ADDRESS
+          value: /csi/csi.sock
+        - name: DRIVER_REG_SOCK_PATH
+          value: /var/lib/kubelet/plugins/cinder.csi.openstack.org/csi.sock
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.1
+        imagePullPolicy: IfNotPresent
+        name: node-driver-registrar
+        volumeMounts:
+        - mountPath: /csi
+          name: socket-dir
+        - mountPath: /registration
+          name: registration-dir
+      - args:
+        - --csi-address=/csi/csi.sock
+        image: k8s.gcr.io/sig-storage/livenessprobe:v2.7.0
+        name: liveness-probe
+        volumeMounts:
+        - mountPath: /csi
+          name: socket-dir
+      - args:
+        - /bin/cinder-csi-plugin
+        - --endpoint=$(CSI_ENDPOINT)
+        - --cloud-config=$(CLOUD_CONFIG)
+        env:
+        - name: CSI_ENDPOINT
+          value: unix://csi/csi.sock
+        - name: CLOUD_CONFIG
+          value: /etc/config/cloud.conf
+        image: docker.io/k8scloudprovider/cinder-csi-plugin:latest
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /healthz
+            port: healthz
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+        name: cinder-csi-plugin
+        ports:
+        - containerPort: 9808
+          name: healthz
+          protocol: TCP
+        securityContext:
+          allowPrivilegeEscalation: true
+          capabilities:
+            add:
+            - SYS_ADMIN
+          privileged: true
+        volumeMounts:
+        - mountPath: /csi
+          name: socket-dir
+        - mountPath: /var/lib/kubelet
+          mountPropagation: Bidirectional
+          name: kubelet-dir
+        - mountPath: /dev
+          mountPropagation: HostToContainer
+          name: pods-probe-dir
+        - mountPath: /etc/config/cloud.conf
+          name: secret-cinderplugin
+          readOnly: true
+      hostNetwork: true
+      securityContext:
+        runAsUser: 0
+      serviceAccount: csi-cinder-node-sa
+      tolerations:
+      - operator: Exists
+      volumes:
+      - hostPath:
+          path: /var/lib/kubelet/plugins/cinder.csi.openstack.org
+          type: DirectoryOrCreate
+        name: socket-dir
+      - hostPath:
+          path: /var/lib/kubelet/plugins_registry/
+          type: Directory
+        name: registration-dir
+      - hostPath:
+          path: /var/lib/kubelet
+          type: Directory
+        name: kubelet-dir
+      - hostPath:
+          path: /dev
+          type: Directory
+        name: pods-probe-dir
+      - hostPath:
+          path: /etc/kubernetes/cloud.conf
+          type: File
+        name: secret-cinderplugin

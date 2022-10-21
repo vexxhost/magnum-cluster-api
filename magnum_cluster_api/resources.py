@@ -18,6 +18,7 @@ from oslo_utils import encodeutils
 KUBE_TAG = "v1.25.3"
 CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
+CSI_TAG = "v1.25.3"
 
 
 class Base:
@@ -209,6 +210,67 @@ class CalicoClusterResourceSet(ClusterBase):
         )
 
 
+class CinderCSIConfigMap(ClusterBase):
+    def get_object(self) -> pykube.ConfigMap:
+        version = get_label_value(self.cluster, "cinder_csi_plugin_tag", CSI_TAG)
+
+        manifests_path = pkg_resources.resource_filename(
+            "magnum_cluster_api.manifests", "csi"
+        )
+        manifests = glob.glob(os.path.join(manifests_path, "*.yaml"))
+
+        return pykube.ConfigMap(
+            self.api,
+            {
+                "apiVersion": pykube.ConfigMap.version,
+                "kind": pykube.ConfigMap.kind,
+                "metadata": {
+                    "name": f"cinder-csi-{version}",
+                    "namespace": "magnum-system",
+                },
+                "data": {
+                    os.path.basename(m): open(m)
+                    .read()
+                    .replace(
+                        "docker.io/k8scloudprovider/cinder-csi-plugin:latest",
+                        f"docker.io/k8scloudprovider/cinder-csi-plugin:{version}",
+                    )
+                    for m in manifests
+                },
+            },
+        )
+
+
+class CinderCSIClusterResourceSet(ClusterBase):
+    def get_object(self) -> objects.ClusterResourceSet:
+        version = get_label_value(self.cluster, "cinder_csi_plugin_tag", CSI_TAG)
+
+        return objects.ClusterResourceSet(
+            self.api,
+            {
+                "apiVersion": objects.ClusterResourceSet.version,
+                "kind": objects.ClusterResourceSet.kind,
+                "metadata": {
+                    "name": f"cinder-csi-{version}",
+                    "namespace": "magnum-system",
+                },
+                "spec": {
+                    "clusterSelector": {
+                        "matchLabels": {
+                            "csi": f"cinder-csi-{version}",
+                        },
+                    },
+                    "resources": [
+                        {
+                            "name": f"cinder-csi-{version}",
+                            "kind": "ConfigMap",
+                        },
+                    ],
+                },
+            },
+        )
+
+
 class CertificateAuthoritySecret(ClusterBase):
     def get_object(self) -> pykube.Secret:
         ca_cert = cert_manager.get_backend().CertManager.get_cert(
@@ -231,7 +293,7 @@ class CertificateAuthoritySecret(ClusterBase):
                     "tls.key": encodeutils.safe_decode(
                         x509.decrypt_key(
                             ca_cert.get_private_key(),
-                            ca_cert.get_private_key_passphrase()
+                            ca_cert.get_private_key_passphrase(),
                         )
                     ),
                 },
@@ -337,7 +399,30 @@ class OpenStackMachineTemplate(NodeGroupBase):
 
 
 class KubeadmConfigTemplate(ClusterBase):
+    def __init__(
+        self,
+        api: pykube.HTTPClient,
+        cluster: any,
+        auth_url: str = None,
+        region_name: str = None,
+        credential: any = types.SimpleNamespace(id=None, secret=None),
+    ):
+        super().__init__(api, cluster)
+        self.auth_url = auth_url
+        self.region_name = region_name
+        self.credential = credential
+
     def get_object(self) -> objects.KubeadmConfigTemplate:
+        ccm_config = textwrap.dedent(
+            f"""\
+            [Global]
+            auth-url={self.auth_url}
+            region={self.region_name}
+            application-credential-id={self.credential.id}
+            application-credential-secret={self.credential.secret}
+            """
+        )
+
         return objects.KubeadmConfigTemplate(
             self.api,
             {
@@ -351,6 +436,15 @@ class KubeadmConfigTemplate(ClusterBase):
                 "spec": {
                     "template": {
                         "spec": {
+                            "files": [
+                                {
+                                    "path": "/etc/kubernetes/cloud.conf",
+                                    "owner": "root:root",
+                                    "permissions": "0600",
+                                    "content": base64.encode_as_text(ccm_config),
+                                    "encoding": "base64",
+                                },
+                            ],
                             "joinConfiguration": {
                                 "nodeRegistration": {
                                     "name": "{{ local_hostname }}",
@@ -358,7 +452,7 @@ class KubeadmConfigTemplate(ClusterBase):
                                         "cloud-provider": "external",
                                     },
                                 },
-                            }
+                            },
                         }
                     }
                 },
@@ -493,7 +587,9 @@ class MachineDeployment(NodeGroupBase):
                             "infrastructureRef": {
                                 "apiVersion": objects.OpenStackMachineTemplate.version,
                                 "kind": objects.OpenStackMachineTemplate.kind,
-                                "name": name_from_node_group(self.cluster, self.node_group),
+                                "name": name_from_node_group(
+                                    self.cluster, self.node_group
+                                ),
                             },
                         }
                     },
@@ -552,13 +648,18 @@ class Cluster(ClusterBase):
         )
         cni_verison = get_label_value(self.cluster, "calico_tag", CALICO_TAG)
 
-        return {
-            **super().labels,
-            **{
-                "cni": f"calico-{cni_verison}",
-                "ccm": f"openstack-cloud-controller-manager-{ccm_version}",
-            },
+        labels = {
+            "cni": f"calico-{cni_verison}",
+            "ccm": f"openstack-cloud-controller-manager-{ccm_version}",
         }
+
+        if get_label_value(self.cluster, "cinder_csi_enabled", True):
+            csi_version = get_label_value(
+                self.cluster, "cinder_csi_plugin_tag", CSI_TAG
+            )
+            labels["csi"] = f"cinder-csi-{csi_version}"
+
+        return {**super().labels, **labels}
 
     def get_object(self) -> objects.Cluster:
         return objects.Cluster(

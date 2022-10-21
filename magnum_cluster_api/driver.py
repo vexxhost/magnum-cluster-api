@@ -40,12 +40,15 @@ class BaseDriver(driver.Driver):
         k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
 
         resources.Namespace(k8s).apply()
+
         resources.CloudControllerManagerConfigMap(k8s, cluster).apply()
         resources.CloudControllerManagerClusterResourceSet(k8s, cluster).apply()
 
-        if cluster.cluster_template.network_driver == "calico":
-            resources.CalicoConfigMap(k8s, cluster).apply()
-            resources.CalicoClusterResourceSet(k8s, cluster).apply()
+        resources.CalicoConfigMap(k8s, cluster).apply()
+        resources.CalicoClusterResourceSet(k8s, cluster).apply()
+
+        resources.CinderCSIConfigMap(k8s, cluster).apply()
+        resources.CinderCSIClusterResourceSet(k8s, cluster).apply()
 
         credential = osc.keystone().client.application_credentials.create(
             user=cluster.user_id,
@@ -200,7 +203,13 @@ class BaseDriver(driver.Driver):
                 credential=credential,
             ).apply()
         else:
-            resources.KubeadmConfigTemplate(k8s, cluster).apply()
+            resources.KubeadmConfigTemplate(
+                k8s,
+                cluster,
+                auth_url=osc.auth_url,
+                region_name=osc.cinder_region_name(),
+                credential=credential,
+            ).apply()
             resources.MachineDeployment(k8s, cluster, nodegroup).apply()
 
     def update_nodegroup_status(self, context, cluster, nodegroup):
