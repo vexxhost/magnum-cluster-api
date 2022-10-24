@@ -13,7 +13,7 @@ will need to have an existing Magnum deployment.
    git clone https://opendev.org/openstack/devstack /opt/stack
    ```
 
-2. Create a DevStack configuration file
+1. Create a DevStack configuration file
 
    ```bash
    sudo apt-get update
@@ -149,13 +149,14 @@ will need to have an existing Magnum deployment.
    eval $(openstack coe cluster config k8s-cluster)
    ```
 
-## TODO:
+## TODO
+
 - audit all labels + options to make sure it works
 - cluster resize
 - cluster upgrade
-- autohealing => https://cluster-api.sigs.k8s.io/tasks/automated-machine-management/healthchecking.html
-- autoscaling => https://cluster-api.sigs.k8s.io/tasks/automated-machine-management/autoscaling.html
-- pre-commit
+- [autohealing](https://cluster-api.sigs.k8s.io/tasks/automated-machine-management/healthchecking.html)
+  with `auto_healing_enabled`
+- [autoscaling](https://cluster-api.sigs.k8s.io/tasks/automated-machine-management/autoscaling.html)
 - boot from volume
 - custom image location
 - ingress

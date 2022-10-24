@@ -1,19 +1,18 @@
-import textwrap
-import pykube
-import json
-import pkg_resources
 import glob
+import json
 import os
-import yaml
+import textwrap
 import types
 
+import pkg_resources
+import pykube
+import yaml
+from magnum.common import cert_manager, neutron
+from magnum.common.x509 import operations as x509
 from oslo_serialization import base64
+from oslo_utils import encodeutils
 
 from magnum_cluster_api import objects
-from magnum.common.x509 import operations as x509
-from magnum.common import neutron
-from magnum.common import cert_manager
-from oslo_utils import encodeutils
 
 KUBE_TAG = "v1.25.3"
 CLOUD_PROVIDER_TAG = "v1.25.3"

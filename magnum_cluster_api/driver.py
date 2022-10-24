@@ -12,24 +12,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import os
-import pykube
-import pkg_resources
-import glob
-
-import textwrap
-import yaml
-import json
-
-import oslo_serialization
-
 import keystoneauth1
-
-from magnum.common import clients
-from magnum.drivers.common import driver
-from magnum.common import neutron
+import pykube
 from magnum import objects
-from magnum.drivers.common import k8s_monitor
+from magnum.common import clients
+from magnum.drivers.common import driver, k8s_monitor
 
 from magnum_cluster_api import resources
 
@@ -97,7 +84,10 @@ class BaseDriver(driver.Driver):
             if status_map.get("ControlPlaneReady") != "True":
                 return
 
-            cluster.api_address = f"https://{capi_cluster.obj['spec']['controlPlaneEndpoint']['host']}:{capi_cluster.obj['spec']['controlPlaneEndpoint']['port']}"
+            api_endpoint = capi_cluster.obj["status"]["controlPlaneEndpoint"]
+            cluster.api_address = (
+                f"https://{api_endpoint['host']}:{api_endpoint['port']}"
+            )
 
             for node_group in cluster.nodegroups:
                 ng = self.update_nodegroup_status(context, cluster, node_group)

@@ -16,7 +16,7 @@ MANIFESTS = set(
 
 
 for manifest in MANIFESTS:
-    url = f"https://raw.githubusercontent.com/kubernetes/cloud-provider-openstack/master/manifests/controller-manager/{manifest}"
+    url = f"https://raw.githubusercontent.com/kubernetes/cloud-provider-openstack/master/manifests/controller-manager/{manifest}"  # noqa E501
 
     r = requests.get(url)
 
@@ -28,7 +28,9 @@ for manifest in MANIFESTS:
         if doc["kind"] == "DaemonSet":
             # NOTE(mnaser): Use `/etc/kuberentes/cloud.conf` instead of the
             #               default mounted secret.
-            doc["spec"]["template"]["spec"]["containers"][0]["volumeMounts"][2]["mountPath"] = "/etc/config/cloud.conf"
+            doc["spec"]["template"]["spec"]["containers"][0]["volumeMounts"][2][
+                "mountPath"
+            ] = "/etc/config/cloud.conf"
             doc["spec"]["template"]["spec"]["volumes"][2]["hostPath"] = {
                 "type": "File",
                 "path": "/etc/kubernetes/cloud.conf",
