@@ -3,8 +3,7 @@
 ## Testing & Development
 
 In order to be able to test and develop the `magnum-cluster-api` project, you
-will need to have an existing Magnum deployment.  The easiest way to do this is
-to use [DevStack](https://docs.openstack.org/magnum/latest/contributor/quickstart.html).
+will need to have an existing Magnum deployment.
 
 1. Clone the DevStack repository
 
@@ -44,6 +43,12 @@ to use [DevStack](https://docs.openstack.org/magnum/latest/contributor/quickstar
    advertise_mtu = True
    global_physnet_mtu = 1400
    EOF
+   ```
+
+1. Start the DevStack deployment
+
+   ```bash
+   /opt/stack/stack.sh
    ```
 
 1. Install the `kubectl` CLI:
