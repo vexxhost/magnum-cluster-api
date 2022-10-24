@@ -6,6 +6,46 @@ In order to be able to test and develop the `magnum-cluster-api` project, you
 will need to have an existing Magnum deployment.  The easiest way to do this is
 to use [DevStack](https://docs.openstack.org/magnum/latest/contributor/quickstart.html).
 
+1. Clone the DevStack repository
+
+   ```bash
+   sudo mkdir -p /opt/stack
+   sudo chown -Rv ${USER}. /opt/stack
+   git clone https://opendev.org/openstack/devstack /opt/stack
+   ```
+
+2. Create a DevStack configuration file
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y pwgen
+   cat <<EOF > /opt/stack/local.conf
+   [[local|localrc]]
+   KEYSTONE_ADMIN_ENDPOINT=true
+   DATABASE_PASSWORD=$(pwgen 32 1)
+   RABBIT_PASSWORD=$(pwgen 32 1)
+   SERVICE_PASSWORD=$(pwgen 32 1)
+   ADMIN_PASSWORD=$(pwgen 32 1)
+   LIBVIRT_TYPE=kvm
+   VOLUME_BACKING_FILE_SIZE=50G
+   enable_plugin barbican https://opendev.org/openstack/barbican
+   enable_plugin heat https://opendev.org/openstack/heat
+   enable_plugin neutron https://opendev.org/openstack/neutron
+   enable_plugin magnum https://opendev.org/openstack/magnum
+   enable_plugin magnum-ui https://opendev.org/openstack/magnum-ui
+   enable_plugin octavia https://opendev.org/openstack/octavia
+   enable_service octavia
+   enable_service o-cw
+   enable_service o-api
+   enable_service o-hk
+   enable_service o-hm
+   [[post-config|/etc/neutron/neutron.conf]]
+   [DEFAULT]
+   advertise_mtu = True
+   global_physnet_mtu = 1400
+   EOF
+   ```
+
 1. Install the `kubectl` CLI:
 
    ```bash
