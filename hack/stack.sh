@@ -12,8 +12,9 @@ sudo chown -R ${USER}. /opt/stack
 if [ ! -f /opt/stack/stack.sh ]; then
     git clone https://git.openstack.org/openstack-dev/devstack /opt/stack
 else
-    cd /opt/stack
-    git pull
+    pushd /opt/stack
+    git pul
+    popd
 fi
 
 # Create DevStack configuration file
