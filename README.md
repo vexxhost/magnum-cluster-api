@@ -40,14 +40,22 @@ steps to be able to test and develop the project.
 1. Upload an image to use with Magnum
 
    ```bash
-   TODO
+   pushd /tmp
+   curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2004-v1.25.3.qcow2
+   source /opt/stack/openrc
+   openstack image create ubuntu-2004-v1.25.3  \
+     --disk-format=qcow2 \
+     --container-format=bare \
+     --property os_distro=ubuntu-focal \
+     --file=ubuntu-2004-v1.25.3.qcow2
+   popd /tmp
    ```
 
 1. Create a cluster template that uses the Cluster API driver
 
    ```bash
    openstack coe cluster template create \
-     --image 2fe53e0a-4f77-4608-beb8-12fdc595c03b \
+     --image $(openstack image show ubuntu-2004-v1.25.3 -c id -f value) \
      --external-network public \
      --dns-nameserver 8.8.8.8 \
      --master-lb-enabled \
