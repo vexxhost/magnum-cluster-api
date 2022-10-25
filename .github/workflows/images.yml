@@ -1,0 +1,42 @@
+name: images
+on:
+  pull_request:
+    paths:
+      - .github/workflows/images.yml
+      - magnum_cluster_api/cmd/image_builder.py
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/images.yml
+      - magnum_cluster_api/cmd/image_builder.py
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes-version:
+          - v1.23.13
+          - v1.24.7
+          - v1.25.3
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v3.1.0
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Setup Python
+        uses: actions/setup-python@v4.3.0
+        with:
+          cache: poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Build image
+        run: poetry run magnum-cluster-api-image-builder --version ${{ matrix.kubernetes-version }}
+
+      # TODO: upload to swift if push to main

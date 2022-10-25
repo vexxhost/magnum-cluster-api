@@ -1,0 +1,18 @@
+#!/bin/bash -e
+
+RELEASES=(
+  "v1.23"
+  "v1.24"
+  "v1.25"
+)
+
+# Loop over all of the releases and get the latest patch release
+for RELEASE in ${RELEASES[@]}; do
+  LATEST_TAG=$(gh release list --repo kubernetes/kubernetes | grep ${RELEASE} | head -1 | awk '{ print $2 }')
+
+  LINE="* [${LATEST_TAG}](https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2004-${LATEST_TAG}.qcow2)"
+  sed -i "s%* \[${RELEASE}.*%${LINE}%g" README.md
+
+  LINE="- ${LATEST_TAG}"
+  sed -i "s%- ${RELEASE}.*%${LINE}%g" .github/workflows/images.yml
+done

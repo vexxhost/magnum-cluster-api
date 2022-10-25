@@ -1,5 +1,30 @@
 # `magnum-cluster-api`
 
+## Images
+
+The images are built and published to an object storage bucket hosted at the
+[VEXXHOST](https://vexxhost.com) public cloud.  These images are built and
+published for the latest stable release of Kubernetes.
+
+### Pre-built images
+
+You can find the pre-built images for the latest stable release of Kubernetes
+at the following URL:
+
+* [v1.23.13](https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2004-v1.23.13.qcow2)
+* [v1.24.7](https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2004-v1.24.7.qcow2)
+* [v1.25.3](https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2004-v1.25.3.qcow2)
+
+### Building images
+
+The Cluster API driver for Magnum provides a tool in order to build images, you
+can use it by installing the `magnum-cluster-api` package and running the
+the following command:
+
+```bash
+magnum-cluster-api-image-builder
+```
+
 ## Testing & Development
 
 In order to be able to test and develop the `magnum-cluster-api` project, you
@@ -53,15 +78,15 @@ steps to be able to test and develop the project.
 
 ## TODO
 
-- audit all labels + options to make sure it works
-- cluster resize
-- cluster upgrade
-- [autohealing](https://cluster-api.sigs.k8s.io/tasks/automated-machine-management/healthchecking.html)
+* audit all labels + options to make sure it works
+* cluster resize
+* cluster upgrade
+* [autohealing](https://cluster-api.sigs.k8s.io/tasks/automated-machine-management/healthchecking.html)
   with `auto_healing_enabled`
-- [autoscaling](https://cluster-api.sigs.k8s.io/tasks/automated-machine-management/autoscaling.html)
-- boot from volume
-- custom image location
-- ingress
-- k8s_keystone_auth_tag
-- kube_dashboard_enabled
-- monitoring (maybe?)
+* [autoscaling](https://cluster-api.sigs.k8s.io/tasks/automated-machine-management/autoscaling.html)
+* boot from volume
+* custom image location
+* ingress
+* k8s_keystone_auth_tag
+* kube_dashboard_enabled
+* monitoring (maybe?)
