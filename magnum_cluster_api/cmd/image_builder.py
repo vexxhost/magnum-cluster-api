@@ -1,3 +1,4 @@
+import getpass
 import json
 import os
 import subprocess
@@ -57,7 +58,7 @@ def main(operating_system, version, image_builder_version):
 
     click.echo("- Add current user to KVM group")
     subprocess.run(
-        ["sudo", "/usr/sbin/usermod", "-a", "-G", "kvm", os.getlogin()], check=True
+        ["sudo", "/usr/sbin/usermod", "-a", "-G", "kvm", getpass.getuser()], check=True
     )
 
     click.echo("- Update permissions for the KVM device")
