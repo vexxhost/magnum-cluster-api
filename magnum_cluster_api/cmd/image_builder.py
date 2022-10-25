@@ -41,9 +41,9 @@ QEMU_PACKAGES = [
     default="v0.1.13",
     help="Image builder tag (or commit) to use for building image",
 )
-def main(version, image_builder_version):
+def main(operating_system, version, image_builder_version):
     ib_path = f"/tmp/image-builder-{image_builder_version}"
-    output = f"ubuntu-2004-kube-v{version}"
+    output = f"{operating_system}-kube-v{version}"
 
     target = f"{ib_path}/images/capi/output/{output}/{output}"
     if os.path.exists(target):
@@ -111,7 +111,7 @@ def main(version, image_builder_version):
                 /usr/bin/make \
                 -C \
                 {ib_path}/images/capi \
-                build-qemu-ubuntu-2004
+                build-qemu-{operating_system}
             """
             ).encode("utf-8"),
             env={
