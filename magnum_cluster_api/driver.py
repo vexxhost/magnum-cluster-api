@@ -84,7 +84,7 @@ class BaseDriver(driver.Driver):
             if status_map.get("ControlPlaneReady") != "True":
                 return
 
-            api_endpoint = capi_cluster.obj["status"]["controlPlaneEndpoint"]
+            api_endpoint = capi_cluster.obj["spec"]["controlPlaneEndpoint"]
             cluster.api_address = (
                 f"https://{api_endpoint['host']}:{api_endpoint['port']}"
             )
