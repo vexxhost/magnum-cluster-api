@@ -26,6 +26,7 @@ SERVICE_PASSWORD=secrete123
 ADMIN_PASSWORD=secrete123
 LIBVIRT_TYPE=kvm
 VOLUME_BACKING_FILE_SIZE=50G
+GLANCE_LIMIT_IMAGE_SIZE_TOTAL=5000
 enable_plugin barbican https://opendev.org/openstack/barbican
 enable_plugin heat https://opendev.org/openstack/heat
 enable_plugin neutron https://opendev.org/openstack/neutron
@@ -44,26 +45,25 @@ global_physnet_mtu = 1400
 EOF
 
 # Start DevStack deployment
-# /opt/stack/stack.sh
+/opt/stack/stack.sh
 
 # Install `kubectl` CLI
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+curl -Lo /tmp/kubectl "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
 
 # Install Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
+curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+sudo sh /tmp/get-docker.sh
 sudo usermod -aG docker $USER
 
 # Install `kind` CLI
 sudo curl -Lo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.16.0/kind-linux-amd64
 sudo chmod +x /usr/local/bin/kind
 
-# Switch to "docker" group
-newgrp docker
-
-# Create a `kind` cluster
+# Create a `kind` cluster inside "docker" group
+newgrp docker <<EOF
 kind create cluster
+EOF
 
 # Install the `clusterctl` CLI
 sudo curl -Lo /usr/local/bin/clusterctl https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.2.4/clusterctl-linux-amd64
