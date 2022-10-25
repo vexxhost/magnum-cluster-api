@@ -33,7 +33,7 @@ QEMU_PACKAGES = [
 @click.option(
     "--version",
     show_default=True,
-    default="1.25.3",
+    default="v1.25.3",
     help="Kubernetes version",
 )
 @click.option(
@@ -44,7 +44,7 @@ QEMU_PACKAGES = [
 )
 def main(operating_system, version, image_builder_version):
     ib_path = f"/tmp/image-builder-{image_builder_version}"
-    output = f"{operating_system}-kube-v{version}"
+    output = f"{operating_system}-kube-{version}"
 
     target = f"{ib_path}/images/capi/output/{output}/{output}"
     if os.path.exists(target):
@@ -93,9 +93,9 @@ def main(operating_system, version, image_builder_version):
     click.echo("- Create customization file")
     kubernetes_series = ".".join(version.split(".")[0:2])
     customization = {
-        "kubernetes_deb_version": f"{version}-00",
-        "kubernetes_semver": f"v{version}",
-        "kubernetes_series": f"v{kubernetes_series}",
+        "kubernetes_deb_version": f"{version.replace('v', '')}-00",
+        "kubernetes_semver": f"{version}",
+        "kubernetes_series": f"{kubernetes_series}",
     }
     with tempfile.NamedTemporaryFile(suffix=".json") as fp:
         fp.write(json.dumps(customization).encode("utf-8"))

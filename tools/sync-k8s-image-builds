@@ -10,9 +10,9 @@ RELEASES=(
 for RELEASE in ${RELEASES[@]}; do
   LATEST_TAG=$(gh release list --repo kubernetes/kubernetes | grep ${RELEASE} | head -1 | awk '{ print $2 }')
 
+  magnum-cluster-api-image-builder --version ${LATEST_TAG}
+  openstack object create --name ubuntu-2004-${LATEST_TAG}.qcow2 magnum-capi /tmp/image-builder-*/images/capi/output/ubuntu-2004-kube-${LATEST_TAG}/ubuntu-2004-kube-${LATEST_TAG}
+
   LINE="* [${LATEST_TAG}](https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2004-${LATEST_TAG}.qcow2)"
   sed -i "s%* \[${RELEASE}.*%${LINE}%g" README.md
-
-  LINE="- ${LATEST_TAG}"
-  sed -i "s%- ${RELEASE}.*%${LINE}%g" .github/workflows/images.yml
 done
