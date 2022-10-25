@@ -3,111 +3,13 @@
 ## Testing & Development
 
 In order to be able to test and develop the `magnum-cluster-api` project, you
-will need to have an existing Magnum deployment.
+will need to have an existing Magnum deployment.  You can use the following
+steps to be able to test and develop the project.
 
-1. Clone the DevStack repository
-
-   ```bash
-   sudo mkdir -p /opt/stack
-   sudo chown -Rv ${USER}. /opt/stack
-   git clone https://opendev.org/openstack/devstack /opt/stack
-   ```
-
-1. Create a DevStack configuration file
+1. Start up a DevStack environment with all Cluster API dependencies
 
    ```bash
-   sudo apt-get update
-   sudo apt-get install -y pwgen
-   cat <<EOF > /opt/stack/local.conf
-   [[local|localrc]]
-   KEYSTONE_ADMIN_ENDPOINT=true
-   DATABASE_PASSWORD=$(pwgen 32 1)
-   RABBIT_PASSWORD=$(pwgen 32 1)
-   SERVICE_PASSWORD=$(pwgen 32 1)
-   ADMIN_PASSWORD=$(pwgen 32 1)
-   LIBVIRT_TYPE=kvm
-   VOLUME_BACKING_FILE_SIZE=50G
-   enable_plugin barbican https://opendev.org/openstack/barbican
-   enable_plugin heat https://opendev.org/openstack/heat
-   enable_plugin neutron https://opendev.org/openstack/neutron
-   enable_plugin magnum https://opendev.org/openstack/magnum
-   enable_plugin magnum-ui https://opendev.org/openstack/magnum-ui
-   enable_plugin octavia https://opendev.org/openstack/octavia
-   enable_service octavia
-   enable_service o-cw
-   enable_service o-api
-   enable_service o-hk
-   enable_service o-hm
-   [[post-config|/etc/neutron/neutron.conf]]
-   [DEFAULT]
-   advertise_mtu = True
-   global_physnet_mtu = 1400
-   EOF
-   ```
-
-1. Start the DevStack deployment
-
-   ```bash
-   /opt/stack/stack.sh
-   ```
-
-1. Install the `kubectl` CLI:
-
-   ```bash
-   curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-   sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-   ```
-
-1. Install Docker
-
-   ```bash
-   curl -fsSL https://get.docker.com -o get-docker.sh
-   sudo sh get-docker.sh
-   ```
-
-1. Install the `kind` CLI:
-
-   ```bash
-   curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.16.0/kind-linux-amd64
-   chmod +x ./kind
-   sudo mv ./kind /usr/local/bin/kind
-   ```
-
-1. Create a local Kubernetes cluster using KinD:
-
-   ```bash
-   kind create cluster
-   ```
-
-1. Install the `clusterctl` CLI:
-
-   ```bash
-   curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.2.5/clusterctl-linux-amd64 -o clusterctl
-   chmod +x ./clusterctl
-   sudo mv ./clusterctl /usr/local/bin/clusterctl
-   clusterctl version
-   ```
-
-1. Enable the `ClusterResourceSet` feature gate and initialize all the
-   necessary components:
-
-   ```bash
-    export EXP_CLUSTER_RESOURCE_SET=true
-    clusterctl init --infrastructure openstack
-    ```
-
-1. Install the `magnum-cluster-api` project as an editable dependency in order
-   to be able to test and develop it by running the following command inside
-   the folder where you cloned the `magnum-cluster-api` project:
-
-   ```bash
-   pip install -e .
-   ```
-
-1. Restart all of the Magnum services to pick up the added plugin:
-
-   ```bash
-   sudo systemctl restart devstack@magnum-{api,cond}
+   ./hack/stack.sh
    ```
 
 1. Upload an image to use with Magnum
