@@ -369,6 +369,19 @@ class CloudConfigSecret(ClusterBase):
 
 class OpenStackMachineTemplate(NodeGroupBase):
     def get_object(self) -> objects.OpenStackMachineTemplate:
+        spec = {
+            "cloudName": "default",
+            "flavor": self.node_group.flavor_id,
+            "identityRef": {
+                "kind": pykube.Secret.kind,
+                "name": f"{name_from_cluster(self.cluster)}-cloud-config",
+            },
+            "imageUUID": self.node_group.image_id,
+        }
+
+        if self.cluster.keypair:
+            spec["sshKeyName"] = self.cluster.keypair
+
         return objects.OpenStackMachineTemplate(
             self.api,
             {
@@ -379,20 +392,7 @@ class OpenStackMachineTemplate(NodeGroupBase):
                     "namespace": "magnum-system",
                     "labels": self.labels,
                 },
-                "spec": {
-                    "template": {
-                        "spec": {
-                            "cloudName": "default",
-                            "flavor": self.node_group.flavor_id,
-                            "identityRef": {
-                                "kind": pykube.Secret.kind,
-                                "name": f"{name_from_cluster(self.cluster)}-cloud-config",
-                            },
-                            "imageUUID": self.node_group.image_id,
-                            "sshKeyName": self.cluster.keypair,
-                        }
-                    }
-                },
+                "spec": {"template": {"spec": spec}},
             },
         )
 
