@@ -13,21 +13,21 @@
 * `audit_log_maxage`
 
    The number of days to retain audit logs.  This is only effective if the
-   `audit_logs_enabled` label is set to `true`.
+   `audit_log_enabled` label is set to `true`.
 
    Default value: `30`
 
 * `audit_log_maxbackup`
 
    The maximum number of audit log files to retain.  This is only effective if
-   the `audit_logs_enabled` label is set to `true`.
+   the `audit_log_enabled` label is set to `true`.
 
    Default value: `10`
 
 * `audit_log_maxsize`
 
    The maximum size in megabytes of the audit log file before it gets rotated.
-   This is only effective if the `audit_logs_enabled` label is set to `true`.
+   This is only effective if the `audit_log_enabled` label is set to `true`.
 
    Default value: `100`
 
