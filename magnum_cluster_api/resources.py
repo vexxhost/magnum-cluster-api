@@ -10,7 +10,7 @@ import yaml
 from magnum.common import cert_manager, neutron
 from magnum.common.x509 import operations as x509
 from oslo_serialization import base64
-from oslo_utils import encodeutils
+from oslo_utils import encodeutils, strutils
 
 from magnum_cluster_api import objects
 
@@ -485,6 +485,106 @@ class KubeadmControlPlane(NodeGroupBase):
             """
         )
 
+        spec = {
+            "replicas": self.node_group.node_count,
+            "version": get_label_value(self.cluster, "kube_tag", KUBE_TAG),
+            "kubeadmConfigSpec": {
+                "files": [
+                    {
+                        "path": "/etc/kubernetes/cloud.conf",
+                        "owner": "root:root",
+                        "permissions": "0600",
+                        "content": base64.encode_as_text(ccm_config),
+                        "encoding": "base64",
+                    },
+                ],
+                "clusterConfiguration": {
+                    "apiServer": {
+                        "extraArgs": {
+                            "cloud-provider": "external",
+                        },
+                        "extraVolumes": [],
+                    },
+                    "controllerManager": {
+                        "extraArgs": {
+                            "cloud-provider": "external",
+                        },
+                    },
+                },
+                "initConfiguration": {
+                    "nodeRegistration": {
+                        "name": "{{ local_hostname }}",
+                        "kubeletExtraArgs": {
+                            "cloud-provider": "external",
+                        },
+                    },
+                },
+                "joinConfiguration": {
+                    "nodeRegistration": {
+                        "name": "{{ local_hostname }}",
+                        "kubeletExtraArgs": {
+                            "cloud-provider": "external",
+                        },
+                    },
+                },
+            },
+            "machineTemplate": {
+                "infrastructureRef": {
+                    "apiVersion": objects.OpenStackMachineTemplate.version,
+                    "kind": objects.OpenStackMachineTemplate.kind,
+                    "name": name_from_node_group(self.cluster, self.node_group),
+                },
+            },
+        }
+
+        if get_bool_label_value(self.cluster, "audit_log_enabled", False):
+            spec["kubeadmConfigSpec"]["clusterConfiguration"]["apiServer"][
+                "extraArgs"
+            ].update(
+                {
+                    "audit-log-path": "/var/log/audit/kube-apiserver-audit.log",
+                    "audit-log-maxage": get_label_value(
+                        self.cluster, "audit_log_maxage", "30"
+                    ),
+                    "audit-log-maxbackup": get_label_value(
+                        self.cluster, "audit_log_maxbackup", "10"
+                    ),
+                    "audit-log-maxsize": get_label_value(
+                        self.cluster, "audit_log_maxsize", "100"
+                    ),
+                    "audit-policy-file": "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml",
+                }
+            )
+
+            spec["kubeadmConfigSpec"]["clusterConfiguration"]["apiServer"][
+                "extraVolumes"
+            ] += [
+                {
+                    "name": "audit-policy",
+                    "hostPath": "/etc/kubernetes/audit-policy",
+                    "mountPath": "/etc/kubernetes/audit-policy",
+                },
+                {
+                    "name": "audit-logs",
+                    "hostPath": "/var/log/kubernetes/audit",
+                    "mountPath": "/var/log/audit",
+                },
+            ]
+
+            manifests_path = pkg_resources.resource_filename(
+                "magnum_cluster_api.manifests", "audit"
+            )
+            audit_policy = open(os.path.join(manifests_path, "policy.yaml")).read()
+
+            spec["kubeadmConfigSpec"]["files"].append(
+                {
+                    "path": "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml",
+                    "permissions": "0600",
+                    "content": base64.encode_as_text(audit_policy),
+                    "encoding": "base64",
+                }
+            )
+
         return objects.KubeadmControlPlane(
             self.api,
             {
@@ -495,56 +595,7 @@ class KubeadmControlPlane(NodeGroupBase):
                     "namespace": "magnum-system",
                     "labels": self.labels,
                 },
-                "spec": {
-                    "replicas": self.node_group.node_count,
-                    "version": get_label_value(self.cluster, "kube_tag", KUBE_TAG),
-                    "kubeadmConfigSpec": {
-                        "files": [
-                            {
-                                "path": "/etc/kubernetes/cloud.conf",
-                                "owner": "root:root",
-                                "permissions": "0600",
-                                "content": base64.encode_as_text(ccm_config),
-                                "encoding": "base64",
-                            },
-                        ],
-                        "clusterConfiguration": {
-                            "apiServer": {
-                                "extraArgs": {
-                                    "cloud-provider": "external",
-                                },
-                            },
-                            "controllerManager": {
-                                "extraArgs": {
-                                    "cloud-provider": "external",
-                                },
-                            },
-                        },
-                        "initConfiguration": {
-                            "nodeRegistration": {
-                                "name": "{{ local_hostname }}",
-                                "kubeletExtraArgs": {
-                                    "cloud-provider": "external",
-                                },
-                            },
-                        },
-                        "joinConfiguration": {
-                            "nodeRegistration": {
-                                "name": "{{ local_hostname }}",
-                                "kubeletExtraArgs": {
-                                    "cloud-provider": "external",
-                                },
-                            },
-                        },
-                    },
-                    "machineTemplate": {
-                        "infrastructureRef": {
-                            "apiVersion": objects.OpenStackMachineTemplate.version,
-                            "kind": objects.OpenStackMachineTemplate.kind,
-                            "name": name_from_node_group(self.cluster, self.node_group),
-                        },
-                    },
-                },
+                "spec": spec,
             },
         )
 
@@ -652,7 +703,7 @@ class Cluster(ClusterBase):
             "ccm": f"openstack-cloud-controller-manager-{ccm_version}",
         }
 
-        if get_label_value(self.cluster, "cinder_csi_enabled", True):
+        if get_bool_label_value(self.cluster, "cinder_csi_enabled", True):
             csi_version = get_label_value(
                 self.cluster, "cinder_csi_plugin_tag", CSI_TAG
             )
@@ -697,6 +748,11 @@ class Cluster(ClusterBase):
                 },
             },
         )
+
+
+def get_bool_label_value(cluster: any, key: str, default: bool) -> bool:
+    value = get_label_value(cluster, key, default)
+    return strutils.bool_from_string(value, strict=True)
 
 
 def get_label_value(cluster: any, key: str, default: str) -> str:
