@@ -194,15 +194,6 @@ class BaseDriver(driver.Driver):
         for node_group in cluster.nodegroups:
             self.delete_nodegroup(context, cluster, node_group)
 
-    def create_federation(self, context, federation):
-        raise NotImplementedError("Subclasses must implement " "'create_federation'.")
-
-    def update_federation(self, context, federation):
-        raise NotImplementedError("Subclasses must implement " "'update_federation'.")
-
-    def delete_federation(self, context, federation):
-        raise NotImplementedError("Subclasses must implement " "'delete_federation'.")
-
     def create_nodegroup(self, context, cluster, nodegroup, credential=None):
         k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
         osc = clients.OpenStackClients(context)
@@ -281,6 +272,15 @@ class BaseDriver(driver.Driver):
     # def rotate_ca_certificate(self, context, cluster):
     #     raise exception.NotSupported(
     #         "'rotate_ca_certificate' is not supported by this driver.")
+
+    def create_federation(self, context, federation):
+        raise NotImplementedError()
+
+    def update_federation(self, context, federation):
+        raise NotImplementedError()
+
+    def delete_federation(self, context, federation):
+        raise NotImplementedError()
 
 
 class UbuntuFocalDriver(BaseDriver):
