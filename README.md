@@ -83,17 +83,3 @@ steps to be able to test and develop the project.
    ```bash
    eval $(openstack coe cluster config k8s-cluster)
    ```
-
-## TODO
-
-* audit all labels + options to make sure it works
-* cluster upgrade
-* [autohealing](https://cluster-api.sigs.k8s.io/tasks/automated-machine-management/healthchecking.html)
-  with `auto_healing_enabled`
-* [autoscaling](https://cluster-api.sigs.k8s.io/tasks/automated-machine-management/autoscaling.html)
-* boot from volume
-* custom image location
-* ingress
-* k8s_keystone_auth_tag
-* kube_dashboard_enabled
-* monitoring (maybe?)
