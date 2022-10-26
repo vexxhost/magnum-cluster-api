@@ -87,7 +87,6 @@ steps to be able to test and develop the project.
 ## TODO
 
 * audit all labels + options to make sure it works
-* cluster resize
 * cluster upgrade
 * [autohealing](https://cluster-api.sigs.k8s.io/tasks/automated-machine-management/healthchecking.html)
   with `auto_healing_enabled`

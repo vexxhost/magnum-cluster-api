@@ -14,11 +14,10 @@
 
 import keystoneauth1
 import pykube
-from magnum import objects
 from magnum.common import clients
 from magnum.drivers.common import driver, k8s_monitor
 
-from magnum_cluster_api import resources
+from magnum_cluster_api import objects, resources
 
 
 class BaseDriver(driver.Driver):
@@ -65,8 +64,8 @@ class BaseDriver(driver.Driver):
         capi_cluster = resources.Cluster(k8s, cluster).get_object()
 
         if cluster.status in (
-            objects.fields.ClusterStatus.CREATE_IN_PROGRESS,
-            objects.fields.ClusterStatus.UPDATE_IN_PROGRESS,
+            "CREATE_IN_PROGRESS",
+            "UPDATE_IN_PROGRESS",
         ):
             capi_cluster.reload()
             status_map = {
@@ -91,7 +90,10 @@ class BaseDriver(driver.Driver):
 
             for node_group in cluster.nodegroups:
                 ng = self.update_nodegroup_status(context, cluster, node_group)
-                if ng.status != objects.fields.ClusterStatus.CREATE_COMPLETE:
+                if ng.status not in (
+                    "CREATE_COMPLETE",
+                    "UPDATE_COMPLETE",
+                ):
                     return
 
                 if node_group.role == "master":
@@ -102,15 +104,15 @@ class BaseDriver(driver.Driver):
 
                     cluster.coe_version = kcp.obj["status"]["version"]
 
-            if cluster.status == objects.fields.ClusterStatus.CREATE_IN_PROGRESS:
-                cluster.status = objects.fields.ClusterStatus.CREATE_COMPLETE
+            if cluster.status == "CREATE_IN_PROGRESS":
+                cluster.status = "CREATE_COMPLETE"
 
-            if cluster.status == objects.fields.ClusterStatus.UPDATE_IN_PROGRESS:
-                cluster.status = objects.fields.ClusterStatus.UPDATE_COMPLETE
+            if cluster.status == "UPDATE_IN_PROGRESS":
+                cluster.status = "UPDATE_COMPLETE"
 
             cluster.save()
 
-        if cluster.status == objects.fields.ClusterStatus.DELETE_IN_PROGRESS:
+        if cluster.status == "DELETE_IN_PROGRESS":
             if capi_cluster.exists():
                 return
 
@@ -130,7 +132,7 @@ class BaseDriver(driver.Driver):
             resources.FrontProxyCertificateAuthoritySecret(k8s, cluster).delete()
             resources.ServiceAccountCertificateAuthoritySecret(k8s, cluster).delete()
 
-            cluster.status = objects.fields.ClusterStatus.DELETE_COMPLETE
+            cluster.status = "DELETE_COMPLETE"
             cluster.save()
 
     def update_cluster(self, context, cluster, scale_manager=None, rollback=False):
@@ -145,7 +147,31 @@ class BaseDriver(driver.Driver):
         nodes_to_remove,
         nodegroup=None,
     ):
-        raise NotImplementedError("Subclasses must implement " "'resize_cluster'.")
+        if nodegroup is None:
+            nodegroup = cluster.default_ng_worker
+
+        if nodes_to_remove:
+            k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
+            machines = objects.Machine.objects(k8s).filter(
+                namespace="magnum-system",
+                selector={
+                    "cluster.x-k8s.io/deployment-name": resources.name_from_node_group(
+                        cluster, nodegroup
+                    )
+                },
+            )
+
+            for machine in machines:
+                instance_uuid = machine.obj["spec"]["providerID"].split("/")[-1]
+                if instance_uuid in nodes_to_remove:
+                    machine.obj["metadata"].setdefault("annotations", {})
+                    machine.obj["metadata"]["annotations"][
+                        "cluster.x-k8s.io/delete-machine"
+                    ] = "yes"
+                    machine.update()
+
+        nodegroup.node_count = node_count
+        self.update_nodegroup(context, cluster, nodegroup)
 
     def upgrade_cluster(
         self,
@@ -237,7 +263,8 @@ class BaseDriver(driver.Driver):
         return nodegroup
 
     def update_nodegroup(self, context, cluster, nodegroup):
-        raise NotImplementedError("Subclasses must implement " "'update_nodegroup'.")
+        k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
+        resources.MachineDeployment(k8s, cluster, nodegroup).apply()
 
     def delete_nodegroup(self, context, cluster, nodegroup):
         k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())

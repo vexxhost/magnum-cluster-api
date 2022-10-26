@@ -31,6 +31,12 @@ class MachineDeployment(pykube.objects.NamespacedAPIObject):
     kind = "MachineDeployment"
 
 
+class Machine(pykube.objects.NamespacedAPIObject):
+    version = "cluster.x-k8s.io/v1beta1"
+    endpoint = "machines"
+    kind = "Machine"
+
+
 class OpenStackCluster(pykube.objects.NamespacedAPIObject):
     version = "infrastructure.cluster.x-k8s.io/v1alpha5"
     endpoint = "openstackclusters"
