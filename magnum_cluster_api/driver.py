@@ -243,8 +243,6 @@ class BaseDriver(driver.Driver):
             if ready:
                 nodegroup.status = f"{action}_COMPLETE"
             nodegroup.status_reason = failure_message
-
-            #
         else:
             md = resources.MachineDeployment(k8s, cluster, nodegroup).get_object()
             md.reload()
@@ -279,11 +277,6 @@ class BaseDriver(driver.Driver):
 
     def get_monitor(self, context, cluster):
         return k8s_monitor.K8sMonitor(context, cluster)
-
-    def get_scale_manager(self, context, osclient, cluster):
-        """return the scale manager for this driver."""
-
-        return None
 
     # def rotate_ca_certificate(self, context, cluster):
     #     raise exception.NotSupported(
