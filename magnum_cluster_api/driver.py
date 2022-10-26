@@ -187,12 +187,7 @@ class BaseDriver(driver.Driver):
 
     def delete_cluster(self, context, cluster):
         k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
-
         resources.Cluster(k8s, cluster).delete()
-        resources.OpenStackCluster(k8s, cluster, context).delete()
-
-        for node_group in cluster.nodegroups:
-            self.delete_nodegroup(context, cluster, node_group)
 
     def create_nodegroup(self, context, cluster, nodegroup, credential=None):
         k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
@@ -258,9 +253,7 @@ class BaseDriver(driver.Driver):
     def delete_nodegroup(self, context, cluster, nodegroup):
         k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
 
-        if nodegroup.role == "master":
-            resources.KubeadmControlPlane(k8s, cluster, nodegroup).delete()
-        else:
+        if nodegroup.role != "master":
             resources.MachineDeployment(k8s, cluster, nodegroup).delete()
             resources.KubeadmConfigTemplate(k8s, cluster).delete()
 
