@@ -1,0 +1,5 @@
+#!/bin/bash -xe
+
+curl -Lo /tmp/configure-helper.sh https://raw.githubusercontent.com/kubernetes/kubernetes/master/cluster/gce/gci/configure-helper.sh
+source /tmp/configure-helper.sh
+create-master-audit-policy magnum_cluster_api/manifests/audit/policy.yaml
