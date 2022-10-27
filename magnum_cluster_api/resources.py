@@ -7,13 +7,16 @@ import types
 import pkg_resources
 import pykube
 import yaml
-from magnum.common import cert_manager, neutron
+from magnum.common import cert_manager, cinder, neutron
 from magnum.common.x509 import operations as x509
+from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import encodeutils, strutils
 
 from magnum_cluster_api import objects
 
+
+CONF = cfg.CONF
 KUBE_TAG = "v1.25.3"
 CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
@@ -377,6 +380,16 @@ class OpenStackMachineTemplate(NodeGroupBase):
                 "name": f"{name_from_cluster(self.cluster)}-cloud-config",
             },
             "imageUUID": self.node_group.image_id,
+            "rootVolume": {
+                "diskSize": get_label_value(
+                    self.cluster, "boot_volume_size",
+                    CONF.cinder.default_boot_volume_size,
+                ),
+                "volumeType": get_label_value(
+                    self.cluster, "boot_volume_type",
+                    cinder.get_default_boot_volume_type(self.context)
+                ),
+            },
         }
 
         if self.cluster.keypair:
