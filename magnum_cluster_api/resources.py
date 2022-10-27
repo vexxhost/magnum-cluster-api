@@ -380,7 +380,7 @@ class OpenStackMachineTemplate(NodeGroupBase):
             },
             "imageUUID": self.node_group.image_id,
         }
-        boot_volume_size = get_label_value(
+        boot_volume_size = get_int_label_value(
             self.cluster,
             "boot_volume_size",
             CONF.cinder.default_boot_volume_size,
@@ -768,6 +768,14 @@ class Cluster(ClusterBase):
 def get_bool_label_value(cluster: any, key: str, default: bool) -> bool:
     value = get_label_value(cluster, key, default)
     return strutils.bool_from_string(value, strict=True)
+
+
+def get_int_label_value(cluster: any, key: str, default: bool) -> bool:
+    value = get_label_value(cluster, key, default)
+    if strutils.is_int_like(value):
+        return int(value)
+    msg = "%s is not an int-like string." % key
+    raise ValueError(msg)
 
 
 def get_label_value(cluster: any, key: str, default: str) -> str:
