@@ -15,7 +15,6 @@ from oslo_utils import encodeutils, strutils
 
 from magnum_cluster_api import objects
 
-
 CONF = cfg.CONF
 KUBE_TAG = "v1.25.3"
 CLOUD_PROVIDER_TAG = "v1.25.3"
