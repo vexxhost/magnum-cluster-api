@@ -379,20 +379,21 @@ class OpenStackMachineTemplate(NodeGroupBase):
                 "name": f"{name_from_cluster(self.cluster)}-cloud-config",
             },
             "imageUUID": self.node_group.image_id,
-            "rootVolume": {
-                "diskSize": get_label_value(
-                    self.cluster,
-                    "boot_volume_size",
-                    CONF.cinder.default_boot_volume_size,
-                ),
+        }
+        boot_volume_size = get_label_value(
+            self.cluster,
+            "boot_volume_size",
+            CONF.cinder.default_boot_volume_size,
+        )
+        if boot_volume_size > 0 :
+            spec["rootVolume"] = {
+                "diskSize": boot_volume_size,
                 "volumeType": get_label_value(
                     self.cluster,
                     "boot_volume_type",
                     cinder.get_default_boot_volume_type(self.context),
                 ),
-            },
-        }
-
+            }
         if self.cluster.keypair:
             spec["sshKeyName"] = self.cluster.keypair
 
