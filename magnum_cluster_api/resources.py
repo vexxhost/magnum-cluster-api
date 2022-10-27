@@ -385,7 +385,7 @@ class OpenStackMachineTemplate(NodeGroupBase):
             "boot_volume_size",
             CONF.cinder.default_boot_volume_size,
         )
-        if boot_volume_size > 0 :
+        if boot_volume_size > 0:
             spec["rootVolume"] = {
                 "diskSize": boot_volume_size,
                 "volumeType": get_label_value(
