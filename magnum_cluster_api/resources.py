@@ -382,11 +382,13 @@ class OpenStackMachineTemplate(NodeGroupBase):
             "imageUUID": self.node_group.image_id,
             "rootVolume": {
                 "diskSize": get_label_value(
-                    self.cluster, "boot_volume_size",
+                    self.cluster,
+                    "boot_volume_size",
                     CONF.cinder.default_boot_volume_size,
                 ),
                 "volumeType": get_label_value(
-                    self.cluster, "boot_volume_type",
+                    self.cluster,
+                    "boot_volume_type",
                     cinder.get_default_boot_volume_type(self.context)
                 ),
             },
