@@ -389,7 +389,7 @@ class OpenStackMachineTemplate(NodeGroupBase):
                 "volumeType": get_label_value(
                     self.cluster,
                     "boot_volume_type",
-                    cinder.get_default_boot_volume_type(self.context)
+                    cinder.get_default_boot_volume_type(self.context),
                 ),
             },
         }
