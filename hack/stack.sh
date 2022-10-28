@@ -58,7 +58,7 @@ sudo sh /tmp/get-docker.sh
 sudo usermod -aG docker $USER
 
 # Docker tinks with firewalls
-iptables -I DOCKER-USER -j ACCEPT
+sudo iptables -I DOCKER-USER -j ACCEPT
 
 # Install `kind` CLI
 sudo curl -Lo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.16.0/kind-linux-amd64
