@@ -13,7 +13,7 @@ if [ ! -f /opt/stack/stack.sh ]; then
     git clone https://git.openstack.org/openstack-dev/devstack /opt/stack
 else
     pushd /opt/stack
-    git pul
+    git pull
     popd
 fi
 
