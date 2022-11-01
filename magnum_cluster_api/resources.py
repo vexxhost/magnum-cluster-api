@@ -370,6 +370,12 @@ class CloudConfigSecret(ClusterBase):
 
 
 class OpenStackMachineTemplate(NodeGroupBase):
+    def __init__(
+        self, api: pykube.HTTPClient, cluster: any, node_group: any, context: any
+    ):
+        super().__init__(api, cluster, node_group)
+        self.context = context
+
     def get_object(self) -> objects.OpenStackMachineTemplate:
         spec = {
             "cloudName": "default",
