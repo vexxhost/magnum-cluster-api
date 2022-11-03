@@ -11,9 +11,9 @@ from magnum.common import cert_manager, cinder, neutron
 from magnum.common.x509 import operations as x509
 from oslo_config import cfg
 from oslo_serialization import base64
-from oslo_utils import encodeutils, strutils
+from oslo_utils import encodeutils
 
-from magnum_cluster_api import objects
+from magnum_cluster_api import objects, utils
 
 CONF = cfg.CONF
 KUBE_TAG = "v1.25.3"
@@ -92,7 +92,7 @@ class NodeGroupBase(ClusterBase):
 
 class CloudControllerManagerConfigMap(ClusterBase):
     def get_object(self) -> pykube.ConfigMap:
-        version = get_label_value(
+        version = utils.get_cluster_label(
             self.cluster, "cloud_provider_tag", CLOUD_PROVIDER_TAG
         )
 
@@ -125,7 +125,7 @@ class CloudControllerManagerConfigMap(ClusterBase):
 
 class CloudControllerManagerClusterResourceSet(ClusterBase):
     def get_object(self) -> objects.ClusterResourceSet:
-        version = get_label_value(
+        version = utils.get_cluster_label(
             self.cluster, "cloud_provider_tag", CLOUD_PROVIDER_TAG
         )
 
@@ -157,7 +157,7 @@ class CloudControllerManagerClusterResourceSet(ClusterBase):
 
 class CalicoConfigMap(ClusterBase):
     def get_object(self) -> pykube.ConfigMap:
-        version = get_label_value(self.cluster, "calico_tag", CALICO_TAG)
+        version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
 
         manifests_path = pkg_resources.resource_filename(
             "magnum_cluster_api.manifests", "calico"
@@ -183,7 +183,7 @@ class CalicoConfigMap(ClusterBase):
 
 class CalicoClusterResourceSet(ClusterBase):
     def get_object(self) -> objects.ClusterResourceSet:
-        version = get_label_value(self.cluster, "calico_tag", CALICO_TAG)
+        version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
 
         return objects.ClusterResourceSet(
             self.api,
@@ -213,7 +213,9 @@ class CalicoClusterResourceSet(ClusterBase):
 
 class CinderCSIConfigMap(ClusterBase):
     def get_object(self) -> pykube.ConfigMap:
-        version = get_label_value(self.cluster, "cinder_csi_plugin_tag", CSI_TAG)
+        version = utils.get_cluster_label(
+            self.cluster, "cinder_csi_plugin_tag", CSI_TAG
+        )
 
         manifests_path = pkg_resources.resource_filename(
             "magnum_cluster_api.manifests", "csi"
@@ -244,7 +246,9 @@ class CinderCSIConfigMap(ClusterBase):
 
 class CinderCSIClusterResourceSet(ClusterBase):
     def get_object(self) -> objects.ClusterResourceSet:
-        version = get_label_value(self.cluster, "cinder_csi_plugin_tag", CSI_TAG)
+        version = utils.get_cluster_label(
+            self.cluster, "cinder_csi_plugin_tag", CSI_TAG
+        )
 
         return objects.ClusterResourceSet(
             self.api,
@@ -386,7 +390,7 @@ class OpenStackMachineTemplate(NodeGroupBase):
             },
             "imageUUID": self.node_group.image_id,
         }
-        boot_volume_size = get_int_label_value(
+        boot_volume_size = utils.get_cluster_label_as_int(
             self.cluster,
             "boot_volume_size",
             CONF.cinder.default_boot_volume_size,
@@ -394,7 +398,7 @@ class OpenStackMachineTemplate(NodeGroupBase):
         if boot_volume_size > 0:
             spec["rootVolume"] = {
                 "diskSize": boot_volume_size,
-                "volumeType": get_label_value(
+                "volumeType": utils.get_cluster_label(
                     self.cluster,
                     "boot_volume_type",
                     cinder.get_default_boot_volume_type(self.context),
@@ -508,7 +512,7 @@ class KubeadmControlPlane(NodeGroupBase):
 
         spec = {
             "replicas": self.node_group.node_count,
-            "version": get_label_value(self.cluster, "kube_tag", KUBE_TAG),
+            "version": utils.get_cluster_label(self.cluster, "kube_tag", KUBE_TAG),
             "kubeadmConfigSpec": {
                 "files": [
                     {
@@ -558,19 +562,19 @@ class KubeadmControlPlane(NodeGroupBase):
             },
         }
 
-        if get_bool_label_value(self.cluster, "audit_log_enabled", False):
+        if utils.get_cluster_label_as_bool(self.cluster, "audit_log_enabled", False):
             spec["kubeadmConfigSpec"]["clusterConfiguration"]["apiServer"][
                 "extraArgs"
             ].update(
                 {
                     "audit-log-path": "/var/log/audit/kube-apiserver-audit.log",
-                    "audit-log-maxage": get_label_value(
+                    "audit-log-maxage": utils.get_cluster_label(
                         self.cluster, "audit_log_maxage", "30"
                     ),
-                    "audit-log-maxbackup": get_label_value(
+                    "audit-log-maxbackup": utils.get_cluster_label(
                         self.cluster, "audit_log_maxbackup", "10"
                     ),
-                    "audit-log-maxsize": get_label_value(
+                    "audit-log-maxsize": utils.get_cluster_label(
                         self.cluster, "audit_log_maxsize", "100"
                     ),
                     "audit-policy-file": "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml",
@@ -649,10 +653,10 @@ class MachineDeployment(NodeGroupBase):
                                     "name": name_from_cluster(self.cluster),
                                 },
                             },
-                            "version": get_label_value(
+                            "version": utils.get_cluster_label(
                                 self.cluster, "kube_tag", KUBE_TAG
                             ),
-                            "failureDomain": get_label_value(
+                            "failureDomain": utils.get_cluster_label(
                                 self.cluster, "availability_zone", ""
                             ),
                             "infrastructureRef": {
@@ -703,7 +707,7 @@ class OpenStackCluster(ClusterBase):
                         "name": f"{name_from_cluster(self.cluster)}-cloud-config",
                     },
                     "managedSecurityGroups": True,
-                    "nodeCidr": get_label_value(
+                    "nodeCidr": utils.get_cluster_label(
                         self.cluster, "fixed_subnet_cidr", "10.6.0.0/24"
                     ),
                 },
@@ -714,18 +718,18 @@ class OpenStackCluster(ClusterBase):
 class Cluster(ClusterBase):
     @property
     def labels(self) -> dict:
-        ccm_version = get_label_value(
+        ccm_version = utils.get_cluster_label(
             self.cluster, "cloud_provider_tag", CLOUD_PROVIDER_TAG
         )
-        cni_verison = get_label_value(self.cluster, "calico_tag", CALICO_TAG)
+        cni_verison = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
 
         labels = {
             "cni": f"calico-{cni_verison}",
             "ccm": f"openstack-cloud-controller-manager-{ccm_version}",
         }
 
-        if get_bool_label_value(self.cluster, "cinder_csi_enabled", True):
-            csi_version = get_label_value(
+        if utils.get_cluster_label_as_bool(self.cluster, "cinder_csi_enabled", True):
+            csi_version = utils.get_cluster_label(
                 self.cluster, "cinder_csi_plugin_tag", CSI_TAG
             )
             labels["csi"] = f"cinder-csi-{csi_version}"
@@ -745,12 +749,12 @@ class Cluster(ClusterBase):
                 },
                 "spec": {
                     "clusterNetwork": {
-                        "serviceDomain": get_label_value(
+                        "serviceDomain": utils.get_cluster_label(
                             self.cluster, "dns_cluster_domain", "cluster.local"
                         ),
                         "pods": {
                             "cidrBlocks": [
-                                get_label_value(
+                                utils.get_cluster_label(
                                     self.cluster, "calico_ipv4pool", "10.100.0.0/16"
                                 )
                             ],
@@ -769,23 +773,6 @@ class Cluster(ClusterBase):
                 },
             },
         )
-
-
-def get_bool_label_value(cluster: any, key: str, default: bool) -> bool:
-    value = get_label_value(cluster, key, default)
-    return strutils.bool_from_string(value, strict=True)
-
-
-def get_int_label_value(cluster: any, key: str, default: bool) -> bool:
-    value = get_label_value(cluster, key, default)
-    if strutils.is_int_like(value):
-        return int(value)
-    msg = "%s is not an int-like string." % key
-    raise ValueError(msg)
-
-
-def get_label_value(cluster: any, key: str, default: str) -> str:
-    return cluster.labels.get(key, cluster.cluster_template.labels.get(key, default))
 
 
 def name_from_cluster(cluster: any) -> str:
