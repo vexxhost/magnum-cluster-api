@@ -13,17 +13,15 @@
 # under the License.
 
 import keystoneauth1
-import pykube
-from magnum.common import clients
 from magnum.drivers.common import driver, k8s_monitor
 
-from magnum_cluster_api import objects, resources
+from magnum_cluster_api import clients, objects, resources
 
 
 class BaseDriver(driver.Driver):
     def create_cluster(self, context, cluster, cluster_create_timeout):
-        osc = clients.OpenStackClients(context)
-        k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
+        osc = clients.get_openstack_api(context)
+        k8s = clients.get_pykube_api()
 
         resources.Namespace(k8s).apply()
 
@@ -58,8 +56,8 @@ class BaseDriver(driver.Driver):
         resources.Cluster(k8s, cluster).apply()
 
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
-        osc = clients.OpenStackClients(context)
-        k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
+        osc = clients.get_openstack_api(context)
+        k8s = clients.get_pykube_api()
 
         capi_cluster = resources.Cluster(k8s, cluster).get_object()
 
@@ -151,7 +149,7 @@ class BaseDriver(driver.Driver):
             nodegroup = cluster.default_ng_worker
 
         if nodes_to_remove:
-            k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
+            k8s = clients.get_pykube_api()
             machines = objects.Machine.objects(k8s).filter(
                 namespace="magnum-system",
                 selector={
@@ -186,11 +184,11 @@ class BaseDriver(driver.Driver):
         raise NotImplementedError("Subclasses must implement " "'upgrade_cluster'.")
 
     def delete_cluster(self, context, cluster):
-        k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
+        k8s = clients.get_pykube_api()
         resources.Cluster(k8s, cluster).delete()
 
     def create_nodegroup(self, context, cluster, nodegroup, credential=None):
-        k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
+        k8s = clients.get_pykube_api()
         osc = clients.OpenStackClients(context)
 
         resources.OpenStackMachineTemplate(k8s, cluster, nodegroup, context).apply()
@@ -215,7 +213,7 @@ class BaseDriver(driver.Driver):
             resources.MachineDeployment(k8s, cluster, nodegroup).apply()
 
     def update_nodegroup_status(self, context, cluster, nodegroup):
-        k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
+        k8s = clients.get_pykube_api()
 
         action = nodegroup.status.split("_")[0]
 
@@ -247,11 +245,11 @@ class BaseDriver(driver.Driver):
         return nodegroup
 
     def update_nodegroup(self, context, cluster, nodegroup):
-        k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
+        k8s = clients.get_pykube_api()
         resources.MachineDeployment(k8s, cluster, nodegroup).apply()
 
     def delete_nodegroup(self, context, cluster, nodegroup):
-        k8s = pykube.HTTPClient(pykube.KubeConfig.from_env())
+        k8s = clients.get_pykube_api()
 
         if nodegroup.role != "master":
             resources.MachineDeployment(k8s, cluster, nodegroup).delete()
