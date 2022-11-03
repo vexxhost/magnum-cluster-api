@@ -19,20 +19,24 @@ from magnum_cluster_api import clients, objects, resources
 
 
 class BaseDriver(driver.Driver):
+    def __init__(self):
+        self.self.k8s_api_api = clients.get_pykube_api()
+
     def create_cluster(self, context, cluster, cluster_create_timeout):
         osc = clients.get_openstack_api(context)
-        k8s = clients.get_pykube_api()
 
-        resources.Namespace(k8s).apply()
+        resources.Namespace(self.k8s_api).apply()
 
-        resources.CloudControllerManagerConfigMap(k8s, cluster).apply()
-        resources.CloudControllerManagerClusterResourceSet(k8s, cluster).apply()
+        resources.CloudControllerManagerConfigMap(self.k8s_api, cluster).apply()
+        resources.CloudControllerManagerClusterResourceSet(
+            self.k8s_api, cluster
+        ).apply()
 
-        resources.CalicoConfigMap(k8s, cluster).apply()
-        resources.CalicoClusterResourceSet(k8s, cluster).apply()
+        resources.CalicoConfigMap(self.k8s_api, cluster).apply()
+        resources.CalicoClusterResourceSet(self.k8s_api, cluster).apply()
 
-        resources.CinderCSIConfigMap(k8s, cluster).apply()
-        resources.CinderCSIClusterResourceSet(k8s, cluster).apply()
+        resources.CinderCSIConfigMap(self.k8s_api, cluster).apply()
+        resources.CinderCSIClusterResourceSet(self.k8s_api, cluster).apply()
 
         credential = osc.keystone().client.application_credentials.create(
             user=cluster.user_id,
@@ -41,25 +45,26 @@ class BaseDriver(driver.Driver):
         )
 
         resources.CloudConfigSecret(
-            k8s, cluster, osc.auth_url, osc.cinder_region_name(), credential
+            self.k8s_api, cluster, osc.auth_url, osc.cinder_region_name(), credential
         ).apply()
 
-        resources.ApiCertificateAuthoritySecret(k8s, cluster).apply()
-        resources.EtcdCertificateAuthoritySecret(k8s, cluster).apply()
-        resources.FrontProxyCertificateAuthoritySecret(k8s, cluster).apply()
-        resources.ServiceAccountCertificateAuthoritySecret(k8s, cluster).apply()
+        resources.ApiCertificateAuthoritySecret(self.k8s_api, cluster).apply()
+        resources.EtcdCertificateAuthoritySecret(self.k8s_api, cluster).apply()
+        resources.FrontProxyCertificateAuthoritySecret(self.k8s_api, cluster).apply()
+        resources.ServiceAccountCertificateAuthoritySecret(
+            self.k8s_api, cluster
+        ).apply()
 
         for node_group in cluster.nodegroups:
             self.create_nodegroup(context, cluster, node_group, credential=credential)
 
-        resources.OpenStackCluster(k8s, cluster, context).apply()
-        resources.Cluster(k8s, cluster).apply()
+        resources.OpenStackCluster(self.k8s_api, cluster, context).apply()
+        resources.Cluster(self.k8s_api, cluster).apply()
 
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
         osc = clients.get_openstack_api(context)
-        k8s = clients.get_pykube_api()
 
-        capi_cluster = resources.Cluster(k8s, cluster).get_object()
+        capi_cluster = resources.Cluster(self.k8s_api, cluster).get_object()
 
         if cluster.status in (
             "CREATE_IN_PROGRESS",
@@ -96,7 +101,7 @@ class BaseDriver(driver.Driver):
 
                 if node_group.role == "master":
                     kcp = resources.KubeadmControlPlane(
-                        k8s, cluster, node_group
+                        self.k8s_api, cluster, node_group
                     ).get_object()
                     kcp.reload()
 
@@ -124,11 +129,15 @@ class BaseDriver(driver.Driver):
             except keystoneauth1.exceptions.http.NotFound:
                 pass
 
-            resources.CloudConfigSecret(k8s, cluster).delete()
-            resources.ApiCertificateAuthoritySecret(k8s, cluster).delete()
-            resources.EtcdCertificateAuthoritySecret(k8s, cluster).delete()
-            resources.FrontProxyCertificateAuthoritySecret(k8s, cluster).delete()
-            resources.ServiceAccountCertificateAuthoritySecret(k8s, cluster).delete()
+            resources.CloudConfigSecret(self.k8s_api, cluster).delete()
+            resources.ApiCertificateAuthoritySecret(self.k8s_api, cluster).delete()
+            resources.EtcdCertificateAuthoritySecret(self.k8s_api, cluster).delete()
+            resources.FrontProxyCertificateAuthoritySecret(
+                self.k8s_api, cluster
+            ).delete()
+            resources.ServiceAccountCertificateAuthoritySecret(
+                self.k8s_api, cluster
+            ).delete()
 
             cluster.status = "DELETE_COMPLETE"
             cluster.save()
@@ -149,11 +158,10 @@ class BaseDriver(driver.Driver):
             nodegroup = cluster.default_ng_worker
 
         if nodes_to_remove:
-            k8s = clients.get_pykube_api()
-            machines = objects.Machine.objects(k8s).filter(
+            machines = objects.Machine.objects(self.k8s_api).filter(
                 namespace="magnum-system",
                 selector={
-                    "cluster.x-k8s.io/deployment-name": resources.name_from_node_group(
+                    "cluster.x-self.k8s_api.io/deployment-name": resources.name_from_node_group(
                         cluster, nodegroup
                     )
                 },
@@ -164,7 +172,7 @@ class BaseDriver(driver.Driver):
                 if instance_uuid in nodes_to_remove:
                     machine.obj["metadata"].setdefault("annotations", {})
                     machine.obj["metadata"]["annotations"][
-                        "cluster.x-k8s.io/delete-machine"
+                        "cluster.x-self.k8s_api.io/delete-machine"
                     ] = "yes"
                     machine.update()
 
@@ -184,18 +192,18 @@ class BaseDriver(driver.Driver):
         raise NotImplementedError("Subclasses must implement " "'upgrade_cluster'.")
 
     def delete_cluster(self, context, cluster):
-        k8s = clients.get_pykube_api()
-        resources.Cluster(k8s, cluster).delete()
+        resources.Cluster(self.k8s_api, cluster).delete()
 
     def create_nodegroup(self, context, cluster, nodegroup, credential=None):
-        k8s = clients.get_pykube_api()
         osc = clients.OpenStackClients(context)
 
-        resources.OpenStackMachineTemplate(k8s, cluster, nodegroup, context).apply()
+        resources.OpenStackMachineTemplate(
+            self.k8s_api, cluster, nodegroup, context
+        ).apply()
 
         if nodegroup.role == "master":
             resources.KubeadmControlPlane(
-                k8s,
+                self.k8s_api,
                 cluster,
                 nodegroup,
                 auth_url=osc.auth_url,
@@ -204,21 +212,21 @@ class BaseDriver(driver.Driver):
             ).apply()
         else:
             resources.KubeadmConfigTemplate(
-                k8s,
+                self.k8s_api,
                 cluster,
                 auth_url=osc.auth_url,
                 region_name=osc.cinder_region_name(),
                 credential=credential,
             ).apply()
-            resources.MachineDeployment(k8s, cluster, nodegroup).apply()
+            resources.MachineDeployment(self.k8s_api, cluster, nodegroup).apply()
 
     def update_nodegroup_status(self, context, cluster, nodegroup):
-        k8s = clients.get_pykube_api()
-
         action = nodegroup.status.split("_")[0]
 
         if nodegroup.role == "master":
-            kcp = resources.KubeadmControlPlane(k8s, cluster, nodegroup).get_object()
+            kcp = resources.KubeadmControlPlane(
+                self.k8s_api, cluster, nodegroup
+            ).get_object()
             kcp.reload()
 
             ready = kcp.obj["status"].get("ready", False)
@@ -228,7 +236,9 @@ class BaseDriver(driver.Driver):
                 nodegroup.status = f"{action}_COMPLETE"
             nodegroup.status_reason = failure_message
         else:
-            md = resources.MachineDeployment(k8s, cluster, nodegroup).get_object()
+            md = resources.MachineDeployment(
+                self.k8s_api, cluster, nodegroup
+            ).get_object()
             md.reload()
 
             phase = md.obj["status"]["phase"]
@@ -245,17 +255,16 @@ class BaseDriver(driver.Driver):
         return nodegroup
 
     def update_nodegroup(self, context, cluster, nodegroup):
-        k8s = clients.get_pykube_api()
-        resources.MachineDeployment(k8s, cluster, nodegroup).apply()
+        resources.MachineDeployment(self.k8s_api, cluster, nodegroup).apply()
 
     def delete_nodegroup(self, context, cluster, nodegroup):
-        k8s = clients.get_pykube_api()
-
         if nodegroup.role != "master":
-            resources.MachineDeployment(k8s, cluster, nodegroup).delete()
-            resources.KubeadmConfigTemplate(k8s, cluster).delete()
+            resources.MachineDeployment(self.k8s_api, cluster, nodegroup).delete()
+            resources.KubeadmConfigTemplate(self.k8s_api, cluster).delete()
 
-        resources.OpenStackMachineTemplate(k8s, cluster, nodegroup, context).delete()
+        resources.OpenStackMachineTemplate(
+            self.k8s_api, cluster, nodegroup, context
+        ).delete()
 
     def get_monitor(self, context, cluster):
         return k8s_monitor.K8sMonitor(context, cluster)
