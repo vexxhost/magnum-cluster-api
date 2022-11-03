@@ -422,6 +422,45 @@ class OpenStackMachineTemplate(NodeGroupBase):
         )
 
 
+class MachineHealthCheck(ClusterBase):
+    def get_object(self) -> objects.MachineHealthCheck:
+        return objects.MachineHealthCheck(
+            self.api,
+            {
+                "apiVersion": objects.MachineHealthCheck.version,
+                "kind": objects.MachineHealthCheck.kind,
+                "metadata": {
+                    "name": name_from_cluster(self.cluster),
+                    "namespace": "magnum-system",
+                    "labels": self.labels,
+                },
+                "spec": {
+                    "clusterName": name_from_cluster(self.cluster),
+                    "maxUnhealthy": "40%",
+                    "selector": {
+                        "matchLabels": {
+                            "cluster.x-k8s.io/cluster-name": name_from_cluster(
+                                self.cluster
+                            ),
+                        }
+                    },
+                    "unhealthyConditions": [
+                        {
+                            "type": "Ready",
+                            "status": "False",
+                            "timeout": "300s",
+                        },
+                        {
+                            "type": "Ready",
+                            "status": "Unknown",
+                            "timeout": "300s",
+                        },
+                    ],
+                },
+            },
+        )
+
+
 class KubeadmConfigTemplate(ClusterBase):
     def __init__(
         self,

@@ -13,14 +13,24 @@
 # under the License.
 
 import keystoneauth1
-from magnum.drivers.common import driver, k8s_monitor
+from magnum.drivers.common import driver
 
-from magnum_cluster_api import clients, objects, resources
+from magnum_cluster_api import clients, monitor, objects, resources, utils
 
 
 class BaseDriver(driver.Driver):
     def __init__(self):
-        self.self.k8s_api_api = clients.get_pykube_api()
+        self.k8s_api = clients.get_pykube_api()
+
+    def _apply_cluster(self, context, cluster):
+        """
+        Apply or remove resources inside the management Kubernetes cluster using
+        server side apply given a Magnum cluster.
+        """
+        if utils.get_cluster_label_as_bool(cluster, "auto_healing_enabled", True):
+            resources.MachineHealthCheck(self.k8s_api, cluster).apply()
+        else:
+            resources.MachineHealthCheck(self.k8s_api, cluster).delete()
 
     def create_cluster(self, context, cluster, cluster_create_timeout):
         osc = clients.get_openstack_api(context)
@@ -60,6 +70,8 @@ class BaseDriver(driver.Driver):
 
         resources.OpenStackCluster(self.k8s_api, cluster, context).apply()
         resources.Cluster(self.k8s_api, cluster).apply()
+
+        self._apply_cluster(context, cluster)
 
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
         osc = clients.get_openstack_api(context)
@@ -143,7 +155,7 @@ class BaseDriver(driver.Driver):
             cluster.save()
 
     def update_cluster(self, context, cluster, scale_manager=None, rollback=False):
-        raise NotImplementedError("Subclasses must implement " "'update_cluster'.")
+        raise NotImplementedError()
 
     def resize_cluster(
         self,
@@ -189,13 +201,13 @@ class BaseDriver(driver.Driver):
         scale_manager=None,
         rollback=False,
     ):
-        raise NotImplementedError("Subclasses must implement " "'upgrade_cluster'.")
+        raise NotImplementedError()
 
     def delete_cluster(self, context, cluster):
         resources.Cluster(self.k8s_api, cluster).delete()
 
     def create_nodegroup(self, context, cluster, nodegroup, credential=None):
-        osc = clients.OpenStackClients(context)
+        osc = clients.get_openstack_api(context)
 
         resources.OpenStackMachineTemplate(
             self.k8s_api, cluster, nodegroup, context
@@ -267,7 +279,7 @@ class BaseDriver(driver.Driver):
         ).delete()
 
     def get_monitor(self, context, cluster):
-        return k8s_monitor.K8sMonitor(context, cluster)
+        return monitor.ClusterApiMonitor(context, cluster)
 
     # def rotate_ca_certificate(self, context, cluster):
     #     raise exception.NotSupported(

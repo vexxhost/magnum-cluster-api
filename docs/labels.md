@@ -64,6 +64,14 @@
 
 ## Kubernetes
 
+* `auto_healing_enabled`
+
+   Enable auto-healing for the cluster.  This will automatically replace failed
+   nodes in the cluster with new nodes (after 5 minutes of not being ready)
+   and stops further remediation if more than 40% of the cluster is unhealthy.
+
+   Default value: `true`
+
 * `kube_tag`
 
    The version of Kubernetes to use.
