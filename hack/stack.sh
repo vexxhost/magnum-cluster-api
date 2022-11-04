@@ -27,7 +27,7 @@ SERVICE_PASSWORD=secrete123
 ADMIN_PASSWORD=secrete123
 LIBVIRT_TYPE=kvm
 VOLUME_BACKING_FILE_SIZE=50G
-GLANCE_LIMIT_IMAGE_SIZE_TOTAL=5000
+GLANCE_LIMIT_IMAGE_SIZE_TOTAL=10000
 enable_plugin barbican https://opendev.org/openstack/barbican
 enable_plugin heat https://opendev.org/openstack/heat
 enable_plugin neutron https://opendev.org/openstack/neutron
