@@ -7,6 +7,7 @@ import types
 import pkg_resources
 import pykube
 import yaml
+from magnum import objects as magnum_objects
 from magnum.common import cert_manager, cinder, neutron
 from magnum.common.x509 import operations as x509
 from oslo_config import cfg
@@ -290,7 +291,7 @@ class CertificateAuthoritySecret(ClusterBase):
                 "kind": pykube.Secret.kind,
                 "type": "kubernetes.io/tls",
                 "metadata": {
-                    "name": f"{name_from_cluster(self.cluster)}-{self.CERT}",
+                    "name": f"{name_from_cluster(self.api, self.cluster)}-{self.CERT}",
                     "namespace": "magnum-system",
                 },
                 "stringData": {
@@ -347,7 +348,7 @@ class CloudConfigSecret(ClusterBase):
                 "apiVersion": pykube.Secret.version,
                 "kind": pykube.Secret.kind,
                 "metadata": {
-                    "name": f"{name_from_cluster(self.cluster)}-cloud-config",
+                    "name": f"{name_from_cluster(self.api, self.cluster)}-cloud-config",
                     "namespace": "magnum-system",
                     "labels": self.labels,
                 },
@@ -386,7 +387,7 @@ class OpenStackMachineTemplate(NodeGroupBase):
             "flavor": self.node_group.flavor_id,
             "identityRef": {
                 "kind": pykube.Secret.kind,
-                "name": f"{name_from_cluster(self.cluster)}-cloud-config",
+                "name": f"{name_from_cluster(self.api, self.cluster)}-cloud-config",
             },
             "imageUUID": self.node_group.image_id,
         }
@@ -413,7 +414,9 @@ class OpenStackMachineTemplate(NodeGroupBase):
                 "apiVersion": objects.OpenStackMachineTemplate.version,
                 "kind": objects.OpenStackMachineTemplate.kind,
                 "metadata": {
-                    "name": name_from_node_group(self.cluster, self.node_group),
+                    "name": name_from_node_group(
+                        self.api, self.cluster, self.node_group
+                    ),
                     "namespace": "magnum-system",
                     "labels": self.labels,
                 },
@@ -430,17 +433,17 @@ class MachineHealthCheck(ClusterBase):
                 "apiVersion": objects.MachineHealthCheck.version,
                 "kind": objects.MachineHealthCheck.kind,
                 "metadata": {
-                    "name": name_from_cluster(self.cluster),
+                    "name": name_from_cluster(self.api, self.cluster),
                     "namespace": "magnum-system",
                     "labels": self.labels,
                 },
                 "spec": {
-                    "clusterName": name_from_cluster(self.cluster),
+                    "clusterName": name_from_cluster(self.api, self.cluster),
                     "maxUnhealthy": "40%",
                     "selector": {
                         "matchLabels": {
                             "cluster.x-k8s.io/cluster-name": name_from_cluster(
-                                self.cluster
+                                self.api, self.cluster
                             ),
                         }
                     },
@@ -492,7 +495,7 @@ class KubeadmConfigTemplate(ClusterBase):
                 "apiVersion": objects.KubeadmConfigTemplate.version,
                 "kind": objects.KubeadmConfigTemplate.kind,
                 "metadata": {
-                    "name": name_from_cluster(self.cluster),
+                    "name": name_from_cluster(self.api, self.cluster),
                     "namespace": "magnum-system",
                     "labels": self.labels,
                 },
@@ -596,7 +599,9 @@ class KubeadmControlPlane(NodeGroupBase):
                 "infrastructureRef": {
                     "apiVersion": objects.OpenStackMachineTemplate.version,
                     "kind": objects.OpenStackMachineTemplate.kind,
-                    "name": name_from_node_group(self.cluster, self.node_group),
+                    "name": name_from_node_group(
+                        self.api, self.cluster, self.node_group
+                    ),
                 },
             },
         }
@@ -655,7 +660,7 @@ class KubeadmControlPlane(NodeGroupBase):
                 "apiVersion": objects.KubeadmControlPlane.version,
                 "kind": objects.KubeadmControlPlane.kind,
                 "metadata": {
-                    "name": name_from_cluster(self.cluster),
+                    "name": name_from_cluster(self.api, self.cluster),
                     "namespace": "magnum-system",
                     "labels": self.labels,
                 },
@@ -672,24 +677,26 @@ class MachineDeployment(NodeGroupBase):
                 "apiVersion": objects.MachineDeployment.version,
                 "kind": objects.MachineDeployment.kind,
                 "metadata": {
-                    "name": name_from_node_group(self.cluster, self.node_group),
+                    "name": name_from_node_group(
+                        self.api, self.cluster, self.node_group
+                    ),
                     "namespace": "magnum-system",
                     "labels": self.labels,
                 },
                 "spec": {
-                    "clusterName": name_from_cluster(self.cluster),
+                    "clusterName": name_from_cluster(self.api, self.cluster),
                     "replicas": self.node_group.node_count,
                     "selector": {
                         "matchLabels": None,
                     },
                     "template": {
                         "spec": {
-                            "clusterName": name_from_cluster(self.cluster),
+                            "clusterName": name_from_cluster(self.api, self.cluster),
                             "bootstrap": {
                                 "configRef": {
                                     "apiVersion": objects.KubeadmConfigTemplate.version,
                                     "kind": objects.KubeadmConfigTemplate.kind,
-                                    "name": name_from_cluster(self.cluster),
+                                    "name": name_from_cluster(self.api, self.cluster),
                                 },
                             },
                             "version": utils.get_cluster_label(
@@ -702,7 +709,7 @@ class MachineDeployment(NodeGroupBase):
                                 "apiVersion": objects.OpenStackMachineTemplate.version,
                                 "kind": objects.OpenStackMachineTemplate.kind,
                                 "name": name_from_node_group(
-                                    self.cluster, self.node_group
+                                    self.api, self.cluster, self.node_group
                                 ),
                             },
                         }
@@ -726,7 +733,7 @@ class OpenStackCluster(ClusterBase):
                 "apiVersion": objects.OpenStackCluster.version,
                 "kind": objects.OpenStackCluster.kind,
                 "metadata": {
-                    "name": name_from_cluster(self.cluster),
+                    "name": name_from_cluster(self.api, self.cluster),
                     "namespace": "magnum-system",
                     "labels": self.labels,
                 },
@@ -743,7 +750,7 @@ class OpenStackCluster(ClusterBase):
                     ),
                     "identityRef": {
                         "kind": pykube.Secret.kind,
-                        "name": f"{name_from_cluster(self.cluster)}-cloud-config",
+                        "name": f"{name_from_cluster(self.api, self.cluster)}-cloud-config",
                     },
                     "managedSecurityGroups": True,
                     "nodeCidr": utils.get_cluster_label(
@@ -782,7 +789,7 @@ class Cluster(ClusterBase):
                 "apiVersion": objects.Cluster.version,
                 "kind": objects.Cluster.kind,
                 "metadata": {
-                    "name": name_from_cluster(self.cluster),
+                    "name": name_from_cluster(self.api, self.cluster),
                     "namespace": "magnum-system",
                     "labels": self.labels,
                 },
@@ -802,21 +809,24 @@ class Cluster(ClusterBase):
                     "controlPlaneRef": {
                         "apiVersion": objects.KubeadmControlPlane.version,
                         "kind": objects.KubeadmControlPlane.kind,
-                        "name": name_from_cluster(self.cluster),
+                        "name": name_from_cluster(self.api, self.cluster),
                     },
                     "infrastructureRef": {
                         "apiVersion": objects.OpenStackCluster.version,
                         "kind": objects.OpenStackCluster.kind,
-                        "name": name_from_cluster(self.cluster),
+                        "name": name_from_cluster(self.api, self.cluster),
                     },
                 },
             },
         )
 
 
-def name_from_cluster(cluster: any) -> str:
-    return cluster.uuid
+def name_from_cluster(api: pykube.HTTPClient, cluster: magnum_objects.Cluster) -> str:
+    if cluster.stack_id is None:
+        cluster.stack_id = utils.generate_cluster_api_name(api, cluster)
+        cluster.save()
+    return cluster.stack_id
 
 
-def name_from_node_group(cluster: any, node_group: any) -> str:
-    return f"{name_from_cluster(cluster)}-{node_group.name}"
+def name_from_node_group(api: pykube.HTTPClient, cluster: any, node_group: any) -> str:
+    return f"{name_from_cluster(api, cluster)}-{node_group.name}"
