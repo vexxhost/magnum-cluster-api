@@ -8,7 +8,7 @@ import pkg_resources
 import pykube
 import yaml
 from magnum import objects as magnum_objects
-from magnum.common import cert_manager, cinder, neutron
+from magnum.common import cert_manager, cinder, context, neutron
 from magnum.common.x509 import operations as x509
 from oslo_config import cfg
 from oslo_serialization import base64
@@ -21,6 +21,11 @@ KUBE_TAG = "v1.25.3"
 CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
 CSI_TAG = "v1.25.3"
+
+CLUSTER_CLASS_VERSION = "v0.0.0"
+CLUSTER_CLASS_NAME = f"magnum-{CLUSTER_CLASS_VERSION}"
+
+PLACEHOLDER = "PLACEHOLDER"
 
 
 class Base:
@@ -75,19 +80,6 @@ class ClusterBase(Base):
             "project-id": self.cluster.project_id,
             "user-id": self.cluster.user_id,
             "cluster-uuid": self.cluster.uuid,
-        }
-
-
-class NodeGroupBase(ClusterBase):
-    def __init__(self, api: pykube.HTTPClient, cluster: any, node_group: any):
-        super().__init__(api, cluster)
-        self.node_group = node_group
-
-    @property
-    def labels(self) -> dict:
-        return {
-            **super().labels,
-            **{"node-group-uuid": self.node_group.uuid},
         }
 
 
@@ -291,7 +283,7 @@ class CertificateAuthoritySecret(ClusterBase):
                 "kind": pykube.Secret.kind,
                 "type": "kubernetes.io/tls",
                 "metadata": {
-                    "name": f"{name_from_cluster(self.api, self.cluster)}-{self.CERT}",
+                    "name": f"{utils.get_or_generate_cluster_api_name(self.api, self.cluster)}-{self.CERT}",
                     "namespace": "magnum-system",
                 },
                 "stringData": {
@@ -348,7 +340,9 @@ class CloudConfigSecret(ClusterBase):
                 "apiVersion": pykube.Secret.version,
                 "kind": pykube.Secret.kind,
                 "metadata": {
-                    "name": f"{name_from_cluster(self.api, self.cluster)}-cloud-config",
+                    "name": utils.get_or_generate_cluster_api_cloud_config_secret_name(
+                        self.api, self.cluster
+                    ),
                     "namespace": "magnum-system",
                     "labels": self.labels,
                 },
@@ -374,57 +368,6 @@ class CloudConfigSecret(ClusterBase):
         )
 
 
-class OpenStackMachineTemplate(NodeGroupBase):
-    def __init__(
-        self, api: pykube.HTTPClient, cluster: any, node_group: any, context: any
-    ):
-        super().__init__(api, cluster, node_group)
-        self.context = context
-
-    def get_object(self) -> objects.OpenStackMachineTemplate:
-        spec = {
-            "cloudName": "default",
-            "flavor": self.node_group.flavor_id,
-            "identityRef": {
-                "kind": pykube.Secret.kind,
-                "name": f"{name_from_cluster(self.api, self.cluster)}-cloud-config",
-            },
-            "imageUUID": self.node_group.image_id,
-        }
-        boot_volume_size = utils.get_cluster_label_as_int(
-            self.cluster,
-            "boot_volume_size",
-            CONF.cinder.default_boot_volume_size,
-        )
-        if boot_volume_size > 0:
-            spec["rootVolume"] = {
-                "diskSize": boot_volume_size,
-                "volumeType": utils.get_cluster_label(
-                    self.cluster,
-                    "boot_volume_type",
-                    cinder.get_default_boot_volume_type(self.context),
-                ),
-            }
-        if self.cluster.keypair:
-            spec["sshKeyName"] = self.cluster.keypair
-
-        return objects.OpenStackMachineTemplate(
-            self.api,
-            {
-                "apiVersion": objects.OpenStackMachineTemplate.version,
-                "kind": objects.OpenStackMachineTemplate.kind,
-                "metadata": {
-                    "name": name_from_node_group(
-                        self.api, self.cluster, self.node_group
-                    ),
-                    "namespace": "magnum-system",
-                    "labels": self.labels,
-                },
-                "spec": {"template": {"spec": spec}},
-            },
-        )
-
-
 class MachineHealthCheck(ClusterBase):
     def get_object(self) -> objects.MachineHealthCheck:
         return objects.MachineHealthCheck(
@@ -433,16 +376,20 @@ class MachineHealthCheck(ClusterBase):
                 "apiVersion": objects.MachineHealthCheck.version,
                 "kind": objects.MachineHealthCheck.kind,
                 "metadata": {
-                    "name": name_from_cluster(self.api, self.cluster),
+                    "name": utils.get_or_generate_cluster_api_name(
+                        self.api, self.cluster
+                    ),
                     "namespace": "magnum-system",
                     "labels": self.labels,
                 },
                 "spec": {
-                    "clusterName": name_from_cluster(self.api, self.cluster),
+                    "clusterName": utils.get_or_generate_cluster_api_name(
+                        self.api, self.cluster
+                    ),
                     "maxUnhealthy": "40%",
                     "selector": {
                         "matchLabels": {
-                            "cluster.x-k8s.io/cluster-name": name_from_cluster(
+                            "cluster.x-k8s.io/cluster-name": utils.get_or_generate_cluster_api_name(
                                 self.api, self.cluster
                             ),
                         }
@@ -464,53 +411,86 @@ class MachineHealthCheck(ClusterBase):
         )
 
 
-class KubeadmConfigTemplate(ClusterBase):
-    def __init__(
-        self,
-        api: pykube.HTTPClient,
-        cluster: any,
-        auth_url: str = None,
-        region_name: str = None,
-        credential: any = types.SimpleNamespace(id=None, secret=None),
-    ):
-        super().__init__(api, cluster)
-        self.auth_url = auth_url
-        self.region_name = region_name
-        self.credential = credential
+class KubeadmControlPlaneTemplate(Base):
+    def get_object(self) -> objects.KubeadmControlPlaneTemplate:
+        manifests_path = pkg_resources.resource_filename(
+            "magnum_cluster_api.manifests", "audit"
+        )
+        audit_policy = open(os.path.join(manifests_path, "policy.yaml")).read()
 
-    def get_object(self) -> objects.KubeadmConfigTemplate:
-        ccm_config = textwrap.dedent(
-            f"""\
-            [Global]
-            auth-url={self.auth_url}
-            region={self.region_name}
-            application-credential-id={self.credential.id}
-            application-credential-secret={self.credential.secret}
-            """
+        return objects.KubeadmControlPlaneTemplate(
+            self.api,
+            {
+                "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                "kind": objects.KubeadmControlPlaneTemplate.kind,
+                "metadata": {
+                    "name": CLUSTER_CLASS_NAME,
+                    "namespace": "magnum-system",
+                },
+                "spec": {
+                    "template": {
+                        "spec": {
+                            "kubeadmConfigSpec": {
+                                "clusterConfiguration": {
+                                    "apiServer": {
+                                        "extraArgs": {
+                                            "cloud-provider": "external",
+                                        },
+                                        "extraVolumes": [],
+                                    },
+                                    "controllerManager": {
+                                        "extraArgs": {
+                                            "cloud-provider": "external",
+                                        },
+                                    },
+                                },
+                                "files": [
+                                    {
+                                        "path": "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml",
+                                        "permissions": "0600",
+                                        "content": base64.encode_as_text(audit_policy),
+                                        "encoding": "base64",
+                                    },
+                                ],
+                                "initConfiguration": {
+                                    "nodeRegistration": {
+                                        "name": "{{ local_hostname }}",
+                                        "kubeletExtraArgs": {
+                                            "cloud-provider": "external",
+                                        },
+                                    },
+                                },
+                                "joinConfiguration": {
+                                    "nodeRegistration": {
+                                        "name": "{{ local_hostname }}",
+                                        "kubeletExtraArgs": {
+                                            "cloud-provider": "external",
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
         )
 
+
+class KubeadmConfigTemplate(Base):
+    def get_object(self) -> objects.KubeadmConfigTemplate:
         return objects.KubeadmConfigTemplate(
             self.api,
             {
                 "apiVersion": objects.KubeadmConfigTemplate.version,
                 "kind": objects.KubeadmConfigTemplate.kind,
                 "metadata": {
-                    "name": name_from_cluster(self.api, self.cluster),
+                    "name": CLUSTER_CLASS_NAME,
                     "namespace": "magnum-system",
-                    "labels": self.labels,
                 },
                 "spec": {
                     "template": {
                         "spec": {
-                            "files": [
-                                {
-                                    "path": "/etc/kubernetes/cloud.conf",
-                                    "owner": "root:root",
-                                    "permissions": "0600",
-                                    "content": base64.encode_as_text(ccm_config),
-                                    "encoding": "base64",
-                                },
-                            ],
+                            "files": [],
                             "joinConfiguration": {
                                 "nodeRegistration": {
                                     "name": "{{ local_hostname }}",
@@ -526,242 +506,564 @@ class KubeadmConfigTemplate(ClusterBase):
         )
 
 
-class KubeadmControlPlane(NodeGroupBase):
-    def __init__(
-        self,
-        api: pykube.HTTPClient,
-        cluster: any,
-        node_group: any,
-        auth_url: str = None,
-        region_name: str = None,
-        credential: any = types.SimpleNamespace(id=None, secret=None),
-    ):
-        super().__init__(api, cluster, node_group)
-        self.auth_url = auth_url
-        self.region_name = region_name
-        self.credential = credential
-
-    def get_object(self) -> objects.KubeadmControlPlane:
-        ccm_config = textwrap.dedent(
-            f"""\
-            [Global]
-            auth-url={self.auth_url}
-            region={self.region_name}
-            application-credential-id={self.credential.id}
-            application-credential-secret={self.credential.secret}
-            """
-        )
-
-        spec = {
-            "replicas": self.node_group.node_count,
-            "version": utils.get_cluster_label(self.cluster, "kube_tag", KUBE_TAG),
-            "kubeadmConfigSpec": {
-                "files": [
-                    {
-                        "path": "/etc/kubernetes/cloud.conf",
-                        "owner": "root:root",
-                        "permissions": "0600",
-                        "content": base64.encode_as_text(ccm_config),
-                        "encoding": "base64",
-                    },
-                ],
-                "clusterConfiguration": {
-                    "apiServer": {
-                        "extraArgs": {
-                            "cloud-provider": "external",
-                        },
-                        "extraVolumes": [],
-                    },
-                    "controllerManager": {
-                        "extraArgs": {
-                            "cloud-provider": "external",
-                        },
-                    },
-                },
-                "initConfiguration": {
-                    "nodeRegistration": {
-                        "name": "{{ local_hostname }}",
-                        "kubeletExtraArgs": {
-                            "cloud-provider": "external",
-                        },
-                    },
-                },
-                "joinConfiguration": {
-                    "nodeRegistration": {
-                        "name": "{{ local_hostname }}",
-                        "kubeletExtraArgs": {
-                            "cloud-provider": "external",
-                        },
-                    },
-                },
-            },
-            "machineTemplate": {
-                "infrastructureRef": {
-                    "apiVersion": objects.OpenStackMachineTemplate.version,
-                    "kind": objects.OpenStackMachineTemplate.kind,
-                    "name": name_from_node_group(
-                        self.api, self.cluster, self.node_group
-                    ),
-                },
-            },
-        }
-
-        if utils.get_cluster_label_as_bool(self.cluster, "audit_log_enabled", False):
-            spec["kubeadmConfigSpec"]["clusterConfiguration"]["apiServer"][
-                "extraArgs"
-            ].update(
-                {
-                    "audit-log-path": "/var/log/audit/kube-apiserver-audit.log",
-                    "audit-log-maxage": utils.get_cluster_label(
-                        self.cluster, "audit_log_maxage", "30"
-                    ),
-                    "audit-log-maxbackup": utils.get_cluster_label(
-                        self.cluster, "audit_log_maxbackup", "10"
-                    ),
-                    "audit-log-maxsize": utils.get_cluster_label(
-                        self.cluster, "audit_log_maxsize", "100"
-                    ),
-                    "audit-policy-file": "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml",
-                }
-            )
-
-            spec["kubeadmConfigSpec"]["clusterConfiguration"]["apiServer"][
-                "extraVolumes"
-            ] += [
-                {
-                    "name": "audit-policy",
-                    "hostPath": "/etc/kubernetes/audit-policy",
-                    "mountPath": "/etc/kubernetes/audit-policy",
-                },
-                {
-                    "name": "audit-logs",
-                    "hostPath": "/var/log/kubernetes/audit",
-                    "mountPath": "/var/log/audit",
-                },
-            ]
-
-            manifests_path = pkg_resources.resource_filename(
-                "magnum_cluster_api.manifests", "audit"
-            )
-            audit_policy = open(os.path.join(manifests_path, "policy.yaml")).read()
-
-            spec["kubeadmConfigSpec"]["files"].append(
-                {
-                    "path": "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml",
-                    "permissions": "0600",
-                    "content": base64.encode_as_text(audit_policy),
-                    "encoding": "base64",
-                }
-            )
-
-        return objects.KubeadmControlPlane(
+class OpenStackMachineTemplate(Base):
+    def get_object(self) -> objects.OpenStackMachineTemplate:
+        return objects.OpenStackMachineTemplate(
             self.api,
             {
-                "apiVersion": objects.KubeadmControlPlane.version,
-                "kind": objects.KubeadmControlPlane.kind,
+                "apiVersion": objects.OpenStackMachineTemplate.version,
+                "kind": objects.OpenStackMachineTemplate.kind,
                 "metadata": {
-                    "name": name_from_cluster(self.api, self.cluster),
+                    "name": CLUSTER_CLASS_NAME,
                     "namespace": "magnum-system",
-                    "labels": self.labels,
-                },
-                "spec": spec,
-            },
-        )
-
-
-class MachineDeployment(NodeGroupBase):
-    def get_object(self) -> objects.MachineDeployment:
-        return objects.MachineDeployment(
-            self.api,
-            {
-                "apiVersion": objects.MachineDeployment.version,
-                "kind": objects.MachineDeployment.kind,
-                "metadata": {
-                    "name": name_from_node_group(
-                        self.api, self.cluster, self.node_group
-                    ),
-                    "namespace": "magnum-system",
-                    "labels": self.labels,
                 },
                 "spec": {
-                    "clusterName": name_from_cluster(self.api, self.cluster),
-                    "replicas": self.node_group.node_count,
-                    "selector": {
-                        "matchLabels": None,
-                    },
+                    "template": {
+                        "spec": {"cloudName": "default", "flavor": PLACEHOLDER}
+                    }
+                },
+            },
+        )
+
+
+class OpenStackClusterTemplate(Base):
+    def get_object(self) -> objects.OpenStackClusterTemplate:
+        return objects.OpenStackClusterTemplate(
+            self.api,
+            {
+                "apiVersion": objects.OpenStackClusterTemplate.version,
+                "kind": objects.OpenStackClusterTemplate.kind,
+                "metadata": {
+                    "name": CLUSTER_CLASS_NAME,
+                    "namespace": "magnum-system",
+                },
+                "spec": {
                     "template": {
                         "spec": {
-                            "clusterName": name_from_cluster(self.api, self.cluster),
-                            "bootstrap": {
-                                "configRef": {
-                                    "apiVersion": objects.KubeadmConfigTemplate.version,
-                                    "kind": objects.KubeadmConfigTemplate.kind,
-                                    "name": name_from_cluster(self.api, self.cluster),
-                                },
-                            },
-                            "version": utils.get_cluster_label(
-                                self.cluster, "kube_tag", KUBE_TAG
-                            ),
-                            "failureDomain": utils.get_cluster_label(
-                                self.cluster, "availability_zone", ""
-                            ),
-                            "infrastructureRef": {
-                                "apiVersion": objects.OpenStackMachineTemplate.version,
-                                "kind": objects.OpenStackMachineTemplate.kind,
-                                "name": name_from_node_group(
-                                    self.api, self.cluster, self.node_group
-                                ),
-                            },
-                        }
+                            "cloudName": "default",
+                            "managedSecurityGroups": True,
+                        },
                     },
                 },
             },
         )
 
 
-class OpenStackCluster(ClusterBase):
-    def __init__(self, api: pykube.HTTPClient, cluster: any, context: any):
-        super().__init__(api, cluster)
-        self.context = context
-
-    def get_object(self) -> objects.OpenStackCluster:
-        external_network = self.cluster.cluster_template.external_network_id
-
-        return objects.OpenStackCluster(
+class ClusterClass(Base):
+    def get_object(self) -> objects.ClusterClass:
+        return objects.ClusterClass(
             self.api,
             {
-                "apiVersion": objects.OpenStackCluster.version,
-                "kind": objects.OpenStackCluster.kind,
+                "apiVersion": objects.ClusterClass.version,
+                "kind": objects.ClusterClass.kind,
                 "metadata": {
-                    "name": name_from_cluster(self.api, self.cluster),
+                    "name": CLUSTER_CLASS_NAME,
                     "namespace": "magnum-system",
-                    "labels": self.labels,
                 },
                 "spec": {
-                    "cloudName": "default",
-                    "apiServerLoadBalancer": {
-                        "enabled": self.cluster.master_lb_enabled,
+                    "controlPlane": {
+                        "ref": {
+                            "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                            "kind": objects.KubeadmControlPlaneTemplate.kind,
+                            "name": CLUSTER_CLASS_NAME,
+                        },
+                        "machineInfrastructure": {
+                            "ref": {
+                                "apiVersion": objects.OpenStackMachineTemplate.version,
+                                "kind": objects.OpenStackMachineTemplate.kind,
+                                "name": CLUSTER_CLASS_NAME,
+                            },
+                        },
                     },
-                    "dnsNameservers": self.cluster.cluster_template.dns_nameserver.split(
-                        ","
-                    ),
-                    "externalNetworkId": neutron.get_external_network_id(
-                        self.context, external_network
-                    ),
-                    "identityRef": {
-                        "kind": pykube.Secret.kind,
-                        "name": f"{name_from_cluster(self.api, self.cluster)}-cloud-config",
+                    "infrastructure": {
+                        "ref": {
+                            "apiVersion": objects.OpenStackClusterTemplate.version,
+                            "kind": objects.OpenStackClusterTemplate.kind,
+                            "name": CLUSTER_CLASS_NAME,
+                        },
                     },
-                    "managedSecurityGroups": True,
-                    "nodeCidr": utils.get_cluster_label(
-                        self.cluster, "fixed_subnet_cidr", "10.6.0.0/24"
-                    ),
+                    "workers": {
+                        "machineDeployments": [
+                            {
+                                "class": "default-worker",
+                                "template": {
+                                    "bootstrap": {
+                                        "ref": {
+                                            "apiVersion": objects.KubeadmConfigTemplate.version,
+                                            "kind": objects.KubeadmConfigTemplate.kind,
+                                            "name": CLUSTER_CLASS_NAME,
+                                        }
+                                    },
+                                    "infrastructure": {
+                                        "ref": {
+                                            "apiVersion": objects.OpenStackMachineTemplate.version,
+                                            "kind": objects.OpenStackMachineTemplate.kind,
+                                            "name": CLUSTER_CLASS_NAME,
+                                        }
+                                    },
+                                },
+                            }
+                        ],
+                    },
+                    "variables": [
+                        {
+                            "name": "apiServerLoadBalancer",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "object",
+                                    "required": ["enabled"],
+                                    "properties": {
+                                        "enabled": {
+                                            "type": "boolean",
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        {
+                            "name": "auditLog",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "enabled",
+                                        "maxAge",
+                                        "maxBackup",
+                                        "maxSize",
+                                    ],
+                                    "properties": {
+                                        "enabled": {
+                                            "type": "boolean",
+                                        },
+                                        "maxAge": {
+                                            "type": "string",
+                                        },
+                                        "maxBackup": {
+                                            "type": "string",
+                                        },
+                                        "maxSize": {
+                                            "type": "string",
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        {
+                            "name": "bootVolume",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "object",
+                                    "required": ["size"],
+                                    "properties": {
+                                        "size": {
+                                            "type": "integer",
+                                        },
+                                        "type": {
+                                            "type": "string",
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        {
+                            "name": "clusterIdentityRef",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "object",
+                                    "required": ["kind", "name"],
+                                    "properties": {
+                                        "kind": {
+                                            "type": "string",
+                                            "enum": [pykube.Secret.kind],
+                                        },
+                                        "name": {"type": "string"},
+                                    },
+                                },
+                            },
+                        },
+                        {
+                            "name": "cloudControllerManagerConfig",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "controlPlaneFlavor",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "dnsNameservers",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string",
+                                    },
+                                },
+                            },
+                        },
+                        {
+                            "name": "externalNetworkId",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "flavor",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "imageUUID",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "nodeCidr",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "sshKeyName",
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                    ],
+                    "patches": [
+                        {
+                            "name": "auditLog",
+                            "enabledIf": "{{ if .auditLog.enabled }}true{{end}}",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                        "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-log-path",  # noqa: E501
+                                            "value": "/var/log/audit/kube-apiserver-audit.log",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-log-maxage",  # noqa: E501
+                                            "valueFrom": {
+                                                "variable": "auditLog.maxAge",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-log-maxbackup",  # noqa: E501
+                                            "valueFrom": {
+                                                "variable": "auditLog.maxBackup",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-log-maxsize",  # noqa: E501
+                                            "valueFrom": {
+                                                "variable": "auditLog.maxSize",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-policy-file",  # noqa: E501
+                                            "value": "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes",  # noqa: E501
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - name: audit-policy
+                                                      hostPath: /etc/kubernetes/audit-policy
+                                                      mountPath: /etc/kubernetes/audit-policy
+                                                    - name: audit-logs
+                                                      hostPath: /var/log/kubernetes/audit
+                                                      mountPath: /var/log/audit
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                }
+                            ],
+                        },
+                        {
+                            "name": "bootVolume",
+                            "enabledIf": "{{ if gt .bootVolume.size 0.0 }}true{{end}}",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackMachineTemplate.version,
+                                        "kind": objects.OpenStackMachineTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            },
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/rootVolume",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    diskSize: {{ .bootVolume.size }}
+                                                    volumeType: {{ .bootVolume.type }}
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                }
+                            ],
+                        },
+                        {
+                            "name": "clusterConfig",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackMachineTemplate.version,
+                                        "kind": objects.OpenStackMachineTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/flavor",
+                                            "valueFrom": {
+                                                "variable": "controlPlaneFlavor",
+                                            },
+                                        },
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackMachineTemplate.version,
+                                        "kind": objects.OpenStackMachineTemplate.kind,
+                                        "matchResources": {
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            },
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/flavor",
+                                            "valueFrom": {
+                                                "variable": "flavor",
+                                            },
+                                        },
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackMachineTemplate.version,
+                                        "kind": objects.OpenStackMachineTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            },
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/identityRef",
+                                            "valueFrom": {
+                                                "variable": "clusterIdentityRef"
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/sshKeyName",
+                                            "valueFrom": {"variable": "sshKeyName"},
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/imageUUID",
+                                            "valueFrom": {"variable": "imageUUID"},
+                                        },
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackClusterTemplate.version,
+                                        "kind": objects.OpenStackClusterTemplate.kind,
+                                        "matchResources": {
+                                            "infrastructureCluster": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/apiServerLoadBalancer",
+                                            "valueFrom": {
+                                                "variable": "apiServerLoadBalancer"
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/identityRef",
+                                            "valueFrom": {
+                                                "variable": "clusterIdentityRef"
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/dnsNameservers",
+                                            "valueFrom": {"variable": "dnsNameservers"},
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/externalNetworkId",
+                                            "valueFrom": {
+                                                "variable": "externalNetworkId"
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/nodeCidr",
+                                            "valueFrom": {"variable": "nodeCidr"},
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            "name": "controlPlaneConfig",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                        "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    path: "/etc/kubernetes/cloud.conf"
+                                                    owner: "root:root"
+                                                    permissions: "0600"
+                                                    content: "{{ .cloudControllerManagerConfig }}"
+                                                    encoding: "base64"
+                                                    """
+                                                ),
+                                            },
+                                        }
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmConfigTemplate.version,
+                                        "kind": objects.KubeadmConfigTemplate.kind,
+                                        "matchResources": {
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            }
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/files",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - path: "/etc/kubernetes/cloud.conf"
+                                                      owner: "root:root"
+                                                      permissions: "0600"
+                                                      content: "{{ .cloudControllerManagerConfig }}"
+                                                      encoding: "base64"
+                                                """
+                                                ),
+                                            },
+                                        }
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
                 },
             },
         )
+
+
+def create_cluster_class_from_cluster_template(
+    api: pykube.HTTPClient,
+) -> ClusterClass:
+    """
+    Create a ClusterClass and all of it's supporting resources from a Magnum
+    cluster template using server-side apply.
+    """
+
+    KubeadmControlPlaneTemplate(api).apply()
+    KubeadmConfigTemplate(api).apply()
+    OpenStackMachineTemplate(api).apply()
+    OpenStackClusterTemplate(api).apply()
+    ClusterClass(api).apply()
 
 
 class Cluster(ClusterBase):
+    def __init__(
+        self,
+        context: context.RequestContext,
+        api: pykube.HTTPClient,
+        cluster: magnum_objects.Cluster,
+    ):
+        self.context = context
+        self.api = api
+        self.cluster = cluster
+
     @property
     def labels(self) -> dict:
         ccm_version = utils.get_cluster_label(
@@ -789,44 +1091,173 @@ class Cluster(ClusterBase):
                 "apiVersion": objects.Cluster.version,
                 "kind": objects.Cluster.kind,
                 "metadata": {
-                    "name": name_from_cluster(self.api, self.cluster),
+                    "name": utils.get_or_generate_cluster_api_name(
+                        self.api, self.cluster
+                    ),
                     "namespace": "magnum-system",
                     "labels": self.labels,
                 },
                 "spec": {
                     "clusterNetwork": {
                         "serviceDomain": utils.get_cluster_label(
-                            self.cluster, "dns_cluster_domain", "cluster.local"
+                            self.cluster,
+                            "dns_cluster_domain",
+                            "cluster.local",
                         ),
                         "pods": {
                             "cidrBlocks": [
                                 utils.get_cluster_label(
-                                    self.cluster, "calico_ipv4pool", "10.100.0.0/16"
+                                    self.cluster,
+                                    "calico_ipv4pool",
+                                    "10.100.0.0/16",
                                 )
                             ],
                         },
                     },
-                    "controlPlaneRef": {
-                        "apiVersion": objects.KubeadmControlPlane.version,
-                        "kind": objects.KubeadmControlPlane.kind,
-                        "name": name_from_cluster(self.api, self.cluster),
-                    },
-                    "infrastructureRef": {
-                        "apiVersion": objects.OpenStackCluster.version,
-                        "kind": objects.OpenStackCluster.kind,
-                        "name": name_from_cluster(self.api, self.cluster),
+                    "topology": {
+                        "class": CLUSTER_CLASS_NAME,
+                        "version": utils.get_cluster_label(
+                            self.cluster, "kube_tag", KUBE_TAG
+                        ),
+                        "controlPlane": {
+                            "replicas": self.cluster.master_count,
+                        },
+                        "workers": {
+                            "machineDeployments": [
+                                {
+                                    "class": "default-worker",
+                                    "name": ng.name,
+                                    "replicas": ng.node_count,
+                                    "failureDomain": utils.get_cluster_label(
+                                        self.cluster, "availability_zone", ""
+                                    ),
+                                    # bootVolume
+                                    # flavor
+                                    # imageUUID
+                                }
+                                for ng in self.cluster.nodegroups
+                                if ng.role != "master"
+                            ]
+                        },
+                        "variables": [
+                            {
+                                "name": "apiServerLoadBalancer",
+                                "value": {
+                                    "enabled": self.cluster.master_lb_enabled,
+                                },
+                            },
+                            {
+                                "name": "auditLog",
+                                "value": {
+                                    "enabled": utils.get_cluster_label_as_bool(
+                                        self.cluster, "audit_log_enabled", False
+                                    ),
+                                    "maxAge": utils.get_cluster_label(
+                                        self.cluster, "audit_log_max_age", "30"
+                                    ),
+                                    "maxBackup": utils.get_cluster_label(
+                                        self.cluster, "audit_log_max_backup", "10"
+                                    ),
+                                    "maxSize": utils.get_cluster_label(
+                                        self.cluster, "audit_log_max_size", "100"
+                                    ),
+                                },
+                            },
+                            {
+                                "name": "bootVolume",
+                                "value": {
+                                    "size": utils.get_cluster_label_as_int(
+                                        self.cluster,
+                                        "boot_volume_size",
+                                        CONF.cinder.default_boot_volume_size,
+                                    ),
+                                    "type": utils.get_cluster_label(
+                                        self.cluster,
+                                        "boot_volume_type",
+                                        cinder.get_default_boot_volume_type(
+                                            self.context
+                                        ),
+                                    ),
+                                },
+                            },
+                            {
+                                "name": "clusterIdentityRef",
+                                "value": {
+                                    "kind": pykube.Secret.kind,
+                                    "name": utils.get_or_generate_cluster_api_cloud_config_secret_name(
+                                        self.api, self.cluster
+                                    ),
+                                },
+                            },
+                            {
+                                "name": "cloudControllerManagerConfig",
+                                "value": base64.encode_as_text(
+                                    utils.generate_cloud_controller_manager_config(
+                                        self.api, self.cluster
+                                    )
+                                ),
+                            },
+                            {
+                                "name": "controlPlaneFlavor",
+                                "value": self.cluster.master_flavor_id,
+                            },
+                            {
+                                "name": "dnsNameservers",
+                                "value": self.cluster.cluster_template.dns_nameserver.split(
+                                    ","
+                                ),
+                            },
+                            {
+                                "name": "externalNetworkId",
+                                "value": neutron.get_external_network_id(
+                                    self.context,
+                                    self.cluster.cluster_template.external_network_id,
+                                ),
+                            },
+                            {
+                                "name": "flavor",
+                                "value": self.cluster.flavor_id,
+                            },
+                            {
+                                "name": "imageUUID",
+                                "value": self.cluster.cluster_template.image_id,
+                            },
+                            {
+                                "name": "nodeCidr",
+                                "value": utils.get_cluster_label(
+                                    self.cluster,
+                                    "fixed_subnet_cidr",
+                                    "10.6.0.0/24",
+                                ),
+                            },
+                            {
+                                "name": "sshKeyName",
+                                "value": self.cluster.keypair or "",
+                            },
+                        ],
                     },
                 },
             },
         )
 
 
-def name_from_cluster(api: pykube.HTTPClient, cluster: magnum_objects.Cluster) -> str:
-    if cluster.stack_id is None:
-        cluster.stack_id = utils.generate_cluster_api_name(api, cluster)
-        cluster.save()
-    return cluster.stack_id
+def apply_cluster_from_magnum_cluster(
+    context: context.RequestContext,
+    api: pykube.HTTPClient,
+    cluster: magnum_objects.Cluster,
+) -> objects.Cluster:
+    """
+    Create a ClusterAPI cluster given a Magnum Cluster object.
+    """
+    create_cluster_class_from_cluster_template(api)
+    Cluster(context, api, cluster).apply()
+
+    # TODO: refactor into Cluster topology
+    if utils.get_cluster_label_as_bool(cluster, "auto_healing_enabled", True):
+        MachineHealthCheck(api, cluster).apply()
+    else:
+        MachineHealthCheck(api, cluster).delete()
 
 
 def name_from_node_group(api: pykube.HTTPClient, cluster: any, node_group: any) -> str:
-    return f"{name_from_cluster(api, cluster)}-{node_group.name}"
+    return f"{utils.get_or_generate_cluster_api_name(api, cluster)}-{node_group.name}"

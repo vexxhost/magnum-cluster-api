@@ -13,24 +13,15 @@
 # under the License.
 
 import keystoneauth1
+from magnum import objects as magnum_objects
 from magnum.drivers.common import driver
 
-from magnum_cluster_api import clients, monitor, objects, resources, utils
+from magnum_cluster_api import clients, monitor, objects, resources
 
 
 class BaseDriver(driver.Driver):
     def __init__(self):
         self.k8s_api = clients.get_pykube_api()
-
-    def _apply_cluster(self, context, cluster):
-        """
-        Apply or remove resources inside the management Kubernetes cluster using
-        server side apply given a Magnum cluster.
-        """
-        if utils.get_cluster_label_as_bool(cluster, "auto_healing_enabled", True):
-            resources.MachineHealthCheck(self.k8s_api, cluster).apply()
-        else:
-            resources.MachineHealthCheck(self.k8s_api, cluster).delete()
 
     def create_cluster(self, context, cluster, cluster_create_timeout):
         osc = clients.get_openstack_api(context)
@@ -65,18 +56,12 @@ class BaseDriver(driver.Driver):
             self.k8s_api, cluster
         ).apply()
 
-        for node_group in cluster.nodegroups:
-            self.create_nodegroup(context, cluster, node_group, credential=credential)
-
-        resources.OpenStackCluster(self.k8s_api, cluster, context).apply()
-        resources.Cluster(self.k8s_api, cluster).apply()
-
-        self._apply_cluster(context, cluster)
+        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
         osc = clients.get_openstack_api(context)
 
-        capi_cluster = resources.Cluster(self.k8s_api, cluster).get_object()
+        capi_cluster = resources.Cluster(context, self.k8s_api, cluster).get_object()
 
         if cluster.status in (
             "CREATE_IN_PROGRESS",
@@ -87,41 +72,19 @@ class BaseDriver(driver.Driver):
                 c["type"]: c["status"] for c in capi_cluster.obj["status"]["conditions"]
             }
 
-            # health_status
-            # node_addresses
-            # master_addreses
-            # discovery_url = ???
-            # docker_volume_size
-            # container_version
-            # health_status_reason
-
-            if status_map.get("ControlPlaneReady") != "True":
-                return
+            for condition in ("ControlPlaneReady", "InfrastructureReady", "Ready"):
+                if status_map.get(condition) != "True":
+                    return
 
             api_endpoint = capi_cluster.obj["spec"]["controlPlaneEndpoint"]
             cluster.api_address = (
                 f"https://{api_endpoint['host']}:{api_endpoint['port']}"
             )
 
-            for node_group in cluster.nodegroups:
-                ng = self.update_nodegroup_status(context, cluster, node_group)
-                if ng.status not in (
-                    "CREATE_COMPLETE",
-                    "UPDATE_COMPLETE",
-                ):
-                    return
-
-                if node_group.role == "master":
-                    kcp = resources.KubeadmControlPlane(
-                        self.k8s_api, cluster, node_group
-                    ).get_object()
-                    kcp.reload()
-
-                    cluster.coe_version = kcp.obj["status"]["version"]
+            cluster.coe_version = capi_cluster.obj["spec"]["topology"]["version"]
 
             if cluster.status == "CREATE_IN_PROGRESS":
                 cluster.status = "CREATE_COMPLETE"
-
             if cluster.status == "UPDATE_IN_PROGRESS":
                 cluster.status = "UPDATE_COMPLETE"
 
@@ -194,89 +157,39 @@ class BaseDriver(driver.Driver):
     def upgrade_cluster(
         self,
         context,
-        cluster,
-        cluster_template,
+        cluster: magnum_objects.Cluster,
+        cluster_template: magnum_objects.ClusterTemplate,
         max_batch_size,
-        nodegroup,
+        nodegroup: magnum_objects.NodeGroup,
         scale_manager=None,
         rollback=False,
     ):
-        raise NotImplementedError()
+        """
+        Upgrade a cluster to a new version of Kubernetes.
+        """
+        # TODO: nodegroup?
+
+        # TODO: intelligently determine the changing labels
+        #       and only update those (use get_labels_diff)
+        cluster.labels = cluster_template.labels
+        cluster.cluster_template = cluster_template
+
+        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
     def delete_cluster(self, context, cluster):
-        resources.Cluster(self.k8s_api, cluster).delete()
+        resources.Cluster(context, self.k8s_api, cluster).delete()
 
-    def create_nodegroup(self, context, cluster, nodegroup, credential=None):
-        osc = clients.get_openstack_api(context)
-
-        resources.OpenStackMachineTemplate(
-            self.k8s_api, cluster, nodegroup, context
-        ).apply()
-
-        if nodegroup.role == "master":
-            resources.KubeadmControlPlane(
-                self.k8s_api,
-                cluster,
-                nodegroup,
-                auth_url=osc.auth_url,
-                region_name=osc.cinder_region_name(),
-                credential=credential,
-            ).apply()
-        else:
-            resources.KubeadmConfigTemplate(
-                self.k8s_api,
-                cluster,
-                auth_url=osc.auth_url,
-                region_name=osc.cinder_region_name(),
-                credential=credential,
-            ).apply()
-            resources.MachineDeployment(self.k8s_api, cluster, nodegroup).apply()
-
-    def update_nodegroup_status(self, context, cluster, nodegroup):
-        action = nodegroup.status.split("_")[0]
-
-        if nodegroup.role == "master":
-            kcp = resources.KubeadmControlPlane(
-                self.k8s_api, cluster, nodegroup
-            ).get_object()
-            kcp.reload()
-
-            ready = kcp.obj["status"].get("ready", False)
-            failure_message = kcp.obj["status"].get("failureMessage")
-
-            if ready:
-                nodegroup.status = f"{action}_COMPLETE"
-            nodegroup.status_reason = failure_message
-        else:
-            md = resources.MachineDeployment(
-                self.k8s_api, cluster, nodegroup
-            ).get_object()
-            md.reload()
-
-            phase = md.obj["status"]["phase"]
-
-            if phase in ("ScalingUp", "ScalingDown"):
-                nodegroup.status = f"{action}_IN_PROGRESS"
-            elif phase == "Running":
-                nodegroup.status = f"{action}_COMPLETE"
-            elif phase in ("Failed", "Unknown"):
-                nodegroup.status = f"{action}_FAILED"
-
-        nodegroup.save()
-
-        return nodegroup
+    def create_nodegroup(self, context, cluster, nodegroup):
+        # TODO: update nodegroup tags
+        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
     def update_nodegroup(self, context, cluster, nodegroup):
-        resources.MachineDeployment(self.k8s_api, cluster, nodegroup).apply()
+        # TODO
+        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
     def delete_nodegroup(self, context, cluster, nodegroup):
-        if nodegroup.role != "master":
-            resources.MachineDeployment(self.k8s_api, cluster, nodegroup).delete()
-            resources.KubeadmConfigTemplate(self.k8s_api, cluster).delete()
-
-        resources.OpenStackMachineTemplate(
-            self.k8s_api, cluster, nodegroup, context
-        ).delete()
+        # TODO
+        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
     def get_monitor(self, context, cluster):
         return monitor.ClusterApiMonitor(context, cluster)

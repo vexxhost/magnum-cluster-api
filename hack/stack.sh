@@ -76,7 +76,10 @@ clusterctl version
 
 # Initialize the `clusterctl` CLI
 export EXP_CLUSTER_RESOURCE_SET=true
+export CLUSTER_TOPOLOGY=true
 clusterctl init --infrastructure openstack
+# TODO: find a way to run this from `clusterctl` ?
+kubectl apply -f https://storage.googleapis.com/artifacts.k8s-staging-capi-openstack.appspot.com/components/nightly_main_20221104/infrastructure-components.yaml
 
 # Install `magnum-cluster-api`
 pip install -U setuptools pip

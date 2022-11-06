@@ -8,7 +8,7 @@ class ClusterResourceSet(pykube.objects.NamespacedAPIObject):
 
 
 class OpenStackMachineTemplate(pykube.objects.NamespacedAPIObject):
-    version = "infrastructure.cluster.x-k8s.io/v1alpha5"
+    version = "infrastructure.cluster.x-k8s.io/v1alpha6"
     endpoint = "openstackmachinetemplates"
     kind = "OpenStackMachineTemplate"
 
@@ -19,16 +19,10 @@ class KubeadmConfigTemplate(pykube.objects.NamespacedAPIObject):
     kind = "KubeadmConfigTemplate"
 
 
-class KubeadmControlPlane(pykube.objects.NamespacedAPIObject):
+class KubeadmControlPlaneTemplate(pykube.objects.NamespacedAPIObject):
     version = "controlplane.cluster.x-k8s.io/v1beta1"
-    endpoint = "kubeadmcontrolplanes"
-    kind = "KubeadmControlPlane"
-
-
-class MachineDeployment(pykube.objects.NamespacedAPIObject):
-    version = "cluster.x-k8s.io/v1beta1"
-    endpoint = "machinedeployments"
-    kind = "MachineDeployment"
+    endpoint = "kubeadmcontrolplanetemplates"
+    kind = "KubeadmControlPlaneTemplate"
 
 
 class Machine(pykube.objects.NamespacedAPIObject):
@@ -43,10 +37,16 @@ class MachineHealthCheck(pykube.objects.NamespacedAPIObject):
     kind = "MachineHealthCheck"
 
 
-class OpenStackCluster(pykube.objects.NamespacedAPIObject):
-    version = "infrastructure.cluster.x-k8s.io/v1alpha5"
-    endpoint = "openstackclusters"
-    kind = "OpenStackCluster"
+class OpenStackClusterTemplate(pykube.objects.NamespacedAPIObject):
+    version = "infrastructure.cluster.x-k8s.io/v1alpha6"
+    endpoint = "openstackclustertemplates"
+    kind = "OpenStackClusterTemplate"
+
+
+class ClusterClass(pykube.objects.NamespacedAPIObject):
+    version = "cluster.x-k8s.io/v1beta1"
+    endpoint = "clusterclasses"
+    kind = "ClusterClass"
 
 
 class Cluster(pykube.objects.NamespacedAPIObject):

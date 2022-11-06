@@ -37,35 +37,28 @@ steps to be able to test and develop the project.
    ./hack/stack.sh
    ```
 
-1. Upload an image to use with Magnum
+1. Upload an image to use with Magnum and create cluster templates
 
    ```bash
    pushd /tmp
-   curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2004-v1.25.3.qcow2
    source /opt/stack/openrc
-   openstack image create ubuntu-2004-v1.25.3  \
-     --disk-format=qcow2 \
-     --container-format=bare \
-     --property os_distro=ubuntu-focal \
-     --file=ubuntu-2004-v1.25.3.qcow2
+   for version in v1.23.13 v1.24.7 v1.25.3; do \
+      curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2004-${version}.qcow2; \
+      openstack image create ubuntu-2004-${version} --disk-format=qcow2 --container-format=bare --property os_distro=ubuntu-focal --file=ubuntu-2004-${version}.qcow2; \
+      openstack coe cluster template create \
+         --image $(openstack image show ubuntu-2004-${version} -c id -f value) \
+         --external-network public \
+         --dns-nameserver 8.8.8.8 \
+         --master-lb-enabled \
+         --master-flavor m1.medium \
+         --flavor m1.medium \
+         --network-driver calico \
+         --docker-storage-driver overlay2 \
+         --coe kubernetes \
+         --label kube_tag=${version} \
+         k8s-${version};
+   done;
    popd /tmp
-   ```
-
-1. Create a cluster template that uses the Cluster API driver
-
-   ```bash
-   openstack coe cluster template create \
-     --image $(openstack image show ubuntu-2004-v1.25.3 -c id -f value) \
-     --external-network public \
-     --dns-nameserver 8.8.8.8 \
-     --master-lb-enabled \
-     --flavor m1.medium \
-     --master-flavor m1.medium \
-     --docker-volume-size 5 \
-     --network-driver calico \
-     --docker-storage-driver overlay2 \
-     --coe kubernetes \
-     k8s-cluster-template-capi
    ```
 
 1. Spin up a new cluster using the Cluster API driver
@@ -75,7 +68,7 @@ steps to be able to test and develop the project.
      --cluster-template k8s-cluster-template-capi \
      --master-count 3 \
      --node-count 2 \
-     k8s-cluster
+     k8s-v1.25.3
    ```
 
 1. Once the cluster reaches `CREATE_COMPLETE` state, you can interact with it:

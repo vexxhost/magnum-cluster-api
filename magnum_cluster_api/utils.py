@@ -1,14 +1,37 @@
+import textwrap
+
+import pykube
 import shortuuid
+import yaml
 from magnum import objects as magnum_objects
 from magnum.common import exception
+from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
 
-from magnum_cluster_api import objects
+from magnum_cluster_api import clients, objects
+
+
+def get_or_generate_cluster_api_cloud_config_secret_name(
+    api: pykube.HTTPClient, cluster: magnum_objects.Cluster
+) -> str:
+    return f"{get_or_generate_cluster_api_name(api, cluster)}-cloud-config"
+
+
+def get_or_generate_cluster_api_name(
+    api: pykube.HTTPClient, cluster: magnum_objects.Cluster
+) -> str:
+    if cluster.stack_id is None:
+        cluster.stack_id = generate_cluster_api_name(api, cluster)
+        cluster.save()
+    return cluster.stack_id
 
 
 @retry(retry=retry_if_exception_type(exception.Conflict))
-def generate_cluster_api_name(api, cluster):
+def generate_cluster_api_name(
+    api: pykube.HTTPClient,
+    cluster: magnum_objects.Cluster,
+) -> str:
     name = f"{cluster.name}-{shortuuid.uuid()[:10].lower()}"
     if (
         objects.Cluster.objects(api)
@@ -18,6 +41,33 @@ def generate_cluster_api_name(api, cluster):
     ):
         raise exception.Conflict("Generated name already exists")
     return name
+
+
+def generate_cloud_controller_manager_config(
+    api: pykube.HTTPClient,
+    cluster: magnum_objects.Cluster,
+) -> str:
+    """
+    Generate coniguration for openstack-cloud-controller-manager if it does
+    already exist.
+    """
+    api = clients.get_pykube_api()
+
+    data = pykube.Secret.objects(api, namespace="magnum-system").get_by_name(
+        get_or_generate_cluster_api_cloud_config_secret_name(api, cluster)
+    )
+    clouds_yaml = base64.decode_as_text(data.obj["data"]["clouds.yaml"])
+    cloud_config = yaml.safe_load(clouds_yaml)
+
+    return textwrap.dedent(
+        f"""\
+        [Global]
+        auth-url={cloud_config["clouds"]["default"]["auth"]["auth_url"]}
+        region={cloud_config["clouds"]["default"]["region_name"]}
+        application-credential-id={cloud_config["clouds"]["default"]["auth"]["application_credential_id"]}
+        application-credential-secret={cloud_config["clouds"]["default"]["auth"]["application_credential_secret"]}
+        """
+    )
 
 
 def get_cluster_label_as_bool(
@@ -38,6 +88,20 @@ def get_cluster_label(cluster: magnum_objects.Cluster, key: str, default: str) -
     return cluster.labels.get(
         key, get_cluster_template_label(cluster.cluster_template, key, default)
     )
+
+
+def get_cluster_template_label_as_bool(
+    cluster_template: magnum_objects.ClusterTemplate, key: str, default: bool
+) -> bool:
+    value = get_cluster_template_label(cluster_template, key, default)
+    return strutils.bool_from_string(value, strict=True)
+
+
+def get_cluster_template_label_as_int(
+    cluster_template: magnum_objects.ClusterTemplate, key: str, default: int
+) -> int:
+    value = get_cluster_template_label(cluster_template, key, default)
+    return strutils.validate_integer(value, key)
 
 
 def get_cluster_template_label(
