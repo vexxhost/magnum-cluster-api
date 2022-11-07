@@ -59,6 +59,11 @@ class BaseDriver(driver.Driver):
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
+        node_groups = [
+            self.update_nodegroup_status(context, cluster, node_group)
+            for node_group in cluster.nodegroups
+        ]
+
         # TODO: watch for topology change instead
         osc = clients.get_openstack_api(context)
 
@@ -83,8 +88,7 @@ class BaseDriver(driver.Driver):
             )
             cluster.coe_version = capi_cluster.obj["spec"]["topology"]["version"]
 
-            for node_group in cluster.nodegroups:
-                ng = self.update_nodegroup_status(context, cluster, node_group)
+            for ng in node_groups:
                 if not ng.status.endswith("_COMPLETE"):
                     return
                 if ng.status == "DELETE_COMPLETE":
@@ -197,10 +201,19 @@ class BaseDriver(driver.Driver):
             if kcp is None:
                 return nodegroup
 
+            generation = kcp.obj["status"].get("observedGeneration")
+            if generation > 1:
+                action = "UPDATE"
+
             ready = kcp.obj["status"].get("ready", False)
             failure_message = kcp.obj["status"].get("failureMessage")
 
-            if ready:
+            updated_replicas = kcp.obj["status"].get("updatedReplicas")
+            replicas = kcp.obj["status"].get("replicas")
+
+            if updated_replicas != replicas:
+                nodegroup.status = f"{action}_IN_PROGRESS"
+            elif updated_replicas == replicas and ready:
                 nodegroup.status = f"{action}_COMPLETE"
             nodegroup.status_reason = failure_message
         else:

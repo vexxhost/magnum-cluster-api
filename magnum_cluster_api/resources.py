@@ -1287,6 +1287,7 @@ def apply_cluster_from_magnum_cluster(
     #       and only update those (use get_labels_diff)
     cluster.labels = cluster_template.labels
     cluster.cluster_template = cluster_template
+    cluster.save()
 
     Cluster(context, api, cluster).apply()
 
@@ -1328,7 +1329,3 @@ def get_machine_deployment(
     if len(mds) == 1:
         return list(mds)[0]
     return None
-
-
-def name_from_node_group(api: pykube.HTTPClient, cluster: any, node_group: any) -> str:
-    return f"{utils.get_or_generate_cluster_api_name(api, cluster)}-{node_group.name}"
