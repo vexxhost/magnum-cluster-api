@@ -187,7 +187,6 @@ class BaseDriver(driver.Driver):
         resources.Cluster(context, self.k8s_api, cluster).delete()
 
     def create_nodegroup(self, context, cluster, nodegroup):
-        # TODO: update nodegroup tags
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
     def update_nodegroup_status(self, context, cluster, nodegroup):
