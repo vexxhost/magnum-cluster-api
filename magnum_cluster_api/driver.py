@@ -81,13 +81,14 @@ class BaseDriver(driver.Driver):
             cluster.api_address = (
                 f"https://{api_endpoint['host']}:{api_endpoint['port']}"
             )
+            cluster.coe_version = capi_cluster.obj["spec"]["topology"]["version"]
 
             for node_group in cluster.nodegroups:
                 ng = self.update_nodegroup_status(context, cluster, node_group)
                 if not ng.status.endswith("_COMPLETE"):
                     return
-
-            cluster.coe_version = capi_cluster.obj["spec"]["topology"]["version"]
+                if ng.status == "DELETE_COMPLETE":
+                    ng.destroy()
 
             if cluster.status == "CREATE_IN_PROGRESS":
                 cluster.status = "CREATE_COMPLETE"
@@ -227,7 +228,9 @@ class BaseDriver(driver.Driver):
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
     def delete_nodegroup(self, context, cluster, nodegroup):
-        nodegroup.destroy()
+        nodegroup.status = "DELETE_IN_PROGRESS"
+        nodegroup.save()
+
         resources.apply_cluster_from_magnum_cluster(
             context,
             self.k8s_api,
