@@ -284,7 +284,9 @@ class StorageClassesConfigMap(ClusterBase):
                     "metadata": {
                         "annotations": {
                             "storageclass.kubernetes.io/is-default-class": "true"
-                        } if vt.name == "__DEFAULT__" else {},
+                        }
+                        if vt.name == "__DEFAULT__"
+                        else {},
                         "name": vt.name,
                     },
                     "provisioner": "kubernetes.io/cinder",
@@ -292,7 +294,7 @@ class StorageClassesConfigMap(ClusterBase):
                         "type": vt.name,
                     },
                     "reclaimPolicy": "Delete",
-                    "volumeBindingMode": "Immediate"
+                    "volumeBindingMode": "Immediate",
                 }
             )
         return pykube.ConfigMap(
