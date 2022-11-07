@@ -257,7 +257,8 @@ class CinderCSIClusterResourceSet(ClusterBase):
                 "spec": {
                     "clusterSelector": {
                         "matchLabels": {
-                            "csi": f"cinder-csi-{version}",
+                            "csi": "cinder",
+                            "cinder-csi-version": version,
                         },
                     },
                     "resources": [
@@ -285,6 +286,7 @@ class StorageClassesConfigMap(ClusterBase):
     def get_object(self) -> pykube.ConfigMap:
         osc = clients.get_openstack_api(self.context)
         volume_types = osc.cinder().volume_types.list()
+        default_volume_type = osc.cinder().volume_types.default()
         data = {}
         for vt in volume_types:
             data[f"{vt.name}.yaml"] = yaml.dump(
@@ -295,7 +297,7 @@ class StorageClassesConfigMap(ClusterBase):
                         "annotations": {
                             "storageclass.kubernetes.io/is-default-class": "true"
                         }
-                        if vt.name == "__DEFAULT__"
+                        if default_volume_type and default_volume_type.name == vt.name
                         else {},
                         "name": vt.name,
                     },
@@ -313,7 +315,7 @@ class StorageClassesConfigMap(ClusterBase):
                 "apiVersion": pykube.ConfigMap.version,
                 "kind": pykube.ConfigMap.kind,
                 "metadata": {
-                    "name": "storageclasses",
+                    "name": "cinder-csi-storageclass",
                     "namespace": "magnum-system",
                 },
                 "data": data,
@@ -323,9 +325,6 @@ class StorageClassesConfigMap(ClusterBase):
 
 class StorageClassesClusterResourceSet(ClusterBase):
     def get_object(self) -> objects.ClusterResourceSet:
-        version = utils.get_cluster_label(
-            self.cluster, "cinder_csi_plugin_tag", CSI_TAG
-        )
 
         return objects.ClusterResourceSet(
             self.api,
@@ -333,18 +332,18 @@ class StorageClassesClusterResourceSet(ClusterBase):
                 "apiVersion": objects.ClusterResourceSet.version,
                 "kind": objects.ClusterResourceSet.kind,
                 "metadata": {
-                    "name": "storageclasses",
+                    "name": "cinder-csi-storageclass",
                     "namespace": "magnum-system",
                 },
                 "spec": {
                     "clusterSelector": {
                         "matchLabels": {
-                            "csi": f"cinder-csi-{version}",
+                            "csi": "cinder",
                         },
                     },
                     "resources": [
                         {
-                            "name": "storageclasses",
+                            "name": "cinder-csi-storageclass",
                             "kind": "ConfigMap",
                         },
                     ],
@@ -1164,7 +1163,8 @@ class Cluster(ClusterBase):
             csi_version = utils.get_cluster_label(
                 self.cluster, "cinder_csi_plugin_tag", CSI_TAG
             )
-            labels["csi"] = f"cinder-csi-{csi_version}"
+            labels["csi"] = "cinder"
+            labels["cinder-csi-version"] = csi_version
 
         return {**super().labels, **labels}
 
