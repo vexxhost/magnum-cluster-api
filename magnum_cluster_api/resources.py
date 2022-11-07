@@ -289,6 +289,8 @@ class StorageClassesConfigMap(ClusterBase):
         default_volume_type = osc.cinder().volume_types.default()
         data = {}
         for vt in volume_types:
+            if vt.name == "__DEFAULT__":
+                continue
             data[f"{vt.name}.yaml"] = yaml.dump(
                 {
                     "apiVersion": objects.StorageClass.version,
