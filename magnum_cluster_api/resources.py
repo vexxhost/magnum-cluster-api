@@ -25,6 +25,8 @@ CSI_TAG = "v1.25.3"
 CLUSTER_CLASS_VERSION = "v0.0.0"
 CLUSTER_CLASS_NAME = f"magnum-{CLUSTER_CLASS_VERSION}"
 
+CLUSTER_UPGRADE_LABELS = {"kube_tag"}
+
 PLACEHOLDER = "PLACEHOLDER"
 
 
@@ -1248,7 +1250,7 @@ class Cluster(ClusterBase):
                             },
                             {
                                 "name": "imageUUID",
-                                "value": self.cluster.cluster_template.image_id,
+                                "value": self.cluster.default_ng_master.image_id,
                             },
                             {
                                 "name": "nodeCidr",
@@ -1283,10 +1285,18 @@ def apply_cluster_from_magnum_cluster(
     if cluster_template is None:
         cluster_template = cluster.cluster_template
 
-    # TODO: intelligently determine the changing labels
-    #       and only update those (use get_labels_diff)
-    cluster.labels = cluster_template.labels
-    cluster.cluster_template = cluster_template
+    # NOTE(mnaser): When using Cluster API, there is a 1:1 mapping between image
+    #               and version of Kubernetes, therefore, we need to ignore the
+    #               `image_id` field, as well as copy over any tags relating to
+    #               the Kubernetes version.
+    #
+    #               I hate this.
+    for label in CLUSTER_UPGRADE_LABELS:
+        cluster.labels[label] = cluster_template.labels[label]
+        for ng in cluster.nodegroups:
+            ng.image_id = cluster_template.image_id
+            ng.labels[label] = cluster_template.labels[label]
+            ng.save()
     cluster.save()
 
     Cluster(context, api, cluster).apply()
