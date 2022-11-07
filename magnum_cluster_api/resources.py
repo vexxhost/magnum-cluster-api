@@ -1354,6 +1354,12 @@ class Cluster(ClusterBase):
             },
         )
 
+    def delete(self):
+        capi_cluster = objects.Cluster.objects(
+            self.api, namespace="magnum-system"
+        ).get_or_none(utils.get_or_generate_cluster_api_name(self.api, self.cluster))
+        capi_cluster.delete()
+
 
 def apply_cluster_from_magnum_cluster(
     context: context.RequestContext,
