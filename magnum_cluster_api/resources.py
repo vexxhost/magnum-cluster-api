@@ -277,7 +277,7 @@ class StorageClassesConfigMap(ClusterBase):
         volume_types = osc.cinder().volume_types.list()
         data = {}
         for vt in volume_types:
-            data["%s.yaml" % vt.name] = yaml.dump(
+            data[f"{vt.name}.yaml"] = yaml.dump(
                 {
                     "apiVersion": objects.StorageClass.version,
                     "kind": objects.StorageClass.kind,
@@ -303,7 +303,7 @@ class StorageClassesConfigMap(ClusterBase):
                 "apiVersion": pykube.ConfigMap.version,
                 "kind": pykube.ConfigMap.kind,
                 "metadata": {
-                    "name": f"storageclasses",
+                    "name": "storageclasses",
                     "namespace": "magnum-system",
                 },
                 "data": data,
@@ -320,13 +320,13 @@ class StorageClassesClusterResourceSet(ClusterBase):
                 "apiVersion": objects.ClusterResourceSet.version,
                 "kind": objects.ClusterResourceSet.kind,
                 "metadata": {
-                    "name": f"storageclasses",
+                    "name": "storageclasses",
                     "namespace": "magnum-system",
                 },
                 "spec": {
                     "resources": [
                         {
-                            "name": f"storageclasses",
+                            "name": "storageclasses",
                             "kind": "ConfigMap",
                         },
                     ],
