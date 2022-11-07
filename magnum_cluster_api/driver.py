@@ -39,6 +39,9 @@ class BaseDriver(driver.Driver):
         resources.CinderCSIConfigMap(self.k8s_api, cluster).apply()
         resources.CinderCSIClusterResourceSet(self.k8s_api, cluster).apply()
 
+        resources.StorageClassesConfigMap(self.k8s_api, cluster).apply()
+        resources.StorageClassesClusterResourceSet(self.k8s_api, cluster).apply()
+
         credential = osc.keystone().client.application_credentials.create(
             user=cluster.user_id,
             name=cluster.uuid,

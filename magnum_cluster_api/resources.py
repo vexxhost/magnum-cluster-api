@@ -14,7 +14,7 @@ from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import encodeutils
 
-from magnum_cluster_api import objects, utils
+from magnum_cluster_api import clients, objects, utils
 
 CONF = cfg.CONF
 KUBE_TAG = "v1.25.3"
@@ -263,6 +263,68 @@ class CinderCSIClusterResourceSet(ClusterBase):
                     "resources": [
                         {
                             "name": f"cinder-csi-{version}",
+                            "kind": "ConfigMap",
+                        },
+                    ],
+                },
+            },
+        )
+
+
+class StorageClassesConfigMap(ClusterBase):
+    def get_object(self) -> pykube.ConfigMap:
+        osc = clients.get_openstack_api(context)
+        volume_types = osc.cinder().volume_types.list()
+        data = {}
+        for vt in volume_types:
+            data["%s.yaml" % vt.name] = yaml.dump(
+                {
+                    "apiVersion": objects.StorageClass.version,
+                    "kind": objects.StorageClass.kind,
+                    "metadata": {
+                        "annotations": {
+                            "storageclass.kubernetes.io/is-default-class": "true"
+                        } if vt.name == "__DEFAULT__" else {},
+                        "name": vt.name,
+                    },
+                    "provisioner": "kubernetes.io/cinder",
+                    "parameters": {
+                        "type": vt.name,
+                    },
+                    "reclaimPolicy": "Delete",
+                    "volumeBindingMode": "Immediate"
+                }
+            )
+        return pykube.ConfigMap(
+            self.api,
+            {
+                "apiVersion": pykube.ConfigMap.version,
+                "kind": pykube.ConfigMap.kind,
+                "metadata": {
+                    "name": f"storageclasses",
+                    "namespace": "magnum-system",
+                },
+                "data": data,
+            },
+        )
+
+
+class StorageClassesClusterResourceSet(ClusterBase):
+    def get_object(self) -> objects.ClusterResourceSet:
+
+        return objects.ClusterResourceSet(
+            self.api,
+            {
+                "apiVersion": objects.ClusterResourceSet.version,
+                "kind": objects.ClusterResourceSet.kind,
+                "metadata": {
+                    "name": f"storageclasses",
+                    "namespace": "magnum-system",
+                },
+                "spec": {
+                    "resources": [
+                        {
+                            "name": f"storageclasses",
                             "kind": "ConfigMap",
                         },
                     ],
