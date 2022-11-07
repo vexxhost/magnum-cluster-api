@@ -272,8 +272,18 @@ class CinderCSIClusterResourceSet(ClusterBase):
 
 
 class StorageClassesConfigMap(ClusterBase):
+    def __init__(
+        self,
+        context: context.RequestContext,
+        api: pykube.HTTPClient,
+        cluster: magnum_objects.Cluster,
+    ):
+        self.context = context
+        self.api = api
+        self.cluster = cluster
+
     def get_object(self) -> pykube.ConfigMap:
-        osc = clients.get_openstack_api(context)
+        osc = clients.get_openstack_api(self.context)
         volume_types = osc.cinder().volume_types.list()
         data = {}
         for vt in volume_types:
