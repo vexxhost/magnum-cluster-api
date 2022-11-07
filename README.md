@@ -65,7 +65,7 @@ steps to be able to test and develop the project.
 
    ```bash
    openstack coe cluster create \
-     --cluster-template k8s-cluster-template-capi \
+     --cluster-template k8s-v1.25.3 \
      --master-count 3 \
      --node-count 2 \
      k8s-v1.25.3
