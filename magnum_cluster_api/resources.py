@@ -299,7 +299,7 @@ class StorageClassesConfigMap(ClusterBase):
                         "annotations": {
                             "storageclass.kubernetes.io/is-default-class": "true"
                         }
-                        if default_volume_type and default_volume_type.name == vt.name
+                        if default_volume_type.name == vt.name
                         else {},
                         "name": vt.name,
                     },
