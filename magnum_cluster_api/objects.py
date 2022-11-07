@@ -65,3 +65,9 @@ class Cluster(pykube.objects.NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
     endpoint = "clusters"
     kind = "Cluster"
+
+
+class StorageClass(pykube.objects.APIObject):
+    version = "storage.k8s.io/v1"
+    endpoint = "storageclasses"
+    kind = "StorageClass"
