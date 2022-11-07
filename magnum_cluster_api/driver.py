@@ -59,6 +59,7 @@ class BaseDriver(driver.Driver):
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
+        # TODO: watch for topology change instead
         osc = clients.get_openstack_api(context)
 
         capi_cluster = resources.Cluster(context, self.k8s_api, cluster).get_object()
@@ -80,6 +81,11 @@ class BaseDriver(driver.Driver):
             cluster.api_address = (
                 f"https://{api_endpoint['host']}:{api_endpoint['port']}"
             )
+
+            for node_group in cluster.nodegroups:
+                ng = self.update_nodegroup_status(context, cluster, node_group)
+                if not ng.status.endswith("_COMPLETE"):
+                    return
 
             cluster.coe_version = capi_cluster.obj["spec"]["topology"]["version"]
 
@@ -169,12 +175,9 @@ class BaseDriver(driver.Driver):
         """
         # TODO: nodegroup?
 
-        # TODO: intelligently determine the changing labels
-        #       and only update those (use get_labels_diff)
-        cluster.labels = cluster_template.labels
-        cluster.cluster_template = cluster_template
-
-        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
+        resources.apply_cluster_from_magnum_cluster(
+            context, self.k8s_api, cluster, cluster_template=cluster_template
+        )
 
     def delete_cluster(self, context, cluster):
         resources.Cluster(context, self.k8s_api, cluster).delete()
@@ -183,13 +186,53 @@ class BaseDriver(driver.Driver):
         # TODO: update nodegroup tags
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
+    def update_nodegroup_status(self, context, cluster, nodegroup):
+        action = nodegroup.status.split("_")[0]
+
+        if nodegroup.role == "master":
+            kcp = resources.get_kubeadm_control_plane(self.k8s_api, cluster)
+            if kcp is None:
+                return nodegroup
+
+            ready = kcp.obj["status"].get("ready", False)
+            failure_message = kcp.obj["status"].get("failureMessage")
+
+            if ready:
+                nodegroup.status = f"{action}_COMPLETE"
+            nodegroup.status_reason = failure_message
+        else:
+            md = resources.get_machine_deployment(self.k8s_api, cluster, nodegroup)
+            if md is None:
+                if action == "DELETE":
+                    nodegroup.status = f"{action}_COMPLETE"
+                    nodegroup.save()
+                    return nodegroup
+                return nodegroup
+
+            phase = md.obj["status"]["phase"]
+
+            if phase in ("ScalingUp", "ScalingDown"):
+                nodegroup.status = f"{action}_IN_PROGRESS"
+            elif phase == "Running":
+                nodegroup.status = f"{action}_COMPLETE"
+            elif phase in ("Failed", "Unknown"):
+                nodegroup.status = f"{action}_FAILED"
+
+        nodegroup.save()
+
+        return nodegroup
+
     def update_nodegroup(self, context, cluster, nodegroup):
         # TODO
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
     def delete_nodegroup(self, context, cluster, nodegroup):
-        # TODO
-        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
+        nodegroup.destroy()
+        resources.apply_cluster_from_magnum_cluster(
+            context,
+            self.k8s_api,
+            cluster,
+        )
 
     def get_monitor(self, context, cluster):
         return monitor.ClusterApiMonitor(context, cluster)

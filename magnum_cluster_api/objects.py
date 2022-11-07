@@ -19,10 +19,22 @@ class KubeadmConfigTemplate(pykube.objects.NamespacedAPIObject):
     kind = "KubeadmConfigTemplate"
 
 
+class KubeadmControlPlane(pykube.objects.NamespacedAPIObject):
+    version = "controlplane.cluster.x-k8s.io/v1beta1"
+    endpoint = "kubeadmcontrolplanes"
+    kind = "KubeadmControlPlane"
+
+
 class KubeadmControlPlaneTemplate(pykube.objects.NamespacedAPIObject):
     version = "controlplane.cluster.x-k8s.io/v1beta1"
     endpoint = "kubeadmcontrolplanetemplates"
     kind = "KubeadmControlPlaneTemplate"
+
+
+class MachineDeployment(pykube.objects.NamespacedAPIObject):
+    version = "cluster.x-k8s.io/v1beta1"
+    endpoint = "machinedeployments"
+    kind = "MachineDeployment"
 
 
 class Machine(pykube.objects.NamespacedAPIObject):

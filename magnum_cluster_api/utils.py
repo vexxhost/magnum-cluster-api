@@ -4,7 +4,7 @@ import pykube
 import shortuuid
 import yaml
 from magnum import objects as magnum_objects
-from magnum.common import exception
+from magnum.common import context, exception
 from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
@@ -70,11 +70,36 @@ def generate_cloud_controller_manager_config(
     )
 
 
-def get_cluster_label_as_bool(
-    cluster: magnum_objects.Cluster, key: str, default: bool
-) -> bool:
-    value = get_cluster_label(cluster, key, default)
-    return strutils.bool_from_string(value, strict=True)
+def get_node_group_label(
+    context: context.RequestContext,
+    node_group: magnum_objects.NodeGroup,
+    key: str,
+    default: str,
+) -> str:
+    cluster = magnum_objects.Cluster.get_by_uuid(context, node_group.cluster_id)
+    return node_group.labels.get(key, get_cluster_label(cluster, key, default))
+
+
+def get_cluster_label(cluster: magnum_objects.Cluster, key: str, default: str) -> str:
+    return cluster.labels.get(
+        key, get_cluster_template_label(cluster.cluster_template, key, default)
+    )
+
+
+def get_cluster_template_label(
+    cluster_template: magnum_objects.ClusterTemplate, key: str, default: str
+) -> str:
+    return cluster_template.labels.get(key, default)
+
+
+def get_node_group_label_as_int(
+    context: context.RequestContext,
+    node_group: magnum_objects.NodeGroup,
+    key: str,
+    default: int,
+) -> int:
+    value = get_node_group_label(context, node_group, key, default)
+    return strutils.validate_integer(value, key)
 
 
 def get_cluster_label_as_int(
@@ -84,27 +109,8 @@ def get_cluster_label_as_int(
     return strutils.validate_integer(value, key)
 
 
-def get_cluster_label(cluster: magnum_objects.Cluster, key: str, default: str) -> str:
-    return cluster.labels.get(
-        key, get_cluster_template_label(cluster.cluster_template, key, default)
-    )
-
-
-def get_cluster_template_label_as_bool(
-    cluster_template: magnum_objects.ClusterTemplate, key: str, default: bool
+def get_cluster_label_as_bool(
+    cluster: magnum_objects.Cluster, key: str, default: bool
 ) -> bool:
-    value = get_cluster_template_label(cluster_template, key, default)
+    value = get_cluster_label(cluster, key, default)
     return strutils.bool_from_string(value, strict=True)
-
-
-def get_cluster_template_label_as_int(
-    cluster_template: magnum_objects.ClusterTemplate, key: str, default: int
-) -> int:
-    value = get_cluster_template_label(cluster_template, key, default)
-    return strutils.validate_integer(value, key)
-
-
-def get_cluster_template_label(
-    cluster_template: magnum_objects.ClusterTemplate, key: str, default: str
-) -> str:
-    return cluster_template.labels.get(key, default)

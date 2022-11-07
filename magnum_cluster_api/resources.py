@@ -1038,7 +1038,7 @@ class ClusterClass(Base):
         )
 
 
-def create_cluster_class_from_cluster_template(
+def create_cluster_class(
     api: pykube.HTTPClient,
 ) -> ClusterClass:
     """
@@ -1131,9 +1131,37 @@ class Cluster(ClusterBase):
                                     "failureDomain": utils.get_cluster_label(
                                         self.cluster, "availability_zone", ""
                                     ),
-                                    # bootVolume
-                                    # flavor
-                                    # imageUUID
+                                    "variables": {
+                                        "overrides": [
+                                            {
+                                                "name": "bootVolume",
+                                                "value": {
+                                                    "size": utils.get_node_group_label_as_int(
+                                                        self.context,
+                                                        ng,
+                                                        "boot_volume_size",
+                                                        CONF.cinder.default_boot_volume_size,
+                                                    ),
+                                                    "type": utils.get_node_group_label(
+                                                        self.context,
+                                                        ng,
+                                                        "boot_volume_type",
+                                                        cinder.get_default_boot_volume_type(
+                                                            self.context
+                                                        ),
+                                                    ),
+                                                },
+                                            },
+                                            {
+                                                "name": "flavor",
+                                                "value": ng.flavor_id,
+                                            },
+                                            {
+                                                "name": "imageUUID",
+                                                "value": ng.image_id,
+                                            },
+                                        ],
+                                    },
                                 }
                                 for ng in self.cluster.nodegroups
                                 if ng.role != "master"
@@ -1245,11 +1273,21 @@ def apply_cluster_from_magnum_cluster(
     context: context.RequestContext,
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
+    cluster_template: magnum_objects.ClusterTemplate = None,
 ) -> objects.Cluster:
     """
     Create a ClusterAPI cluster given a Magnum Cluster object.
     """
-    create_cluster_class_from_cluster_template(api)
+    create_cluster_class(api)
+
+    if cluster_template is None:
+        cluster_template = cluster.cluster_template
+
+    # TODO: intelligently determine the changing labels
+    #       and only update those (use get_labels_diff)
+    cluster.labels = cluster_template.labels
+    cluster.cluster_template = cluster_template
+
     Cluster(context, api, cluster).apply()
 
     # TODO: refactor into Cluster topology
@@ -1257,6 +1295,39 @@ def apply_cluster_from_magnum_cluster(
         MachineHealthCheck(api, cluster).apply()
     else:
         MachineHealthCheck(api, cluster).delete()
+
+
+def get_kubeadm_control_plane(
+    api: pykube.HTTPClient, cluster: magnum_objects.Cluster
+) -> objects.KubeadmControlPlane:
+    kcps = objects.KubeadmControlPlane.objects(api, namespace="magnum-system").filter(
+        selector={
+            "cluster.x-k8s.io/cluster-name": utils.get_or_generate_cluster_api_name(
+                api, cluster
+            )
+        },
+    )
+    if len(kcps) == 1:
+        return list(kcps)[0]
+    return None
+
+
+def get_machine_deployment(
+    api: pykube.HTTPClient,
+    cluster: magnum_objects.Cluster,
+    node_group: magnum_objects.NodeGroup,
+) -> objects.KubeadmControlPlane:
+    mds = objects.MachineDeployment.objects(api, namespace="magnum-system").filter(
+        selector={
+            "cluster.x-k8s.io/cluster-name": utils.get_or_generate_cluster_api_name(
+                api, cluster
+            ),
+            "topology.cluster.x-k8s.io/deployment-name": node_group.name,
+        },
+    )
+    if len(mds) == 1:
+        return list(mds)[0]
+    return None
 
 
 def name_from_node_group(api: pykube.HTTPClient, cluster: any, node_group: any) -> str:
