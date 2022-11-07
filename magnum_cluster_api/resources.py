@@ -323,6 +323,9 @@ class StorageClassesConfigMap(ClusterBase):
 
 class StorageClassesClusterResourceSet(ClusterBase):
     def get_object(self) -> objects.ClusterResourceSet:
+        version = utils.get_cluster_label(
+            self.cluster, "cinder_csi_plugin_tag", CSI_TAG
+        )
 
         return objects.ClusterResourceSet(
             self.api,
@@ -334,6 +337,11 @@ class StorageClassesClusterResourceSet(ClusterBase):
                     "namespace": "magnum-system",
                 },
                 "spec": {
+                    "clusterSelector": {
+                        "matchLabels": {
+                            "csi": f"cinder-csi-{version}",
+                        },
+                    },
                     "resources": [
                         {
                             "name": "storageclasses",
