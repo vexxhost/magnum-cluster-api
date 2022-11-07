@@ -16,7 +16,7 @@ import keystoneauth1
 from magnum import objects as magnum_objects
 from magnum.drivers.common import driver
 
-from magnum_cluster_api import clients, monitor, objects, resources
+from magnum_cluster_api import clients, monitor, objects, resources, utils
 
 
 class BaseDriver(driver.Driver):
@@ -143,9 +143,10 @@ class BaseDriver(driver.Driver):
             machines = objects.Machine.objects(self.k8s_api).filter(
                 namespace="magnum-system",
                 selector={
-                    "cluster.x-self.k8s_api.io/deployment-name": resources.name_from_node_group(
-                        cluster, nodegroup
-                    )
+                    "cluster.x-k8s.io/cluster-name": utils.get_or_generate_cluster_api_name(
+                        self.k8s_api, cluster
+                    ),
+                    "topology.cluster.x-k8s.io/deployment-name": nodegroup.name,
                 },
             )
 
@@ -154,12 +155,14 @@ class BaseDriver(driver.Driver):
                 if instance_uuid in nodes_to_remove:
                     machine.obj["metadata"].setdefault("annotations", {})
                     machine.obj["metadata"]["annotations"][
-                        "cluster.x-self.k8s_api.io/delete-machine"
+                        "cluster.x-k8s.io/delete-machine"
                     ] = "yes"
                     machine.update()
 
         nodegroup.node_count = node_count
-        self.update_nodegroup(context, cluster, nodegroup)
+        nodegroup.save()
+
+        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
     def upgrade_cluster(
         self,
