@@ -70,7 +70,7 @@ class BaseDriver(driver.Driver):
         # TODO: watch for topology change instead
         osc = clients.get_openstack_api(context)
 
-        capi_cluster = resources.Cluster(context, self.k8s_api, cluster).get_object()
+        capi_cluster = resources.Cluster(context, self.k8s_api, cluster).get_or_none()
 
         if cluster.status in (
             "CREATE_IN_PROGRESS",
@@ -105,7 +105,7 @@ class BaseDriver(driver.Driver):
             cluster.save()
 
         if cluster.status == "DELETE_IN_PROGRESS":
-            if capi_cluster.exists():
+            if capi_cluster and capi_cluster.exists():
                 return
 
             # NOTE(mnaser): We delete the application credentials at this stage

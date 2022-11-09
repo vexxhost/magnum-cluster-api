@@ -1170,6 +1170,11 @@ class Cluster(ClusterBase):
 
         return {**super().labels, **labels}
 
+    def get_or_none(self) -> objects.Cluster:
+        return objects.Cluster.objects(self.api, namespace="magnum-system").get_or_none(
+            name=utils.get_or_generate_cluster_api_name(self.api, self.cluster)
+        )
+
     def get_object(self) -> objects.Cluster:
         return objects.Cluster(
             self.api,
@@ -1355,11 +1360,7 @@ class Cluster(ClusterBase):
         )
 
     def delete(self):
-        capi_cluster = objects.Cluster.objects(
-            self.api, namespace="magnum-system"
-        ).get_or_none(
-            name=utils.get_or_generate_cluster_api_name(self.api, self.cluster)
-        )
+        capi_cluster = self.get_or_none()
         if capi_cluster:
             capi_cluster.delete()
 
