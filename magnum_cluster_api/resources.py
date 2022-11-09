@@ -819,6 +819,15 @@ class ClusterClass(Base):
                             },
                         },
                         {
+                            "name": "imageRepository",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
                             "name": "imageUUID",
                             "required": True,
                             "schema": {
@@ -1072,6 +1081,13 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/imageRepository",  # noqa: E501
+                                            "valueFrom": {
+                                                "variable": "imageRepository",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
@@ -1084,7 +1100,7 @@ class ClusterClass(Base):
                                                     """
                                                 ),
                                             },
-                                        }
+                                        },
                                     ],
                                 },
                                 {
@@ -1100,6 +1116,17 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
+                                            "path": "/spec/template/spec/clusterConfiguration",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    imageRepository: "{{ .imageRepository }}"
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
                                             "path": "/spec/template/spec/files",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
@@ -1112,7 +1139,7 @@ class ClusterClass(Base):
                                                 """
                                                 ),
                                             },
-                                        }
+                                        },
                                     ],
                                 },
                             ],
@@ -1248,6 +1275,15 @@ class Cluster(ClusterBase):
                                                 "value": ng.flavor_id,
                                             },
                                             {
+                                                "name": "imageRepository",
+                                                "value": utils.get_node_group_label(
+                                                    self.context,
+                                                    ng,
+                                                    "container_infra_prefix",
+                                                    "quay.io/vexxhost",
+                                                ),
+                                            },
+                                            {
                                                 "name": "imageUUID",
                                                 "value": ng.image_id,
                                             },
@@ -1336,6 +1372,14 @@ class Cluster(ClusterBase):
                             {
                                 "name": "flavor",
                                 "value": self.cluster.flavor_id,
+                            },
+                            {
+                                "name": "imageRepository",
+                                "value": utils.get_cluster_label(
+                                    self.cluster,
+                                    "container_infra_prefix",
+                                    "quay.io/vexxhost",
+                                ),
                             },
                             {
                                 "name": "imageUUID",
