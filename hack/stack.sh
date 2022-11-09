@@ -81,6 +81,10 @@ clusterctl init --infrastructure openstack
 # TODO: find a way to run this from `clusterctl` ?
 kubectl apply -f https://storage.googleapis.com/artifacts.k8s-staging-capi-openstack.appspot.com/components/nightly_main_20221108/infrastructure-components.yaml
 
+# Install Skopeo
+sudo curl -Lo /usr/local/bin/skopeo https://github.com/lework/skopeo-binary/releases/download/v1.10.0/skopeo-linux-amd64
+sudo chmod +x /usr/local/bin/skopeo
+
 # Install `magnum-cluster-api`
 pip install -U setuptools pip
 $HOME/.local/bin/pip3 install -e .
