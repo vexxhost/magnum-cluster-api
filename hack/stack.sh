@@ -43,6 +43,11 @@ enable_service o-hm
 [DEFAULT]
 advertise_mtu = True
 global_physnet_mtu = 1400
+
+[[post-config|/etc/magnum/magnum.conf]]
+[cluster_template]
+kubernetes_allowed_network_drivers = calico
+kubernetes_default_network_driver = calico
 EOF
 
 # Start DevStack deployment

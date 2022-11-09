@@ -85,194 +85,7 @@ class ClusterBase(Base):
         }
 
 
-class CloudControllerManagerConfigMap(ClusterBase):
-    def get_object(self) -> pykube.ConfigMap:
-        version = utils.get_cluster_label(
-            self.cluster, "cloud_provider_tag", CLOUD_PROVIDER_TAG
-        )
-
-        manifests_path = pkg_resources.resource_filename(
-            "magnum_cluster_api.manifests", "ccm"
-        )
-        manifests = glob.glob(os.path.join(manifests_path, "*.yaml"))
-
-        return pykube.ConfigMap(
-            self.api,
-            {
-                "apiVersion": pykube.ConfigMap.version,
-                "kind": pykube.ConfigMap.kind,
-                "metadata": {
-                    "name": f"openstack-cloud-controller-manager-{version}",
-                    "namespace": "magnum-system",
-                },
-                "data": {
-                    os.path.basename(m): open(m)
-                    .read()
-                    .replace(
-                        "docker.io/k8scloudprovider/openstack-cloud-controller-manager:latest",
-                        f"docker.io/k8scloudprovider/openstack-cloud-controller-manager:{version}",
-                    )
-                    for m in manifests
-                },
-            },
-        )
-
-
-class CloudControllerManagerClusterResourceSet(ClusterBase):
-    def get_object(self) -> objects.ClusterResourceSet:
-        version = utils.get_cluster_label(
-            self.cluster, "cloud_provider_tag", CLOUD_PROVIDER_TAG
-        )
-
-        return objects.ClusterResourceSet(
-            self.api,
-            {
-                "apiVersion": objects.ClusterResourceSet.version,
-                "kind": objects.ClusterResourceSet.kind,
-                "metadata": {
-                    "name": f"openstack-cloud-controller-manager-{version}",
-                    "namespace": "magnum-system",
-                },
-                "spec": {
-                    "clusterSelector": {
-                        "matchLabels": {
-                            "ccm": f"openstack-cloud-controller-manager-{version}",
-                        },
-                    },
-                    "resources": [
-                        {
-                            "name": f"openstack-cloud-controller-manager-{version}",
-                            "kind": "ConfigMap",
-                        },
-                    ],
-                },
-            },
-        )
-
-
-class CalicoConfigMap(ClusterBase):
-    def get_object(self) -> pykube.ConfigMap:
-        version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
-
-        manifests_path = pkg_resources.resource_filename(
-            "magnum_cluster_api.manifests", "calico"
-        )
-
-        return pykube.ConfigMap(
-            self.api,
-            {
-                "apiVersion": pykube.ConfigMap.version,
-                "kind": pykube.ConfigMap.kind,
-                "metadata": {
-                    "name": f"calico-{version}",
-                    "namespace": "magnum-system",
-                },
-                "data": {
-                    "calico.yaml": open(
-                        os.path.join(manifests_path, f"{version}.yaml")
-                    ).read()
-                },
-            },
-        )
-
-
-class CalicoClusterResourceSet(ClusterBase):
-    def get_object(self) -> objects.ClusterResourceSet:
-        version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
-
-        return objects.ClusterResourceSet(
-            self.api,
-            {
-                "apiVersion": objects.ClusterResourceSet.version,
-                "kind": objects.ClusterResourceSet.kind,
-                "metadata": {
-                    "name": f"calico-{version}",
-                    "namespace": "magnum-system",
-                },
-                "spec": {
-                    "clusterSelector": {
-                        "matchLabels": {
-                            "cni": f"calico-{version}",
-                        },
-                    },
-                    "resources": [
-                        {
-                            "name": f"calico-{version}",
-                            "kind": "ConfigMap",
-                        },
-                    ],
-                },
-            },
-        )
-
-
-class CinderCSIConfigMap(ClusterBase):
-    def get_object(self) -> pykube.ConfigMap:
-        version = utils.get_cluster_label(
-            self.cluster, "cinder_csi_plugin_tag", CSI_TAG
-        )
-
-        manifests_path = pkg_resources.resource_filename(
-            "magnum_cluster_api.manifests", "csi"
-        )
-        manifests = glob.glob(os.path.join(manifests_path, "*.yaml"))
-
-        return pykube.ConfigMap(
-            self.api,
-            {
-                "apiVersion": pykube.ConfigMap.version,
-                "kind": pykube.ConfigMap.kind,
-                "metadata": {
-                    "name": f"cinder-csi-{version}",
-                    "namespace": "magnum-system",
-                },
-                "data": {
-                    os.path.basename(m): open(m)
-                    .read()
-                    .replace(
-                        "docker.io/k8scloudprovider/cinder-csi-plugin:latest",
-                        f"docker.io/k8scloudprovider/cinder-csi-plugin:{version}",
-                    )
-                    for m in manifests
-                },
-            },
-        )
-
-
-class CinderCSIClusterResourceSet(ClusterBase):
-    def get_object(self) -> objects.ClusterResourceSet:
-        version = utils.get_cluster_label(
-            self.cluster, "cinder_csi_plugin_tag", CSI_TAG
-        )
-
-        return objects.ClusterResourceSet(
-            self.api,
-            {
-                "apiVersion": objects.ClusterResourceSet.version,
-                "kind": objects.ClusterResourceSet.kind,
-                "metadata": {
-                    "name": f"cinder-csi-{version}",
-                    "namespace": "magnum-system",
-                },
-                "spec": {
-                    "clusterSelector": {
-                        "matchLabels": {
-                            "csi": "cinder",
-                            "cinder-csi-version": version,
-                        },
-                    },
-                    "resources": [
-                        {
-                            "name": f"cinder-csi-{version}",
-                            "kind": "ConfigMap",
-                        },
-                    ],
-                },
-            },
-        )
-
-
-class StorageClassesConfigMap(ClusterBase):
+class ClusterResourcesConfigMap(ClusterBase):
     def __init__(
         self,
         context: context.RequestContext,
@@ -284,68 +97,131 @@ class StorageClassesConfigMap(ClusterBase):
         self.cluster = cluster
 
     def get_object(self) -> pykube.ConfigMap:
+        # NOTE(mnaser): We have to assert that the only CNI we support is Calico.
+        assert CONF.cluster_template.kubernetes_allowed_network_drivers == ["calico"]
+
+        manifests_path = pkg_resources.resource_filename(
+            "magnum_cluster_api", "manifests"
+        )
+
+        calico_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
+        ccm_version = utils.get_cluster_label(
+            self.cluster, "cloud_provider_tag", CLOUD_PROVIDER_TAG
+        )
+        csi_version = utils.get_cluster_label(
+            self.cluster, "cinder_csi_plugin_tag", CSI_TAG
+        )
+
+        repository = utils.get_cluster_label(
+            self.cluster,
+            "container_infra_prefix",
+            "quay.io/vexxhost",
+        )
+
         osc = clients.get_openstack_api(self.context)
         volume_types = osc.cinder().volume_types.list()
         default_volume_type = osc.cinder().volume_types.default()
-        data = {}
-        for vt in volume_types:
-            if vt.name == "__DEFAULT__":
-                continue
-            data[f"{vt.name}.yaml"] = yaml.dump(
-                {
-                    "apiVersion": objects.StorageClass.version,
-                    "kind": objects.StorageClass.kind,
-                    "metadata": {
-                        "annotations": {
-                            "storageclass.kubernetes.io/is-default-class": "true"
-                        }
-                        if default_volume_type.name == vt.name
-                        else {},
-                        "name": vt.name,
-                    },
-                    "provisioner": "kubernetes.io/cinder",
-                    "parameters": {
-                        "type": vt.name,
-                    },
-                    "reclaimPolicy": "Delete",
-                    "volumeBindingMode": "Immediate",
-                }
-            )
+
         return pykube.ConfigMap(
             self.api,
             {
                 "apiVersion": pykube.ConfigMap.version,
                 "kind": pykube.ConfigMap.kind,
                 "metadata": {
-                    "name": "cinder-csi-storageclass",
+                    "name": self.cluster.uuid,
                     "namespace": "magnum-system",
                 },
-                "data": data,
+                "data": {
+                    **{
+                        os.path.basename(manifest): utils.update_manifest_images(
+                            self.cluster,
+                            manifest,
+                            repository=repository,
+                            replacements=[
+                                (
+                                    "docker.io/k8scloudprovider/openstack-cloud-controller-manager:latest",
+                                    f"docker.io/k8scloudprovider/openstack-cloud-controller-manager:{ccm_version}",
+                                ),
+                            ],
+                        )
+                        for manifest in glob.glob(
+                            os.path.join(manifests_path, "ccm/*.yaml")
+                        )
+                    },
+                    **{
+                        os.path.basename(manifest): utils.update_manifest_images(
+                            self.cluster,
+                            manifest,
+                            repository=repository,
+                            replacements=[
+                                (
+                                    "docker.io/k8scloudprovider/cinder-csi-plugin:latest",
+                                    f"docker.io/k8scloudprovider/cinder-csi-plugin:{csi_version}",
+                                ),
+                            ],
+                        )
+                        for manifest in glob.glob(
+                            os.path.join(manifests_path, "csi/*.yaml")
+                        )
+                    },
+                    **{
+                        "calico.yml": utils.update_manifest_images(
+                            self.cluster,
+                            os.path.join(
+                                manifests_path, f"calico/{calico_version}.yaml"
+                            ),
+                            repository=repository,
+                        )
+                    },
+                    **{
+                        f"storageclass-{vt.name}.yaml": yaml.dump(
+                            {
+                                "apiVersion": objects.StorageClass.version,
+                                "kind": objects.StorageClass.kind,
+                                "metadata": {
+                                    "annotations": {
+                                        "storageclass.kubernetes.io/is-default-class": "true"
+                                    }
+                                    if default_volume_type.name == vt.name
+                                    else {},
+                                    "name": vt.name,
+                                },
+                                "provisioner": "kubernetes.io/cinder",
+                                "parameters": {
+                                    "type": vt.name,
+                                },
+                                "reclaimPolicy": "Delete",
+                                "volumeBindingMode": "Immediate",
+                            }
+                        )
+                        for vt in volume_types
+                        if vt.name != "__DEFAULT__"
+                    },
+                },
             },
         )
 
 
-class StorageClassesClusterResourceSet(ClusterBase):
+class ClusterResourceSet(ClusterBase):
     def get_object(self) -> objects.ClusterResourceSet:
-
         return objects.ClusterResourceSet(
             self.api,
             {
                 "apiVersion": objects.ClusterResourceSet.version,
                 "kind": objects.ClusterResourceSet.kind,
                 "metadata": {
-                    "name": "cinder-csi-storageclass",
+                    "name": self.cluster.uuid,
                     "namespace": "magnum-system",
                 },
                 "spec": {
                     "clusterSelector": {
                         "matchLabels": {
-                            "csi": "cinder",
+                            "cluster-uuid": self.cluster.uuid,
                         },
                     },
                     "resources": [
                         {
-                            "name": "cinder-csi-storageclass",
+                            "name": self.cluster.uuid,
                             "kind": "ConfigMap",
                         },
                     ],
@@ -1437,6 +1313,8 @@ def apply_cluster_from_magnum_cluster(
             ng.save()
     cluster.save()
 
+    ClusterResourcesConfigMap(context, api, cluster).apply()
+    ClusterResourceSet(api, cluster).apply()
     Cluster(context, api, cluster).apply()
 
     # TODO: refactor into Cluster topology

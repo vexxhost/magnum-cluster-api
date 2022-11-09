@@ -28,20 +28,6 @@ class BaseDriver(driver.Driver):
 
         resources.Namespace(self.k8s_api).apply()
 
-        resources.CloudControllerManagerConfigMap(self.k8s_api, cluster).apply()
-        resources.CloudControllerManagerClusterResourceSet(
-            self.k8s_api, cluster
-        ).apply()
-
-        resources.CalicoConfigMap(self.k8s_api, cluster).apply()
-        resources.CalicoClusterResourceSet(self.k8s_api, cluster).apply()
-
-        resources.CinderCSIConfigMap(self.k8s_api, cluster).apply()
-        resources.CinderCSIClusterResourceSet(self.k8s_api, cluster).apply()
-
-        resources.StorageClassesConfigMap(context, self.k8s_api, cluster).apply()
-        resources.StorageClassesClusterResourceSet(self.k8s_api, cluster).apply()
-
         credential = osc.keystone().client.application_credentials.create(
             user=cluster.user_id,
             name=cluster.uuid,
@@ -191,6 +177,8 @@ class BaseDriver(driver.Driver):
         )
 
     def delete_cluster(self, context, cluster):
+        resources.ClusterResourceSet(self.k8s_api, cluster).delete()
+        resources.ClusterResourcesConfigMap(context, self.k8s_api, cluster).delete()
         resources.Cluster(context, self.k8s_api, cluster).delete()
 
     def create_nodegroup(self, context, cluster, nodegroup):
