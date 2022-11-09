@@ -1360,7 +1360,8 @@ class Cluster(ClusterBase):
         ).get_or_none(
             name=utils.get_or_generate_cluster_api_name(self.api, self.cluster)
         )
-        capi_cluster.delete()
+        if capi_cluster:
+            capi_cluster.delete()
 
 
 def apply_cluster_from_magnum_cluster(
