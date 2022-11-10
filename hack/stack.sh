@@ -74,17 +74,20 @@ newgrp docker <<EOF
 kind create cluster
 EOF
 
-# Install the `clusterctl` CLI
-sudo curl -Lo /usr/local/bin/clusterctl https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.2.4/clusterctl-linux-amd64
-sudo chmod +x /usr/local/bin/clusterctl
-clusterctl version
+# Install Go 1.19
+curl -Lo /tmp/go1.19.3.linux-amd64.tar.gz https://go.dev/dl/go1.19.3.linux-amd64.tar.gz
+rm -rf /usr/local/go && sudo tar -C /usr/local -xzf /tmp/go1.19.3.linux-amd64.tar.gz
+
+# Install drone/envsubst
+/usr/local/go/bin/go install github.com/drone/envsubst/v2/cmd/envsubst@latest
 
 # Initialize the `clusterctl` CLI
 export EXP_CLUSTER_RESOURCE_SET=true
 export CLUSTER_TOPOLOGY=true
-clusterctl init --infrastructure openstack
-# TODO: find a way to run this from `clusterctl` ?
-kubectl apply -f https://storage.googleapis.com/artifacts.k8s-staging-capi-openstack.appspot.com/components/nightly_main_20221108/infrastructure-components.yaml
+curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.3.0-beta.1/core-components.yaml | $HOME/go/bin/envsubst | kubectl apply -f-
+curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.3.0-beta.1/control-plane-components.yaml | $HOME/go/bin/envsubst | kubectl apply -f-
+curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.3.0-beta.1/bootstrap-components.yaml | $HOME/go/bin/envsubst | kubectl apply -f-
+curl -L https://storage.googleapis.com/artifacts.k8s-staging-capi-openstack.appspot.com/components/nightly_main_20221109/infrastructure-components.yaml | $HOME/go/bin/envsubst | kubectl apply -f-
 
 # Install Skopeo
 sudo curl -Lo /usr/local/bin/skopeo https://github.com/lework/skopeo-binary/releases/download/v1.10.0/skopeo-linux-amd64
