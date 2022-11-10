@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.1.0...v0.1.1) (2022-11-10)
+
+
+### Bug Fixes
+
+* support py3.6+ ([4e1e0b5](https://github.com/vexxhost/magnum-cluster-api/commit/4e1e0b58c264632a1af7ae198c1d1b768330f38f))
+
 ## 0.1.0 (2022-11-10)
 
 
