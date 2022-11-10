@@ -7,11 +7,11 @@ readme = "README.md"
 packages = [{include = "magnum_cluster_api"}]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.6"
 pykube-ng = "^22.9.0"
 click = "*"
 requests = "*"
-shortuuid = "^1.0.9"
+shortuuid = "*"
 
 [build-system]
 requires = ["setuptools", "poetry-core"]
