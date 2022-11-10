@@ -329,49 +329,6 @@ class CloudConfigSecret(ClusterBase):
         )
 
 
-class MachineHealthCheck(ClusterBase):
-    def get_object(self) -> objects.MachineHealthCheck:
-        return objects.MachineHealthCheck(
-            self.api,
-            {
-                "apiVersion": objects.MachineHealthCheck.version,
-                "kind": objects.MachineHealthCheck.kind,
-                "metadata": {
-                    "name": utils.get_or_generate_cluster_api_name(
-                        self.api, self.cluster
-                    ),
-                    "namespace": "magnum-system",
-                    "labels": self.labels,
-                },
-                "spec": {
-                    "clusterName": utils.get_or_generate_cluster_api_name(
-                        self.api, self.cluster
-                    ),
-                    "maxUnhealthy": "40%",
-                    "selector": {
-                        "matchLabels": {
-                            "cluster.x-k8s.io/cluster-name": utils.get_or_generate_cluster_api_name(
-                                self.api, self.cluster
-                            ),
-                        }
-                    },
-                    "unhealthyConditions": [
-                        {
-                            "type": "Ready",
-                            "status": "False",
-                            "timeout": "300s",
-                        },
-                        {
-                            "type": "Ready",
-                            "status": "Unknown",
-                            "timeout": "300s",
-                        },
-                    ],
-                },
-            },
-        )
-
-
 class KubeadmControlPlaneTemplate(Base):
     def get_object(self) -> objects.KubeadmControlPlaneTemplate:
         manifests_path = pkg_resources.resource_filename(
@@ -535,6 +492,21 @@ class ClusterClass(Base):
                                 "name": CLUSTER_CLASS_NAME,
                             },
                         },
+                        "machineHealthCheck": {
+                            "maxUnhealthy": "33%",
+                            "unhealthyConditions": [
+                                {
+                                    "type": "Ready",
+                                    "status": "False",
+                                    "timeout": "5m",
+                                },
+                                {
+                                    "type": "Ready",
+                                    "status": "Unknown",
+                                    "timeout": "5m",
+                                },
+                            ],
+                        },
                     },
                     "infrastructure": {
                         "ref": {
@@ -562,6 +534,21 @@ class ClusterClass(Base):
                                             "name": CLUSTER_CLASS_NAME,
                                         }
                                     },
+                                },
+                                "machineHealthCheck": {
+                                    "maxUnhealthy": "33%",
+                                    "unhealthyConditions": [
+                                        {
+                                            "type": "Ready",
+                                            "status": "False",
+                                            "timeout": "5m",
+                                        },
+                                        {
+                                            "type": "Ready",
+                                            "status": "Unknown",
+                                            "timeout": "5m",
+                                        },
+                                    ],
                                 },
                             }
                         ],
@@ -1115,6 +1102,11 @@ class Cluster(ClusterBase):
                         ),
                         "controlPlane": {
                             "replicas": self.cluster.master_count,
+                            "machineHealthCheck": {
+                                "enable": utils.get_cluster_label_as_bool(
+                                    self.cluster, "auto_healing_enabled", True
+                                )
+                            },
                         },
                         "workers": {
                             "machineDeployments": [
@@ -1125,6 +1117,11 @@ class Cluster(ClusterBase):
                                     "failureDomain": utils.get_cluster_label(
                                         self.cluster, "availability_zone", ""
                                     ),
+                                    "machineHealthCheck": {
+                                        "enable": utils.get_cluster_label_as_bool(
+                                            self.cluster, "auto_healing_enabled", True
+                                        )
+                                    },
                                     "variables": {
                                         "overrides": [
                                             {
@@ -1316,12 +1313,6 @@ def apply_cluster_from_magnum_cluster(
     ClusterResourcesConfigMap(context, api, cluster).apply()
     ClusterResourceSet(api, cluster).apply()
     Cluster(context, api, cluster).apply()
-
-    # TODO: refactor into Cluster topology
-    if utils.get_cluster_label_as_bool(cluster, "auto_healing_enabled", True):
-        MachineHealthCheck(api, cluster).apply()
-    else:
-        MachineHealthCheck(api, cluster).delete()
 
 
 def get_kubeadm_control_plane(

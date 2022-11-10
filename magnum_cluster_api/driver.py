@@ -14,9 +14,9 @@
 
 import keystoneauth1
 from magnum import objects as magnum_objects
-from magnum.drivers.common import driver
+from magnum.drivers.common import driver, k8s_monitor
 
-from magnum_cluster_api import clients, monitor, objects, resources, utils
+from magnum_cluster_api import clients, objects, resources, utils
 
 
 class BaseDriver(driver.Driver):
@@ -244,7 +244,7 @@ class BaseDriver(driver.Driver):
         )
 
     def get_monitor(self, context, cluster):
-        return monitor.ClusterApiMonitor(context, cluster)
+        return k8s_monitor.K8sMonitor(context, cluster)
 
     # def rotate_ca_certificate(self, context, cluster):
     #     raise exception.NotSupported(

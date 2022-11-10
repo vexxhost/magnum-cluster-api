@@ -43,12 +43,6 @@ class Machine(pykube.objects.NamespacedAPIObject):
     kind = "Machine"
 
 
-class MachineHealthCheck(pykube.objects.NamespacedAPIObject):
-    version = "cluster.x-k8s.io/v1beta1"
-    endpoint = "machinehealthchecks"
-    kind = "MachineHealthCheck"
-
-
 class OpenStackClusterTemplate(pykube.objects.NamespacedAPIObject):
     version = "infrastructure.cluster.x-k8s.io/v1alpha6"
     endpoint = "openstackclustertemplates"
