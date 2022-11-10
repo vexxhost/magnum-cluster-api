@@ -1,7 +1,8 @@
 {
   "packages": {
     ".": {
-      "release-type": "python"
+      "release-type": "python",
+      "draft": true
     }
   }
 }
