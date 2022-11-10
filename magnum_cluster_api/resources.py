@@ -22,8 +22,8 @@ CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
 CSI_TAG = "v1.25.3"
 
-CLUSTER_CLASS_VERSION = "v0.0.0"
-CLUSTER_CLASS_NAME = f"magnum-{CLUSTER_CLASS_VERSION}"
+CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
+CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
 
 CLUSTER_UPGRADE_LABELS = {"kube_tag"}
 
