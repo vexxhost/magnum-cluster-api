@@ -8,7 +8,7 @@ packages = [{include = "magnum_cluster_api"}]
 
 [tool.poetry.dependencies]
 python = "^3.6"
-pykube-ng = "^22.9.0"
+pykube-ng = "*"
 click = "*"
 requests = "*"
 shortuuid = "*"
