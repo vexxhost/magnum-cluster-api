@@ -1,10 +1,11 @@
+import re
 import textwrap
 
 import pykube
 import shortuuid
 import yaml
 from magnum import objects as magnum_objects
-from magnum.common import context, exception
+from magnum.common import context, exception, octavia
 from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
@@ -174,3 +175,34 @@ def update_manifest_images(
         docs.append(doc)
 
     return yaml.safe_dump_all(docs, default_flow_style=False)
+
+
+def delete_loadbalancers(ctx, cluster):
+    # NOTE(mnaser): This code is duplicated from magnum.common.octavia
+    #               since the original code is very Heat-specific.
+    pattern = r"Kubernetes .+ from cluster %s" % cluster.uuid
+
+    admin_ctx = context.get_admin_context()
+    admin_clients = clients.get_openstack_api(admin_ctx)
+    user_clients = clients.get_openstack_api(ctx)
+
+    candidates = set()
+
+    try:
+        octavia_admin_client = admin_clients.octavia()
+        octavia_client = user_clients.octavia()
+
+        # Get load balancers created for service/ingress
+        lbs = octavia_client.load_balancer_list().get("loadbalancers", [])
+        lbs = [lb for lb in lbs if re.match(pattern, lb["description"])]
+        deleted = octavia._delete_loadbalancers(
+            ctx, lbs, cluster, octavia_admin_client, remove_fip=True
+        )
+        candidates.update(deleted)
+
+        if not candidates:
+            return
+
+        octavia.wait_for_lb_deleted(octavia_client, candidates)
+    except Exception as e:
+        raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))

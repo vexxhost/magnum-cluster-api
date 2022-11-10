@@ -177,6 +177,12 @@ class BaseDriver(driver.Driver):
         )
 
     def delete_cluster(self, context, cluster):
+        # NOTE(mnaser): This should be removed when this is fixed:
+        #
+        #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/issues/842
+        #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/pull/990
+        utils.delete_loadbalancers(context, cluster)
+
         resources.ClusterResourceSet(self.k8s_api, cluster).delete()
         resources.ClusterResourcesConfigMap(context, self.k8s_api, cluster).delete()
         resources.Cluster(context, self.k8s_api, cluster).delete()
