@@ -45,6 +45,15 @@ class BaseDriver(driver.Driver):
             self.k8s_api, cluster
         ).apply()
 
+        if utils.get_cluster_label_as_bool(self.cluster, "auto_scaling_enabled", False):
+            resources.ClusterAutoscalerManagementClusterRole(
+                self.k8s_api, cluster
+            ).apply()
+            resources.ClusterAutoscalerManagementClusterRoleBinding(
+                self.k8s_api, cluster
+            ).apply()
+            resources.ClusterAutoscalerServiceAccount(self.k8s_api, cluster).apply()
+
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
@@ -186,6 +195,14 @@ class BaseDriver(driver.Driver):
         resources.ClusterResourceSet(self.k8s_api, cluster).delete()
         resources.ClusterResourcesConfigMap(context, self.k8s_api, cluster).delete()
         resources.Cluster(context, self.k8s_api, cluster).delete()
+        if utils.get_cluster_label_as_bool(self.cluster, "auto_scaling_enabled", False):
+            resources.ClusterAutoscalerManagementClusterRole(
+                self.k8s_api, cluster
+            ).delete()
+            resources.ClusterAutoscalerManagementClusterRoleBinding(
+                self.k8s_api, cluster
+            ).delete()
+            resources.ClusterAutoscalerServiceAccount(self.k8s_api, cluster).delete()
 
     def create_nodegroup(self, context, cluster, nodegroup):
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)

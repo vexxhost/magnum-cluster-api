@@ -20,6 +20,7 @@ CONF = cfg.CONF
 KUBE_TAG = "v1.25.3"
 CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
+AUTOSCALER_TAG = "v1.20.0"
 CSI_TAG = "v1.25.3"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
@@ -103,7 +104,9 @@ class ClusterResourcesConfigMap(ClusterBase):
         manifests_path = pkg_resources.resource_filename(
             "magnum_cluster_api", "manifests"
         )
-
+        autoscaler_version = utils.get_cluster_label(
+            self.cluster, "autoscaler_tag", AUTOSCALER_TAG
+        )
         calico_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
         ccm_version = utils.get_cluster_label(
             self.cluster, "cloud_provider_tag", CLOUD_PROVIDER_TAG
@@ -122,6 +125,73 @@ class ClusterResourcesConfigMap(ClusterBase):
         volume_types = osc.cinder().volume_types.list()
         default_volume_type = osc.cinder().volume_types.default()
 
+        data = {
+            **{
+                os.path.basename(manifest): utils.update_manifest_images(
+                    self.cluster,
+                    manifest,
+                    repository=repository,
+                    replacements=[
+                        (
+                            "docker.io/k8scloudprovider/openstack-cloud-controller-manager:latest",
+                            f"docker.io/k8scloudprovider/openstack-cloud-controller-manager:{ccm_version}",
+                        ),
+                    ],
+                )
+                for manifest in glob.glob(os.path.join(manifests_path, "ccm/*.yaml"))
+            },
+            **{
+                os.path.basename(manifest): utils.update_manifest_images(
+                    self.cluster,
+                    manifest,
+                    repository=repository,
+                    replacements=[
+                        (
+                            "docker.io/k8scloudprovider/cinder-csi-plugin:latest",
+                            f"docker.io/k8scloudprovider/cinder-csi-plugin:{csi_version}",
+                        ),
+                    ],
+                )
+                for manifest in glob.glob(os.path.join(manifests_path, "csi/*.yaml"))
+            },
+            **{
+                "calico.yml": utils.update_manifest_images(
+                    self.cluster,
+                    os.path.join(manifests_path, f"calico/{calico_version}.yaml"),
+                    repository=repository,
+                )
+            },
+            **{
+                f"storageclass-{vt.name}.yaml": yaml.dump(
+                    {
+                        "apiVersion": objects.StorageClass.version,
+                        "kind": objects.StorageClass.kind,
+                        "metadata": {
+                            "annotations": {
+                                "storageclass.kubernetes.io/is-default-class": "true"
+                            }
+                            if default_volume_type.name == vt.name
+                            else {},
+                            "name": vt.name,
+                        },
+                        "provisioner": "kubernetes.io/cinder",
+                        "parameters": {
+                            "type": vt.name,
+                        },
+                        "reclaimPolicy": "Delete",
+                        "volumeBindingMode": "Immediate",
+                    }
+                )
+                for vt in volume_types
+                if vt.name != "__DEFAULT__"
+            },
+        }
+        if utils.get_cluster_label_as_bool(self.cluster, "auto_scaling_enabled", False):
+            data["autoscaler.yml"] = utils.update_manifest_images(
+                self.cluster,
+                os.path.join(manifests_path, f"autoscaler/{autoscaler_version}.yaml"),
+                repository=repository,
+            )
         return pykube.ConfigMap(
             self.api,
             {
@@ -131,73 +201,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                     "name": self.cluster.uuid,
                     "namespace": "magnum-system",
                 },
-                "data": {
-                    **{
-                        os.path.basename(manifest): utils.update_manifest_images(
-                            self.cluster,
-                            manifest,
-                            repository=repository,
-                            replacements=[
-                                (
-                                    "docker.io/k8scloudprovider/openstack-cloud-controller-manager:latest",
-                                    f"docker.io/k8scloudprovider/openstack-cloud-controller-manager:{ccm_version}",
-                                ),
-                            ],
-                        )
-                        for manifest in glob.glob(
-                            os.path.join(manifests_path, "ccm/*.yaml")
-                        )
-                    },
-                    **{
-                        os.path.basename(manifest): utils.update_manifest_images(
-                            self.cluster,
-                            manifest,
-                            repository=repository,
-                            replacements=[
-                                (
-                                    "docker.io/k8scloudprovider/cinder-csi-plugin:latest",
-                                    f"docker.io/k8scloudprovider/cinder-csi-plugin:{csi_version}",
-                                ),
-                            ],
-                        )
-                        for manifest in glob.glob(
-                            os.path.join(manifests_path, "csi/*.yaml")
-                        )
-                    },
-                    **{
-                        "calico.yml": utils.update_manifest_images(
-                            self.cluster,
-                            os.path.join(
-                                manifests_path, f"calico/{calico_version}.yaml"
-                            ),
-                            repository=repository,
-                        )
-                    },
-                    **{
-                        f"storageclass-{vt.name}.yaml": yaml.dump(
-                            {
-                                "apiVersion": objects.StorageClass.version,
-                                "kind": objects.StorageClass.kind,
-                                "metadata": {
-                                    "annotations": {
-                                        "storageclass.kubernetes.io/is-default-class": "true"
-                                    }
-                                    if default_volume_type.name == vt.name
-                                    else {},
-                                    "name": vt.name,
-                                },
-                                "provisioner": "kubernetes.io/cinder",
-                                "parameters": {
-                                    "type": vt.name,
-                                },
-                                "reclaimPolicy": "Delete",
-                                "volumeBindingMode": "Immediate",
-                            }
-                        )
-                        for vt in volume_types
-                        if vt.name != "__DEFAULT__"
-                    },
-                },
+                "data": data,
             },
         )
 
@@ -324,6 +328,86 @@ class CloudConfigSecret(ClusterBase):
                             }
                         }
                     ),
+                },
+            },
+        )
+
+
+class ClusterAutoscalerManagementClusterRole(ClusterBase):
+    def get_object(self) -> pykube.Secret:
+        return pykube.ClusterRole(
+            self.api,
+            {
+                "apiVersion": pykube.ClusterRole.version,
+                "kind": pykube.ClusterRole.kind,
+                "metadata": {
+                    "name": f"cluster-autoscaler-management-{utils.get_or_generate_cluster_api_name((self.api, self.cluster))}",
+                    "labels": self.labels,
+                },
+                "rules": [
+                    {
+                        "apiGroups": [objects.Cluster.version],
+                        "resources": [
+                            objects.MachineDeployment.endpoint,
+                            f"{objects.MachineDeployment.endpoint}/scale",
+                            objects.Machine.endpoint,
+                            objects.MachineSet.endpoint,
+                        ],
+                        # TODO(oleks): refer to resources by name
+                        "resourceNames": [],
+                        "verbs": [
+                            "get",
+                            "list",
+                            "update",
+                            "watch",
+                        ],
+                    }
+                ],
+            },
+        )
+
+
+class ClusterAutoscalerManagementClusterRoleBinding(ClusterBase):
+    def get_object(self) -> pykube.Secret:
+        return pykube.ClusterRoleBinding(
+            self.api,
+            {
+                "apiVersion": pykube.ClusterRoleBinding.version,
+                "kind": pykube.ClusterRoleBinding.kind,
+                "metadata": {
+                    "name": f"cluster-autoscaler-management-{utils.get_or_generate_cluster_api_name((self.api, self.cluster))}",
+                },
+                "roleRef": {
+                    "apiGroup": pykube.ClusterRole.version,
+                    "kind": pykube.ClusterRole.kind,
+                    "name": f"cluster-autoscaler-management-{utils.get_or_generate_cluster_api_name((self.api, self.cluster))}",
+                },
+                "subjects": [
+                    {
+                        "kind": pykube.ServiceAccount.kind,
+                        "name": utils.get_or_generate_cluster_autoscaler_service_account_name(
+                            self.api, self.cluster
+                        ),
+                        "namespace": "magnum-system",
+                    }
+                ],
+            },
+        )
+
+
+class ClusterAutoscalerServiceAccount(ClusterBase):
+    def get_object(self) -> pykube.Secret:
+        return pykube.ServiceAccount(
+            self.api,
+            {
+                "apiVersion": pykube.ServiceAccount.version,
+                "kind": pykube.ServiceAccount.kind,
+                "metadata": {
+                    "name": utils.get_or_generate_cluster_autoscaler_service_account_name(
+                        self.api, self.cluster
+                    ),
+                    "namespace": "magnum-system",
+                    "labels": self.labels,
                 },
             },
         )
@@ -642,6 +726,15 @@ class ClusterClass(Base):
                         },
                         {
                             "name": "cloudControllerManagerConfig",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "autoscalerKubeConfig",
                             "required": True,
                             "schema": {
                                 "openAPIV3Schema": {
@@ -971,6 +1064,21 @@ class ClusterClass(Base):
                                                 ),
                                             },
                                         },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    path: "/etc/kubernetes/autoscaler.conf"
+                                                    owner: "root:root"
+                                                    permissions: "0600"
+                                                    content: "{{ .autoscalerKubeConfig }}"
+                                                    encoding: "base64"
+                                                    """
+                                                ),
+                                            },
+                                        },
                                     ],
                                 },
                                 {
@@ -1005,6 +1113,21 @@ class ClusterClass(Base):
                                                       owner: "root:root"
                                                       permissions: "0600"
                                                       content: "{{ .cloudControllerManagerConfig }}"
+                                                      encoding: "base64"
+                                                """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/files",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - path: "/etc/kubernetes/autoscaler.conf"
+                                                      owner: "root:root"
+                                                      permissions: "0600"
+                                                      content: "{{ .autoscalerKubeConfig }}"
                                                       encoding: "base64"
                                                 """
                                                 ),
@@ -1073,6 +1196,9 @@ class Cluster(ClusterBase):
         )
 
     def get_object(self) -> objects.Cluster:
+        auto_scaling_enabled = utils.get_cluster_label_as_bool(
+            self.cluster, "auto_scaling_enabled", False
+        )
         return objects.Cluster(
             self.api,
             {
@@ -1120,7 +1246,25 @@ class Cluster(ClusterBase):
                                 {
                                     "class": "default-worker",
                                     "name": ng.name,
-                                    "replicas": ng.node_count,
+                                    "replicas": None
+                                    if auto_scaling_enabled
+                                    else ng.node_count,
+                                    "metadata": {
+                                        "annotations": {
+                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size": utils.get_cluster_label_as_int(
+                                                self.cluster,
+                                                "min_node_count",
+                                                0,
+                                            ),
+                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size": utils.get_cluster_label_as_int(
+                                                self.cluster,
+                                                "max_node_count",
+                                                1,
+                                            ),
+                                        }
+                                    }
+                                    if auto_scaling_enabled
+                                    else {},
                                     "failureDomain": utils.get_cluster_label(
                                         self.cluster, "availability_zone", ""
                                     ),
@@ -1228,6 +1372,14 @@ class Cluster(ClusterBase):
                                 "name": "cloudControllerManagerConfig",
                                 "value": base64.encode_as_text(
                                     utils.generate_cloud_controller_manager_config(
+                                        self.api, self.cluster
+                                    )
+                                ),
+                            },
+                            {
+                                "name": "autoscalerKubeConfig",
+                                "value": base64.encode_as_text(
+                                    utils.generate_autoscaler_kubeconfig(
                                         self.api, self.cluster
                                     )
                                 ),
