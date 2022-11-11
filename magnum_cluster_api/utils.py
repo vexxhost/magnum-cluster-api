@@ -19,6 +19,12 @@ def get_or_generate_cluster_api_cloud_config_secret_name(
     return f"{get_or_generate_cluster_api_name(api, cluster)}-cloud-config"
 
 
+def get_or_generate_cluster_autoscaler_service_account_name(
+    api: pykube.HTTPClient, cluster: magnum_objects.Cluster
+) -> str:
+    return f"cluster-autoscaler-{get_or_generate_cluster_api_name(api, cluster)}"
+
+
 def get_or_generate_cluster_api_name(
     api: pykube.HTTPClient, cluster: magnum_objects.Cluster
 ) -> str:
@@ -206,3 +212,59 @@ def delete_loadbalancers(ctx, cluster):
         octavia.wait_for_lb_deleted(octavia_client, candidates)
     except Exception as e:
         raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
+
+
+def generate_autoscaler_kubeconfig(
+    api: pykube.HTTPClient,
+    cluster: magnum_objects.Cluster,
+) -> str:
+    """
+    Generate cloud config for cluster autoscaler.
+    """
+    api = clients.get_pykube_api()
+    service_account = pykube.ServiceAccount.objects(
+        api, namespace="magnum-system"
+    ).get_by_name(get_or_generate_cluster_autoscaler_service_account_name(api, cluster))
+    token_data = pykube.Sercret.objects(api, namespace="magnum-system").get_by_name(
+        service_account.secrets[0]["name"]
+    )
+
+    ca_cert = base64.token_data.obj["data"]["ca.crt"]
+    # ca_cert = base64.encode_as_text(api.cluster["certificate-authority"].bytes())
+    token = base64.decode_as_text(token_data.obj["data"]["token"])
+    kubeconfig = yaml.dump(
+        {
+            "apiVersion": "v1",
+            "clusters": [
+                {
+                    "cluster": {
+                        "certificate-authority-data": ca_cert,
+                        "server": api.cluster["server"],
+                    },
+                    "name": "management-cluster",
+                },
+            ],
+            "contexts": [
+                {
+                    "context": {
+                        "cluster": "management-cluster",
+                        "namespace": "magnum-system",
+                        "user": "autoscaler",
+                    },
+                },
+            ],
+            "name": "management-cluster",
+            "current-context": "management-cluster",
+            "kind": "Config",
+            "users": [
+                {
+                    "name": "autoscaler",
+                    "user": {
+                        "token": token,
+                    },
+                },
+            ],
+        }
+    )
+
+    return textwrap.dedent(kubeconfig)
