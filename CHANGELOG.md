@@ -2,7 +2,6 @@
 
 ## [0.1.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.1.1...v0.1.2) (2022-11-10)
 
-
 ### Bug Fixes
 
 * disable profiling ([d18936e](https://github.com/vexxhost/magnum-cluster-api/commit/d18936e9ae76c996c6b4ff8ecbadcf666da572b0)), closes [#30](https://github.com/vexxhost/magnum-cluster-api/issues/30) [#35](https://github.com/vexxhost/magnum-cluster-api/issues/35) [#36](https://github.com/vexxhost/magnum-cluster-api/issues/36)
@@ -10,13 +9,11 @@
 
 ## [0.1.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.1.0...v0.1.1) (2022-11-10)
 
-
 ### Bug Fixes
 
 * support py3.6+ ([4e1e0b5](https://github.com/vexxhost/magnum-cluster-api/commit/4e1e0b58c264632a1af7ae198c1d1b768330f38f))
 
 ## 0.1.0 (2022-11-10)
-
 
 ### Features
 
@@ -31,7 +28,6 @@
 * allow using `container_infra_prefix` ([5676b70](https://github.com/vexxhost/magnum-cluster-api/commit/5676b70cf5ad9614c8332ba5587b0075a90ee9f8)), closes [#7](https://github.com/vexxhost/magnum-cluster-api/issues/7)
 * refactor to clusterclass ([a021300](https://github.com/vexxhost/magnum-cluster-api/commit/a0213005630e9edbc23c5c7c168ead062c92c926))
 * use shorter cluster names ([7b58739](https://github.com/vexxhost/magnum-cluster-api/commit/7b58739c5262f6b5f28533a722ac8ec10ebf6c6a))
-
 
 ### Bug Fixes
 
@@ -55,7 +51,6 @@
 * use dynamic `ClusterClass` version ([d7fbbf0](https://github.com/vexxhost/magnum-cluster-api/commit/d7fbbf0665178028a79d2f184adcf1f55e68dcd4)), closes [#16](https://github.com/vexxhost/magnum-cluster-api/issues/16)
 * use getpass.getuser ([67e1ec5](https://github.com/vexxhost/magnum-cluster-api/commit/67e1ec5b70f5b2ebbcb5b773b6a09cb249cfd0f9))
 * use operating_system ([062e7f3](https://github.com/vexxhost/magnum-cluster-api/commit/062e7f3390ccf3fecc26c045f6eaed2adb9619a4))
-
 
 ### Documentation
 
