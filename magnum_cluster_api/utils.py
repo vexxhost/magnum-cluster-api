@@ -19,7 +19,7 @@ def get_or_generate_cluster_api_cloud_config_secret_name(
     return f"{get_or_generate_cluster_api_name(api, cluster)}-cloud-config"
 
 
-def get_or_generate_cluster_autoscaler_service_account_name(
+def get_or_generate_cluster_autoscaler_resource_name(
     api: pykube.HTTPClient, cluster: magnum_objects.Cluster
 ) -> str:
     return f"cluster-autoscaler-{get_or_generate_cluster_api_name(api, cluster)}"
@@ -224,7 +224,7 @@ def generate_autoscaler_kubeconfig(
     api = clients.get_pykube_api()
     service_account = pykube.ServiceAccount.objects(
         api, namespace="magnum-system"
-    ).get_by_name(get_or_generate_cluster_autoscaler_service_account_name(api, cluster))
+    ).get_by_name(get_or_generate_cluster_autoscaler_resource_name(api, cluster))
     token_data = pykube.Sercret.objects(api, namespace="magnum-system").get_by_name(
         service_account.secrets[0]["name"]
     )

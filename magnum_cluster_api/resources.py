@@ -341,7 +341,9 @@ class ClusterAutoscalerManagementClusterRole(ClusterBase):
                 "apiVersion": pykube.ClusterRole.version,
                 "kind": pykube.ClusterRole.kind,
                 "metadata": {
-                    "name": f"cluster-autoscaler-management-{utils.get_or_generate_cluster_api_name((self.api, self.cluster))}",
+                    "name": utils.get_or_generate_cluster_autoscaler_resource_name(
+                        self.api, self.cluster
+                    ),
                     "labels": self.labels,
                 },
                 "rules": [
@@ -354,7 +356,7 @@ class ClusterAutoscalerManagementClusterRole(ClusterBase):
                             objects.MachineSet.endpoint,
                         ],
                         # TODO(oleks): refer to resources by name
-                        "resourceNames": [],
+                        # "resourceNames": [],
                         "verbs": [
                             "get",
                             "list",
@@ -375,17 +377,21 @@ class ClusterAutoscalerManagementClusterRoleBinding(ClusterBase):
                 "apiVersion": pykube.ClusterRoleBinding.version,
                 "kind": pykube.ClusterRoleBinding.kind,
                 "metadata": {
-                    "name": f"cluster-autoscaler-management-{utils.get_or_generate_cluster_api_name((self.api, self.cluster))}",
+                    "name": utils.get_or_generate_cluster_autoscaler_resource_name(
+                        self.api, self.cluster
+                    ),
                 },
                 "roleRef": {
                     "apiGroup": pykube.ClusterRole.version,
                     "kind": pykube.ClusterRole.kind,
-                    "name": f"cluster-autoscaler-management-{utils.get_or_generate_cluster_api_name((self.api, self.cluster))}",
+                    "name": utils.get_or_generate_cluster_autoscaler_resource_name(
+                        self.api, self.cluster
+                    ),
                 },
                 "subjects": [
                     {
                         "kind": pykube.ServiceAccount.kind,
-                        "name": utils.get_or_generate_cluster_autoscaler_service_account_name(
+                        "name": utils.get_or_generate_cluster_autoscaler_resource_name(
                             self.api, self.cluster
                         ),
                         "namespace": "magnum-system",
@@ -403,7 +409,7 @@ class ClusterAutoscalerServiceAccount(ClusterBase):
                 "apiVersion": pykube.ServiceAccount.version,
                 "kind": pykube.ServiceAccount.kind,
                 "metadata": {
-                    "name": utils.get_or_generate_cluster_autoscaler_service_account_name(
+                    "name": utils.get_or_generate_cluster_autoscaler_resource_name(
                         self.api, self.cluster
                     ),
                     "namespace": "magnum-system",
@@ -1244,12 +1250,12 @@ class Cluster(ClusterBase):
                                     else ng.node_count,
                                     "metadata": {
                                         "annotations": {
-                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size": utils.get_cluster_label_as_int(
+                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size": utils.get_cluster_label_as_int(  # noqa: E501
                                                 self.cluster,
                                                 "min_node_count",
                                                 0,
                                             ),
-                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size": utils.get_cluster_label_as_int(
+                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size": utils.get_cluster_label_as_int(  # noqa: E501
                                                 self.cluster,
                                                 "max_node_count",
                                                 1,
