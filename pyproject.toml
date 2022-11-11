@@ -1,17 +1,17 @@
 [tool.poetry]
 name = "magnum-cluster-api"
-version = "0.1.0"
+version = "0.1.2"
 description = "Cluster API driver for Magnum"
 authors = ["Mohammed Naser <mnaser@vexxhost.com>"]
 readme = "README.md"
 packages = [{include = "magnum_cluster_api"}]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-pykube-ng = "^22.9.0"
+python = "^3.6"
+pykube-ng = "*"
 click = "*"
 requests = "*"
-shortuuid = "^1.0.9"
+shortuuid = "*"
 
 [build-system]
 requires = ["setuptools", "poetry-core"]

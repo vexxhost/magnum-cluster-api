@@ -443,12 +443,19 @@ class KubeadmControlPlaneTemplate(Base):
                                     "apiServer": {
                                         "extraArgs": {
                                             "cloud-provider": "external",
+                                            "profiling": "false",
                                         },
                                         "extraVolumes": [],
                                     },
                                     "controllerManager": {
                                         "extraArgs": {
                                             "cloud-provider": "external",
+                                            "profiling": "false",
+                                        },
+                                    },
+                                    "scheduler": {
+                                        "extraArgs": {
+                                            "profiling": "false",
                                         },
                                     },
                                 },

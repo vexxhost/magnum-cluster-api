@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.1.1...v0.1.2) (2022-11-10)
+
+
+### Bug Fixes
+
+* disable profiling ([d18936e](https://github.com/vexxhost/magnum-cluster-api/commit/d18936e9ae76c996c6b4ff8ecbadcf666da572b0)), closes [#30](https://github.com/vexxhost/magnum-cluster-api/issues/30) [#35](https://github.com/vexxhost/magnum-cluster-api/issues/35) [#36](https://github.com/vexxhost/magnum-cluster-api/issues/36)
+* relax pykube-ng requirement ([10be62a](https://github.com/vexxhost/magnum-cluster-api/commit/10be62a3786312845cd6959db4a3e00eb4073da4))
+
+## [0.1.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.1.0...v0.1.1) (2022-11-10)
+
+
+### Bug Fixes
+
+* support py3.6+ ([4e1e0b5](https://github.com/vexxhost/magnum-cluster-api/commit/4e1e0b58c264632a1af7ae198c1d1b768330f38f))
+
 ## 0.1.0 (2022-11-10)
 
 
