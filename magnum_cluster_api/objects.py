@@ -37,12 +37,6 @@ class MachineDeployment(pykube.objects.NamespacedAPIObject):
     kind = "MachineDeployment"
 
 
-class MachineSet(pykube.objects.NamespacedAPIObject):
-    version = "cluster.x-k8s.io/v1beta1"
-    endpoint = "machinesets"
-    kind = "MachineSet"
-
-
 class Machine(pykube.objects.NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
     endpoint = "machines"
@@ -71,3 +65,15 @@ class StorageClass(pykube.objects.APIObject):
     version = "storage.k8s.io/v1"
     endpoint = "storageclasses"
     kind = "StorageClass"
+
+
+class HelmRelease(pykube.objects.APIObject):
+    version = "helm.toolkit.fluxcd.io/v2beta1"
+    endpoint = "helmreleases"
+    kind = "HelmRelease"
+
+
+class HelmRepository(pykube.objects.APIObject):
+    version = "source.toolkit.fluxcd.io/v1beta2"
+    endpoint = "helmrepositories"
+    kind = "HelmRepository"
