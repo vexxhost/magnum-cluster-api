@@ -133,6 +133,9 @@ class ClusterAutoscalerHelmRelease(ClusterBase):
                         "cloudProvider": "clusterapi",
                         "clusterAPIMode": "kubeconfig-incluster",
                         "clusterAPIKubeconfigSecret": f"{cluster_name}-kubeconfig",
+                        "autoDiscovery": {
+                            "clusterName": cluster_name,
+                        },
                     },
                 },
             },
