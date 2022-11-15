@@ -1191,15 +1191,15 @@ class Cluster(ClusterBase):
                                     else ng.node_count,
                                     "metadata": {
                                         "annotations": {
-                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size": utils.get_cluster_label_as_int(  # noqa: E501
+                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size": utils.get_cluster_label(  # noqa: E501
                                                 self.cluster,
                                                 "min_node_count",
-                                                0,
+                                                "0",
                                             ),
-                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size": utils.get_cluster_label_as_int(  # noqa: E501
+                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size": utils.get_cluster_label(  # noqa: E501
                                                 self.cluster,
                                                 "max_node_count",
-                                                1,
+                                                "1",
                                             ),
                                         }
                                     }
