@@ -254,6 +254,16 @@ class ClusterResourcesConfigMap(ClusterBase):
             },
         )
 
+    def get_or_none(self) -> objects.Cluster:
+        return pykube.ConfigMap.objects(
+            self.api, namespace="magnum-system"
+        ).get_or_none(name=self.cluster.uuid)
+
+    def delete(self):
+        cr_cm = self.get_or_none()
+        if cr_cm:
+            cr_cm.delete()
+
 
 class ClusterResourceSet(ClusterBase):
     def get_object(self) -> objects.ClusterResourceSet:
