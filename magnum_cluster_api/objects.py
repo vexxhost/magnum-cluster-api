@@ -67,13 +67,13 @@ class StorageClass(pykube.objects.APIObject):
     kind = "StorageClass"
 
 
-class HelmRelease(pykube.objects.APIObject):
+class HelmRelease(pykube.objects.NamespacedAPIObject):
     version = "helm.toolkit.fluxcd.io/v2beta1"
     endpoint = "helmreleases"
     kind = "HelmRelease"
 
 
-class HelmRepository(pykube.objects.APIObject):
+class HelmRepository(pykube.objects.NamespacedAPIObject):
     version = "source.toolkit.fluxcd.io/v1beta2"
     endpoint = "helmrepositories"
     kind = "HelmRepository"
