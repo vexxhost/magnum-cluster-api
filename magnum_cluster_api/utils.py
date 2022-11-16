@@ -94,7 +94,7 @@ def get_node_group_min_node_count(
 def get_node_group_max_node_count(
     node_group: magnum_objects.NodeGroup,
 ) -> int:
-    if node_group.max_node_count == None:
+    if node_group.max_node_count is None:
         return get_node_group_min_node_count(node_group) + 1
     else:
         return node_group.max_node_count
