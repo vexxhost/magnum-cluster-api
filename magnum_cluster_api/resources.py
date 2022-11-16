@@ -114,7 +114,7 @@ class ClusterAutoscalerHelmRelease(ClusterBase):
                 "apiVersion": objects.HelmRelease.version,
                 "kind": objects.HelmRelease.kind,
                 "metadata": {
-                    "name": cluster_name,
+                    "name": f"autoscaler-{self.cluster.uuid}",
                     "namespace": "magnum-system",
                 },
                 "spec": {
@@ -130,7 +130,7 @@ class ClusterAutoscalerHelmRelease(ClusterBase):
                         },
                     },
                     "values": {
-                        "fullnameOverride": cluster_name,
+                        "fullnameOverride": f"autoscaler-{self.cluster.uuid}",
                         "cloudProvider": "clusterapi",
                         "clusterAPIMode": "kubeconfig-incluster",
                         "clusterAPIKubeconfigSecret": f"{cluster_name}-kubeconfig",
