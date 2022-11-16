@@ -1380,6 +1380,31 @@ class Cluster(ClusterBase):
             capi_cluster.delete()
 
 
+def set_autoscaler_metadata_in_machinedeployment(
+    api: pykube.HTTPClient, cluster: magnum_objects.Cluster
+):
+    # Set autoscaler annotations to MachineDeployment(MD)s because annotations in Cluster topology
+    # are not propogated to MDs. Upstream issue:  https://github.com/kubernetes-sigs/cluster-api/pull/7088
+    cluster_name = utils.get_or_generate_cluster_api_name(api, cluster)
+    if not utils.get_cluster_label_as_bool(cluster, "auto_scaling_enabled", False):
+        return
+    # NOTE(Oleks): Need to decide which one is better, labelSelector or fieldSelector
+    #              Instead of field_selector, we can use
+    #              selector={"cluster.x-k8s.io/cluster-name": cluster_name},
+    mds = objects.MachineDeployment.objects(api).filter(
+        namespace="magnum-system",
+        field_selector={"spec.clusterName": cluster_name},
+    )
+    for md in mds:
+        md.obj["metadata"]["annotations"][
+            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"
+        ] = utils.get_cluster_label(cluster, "max_node_count", "1")
+        md.obj["metadata"]["annotations"][
+            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size"
+        ] = utils.get_cluster_label(cluster, "min_node_count", "1")
+        md.update()
+
+
 def apply_cluster_from_magnum_cluster(
     context: context.RequestContext,
     api: pykube.HTTPClient,
