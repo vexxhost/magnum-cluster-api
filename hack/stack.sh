@@ -77,20 +77,14 @@ EOF
 # Label a control plane node
 kubectl label node kind-control-plane openstack-control-plane=enabled
 
-# Install Go 1.19
-curl -Lo /tmp/go1.19.3.linux-amd64.tar.gz https://go.dev/dl/go1.19.3.linux-amd64.tar.gz
-rm -rf /usr/local/go && sudo tar -C /usr/local -xzf /tmp/go1.19.3.linux-amd64.tar.gz
-
-# Install drone/envsubst
-/usr/local/go/bin/go install github.com/drone/envsubst/v2/cmd/envsubst@latest
-
 # Initialize the `clusterctl` CLI
 export EXP_CLUSTER_RESOURCE_SET=true
 export CLUSTER_TOPOLOGY=true
-curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.3.0-beta.1/core-components.yaml | $HOME/go/bin/envsubst | kubectl apply -f-
-curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.3.0-beta.1/control-plane-components.yaml | $HOME/go/bin/envsubst | kubectl apply -f-
-curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.3.0-beta.1/bootstrap-components.yaml | $HOME/go/bin/envsubst | kubectl apply -f-
-curl -L https://storage.googleapis.com/artifacts.k8s-staging-capi-openstack.appspot.com/components/nightly_main_20221109/infrastructure-components.yaml | $HOME/go/bin/envsubst | kubectl apply -f-
+clusterctl init \
+   --core cluster-api:v1.3.0-rc.0 \
+   --bootstrap kubeadm:v1.3.0-rc.0 \
+   --control-plane kubeadm:v1.3.0-rc.0
+curl -L https://storage.googleapis.com/artifacts.k8s-staging-capi-openstack.appspot.com/components/nightly_main_20221109/infrastructure-components.yaml | kubectl apply -f-
 
 # Install Skopeo
 sudo curl -Lo /usr/local/bin/skopeo https://github.com/lework/skopeo-binary/releases/download/v1.10.0/skopeo-linux-amd64
