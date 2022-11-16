@@ -1198,7 +1198,7 @@ class Cluster(ClusterBase):
                                             "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size": utils.get_cluster_label(  # noqa: E501
                                                 self.cluster,
                                                 "min_node_count",
-                                                "0",
+                                                "1",
                                             ),
                                             "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size": utils.get_cluster_label(  # noqa: E501
                                                 self.cluster,
@@ -1408,6 +1408,7 @@ def apply_cluster_from_magnum_cluster(
     ClusterResourcesConfigMap(context, api, cluster).apply()
     ClusterResourceSet(api, cluster).apply()
     Cluster(context, api, cluster).apply()
+    ClusterAutoscalerHelmRepository(api).apply()
 
 
 def get_kubeadm_control_plane(

@@ -22,9 +22,6 @@ from magnum_cluster_api import clients, objects, resources, utils
 class BaseDriver(driver.Driver):
     def __init__(self):
         self.k8s_api = clients.get_pykube_api()
-        resources.ClusterAutoscalerHelmRepository(
-            self.k8s_api,
-        ).apply()
 
     def create_cluster(self, context, cluster, cluster_create_timeout):
         osc = clients.get_openstack_api(context)
@@ -192,8 +189,7 @@ class BaseDriver(driver.Driver):
         resources.ClusterResourceSet(self.k8s_api, cluster).delete()
         resources.ClusterResourcesConfigMap(context, self.k8s_api, cluster).delete()
         resources.Cluster(context, self.k8s_api, cluster).delete()
-        if utils.get_cluster_label_as_bool(cluster, "auto_scaling_enabled", False):
-            resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).delete()
+        resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).delete()
 
     def create_nodegroup(self, context, cluster, nodegroup):
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
