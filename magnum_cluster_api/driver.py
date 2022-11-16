@@ -45,9 +45,6 @@ class BaseDriver(driver.Driver):
             self.k8s_api, cluster
         ).apply()
 
-        if utils.get_cluster_label_as_bool(cluster, "auto_scaling_enabled", False):
-            resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).apply()
-
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
