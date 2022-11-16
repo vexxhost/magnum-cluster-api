@@ -130,7 +130,7 @@ class ClusterAutoscalerHelmRelease(ClusterBase):
                         },
                     },
                     "values": {
-                        "fullnameOverride": cluster_name,
+                        "fullnameOverride": f"{cluster_name}-autoscaler",
                         "cloudProvider": "clusterapi",
                         "clusterAPIMode": "kubeconfig-incluster",
                         "clusterAPIKubeconfigSecret": f"{cluster_name}-kubeconfig",
