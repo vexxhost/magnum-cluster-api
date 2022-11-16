@@ -97,5 +97,12 @@ sudo chmod +x /usr/local/bin/skopeo
 pip install -U setuptools pip
 $HOME/.local/bin/pip3 install -e .
 
+# Install Flux
+curl -Lo /tmp/flux_0.32.0_linux_amd64.tar.gz https://github.com/fluxcd/flux2/releases/download/v0.32.0/flux_0.32.0_linux_amd64.tar.gz
+rm -rf $HOME/.local/bin/flux && sudo tar -C $HOME/.local/bin -xzf /tmp/flux_0.32.0_linux_amd64.tar.gz
+
+# Node labeling
+kubectl label node --all openstack-control-plane=enabled
+
 # Restart Magnum to pick-up new driver
 sudo systemctl restart devstack@magnum-{api,cond}
