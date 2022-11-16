@@ -33,7 +33,7 @@ def generate_cluster_api_name(
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
 ) -> str:
-    name = f"{cluster.name}-{shortuuid.uuid()[:10].lower()}"
+    name = f"{cluster.name}-{shortuuid.uuid()[:10].lower()}".replace(".", "-")
     if (
         objects.Cluster.objects(api)
         .filter(namespace="magnum-system")
