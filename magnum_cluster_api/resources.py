@@ -1198,16 +1198,8 @@ class Cluster(ClusterBase):
                                     else ng.node_count,
                                     "metadata": {
                                         "annotations": {
-                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size": utils.get_cluster_label(  # noqa: E501
-                                                self.cluster,
-                                                "min_node_count",
-                                                "1",
-                                            ),
-                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size": utils.get_cluster_label(  # noqa: E501
-                                                self.cluster,
-                                                "max_node_count",
-                                                "1",
-                                            ),
+                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size": ng.min_node_count,
+                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size": ng.max_node_count,
                                         }
                                     }
                                     if auto_scaling_enabled
@@ -1381,24 +1373,31 @@ class Cluster(ClusterBase):
 
 
 def set_autoscaler_metadata_in_machinedeployment(
-    api: pykube.HTTPClient, cluster: magnum_objects.Cluster
+    api: pykube.HTTPClient,
+    cluster: magnum_objects.Cluster,
+    nodegroup: magnum_objects.NodeGroup,
 ):
     # Set autoscaler annotations to MachineDeployment(MD)s because annotations in Cluster topology
     # are not propogated to MDs. Upstream issue:  https://github.com/kubernetes-sigs/cluster-api/pull/7088
-    cluster_name = utils.get_or_generate_cluster_api_name(api, cluster)
+
     if not utils.get_cluster_label_as_bool(cluster, "auto_scaling_enabled", False):
         return
     mds = objects.MachineDeployment.objects(api).filter(
         namespace="magnum-system",
-        selector={"cluster.x-k8s.io/cluster-name": cluster_name},
+        selector={
+            "cluster.x-k8s.io/cluster-name": utils.get_or_generate_cluster_api_name(
+                api, cluster
+            ),
+            "topology.cluster.x-k8s.io/deployment-name": nodegroup.name,
+        },
     )
     for md in mds:
         md.obj["metadata"]["annotations"][
             "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"
-        ] = utils.get_cluster_label(cluster, "max_node_count", "1")
+        ] = nodegroup.max_node_count
         md.obj["metadata"]["annotations"][
             "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size"
-        ] = utils.get_cluster_label(cluster, "min_node_count", "1")
+        ] = nodegroup.min_node_count
         md.update()
 
 
