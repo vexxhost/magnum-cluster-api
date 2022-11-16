@@ -1198,8 +1198,8 @@ class Cluster(ClusterBase):
                                     else ng.node_count,
                                     "metadata": {
                                         "annotations": {
-                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size": ng.min_node_count,
-                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size": ng.max_node_count,
+                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size": f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
+                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size": f"{utils.get_node_group_max_node_count(ng)}",  # noqa: E501
                                         }
                                     }
                                     if auto_scaling_enabled
@@ -1394,10 +1394,10 @@ def set_autoscaler_metadata_in_machinedeployment(
     for md in mds:
         md.obj["metadata"]["annotations"][
             "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"
-        ] = nodegroup.max_node_count
+        ] = f"{utils.get_node_group_max_node_count(nodegroup)}"
         md.obj["metadata"]["annotations"][
             "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size"
-        ] = nodegroup.min_node_count
+        ] = f"{utils.get_node_group_min_node_count(nodegroup)}"
         md.update()
 
 
