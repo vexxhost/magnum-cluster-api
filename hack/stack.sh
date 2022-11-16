@@ -74,6 +74,9 @@ newgrp docker <<EOF
 kind create cluster
 EOF
 
+# Label a control plane node
+kubectl label node kind-control-plane openstack-control-plane=enabled
+
 # Install Go 1.19
 curl -Lo /tmp/go1.19.3.linux-amd64.tar.gz https://go.dev/dl/go1.19.3.linux-amd64.tar.gz
 rm -rf /usr/local/go && sudo tar -C /usr/local -xzf /tmp/go1.19.3.linux-amd64.tar.gz
@@ -92,6 +95,10 @@ curl -L https://storage.googleapis.com/artifacts.k8s-staging-capi-openstack.apps
 # Install Skopeo
 sudo curl -Lo /usr/local/bin/skopeo https://github.com/lework/skopeo-binary/releases/download/v1.10.0/skopeo-linux-amd64
 sudo chmod +x /usr/local/bin/skopeo
+
+# Install Flux
+curl -s https://fluxcd.io/install.sh | sudo bash
+flux install
 
 # Install `magnum-cluster-api`
 pip install -U setuptools pip
