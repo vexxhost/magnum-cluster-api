@@ -235,7 +235,7 @@ class BaseDriver(driver.Driver):
             # NOTE(Oleks): We need to keep this until
             #               https://github.com/kubernetes-sigs/cluster-api/pull/7088 is fixed.
             resources.set_autoscaler_metadata_in_machinedeployment(
-                self.k8s_api, cluster
+                self.k8s_api, cluster, nodegroup
             )
 
         nodegroup.save()
