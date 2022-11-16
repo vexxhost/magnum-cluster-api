@@ -1413,7 +1413,7 @@ def apply_cluster_from_magnum_cluster(
     Cluster(context, api, cluster).apply()
     ClusterAutoscalerHelmRepository(api).apply()
     if utils.get_cluster_label_as_bool(cluster, "auto_scaling_enabled", False):
-        resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).apply()
+        ClusterAutoscalerHelmRelease(api, cluster).apply()
 
 
 def get_kubeadm_control_plane(
