@@ -81,6 +81,25 @@ def get_node_group_label(
     return node_group.labels.get(key, get_cluster_label(cluster, key, default))
 
 
+def get_node_group_min_node_count(
+    node_group: magnum_objects.NodeGroup,
+    default=1,
+) -> int:
+    if node_group.min_node_count == 0:
+        return default
+    else:
+        return node_group.min_node_count
+
+
+def get_node_group_max_node_count(
+    node_group: magnum_objects.NodeGroup,
+) -> int:
+    if node_group.max_node_count == None:
+        return get_node_group_min_node_count(node_group) + 1
+    else:
+        return node_group.max_node_count
+
+
 def get_cluster_label(cluster: magnum_objects.Cluster, key: str, default: str) -> str:
     return cluster.labels.get(
         key, get_cluster_template_label(cluster.cluster_template, key, default)
