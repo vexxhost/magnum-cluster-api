@@ -1388,12 +1388,9 @@ def set_autoscaler_metadata_in_machinedeployment(
     cluster_name = utils.get_or_generate_cluster_api_name(api, cluster)
     if not utils.get_cluster_label_as_bool(cluster, "auto_scaling_enabled", False):
         return
-    # NOTE(Oleks): Need to decide which one is better, labelSelector or fieldSelector
-    #              Instead of field_selector, we can use
-    #              selector={"cluster.x-k8s.io/cluster-name": cluster_name},
     mds = objects.MachineDeployment.objects(api).filter(
         namespace="magnum-system",
-        field_selector={"spec.clusterName": cluster_name},
+        selector={"cluster.x-k8s.io/cluster-name": cluster_name},
     )
     for md in mds:
         md.obj["metadata"]["annotations"][
