@@ -419,6 +419,23 @@ class KubeadmControlPlaneTemplate(Base):
                     "template": {
                         "spec": {
                             "kubeadmConfigSpec": {
+                                "format": "ignition",
+                                "ignition": {
+                                    "containerLinuxConfig": {
+                                        "additionalConfig": """\
+                                            systemd:
+                                                units:
+                                                - name: kubeadm.service
+                                                enabled: true
+                                                dropins:
+                                                - name: 10-flatcar.conf
+                                                    contents: |
+                                                    [Unit]
+                                                    Requires=containerd.service
+                                                    After=containerd.service
+                                            """,
+                                    },
+                                },
                                 "clusterConfiguration": {
                                     "apiServer": {
                                         "extraArgs": {
