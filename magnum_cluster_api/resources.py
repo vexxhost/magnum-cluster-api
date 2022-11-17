@@ -543,6 +543,19 @@ class KubeadmControlPlaneTemplate(Base):
                     "template": {
                         "spec": {
                             "kubeadmConfigSpec": {
+                                "format": "ignition",
+                                "ignition": {
+                                    "containerLinuxConfig": {
+                                        "additionalConfig": "storage:\n  links:\n  - path: /etc/systemd/system/kubeadm.service.wants/containerd.service\n    target: /usr/lib/systemd/system/containerd.service\n"
+                                    },
+                                },
+                                # In Flatcar kubeadm configuration is in different directory because /run
+                                # can't be provisioned with ignition.
+                                "preKubeadmCommands": [
+                                    """
+                                    bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                    """
+                                ],
                                 "clusterConfiguration": {
                                     "apiServer": {
                                         "extraArgs": {
@@ -573,7 +586,7 @@ class KubeadmControlPlaneTemplate(Base):
                                 ],
                                 "initConfiguration": {
                                     "nodeRegistration": {
-                                        "name": "{{ local_hostname }}",
+                                        "name": "__REPLACE_NODE_NAME__",
                                         "kubeletExtraArgs": {
                                             "cloud-provider": "external",
                                         },
@@ -581,7 +594,7 @@ class KubeadmControlPlaneTemplate(Base):
                                 },
                                 "joinConfiguration": {
                                     "nodeRegistration": {
-                                        "name": "{{ local_hostname }}",
+                                        "name": "__REPLACE_NODE_NAME__",
                                         "kubeletExtraArgs": {
                                             "cloud-provider": "external",
                                         },
@@ -609,17 +622,30 @@ class KubeadmConfigTemplate(Base):
                 "spec": {
                     "template": {
                         "spec": {
+                            "format": "ignition",
+                            "ignition": {
+                                "containerLinuxConfig": {
+                                    "additionalConfig": "storage:\n  links:\n  - path: /etc/systemd/system/kubeadm.service.wants/containerd.service\n    target: /usr/lib/systemd/system/containerd.service\n"
+                                },
+                            },
                             "files": [],
+                            # In Flatcar kubeadm configuration is in different directory because /run
+                            # can't be provisioned with ignition.
+                            "preKubeadmCommands": [
+                                """
+                                bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                """
+                            ],
                             "joinConfiguration": {
                                 "nodeRegistration": {
-                                    "name": "{{ local_hostname }}",
+                                    "name": "__REPLACE_NODE_NAME__",
                                     "kubeletExtraArgs": {
                                         "cloud-provider": "external",
                                     },
                                 },
                             },
-                        }
-                    }
+                        },
+                    },
                 },
             },
         )
