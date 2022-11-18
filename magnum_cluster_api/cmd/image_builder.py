@@ -42,8 +42,9 @@ def validate_version(_, __, value):
     "--operating-system",
     show_default=True,
     default="ubuntu-2204",
-    type=click.Choice(["ubuntu-2004", "ubuntu-2204"]),
+    type=click.Choice(["ubuntu-2004", "ubuntu-2204", "flatcar"]),
     help="Operating system to build image for",
+    prompt="Operating system to build image for",
 )
 @click.option(
     "--version",
