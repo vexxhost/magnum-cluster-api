@@ -422,18 +422,7 @@ class KubeadmControlPlaneTemplate(Base):
                                 "format": "ignition",
                                 "ignition": {
                                     "containerLinuxConfig": {
-                                        "additionalConfig": """\
-                                            systemd:
-                                              units:
-                                              - name: kubeadm.service
-                                                enabled: true
-                                                dropins:
-                                                - name: 10-flatcar.conf
-                                                  contents: |
-                                                    [Unit]
-                                                    Requires=containerd.service
-                                                    After=containerd.service
-                                            """,
+                                        "additionalConfig": "storage:\n  links:\n  - path: /etc/systemd/system/kubeadm.service.wants/containerd.service\n    target: /usr/lib/systemd/system/containerd.service\n"
                                     },
                                 },
                                 # In Flatcar kubeadm configuration is in different directory because /run
@@ -512,18 +501,7 @@ class KubeadmConfigTemplate(Base):
                             "format": "ignition",
                             "ignition": {
                                 "containerLinuxConfig": {
-                                    "additionalConfig": """\
-                                        systemd:
-                                            units:
-                                            - name: kubeadm.service
-                                            enabled: true
-                                            dropins:
-                                            - name: 10-flatcar.conf
-                                                contents: |
-                                                [Unit]
-                                                Requires=containerd.service
-                                                After=containerd.service
-                                        """,
+                                    "additionalConfig": "storage:\n  links:\n  - path: /etc/systemd/system/kubeadm.service.wants/containerd.service\n    target: /usr/lib/systemd/system/containerd.service\n"
                                 },
                             },
                             "files": [],
