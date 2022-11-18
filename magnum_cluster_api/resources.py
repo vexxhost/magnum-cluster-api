@@ -438,9 +438,11 @@ class KubeadmControlPlaneTemplate(Base):
                                 },
                                 # In Flatcar kubeadm configuration is in different directory because /run
                                 # can't be provisioned with ignition.
-                                "preKubeadmCommands": """
-                                - bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
-                                """,
+                                "preKubeadmCommands": [
+                                    """
+                                    bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                    """
+                                ],
                                 "clusterConfiguration": {
                                     "apiServer": {
                                         "extraArgs": {
@@ -527,9 +529,11 @@ class KubeadmConfigTemplate(Base):
                             "files": [],
                             # In Flatcar kubeadm configuration is in different directory because /run
                             # can't be provisioned with ignition.
-                            "preKubeadmCommands": """
-                            - bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
-                            """,
+                            "preKubeadmCommands": [
+                                """
+                                bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                """
+                            ],
                             "joinConfiguration": {
                                 "nodeRegistration": {
                                     "name": "__REPLACE_NODE_NAME__",
