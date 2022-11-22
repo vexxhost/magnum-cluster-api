@@ -12,8 +12,8 @@ from tenacity import retry, retry_if_exception_type
 
 from magnum_cluster_api import clients, objects
 
-
 AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar"]
+
 
 def get_or_generate_cluster_api_cloud_config_secret_name(
     api: pykube.HTTPClient, cluster: magnum_objects.Cluster
