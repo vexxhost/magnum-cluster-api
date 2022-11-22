@@ -543,19 +543,6 @@ class KubeadmControlPlaneTemplate(Base):
                     "template": {
                         "spec": {
                             "kubeadmConfigSpec": {
-                                "format": "ignition",
-                                "ignition": {
-                                    "containerLinuxConfig": {
-                                        "additionalConfig": "storage:\n  links:\n  - path: /etc/systemd/system/kubeadm.service.wants/containerd.service\n    target: /usr/lib/systemd/system/containerd.service\n"
-                                    },
-                                },
-                                # In Flatcar kubeadm configuration is in different directory because /run
-                                # can't be provisioned with ignition.
-                                "preKubeadmCommands": [
-                                    """
-                                    bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
-                                    """
-                                ],
                                 "clusterConfiguration": {
                                     "apiServer": {
                                         "extraArgs": {
@@ -586,7 +573,7 @@ class KubeadmControlPlaneTemplate(Base):
                                 ],
                                 "initConfiguration": {
                                     "nodeRegistration": {
-                                        "name": "__REPLACE_NODE_NAME__",
+                                        "name": "{{ local_hostname }}",
                                         "kubeletExtraArgs": {
                                             "cloud-provider": "external",
                                         },
@@ -594,7 +581,7 @@ class KubeadmControlPlaneTemplate(Base):
                                 },
                                 "joinConfiguration": {
                                     "nodeRegistration": {
-                                        "name": "__REPLACE_NODE_NAME__",
+                                        "name": "{{ local_hostname }}",
                                         "kubeletExtraArgs": {
                                             "cloud-provider": "external",
                                         },
@@ -622,23 +609,10 @@ class KubeadmConfigTemplate(Base):
                 "spec": {
                     "template": {
                         "spec": {
-                            "format": "ignition",
-                            "ignition": {
-                                "containerLinuxConfig": {
-                                    "additionalConfig": "storage:\n  links:\n  - path: /etc/systemd/system/kubeadm.service.wants/containerd.service\n    target: /usr/lib/systemd/system/containerd.service\n"
-                                },
-                            },
                             "files": [],
-                            # In Flatcar kubeadm configuration is in different directory because /run
-                            # can't be provisioned with ignition.
-                            "preKubeadmCommands": [
-                                """
-                                bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
-                                """
-                            ],
                             "joinConfiguration": {
                                 "nodeRegistration": {
-                                    "name": "__REPLACE_NODE_NAME__",
+                                    "name": "{{ local_hostname }}",
                                     "kubeletExtraArgs": {
                                         "cloud-provider": "external",
                                     },
@@ -1026,6 +1000,17 @@ class ClusterClass(Base):
                                 },
                             },
                         },
+                        {
+                            "name": "operatingSystem",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                    "enum": utils.AVAILABLE_OPERATING_SYSTEMS,
+                                    "default": "ubuntu",
+                                },
+                            },
+                        },
                     ],
                     "patches": [
                         {
@@ -1181,6 +1166,93 @@ class ClusterClass(Base):
                                         },
                                     ],
                                 }
+                            ],
+                        },
+                        {
+                            "name": "flatcar",
+                            "enabledIf": '{{ if eq .operatingSystem "flatcar" }}true{{end}}',
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                        "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/format",
+                                            "value": "ignition",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/ignition",
+                                            "value": {
+                                                "containerLinuxConfig": {
+                                                    "additionalConfig": textwrap.dedent(
+                                                        """\
+                                                        storage:
+                                                          links:
+                                                          - path: /etc/systemd/system/kubeadm.service.wants/containerd.service
+                                                            target: /usr/lib/systemd/system/containerd.service
+                                                        """  # noqa: E501
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                        {
+                                            "op": "replace",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/initConfiguration/nodeRegistration/name",  # noqa: E501
+                                            "value": "${COREOS_OPENSTACK_HOSTNAME}",
+                                        },
+                                        {
+                                            "op": "replace",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/joinConfiguration/nodeRegistration/name",  # noqa: E501
+                                            "value": "${COREOS_OPENSTACK_HOSTNAME}",
+                                        },
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmConfigTemplate.version,
+                                        "kind": objects.KubeadmConfigTemplate.kind,
+                                        "matchResources": {
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            }
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/format",
+                                            "value": "ignition",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/ignition",
+                                            "value": {
+                                                "containerLinuxConfig": {
+                                                    "additionalConfig": textwrap.dedent(
+                                                        """\
+                                                        storage:
+                                                          links:
+                                                          - path: /etc/systemd/system/kubeadm.service.wants/containerd.service
+                                                            target: /usr/lib/systemd/system/containerd.service
+                                                        """  # noqa: E501
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                        {
+                                            "op": "replace",
+                                            "path": "/spec/template/spec/joinConfiguration/nodeRegistration/name",
+                                            "value": "${COREOS_OPENSTACK_HOSTNAME}",
+                                        },
+                                    ],
+                                },
                             ],
                         },
                         {
@@ -1856,6 +1928,10 @@ class Cluster(ClusterBase):
                             {
                                 "name": "sshKeyName",
                                 "value": self.cluster.keypair or "",
+                            },
+                            {
+                                "name": "operatingSystem",
+                                "value": utils.get_operating_system(self.cluster),
                             },
                         ],
                     },
