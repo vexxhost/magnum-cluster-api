@@ -5,12 +5,16 @@ import pykube
 import shortuuid
 import yaml
 from magnum import objects as magnum_objects
+from magnum.api import utils as api_utils
 from magnum.common import context, exception, octavia
 from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
 
 from magnum_cluster_api import clients, objects
+
+
+AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar"]
 
 
 def get_or_generate_cluster_api_cloud_config_secret_name(
@@ -225,3 +229,11 @@ def delete_loadbalancers(ctx, cluster):
         octavia.wait_for_lb_deleted(octavia_client, candidates)
     except Exception as e:
         raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
+
+
+def get_operating_system(cluster: magnum_objects.Cluster):
+    cluster_distro = cluster.cluster_template.cluster_distro
+    for ops in AVAILABLE_OPERATING_SYSTEMS:
+        if cluster_distro.startswith(ops):
+            return ops
+    return None
