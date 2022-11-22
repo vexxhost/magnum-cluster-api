@@ -904,7 +904,7 @@ class ClusterClass(Base):
                         },
                         {
                             "name": "flatcar",
-                            "enabledIf": "{{ if eq .operatingSystem 'flatcar' }}true{{end}}",
+                            "enabledIf": "{{ if eq .operatingSystem \"flatcar\" }}true{{end}}",
                             "definitions": [
                                 {
                                     "selector": {
@@ -917,20 +917,22 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/format",
+                                            "value": "ignition",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/ignition",
                                             "value": {
-                                                "format": "ignition",
-                                                "ignition": {
-                                                    "containerLinuxConfig": {
-                                                        "additionalConfig": textwrap.dedent(
-                                                            """\
-                                                            storage:
-                                                              links:
-                                                              - path: /etc/systemd/system/kubeadm.service.wants/containerd.service
-                                                                target: /usr/lib/systemd/system/containerd.service
-                                                            """  # noqa: E501
-                                                        ),
-                                                    },
+                                                "containerLinuxConfig": {
+                                                    "additionalConfig": textwrap.dedent(
+                                                        """\
+                                                        storage:
+                                                          links:
+                                                          - path: /etc/systemd/system/kubeadm.service.wants/containerd.service
+                                                            target: /usr/lib/systemd/system/containerd.service
+                                                        """  # noqa: E501
+                                                    ),
                                                 },
                                             },
                                         },
@@ -959,20 +961,22 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec",
-                                            "value": {
-                                                "format": "ignition",
-                                                "ignition": {
-                                                    "containerLinuxConfig": {
-                                                        "additionalConfig": textwrap.dedent(
-                                                            """\
-                                                            storage:
-                                                              links:
-                                                              - path: /etc/systemd/system/kubeadm.service.wants/containerd.service
-                                                                target: /usr/lib/systemd/system/containerd.service
-                                                            """  # noqa: E501
-                                                        ),
-                                                    },
+                                            "path": "/spec/template/spec/format",
+                                            "value": "ignition",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/ignition",
+                                            "value":{
+                                                "containerLinuxConfig": {
+                                                    "additionalConfig": textwrap.dedent(
+                                                        """\
+                                                        storage:
+                                                          links:
+                                                          - path: /etc/systemd/system/kubeadm.service.wants/containerd.service
+                                                            target: /usr/lib/systemd/system/containerd.service
+                                                        """  # noqa: E501
+                                                    ),
                                                 },
                                             },
                                         },
