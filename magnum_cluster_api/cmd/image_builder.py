@@ -68,6 +68,8 @@ def main(operating_system, version, image_builder_version):
 
     click.echo("- Download image-builder")
     path = f"{ib_path}.tar"
+    # TODO(Oleks): Need to use https://github.com/okozachenko1203/image-builder
+    #              until https://github.com/kubernetes-sigs/image-builder/pull/882 is fixed.
     with requests.get(
         f"https://github.com/kubernetes-sigs/image-builder/tarball/{image_builder_version}",
         stream=True,

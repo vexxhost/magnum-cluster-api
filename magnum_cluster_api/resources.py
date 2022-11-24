@@ -922,7 +922,7 @@ class ClusterClass(Base):
                                                 textwrap.dedent(
                                                     """\
                                                 bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
-                                                """
+                                                """  # noqa: E501
                                                 )
                                             ],
                                         },
@@ -997,7 +997,7 @@ class ClusterClass(Base):
                                                 textwrap.dedent(
                                                     """\
                                                 bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
-                                                """
+                                                """  # noqa: E501
                                                 )
                                             ],
                                         },
