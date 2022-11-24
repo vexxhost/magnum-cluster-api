@@ -1033,6 +1033,7 @@ class ClusterClass(Base):
                                                                 Requires=coreos-metadata.service
                                                                 After=coreos-metadata.service
                                                                 [Service]
+                                                                # In Flatcar /usr is immutable, so image-builder puts the binaries in /opt/bin instead.
                                                                 # Ensure kubeadm service has access to kubeadm binary in /opt/bin on Flatcar.
                                                                 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/opt/bin
                                                                 # To make metadata environment variables available for pre-kubeadm commands.
