@@ -114,6 +114,8 @@ def main(operating_system, version, image_builder_version):
         "kubernetes_deb_version": f"{version.replace('v', '')}-00",
         "kubernetes_semver": f"{version}",
         "kubernetes_series": f"{kubernetes_series}",
+        # https://github.com/flatcar/Flatcar/issues/823
+        "ansible_user_vars": "oem_id=openstack",
     }
 
     # NOTE(mnaser): We use the latest tested daily ISO for Ubuntu 22.04 in order
