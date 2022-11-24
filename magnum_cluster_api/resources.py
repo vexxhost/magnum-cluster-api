@@ -929,8 +929,28 @@ class ClusterClass(Base):
                                                         """\
                                                         storage:
                                                           links:
+                                                          # For some reason enabling services via systemd.units doesn't work on Flatcar.
                                                           - path: /etc/systemd/system/kubeadm.service.wants/containerd.service
                                                             target: /usr/lib/systemd/system/containerd.service
+                                                          - path: /etc/systemd/system/multi-user.target.wants/coreos-metadata.service
+                                                            target: /usr/lib/systemd/system/coreos-metadata.service
+                                                          - path: /etc/systemd/system/multi-user.target.wants/kubeadm.service
+                                                            target: /etc/systemd/system/kubeadm.service
+                                                        systemd:
+                                                          units:
+                                                          - name: kubeadm.service
+                                                            dropins:
+                                                            - name: 10-flatcar.conf
+                                                              contents: |
+                                                                [Unit]
+                                                                # kubeadm must run after coreos-metadata populated /run/metadata directory.
+                                                                Requires=coreos-metadata.service
+                                                                After=coreos-metadata.service
+                                                                [Service]
+                                                                # Ensure kubeadm service has access to kubeadm binary in /opt/bin on Flatcar.
+                                                                Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/opt/bin
+                                                                # To make metadata environment variables available for pre-kubeadm commands.
+                                                                EnvironmentFile=/run/metadata/*
                                                         """  # noqa: E501
                                                     ),
                                                 },
@@ -973,8 +993,28 @@ class ClusterClass(Base):
                                                         """\
                                                         storage:
                                                           links:
+                                                          # For some reason enabling services via systemd.units doesn't work on Flatcar.
                                                           - path: /etc/systemd/system/kubeadm.service.wants/containerd.service
                                                             target: /usr/lib/systemd/system/containerd.service
+                                                          - path: /etc/systemd/system/multi-user.target.wants/coreos-metadata.service
+                                                            target: /usr/lib/systemd/system/coreos-metadata.service
+                                                          - path: /etc/systemd/system/multi-user.target.wants/kubeadm.service
+                                                            target: /etc/systemd/system/kubeadm.service
+                                                        systemd:
+                                                          units:
+                                                          - name: kubeadm.service
+                                                            dropins:
+                                                            - name: 10-flatcar.conf
+                                                              contents: |
+                                                                [Unit]
+                                                                # kubeadm must run after coreos-metadata populated /run/metadata directory.
+                                                                Requires=coreos-metadata.service
+                                                                After=coreos-metadata.service
+                                                                [Service]
+                                                                # Ensure kubeadm service has access to kubeadm binary in /opt/bin on Flatcar.
+                                                                Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/opt/bin
+                                                                # To make metadata environment variables available for pre-kubeadm commands.
+                                                                EnvironmentFile=/run/metadata/*
                                                         """  # noqa: E501
                                                     ),
                                                 },
