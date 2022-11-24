@@ -917,6 +917,17 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands",
+                                            "value": [
+                                                textwrap.dedent(
+                                                    """\
+                                                bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                                """
+                                                )
+                                            ],
+                                        },
+                                        {
+                                            "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/format",
                                             "value": "ignition",
                                         },
@@ -959,12 +970,12 @@ class ClusterClass(Base):
                                         {
                                             "op": "replace",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/initConfiguration/nodeRegistration/name",  # noqa: E501
-                                            "value": "${COREOS_OPENSTACK_HOSTNAME}",
+                                            "value": "__REPLACE_NODE_NAME__",
                                         },
                                         {
                                             "op": "replace",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/joinConfiguration/nodeRegistration/name",  # noqa: E501
-                                            "value": "${COREOS_OPENSTACK_HOSTNAME}",
+                                            "value": "__REPLACE_NODE_NAME__",
                                         },
                                     ],
                                 },
@@ -979,6 +990,17 @@ class ClusterClass(Base):
                                         },
                                     },
                                     "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/preKubeadmCommands",
+                                            "value": [
+                                                textwrap.dedent(
+                                                    """\
+                                                bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                                """
+                                                )
+                                            ],
+                                        },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/format",
@@ -1023,7 +1045,7 @@ class ClusterClass(Base):
                                         {
                                             "op": "replace",
                                             "path": "/spec/template/spec/joinConfiguration/nodeRegistration/name",
-                                            "value": "${COREOS_OPENSTACK_HOSTNAME}",
+                                            "value": "__REPLACE_NODE_NAME__",
                                         },
                                     ],
                                 },
