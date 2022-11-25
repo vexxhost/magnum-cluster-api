@@ -949,6 +949,19 @@ class ClusterClass(Base):
                                                             target: /etc/systemd/system/kubeadm.service
                                                         systemd:
                                                           units:
+                                                          - name: coreos-metadata.service
+                                                            dropins:
+                                                            - name: 20-clct-provider-override.conf
+                                                              contents: |
+                                                                [Service]
+                                                                Environment=COREOS_METADATA_OPT_PROVIDER=--provider=openstack-metadata
+                                                          - name: coreos-metadata-sshkeys@.service
+                                                            enabled: true
+                                                            dropins:
+                                                            - name: 20-clct-provider-override.conf
+                                                              contents: |
+                                                                [Service]
+                                                                Environment=COREOS_METADATA_OPT_PROVIDER=--provider=openstack-metadata
                                                           - name: kubeadm.service
                                                             dropins:
                                                             - name: 10-flatcar.conf
@@ -1024,6 +1037,19 @@ class ClusterClass(Base):
                                                             target: /etc/systemd/system/kubeadm.service
                                                         systemd:
                                                           units:
+                                                          - name: coreos-metadata.service
+                                                            dropins:
+                                                            - name: 20-clct-provider-override.conf
+                                                              contents: |
+                                                                [Service]
+                                                                Environment=COREOS_METADATA_OPT_PROVIDER=--provider=openstack-metadata
+                                                          - name: coreos-metadata-sshkeys@.service
+                                                            enabled: true
+                                                            dropins:
+                                                            - name: 20-clct-provider-override.conf
+                                                              contents: |
+                                                                [Service]
+                                                                Environment=COREOS_METADATA_OPT_PROVIDER=--provider=openstack-metadata
                                                           - name: kubeadm.service
                                                             dropins:
                                                             - name: 10-flatcar.conf
