@@ -917,7 +917,7 @@ class ClusterClass(Base):
                         },
                         {
                             "name": "ntpServers",
-                            "enabledIf": "{{ if gt (len .ntpServers) }}true{{end}}",
+                            "enabledIf": "{{ if gt (len .ntpServers) 0 }}true{{end}}",
                             "definitions": [
                                 {
                                     "selector": {
