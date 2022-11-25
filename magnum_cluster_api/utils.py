@@ -235,3 +235,8 @@ def get_operating_system(cluster: magnum_objects.Cluster):
         if cluster_distro.startswith(ops):
             return ops
     return None
+
+
+def get_ntp_servers(cluster: magnum_objects.Cluster) -> str.Array:
+    ntp_servers = get_cluster_label(cluster, "ntp_servers", "")
+    return list(filter(None, ntp_servers.split(",")))
