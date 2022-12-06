@@ -4,6 +4,7 @@ import os
 import textwrap
 import types
 
+import certifi
 import pkg_resources
 import pykube
 import yaml
@@ -378,7 +379,7 @@ class CloudConfigSecret(ClusterBase):
                     "labels": self.labels,
                 },
                 "stringData": {
-                    "cacert": "TODO",  # TODO
+                    "cacert": open(certifi.where(), "r").read(),
                     "clouds.yaml": yaml.dump(
                         {
                             "clouds": {

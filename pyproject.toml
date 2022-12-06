@@ -12,6 +12,7 @@ pykube-ng = "*"
 click = "*"
 requests = "*"
 shortuuid = "*"
+certifi = "*"
 
 [build-system]
 requires = ["setuptools", "poetry-core"]
