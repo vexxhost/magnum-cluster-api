@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.0...v0.2.1) (2022-12-10)
+
+
+### Bug Fixes
+
+* enable ssl access ([7251c8a](https://github.com/vexxhost/magnum-cluster-api/commit/7251c8a240a90dcc1dac3abd28450aca591a3684))
+
 ## [0.2.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.1.2...v0.2.0) (2022-11-16)
 
 
