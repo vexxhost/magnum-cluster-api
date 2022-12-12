@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.3...v0.2.4) (2022-12-12)
+
+
+### Bug Fixes
+
+* use endpoint_type for nova ([688d844](https://github.com/vexxhost/magnum-cluster-api/commit/688d84408efcebd0dfcde6648b2db8c5a7cce1c9))
+
 ## [0.2.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.2...v0.2.3) (2022-12-12)
 
 
