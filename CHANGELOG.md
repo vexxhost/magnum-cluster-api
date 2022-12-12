@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.2...v0.2.3) (2022-12-12)
+
+
+### Bug Fixes
+
+* use nova_client interface ([5dc34f3](https://github.com/vexxhost/magnum-cluster-api/commit/5dc34f3e28c7e9246c6b35eebb232cddeda64a5e))
+
 ## [0.2.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.1...v0.2.2) (2022-12-12)
 
 
