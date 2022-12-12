@@ -10,6 +10,7 @@ import pykube
 import yaml
 from magnum import objects as magnum_objects
 from magnum.common import cert_manager, cinder, context, neutron
+from magnum.common import utils as magnum_utils
 from magnum.common.x509 import operations as x509
 from oslo_config import cfg
 from oslo_serialization import base64
@@ -366,6 +367,8 @@ class CloudConfigSecret(ClusterBase):
         self.credential = credential
 
     def get_object(self) -> pykube.Secret:
+        ca_certificate = magnum_utils.get_openstack_ca()
+
         return pykube.Secret(
             self.api,
             {
@@ -379,13 +382,16 @@ class CloudConfigSecret(ClusterBase):
                     "labels": self.labels,
                 },
                 "stringData": {
-                    "cacert": open(certifi.where(), "r").read(),
+                    "cacert": ca_certificate
+                    if ca_certificate
+                    else open(certifi.where(), "r").read(),
                     "clouds.yaml": yaml.dump(
                         {
                             "clouds": {
                                 "default": {
                                     "region_name": self.region_name,
                                     "identity_api_version": 3,
+                                    "verify": CONF.drivers.verify_ca,
                                     "auth": {
                                         "auth_url": self.auth_url,
                                         "application_credential_id": self.credential.id,
