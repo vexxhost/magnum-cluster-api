@@ -390,7 +390,7 @@ class CloudConfigSecret(ClusterBase):
                             "clouds": {
                                 "default": {
                                     "region_name": self.region_name,
-                                    "interface": CONF.nova_client.interface.replace(
+                                    "interface": CONF.nova_client.endpoint_type.replace(
                                         "URL", ""
                                     ),
                                     "identity_api_version": 3,
