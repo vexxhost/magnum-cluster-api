@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.1...v0.2.2) (2022-12-12)
+
+
+### Bug Fixes
+
+* respect verify_ca and openstack_ca ([107cc2f](https://github.com/vexxhost/magnum-cluster-api/commit/107cc2f302ddf41dfa4080cd6034a93639184f59))
+
 ## [0.2.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.0...v0.2.1) (2022-12-10)
 
 
