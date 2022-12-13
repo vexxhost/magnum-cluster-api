@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.4...v0.2.5) (2022-12-13)
+
+
+### Bug Fixes
+
+* Use public auth_url for CloudConfigSecret ([4f9c852](https://github.com/vexxhost/magnum-cluster-api/commit/4f9c852597b2631ec1cf6cea6e5afbe86b68fb21))
+
 ## [0.2.4](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.3...v0.2.4) (2022-12-12)
 
 
