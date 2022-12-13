@@ -37,7 +37,7 @@ class BaseDriver(driver.Driver):
         resources.CloudConfigSecret(
             self.k8s_api,
             cluster,
-            osc.url_for(service_type='identity', interface="public"),
+            osc.url_for(service_type="identity", interface="public"),
             osc.cinder_region_name(),
             credential,
         ).apply()
