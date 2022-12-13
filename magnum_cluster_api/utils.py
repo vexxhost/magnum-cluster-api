@@ -67,6 +67,7 @@ def generate_cloud_controller_manager_config(
         region={cloud_config["clouds"]["default"]["region_name"]}
         application-credential-id={cloud_config["clouds"]["default"]["auth"]["application_credential_id"]}
         application-credential-secret={cloud_config["clouds"]["default"]["auth"]["application_credential_secret"]}
+        tls-insecure={not cloud_config["clouds"]["default"]["verify"]}
         """
     )
 
