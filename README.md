@@ -1,4 +1,4 @@
-# `magnum-cluster-api`
+![Cluster API driver for Magnum](docs/static/logo.png?raw=true "Cluster API driver for Magnum")
 
 ## Images
 
