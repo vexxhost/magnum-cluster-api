@@ -34,9 +34,9 @@ class BaseDriver(driver.Driver):
             description=f"Magnum cluster ({cluster.uuid})",
         )
 
-        resources.CloudConfigSecret(
-            self.k8s_api, cluster, osc.auth_url, osc.cinder_region_name(), credential
-        ).apply()
+        resources.CloudConfigSecret(self.k8s_api, cluster,
+            osc.url_for(service_type='identity', interface="public"),
+            osc.cinder_region_name(), credential).apply()
 
         resources.ApiCertificateAuthoritySecret(self.k8s_api, cluster).apply()
         resources.EtcdCertificateAuthoritySecret(self.k8s_api, cluster).apply()
