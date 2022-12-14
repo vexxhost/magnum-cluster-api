@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.5...v0.2.6) (2022-12-14)
+
+
+### Bug Fixes
+
+* Fix tls-insecure of ccm configuration ([5c9ad68](https://github.com/vexxhost/magnum-cluster-api/commit/5c9ad68e4aa7ec9ba087bf4330ef9f805a15250e))
+
 ## [0.2.5](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.4...v0.2.5) (2022-12-13)
 
 
