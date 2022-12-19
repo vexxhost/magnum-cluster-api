@@ -79,6 +79,7 @@ kubectl label node kind-control-plane openstack-control-plane=enabled
 
 # Initialize the `clusterctl` CLI
 export EXP_CLUSTER_RESOURCE_SET=true
+export EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true #Used by the kubeadm bootstrap provider
 export CLUSTER_TOPOLOGY=true
 clusterctl init \
    --core cluster-api:v1.3.0-rc.0 \

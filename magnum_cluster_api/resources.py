@@ -504,8 +504,8 @@ class KubeadmConfigTemplate(Base):
                                     },
                                 },
                             },
-                        }
-                    }
+                        },
+                    },
                 },
             },
         )
@@ -803,6 +803,30 @@ class ClusterClass(Base):
                                 },
                             },
                         },
+                        {
+                            "name": "operatingSystem",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                    "enum": utils.AVAILABLE_OPERATING_SYSTEMS,
+                                    "default": "ubuntu",
+                                },
+                            },
+                        },
+                        {
+                            "name": "ntpServers",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string",
+                                    },
+                                    "default": [],
+                                },
+                            },
+                        },
                     ],
                     "patches": [
                         {
@@ -899,6 +923,238 @@ class ClusterClass(Base):
                                         },
                                     ],
                                 }
+                            ],
+                        },
+                        {
+                            "name": "ntpServers",
+                            "enabledIf": "{{ if gt (len .ntpServers) 0 }}true{{end}}",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                        "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/ntp/enabled",
+                                            "value": True,
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/ntp/servers",
+                                            "valueFrom": {
+                                                "variable": "ntpServers",
+                                            },
+                                        },
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmConfigTemplate.version,
+                                        "kind": objects.KubeadmConfigTemplate.kind,
+                                        "matchResources": {
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            }
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/ntp/enabled",
+                                            "value": True,
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/ntp/servers",
+                                            "valueFrom": {
+                                                "variable": "ntpServers",
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            "name": "flatcar",
+                            "enabledIf": '{{ if eq .operatingSystem "flatcar" }}true{{end}}',
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                        "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands",
+                                            "value": [
+                                                textwrap.dedent(
+                                                    """\
+                                                bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                                """  # noqa: E501
+                                                )
+                                            ],
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/format",
+                                            "value": "ignition",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/ignition",
+                                            "value": {
+                                                "containerLinuxConfig": {
+                                                    "additionalConfig": textwrap.dedent(
+                                                        """\
+                                                        storage:
+                                                          links:
+                                                          # For some reason enabling services via systemd.units doesn't work on Flatcar.
+                                                          - path: /etc/systemd/system/kubeadm.service.wants/containerd.service
+                                                            target: /usr/lib/systemd/system/containerd.service
+                                                          - path: /etc/systemd/system/multi-user.target.wants/coreos-metadata.service
+                                                            target: /usr/lib/systemd/system/coreos-metadata.service
+                                                          - path: /etc/systemd/system/multi-user.target.wants/kubeadm.service
+                                                            target: /etc/systemd/system/kubeadm.service
+                                                        systemd:
+                                                          units:
+                                                          - name: coreos-metadata.service
+                                                            dropins:
+                                                            - name: 20-clct-provider-override.conf
+                                                              contents: |
+                                                                [Service]
+                                                                # Set Openstack as coreos-metadata provider
+                                                                Environment=COREOS_METADATA_OPT_PROVIDER=--provider=openstack-metadata
+                                                          - name: coreos-metadata-sshkeys@.service
+                                                            enabled: true
+                                                            dropins:
+                                                            - name: 20-clct-provider-override.conf
+                                                              contents: |
+                                                                [Service]
+                                                                # Set Openstack as coreos-metadata provider
+                                                                Environment=COREOS_METADATA_OPT_PROVIDER=--provider=openstack-metadata
+                                                          - name: kubeadm.service
+                                                            dropins:
+                                                            - name: 10-flatcar.conf
+                                                              contents: |
+                                                                [Unit]
+                                                                # kubeadm must run after coreos-metadata populated /run/metadata directory.
+                                                                Requires=coreos-metadata.service
+                                                                After=coreos-metadata.service
+                                                                [Service]
+                                                                # Ensure kubeadm service has access to kubeadm binary in /opt/bin on Flatcar.
+                                                                Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/opt/bin
+                                                                # To make metadata environment variables available for pre-kubeadm commands.
+                                                                EnvironmentFile=/run/metadata/*
+                                                        """  # noqa: E501
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                        {
+                                            "op": "replace",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/initConfiguration/nodeRegistration/name",  # noqa: E501
+                                            "value": "__REPLACE_NODE_NAME__",
+                                        },
+                                        {
+                                            "op": "replace",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/joinConfiguration/nodeRegistration/name",  # noqa: E501
+                                            "value": "__REPLACE_NODE_NAME__",
+                                        },
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmConfigTemplate.version,
+                                        "kind": objects.KubeadmConfigTemplate.kind,
+                                        "matchResources": {
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            }
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/preKubeadmCommands",
+                                            "value": [
+                                                textwrap.dedent(
+                                                    """\
+                                                bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                                """  # noqa: E501
+                                                )
+                                            ],
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/format",
+                                            "value": "ignition",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/ignition",
+                                            "value": {
+                                                "containerLinuxConfig": {
+                                                    "additionalConfig": textwrap.dedent(
+                                                        """\
+                                                        storage:
+                                                          links:
+                                                          # For some reason enabling services via systemd.units doesn't work on Flatcar.
+                                                          - path: /etc/systemd/system/kubeadm.service.wants/containerd.service
+                                                            target: /usr/lib/systemd/system/containerd.service
+                                                          - path: /etc/systemd/system/multi-user.target.wants/coreos-metadata.service
+                                                            target: /usr/lib/systemd/system/coreos-metadata.service
+                                                          - path: /etc/systemd/system/multi-user.target.wants/kubeadm.service
+                                                            target: /etc/systemd/system/kubeadm.service
+                                                        systemd:
+                                                          units:
+                                                          - name: coreos-metadata.service
+                                                            dropins:
+                                                            - name: 20-clct-provider-override.conf
+                                                              contents: |
+                                                                [Service]
+                                                                Environment=COREOS_METADATA_OPT_PROVIDER=--provider=openstack-metadata
+                                                          - name: coreos-metadata-sshkeys@.service
+                                                            enabled: true
+                                                            dropins:
+                                                            - name: 20-clct-provider-override.conf
+                                                              contents: |
+                                                                [Service]
+                                                                Environment=COREOS_METADATA_OPT_PROVIDER=--provider=openstack-metadata
+                                                          - name: kubeadm.service
+                                                            dropins:
+                                                            - name: 10-flatcar.conf
+                                                              contents: |
+                                                                [Unit]
+                                                                # kubeadm must run after coreos-metadata populated /run/metadata directory.
+                                                                Requires=coreos-metadata.service
+                                                                After=coreos-metadata.service
+                                                                [Service]
+                                                                # In Flatcar /usr is immutable, so image-builder puts the binaries in /opt/bin instead.
+                                                                # Ensure kubeadm service has access to kubeadm binary in /opt/bin on Flatcar.
+                                                                Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/opt/bin
+                                                                # To make metadata environment variables available for pre-kubeadm commands.
+                                                                EnvironmentFile=/run/metadata/*
+                                                        """  # noqa: E501
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                        {
+                                            "op": "replace",
+                                            "path": "/spec/template/spec/joinConfiguration/nodeRegistration/name",
+                                            "value": "__REPLACE_NODE_NAME__",
+                                        },
+                                    ],
+                                },
                             ],
                         },
                         {
@@ -1369,6 +1625,14 @@ class Cluster(ClusterBase):
                             {
                                 "name": "sshKeyName",
                                 "value": self.cluster.keypair or "",
+                            },
+                            {
+                                "name": "operatingSystem",
+                                "value": utils.get_operating_system(self.cluster),
+                            },
+                            {
+                                "name": "ntpServers",
+                                "value": utils.get_ntp_servers(self.cluster),
                             },
                         ],
                     },

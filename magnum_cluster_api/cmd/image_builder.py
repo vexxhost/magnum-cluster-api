@@ -25,10 +25,9 @@ QEMU_PACKAGES = [
 @click.command()
 @click.option(
     "--operating-system",
-    show_default=True,
-    default="ubuntu-2004",
-    type=click.Choice(["ubuntu-2004"]),
+    type=click.Choice(["ubuntu-2004", "flatcar"]),
     help="Operating system to build image for",
+    prompt="Operating system to build image for",
 )
 @click.option(
     "--version",
@@ -96,6 +95,8 @@ def main(operating_system, version, image_builder_version):
         "kubernetes_deb_version": f"{version.replace('v', '')}-00",
         "kubernetes_semver": f"{version}",
         "kubernetes_series": f"{kubernetes_series}",
+        # https://github.com/flatcar/Flatcar/issues/823
+        "ansible_user_vars": "oem_id=openstack",
     }
     with tempfile.NamedTemporaryFile(suffix=".json") as fp:
         fp.write(json.dumps(customization).encode("utf-8"))
