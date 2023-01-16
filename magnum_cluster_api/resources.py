@@ -82,8 +82,6 @@ class ClusterBase(Base):
     @property
     def labels(self) -> dict:
         return {
-            "project-id": self.cluster.project_id,
-            "user-id": self.cluster.user_id,
             "cluster-uuid": self.cluster.uuid,
         }
 
