@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.7](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.6...v0.2.7) (2023-01-16)
+
+
+### Bug Fixes
+
+* only add cluster uuid to labels ([76099d4](https://github.com/vexxhost/magnum-cluster-api/commit/76099d44d7c069a07a16e696fde8bec2076cb50d))
+
 ## [0.2.6](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.5...v0.2.6) (2022-12-14)
 
 
