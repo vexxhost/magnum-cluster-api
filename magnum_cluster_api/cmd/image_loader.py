@@ -2,17 +2,8 @@ import shutil
 import subprocess
 
 import click
-from oslo_config import cfg
-from oslo_log import log as logging
 
 from magnum_cluster_api import image_utils
-
-CONF = cfg.CONF
-LOG = logging.getLogger(__name__)
-DOMAIN = "magnum-cluster-api"
-
-logging.register_options(CONF)
-logging.setup(CONF, DOMAIN)
 
 IMAGES = [
     "docker.io/calico/cni:v3.24.2",
@@ -76,19 +67,18 @@ def main(repository):
         src = image
         dst = image_utils.get_image(image, repository)
 
-        LOG.debug(f"Starting to mirror {src} to {dst}")
-
         try:
             subprocess.run(
                 [crane_path, "copy", src, dst], capture_output=True, check=True
             )
         except subprocess.CalledProcessError as e:
             if "401 Unauthorized" in e.stderr.decode():
-                LOG.error(
-                    "Authentication failed. Please ensure you're logged in via Crane"
+                click.echo(
+                    "Authentication failed. Please ensure you're logged in via Crane.",
+                    err=True,
                 )
                 return
 
             raise
 
-        LOG.info(f"Successfully mirrored {src} to {dst}")
+        click.echo(f"Successfully mirrored {src} to {dst}")

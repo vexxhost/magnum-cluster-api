@@ -13,8 +13,6 @@ click = "*"
 requests = "*"
 shortuuid = "*"
 certifi = "*"
-"oslo.log" = "*"
-"oslo.config" = "*"
 
 [build-system]
 requires = ["setuptools", "poetry-core"]
