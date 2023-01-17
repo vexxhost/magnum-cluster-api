@@ -1,3 +1,5 @@
+import itertools
+
 import yaml
 
 
@@ -9,7 +11,10 @@ def update_manifest_images(cluster_uuid: str, file, repository=None, replacement
     for doc in yaml.safe_load_all(data):
         # Fix container image paths
         if doc["kind"] in ("DaemonSet", "Deployment"):
-            for container in doc["spec"]["template"]["spec"]["containers"]:
+            for container in itertools.chain(
+                doc["spec"]["template"]["spec"].get("initContainers", []),
+                doc["spec"]["template"]["spec"]["containers"],
+            ):
                 for src, dst in replacements:
                     container["image"] = container["image"].replace(src, dst)
                 if repository:
