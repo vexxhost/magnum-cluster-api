@@ -10,8 +10,7 @@ from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
 
-from magnum_cluster_api import clients, objects
-from magnum_cluster_api import image_utils
+from magnum_cluster_api import clients, image_utils, objects
 
 
 def get_or_generate_cluster_api_cloud_config_secret_name(
@@ -152,7 +151,9 @@ def update_manifest_images(
                 for src, dst in replacements:
                     container["image"] = container["image"].replace(src, dst)
                 if repository:
-                    container["image"] = image_utils.get_image(container["image"], repository)
+                    container["image"] = image_utils.get_image(
+                        container["image"], repository
+                    )
 
         # Fix CCM cluster-name
         if (
