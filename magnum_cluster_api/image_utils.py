@@ -26,4 +26,3 @@ def get_image(name: str, repository: str = None):
 
     assert new_image_name.startswith(repository) is True
     return new_image_name
-
