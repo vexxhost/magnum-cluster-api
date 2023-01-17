@@ -13,9 +13,9 @@ click = "*"
 requests = "*"
 shortuuid = "*"
 certifi = "*"
-"oslo.log" = "^5.0.2"
-"oslo.config" = "^9.0.0"
-"oslo.concurrency" = "^5.0.1"
+"oslo.log" = "*"
+"oslo.config" = "*"
+"oslo.concurrency" = "*"
 
 [build-system]
 requires = ["setuptools", "poetry-core"]
