@@ -10,7 +10,7 @@ from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
 
-from magnum_cluster_api import clients, image_utils, objects
+from magnum_cluster_api import clients, objects
 
 
 def get_or_generate_cluster_api_cloud_config_secret_name(
@@ -135,38 +135,6 @@ def get_cluster_label_as_bool(
 ) -> bool:
     value = get_cluster_label(cluster, key, default)
     return strutils.bool_from_string(value, strict=True)
-
-
-def update_manifest_images(
-    cluster: magnum_objects.Cluster, file, repository=None, replacements=[]
-):
-    with open(file) as fd:
-        data = fd.read()
-
-    docs = []
-    for doc in yaml.safe_load_all(data):
-        # Fix container image paths
-        if doc["kind"] in ("DaemonSet", "Deployment"):
-            for container in doc["spec"]["template"]["spec"]["containers"]:
-                for src, dst in replacements:
-                    container["image"] = container["image"].replace(src, dst)
-                if repository:
-                    container["image"] = image_utils.get_image(
-                        container["image"], repository
-                    )
-
-        # Fix CCM cluster-name
-        if (
-            doc["kind"] == "DaemonSet"
-            and doc["metadata"]["name"] == "openstack-cloud-controller-manager"
-        ):
-            for env in doc["spec"]["template"]["spec"]["containers"][0]["env"]:
-                if env["name"] == "CLUSTER_NAME":
-                    env["value"] = cluster.uuid
-
-        docs.append(doc)
-
-    return yaml.safe_dump_all(docs, default_flow_style=False)
 
 
 def delete_loadbalancers(ctx, cluster):

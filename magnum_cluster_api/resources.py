@@ -16,7 +16,7 @@ from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import encodeutils
 
-from magnum_cluster_api import clients, objects, utils
+from magnum_cluster_api import clients, image_utils, objects, utils
 
 CONF = cfg.CONF
 KUBE_TAG = "v1.25.3"
@@ -193,8 +193,8 @@ class ClusterResourcesConfigMap(ClusterBase):
                 },
                 "data": {
                     **{
-                        os.path.basename(manifest): utils.update_manifest_images(
-                            self.cluster,
+                        os.path.basename(manifest): image_utils.update_manifest_images(
+                            self.cluster.uuid,
                             manifest,
                             repository=repository,
                             replacements=[
@@ -209,8 +209,8 @@ class ClusterResourcesConfigMap(ClusterBase):
                         )
                     },
                     **{
-                        os.path.basename(manifest): utils.update_manifest_images(
-                            self.cluster,
+                        os.path.basename(manifest): image_utils.update_manifest_images(
+                            self.cluster.uuid,
                             manifest,
                             repository=repository,
                             replacements=[
@@ -225,8 +225,8 @@ class ClusterResourcesConfigMap(ClusterBase):
                         )
                     },
                     **{
-                        "calico.yml": utils.update_manifest_images(
-                            self.cluster,
+                        "calico.yml": image_utils.update_manifest_images(
+                            self.cluster.uuid,
                             os.path.join(
                                 manifests_path, f"calico/{calico_version}.yaml"
                             ),
