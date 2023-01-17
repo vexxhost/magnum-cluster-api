@@ -79,6 +79,7 @@ def main(repository):
                 )
                 return
 
-            raise
+            print(e.stderr.decode(), err=True)
+            return
 
         click.echo(f"Successfully mirrored {src} to {dst}")
