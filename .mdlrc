@@ -1,1 +1,2 @@
 style "#{File.dirname(__FILE__)}/.markdownlint.rb"
+rules '~MD012'
