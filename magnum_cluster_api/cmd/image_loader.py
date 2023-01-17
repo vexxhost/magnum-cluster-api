@@ -9,6 +9,10 @@ from magnum_cluster_api import image_utils
 
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
+DOMAIN = "magnum-cluster-api"
+
+logging.register_options(CONF)
+logging.setup(CONF, DOMAIN)
 
 IMAGES = [
     "docker.io/calico/cni:v3.24.2",
@@ -70,7 +74,7 @@ def main(repository):
 
     seen = []
     for image in IMAGES:
-        if IMAGES[image] in seen:
+        if image in seen:
             continue
 
         src = image
