@@ -14,6 +14,9 @@ requests = "*"
 shortuuid = "*"
 certifi = "*"
 
+[tool.poetry.group.dev.dependencies]
+pytest = "<7"
+
 [build-system]
 requires = ["setuptools", "poetry-core"]
 build-backend = "poetry.core.masonry.api"
