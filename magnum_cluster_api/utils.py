@@ -11,6 +11,7 @@ from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
 
 from magnum_cluster_api import clients, objects
+from magnum_cluster_api import image_utils
 
 
 def get_or_generate_cluster_api_cloud_config_secret_name(
@@ -137,36 +138,6 @@ def get_cluster_label_as_bool(
     return strutils.bool_from_string(value, strict=True)
 
 
-def get_image(name: str, repository: str = None):
-    """
-    Get the image name from the target registry given a full image name.
-    """
-
-    if repository is None:
-        return repository
-
-    new_image_name = name
-    if name.startswith("docker.io/calico"):
-        new_image_name = name.replace("docker.io/calico/", f"{repository}/calico-")
-    if name.startswith("docker.io/k8scloudprovider"):
-        new_image_name = name.replace("docker.io/k8scloudprovider", repository)
-    if name.startswith("k8s.gcr.io/sig-storage"):
-        new_image_name = name.replace("k8s.gcr.io/sig-storage", repository)
-    if new_image_name.startswith(f"{repository}/livenessprobe"):
-        return new_image_name.replace("livenessprobe", "csi-livenessprobe")
-    if new_image_name.startswith("k8s.gcr.io/coredns"):
-        return new_image_name.replace("k8s.gcr.io/coredns", repository)
-    if (
-        new_image_name.startswith("k8s.gcr.io/etcd")
-        or new_image_name.startswith("k8s.gcr.io/kube-")
-        or new_image_name.startswith("k8s.gcr.io/pause")
-    ):
-        return new_image_name.replace("k8s.gcr.io", repository)
-
-    assert new_image_name.startswith(repository) is True
-    return new_image_name
-
-
 def update_manifest_images(
     cluster: magnum_objects.Cluster, file, repository=None, replacements=[]
 ):
@@ -181,7 +152,7 @@ def update_manifest_images(
                 for src, dst in replacements:
                     container["image"] = container["image"].replace(src, dst)
                 if repository:
-                    container["image"] = get_image(container["image"], repository)
+                    container["image"] = image_utils.get_image(container["image"], repository)
 
         # Fix CCM cluster-name
         if (

@@ -1,8 +1,14 @@
-import subprocess
+import shutil
 
 import click
+from oslo_concurrency import processutils
+from oslo_config import cfg
+from oslo_log import log as logging
 
-from magnum_cluster_api import utils
+from magnum_cluster_api import image_utils
+
+CONF = cfg.CONF
+LOG = logging.getLogger(__name__)
 
 IMAGES = [
     "docker.io/calico/cni:v3.24.2",
@@ -55,18 +61,38 @@ def main(repository):
     """
     Load images into a remote registry for `container_infra_prefix` usage.
     """
+    crane_path = shutil.which("crane")
 
-    for image in IMAGES:
-        skoepo(
-            "copy",
-            "--multi-arch",
-            "all",
-            f"docker://{image}",
-            f"docker://{utils.get_image(image, repository)}",
+    if crane_path is None:
+        raise click.UsageError(
+            "Crane is not installed. Please install it before running this command."
         )
 
+    seen = []
+    for image in IMAGES:
+        if IMAGES[image] in seen:
+            continue
 
-def skoepo(*args):
-    cmd = ["skopeo", "--insecure-policy"] + list(args)
-    click.echo(" ".join(cmd))
-    subprocess.run(cmd, check=True)
+        src = image
+        dst = image_utils.get_image(image, repository)
+
+        LOG.debug(f"Starting to mirror {src} to {dst}")
+
+        try:
+            processutils.execute(
+                crane_path,
+                "copy",
+                src,
+                dst,
+            )
+        except processutils.ProcessExecutionError as e:
+            if "401 Unauthorized" in e.stderr:
+                LOG.error(
+                    "Authentication failed. Please ensure you're logged in via Crane"
+                )
+                return
+
+            raise
+
+        seen.append(image)
+        LOG.info(f"Successfully mirrored {src} to {dst}")
