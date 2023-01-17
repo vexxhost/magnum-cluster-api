@@ -15,7 +15,6 @@ shortuuid = "*"
 certifi = "*"
 "oslo.log" = "*"
 "oslo.config" = "*"
-"oslo.concurrency" = "*"
 
 [build-system]
 requires = ["setuptools", "poetry-core"]

@@ -1,7 +1,7 @@
 import shutil
+import subprocess
 
 import click
-from oslo_concurrency import processutils
 from oslo_config import cfg
 from oslo_log import log as logging
 
@@ -72,25 +72,18 @@ def main(repository):
             "Crane is not installed. Please install it before running this command."
         )
 
-    seen = []
     for image in IMAGES:
-        if image in seen:
-            continue
-
         src = image
         dst = image_utils.get_image(image, repository)
 
         LOG.debug(f"Starting to mirror {src} to {dst}")
 
         try:
-            processutils.execute(
-                crane_path,
-                "copy",
-                src,
-                dst,
+            subprocess.run(
+                [crane_path, "copy", src, dst], capture_output=True, check=True
             )
-        except processutils.ProcessExecutionError as e:
-            if "401 Unauthorized" in e.stderr:
+        except subprocess.CalledProcessError as e:
+            if "401 Unauthorized" in e.stderr.decode():
                 LOG.error(
                     "Authentication failed. Please ensure you're logged in via Crane"
                 )
@@ -98,5 +91,4 @@ def main(repository):
 
             raise
 
-        seen.append(image)
         LOG.info(f"Successfully mirrored {src} to {dst}")
