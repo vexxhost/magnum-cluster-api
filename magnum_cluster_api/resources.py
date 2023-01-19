@@ -248,7 +248,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                                 },
                                 "provisioner": "kubernetes.io/cinder",
                                 "parameters": {
-                                    "type": vt.name,
+                                    "type": vt.name.lower(),
                                 },
                                 "reclaimPolicy": "Delete",
                                 "volumeBindingMode": "Immediate",
