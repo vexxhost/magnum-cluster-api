@@ -60,7 +60,8 @@ def main(repository):
 
     if crane_path is None:
         raise click.UsageError(
-            "Crane is not installed. Please install it before running this command: https://github.com/google/go-containerregistry/blob/main/cmd/crane/README.md#installation"
+            """Crane is not installed. Please install it before running this command:
+             https://github.com/google/go-containerregistry/blob/main/cmd/crane/README.md#installation"""
         )
 
     for image in IMAGES:
