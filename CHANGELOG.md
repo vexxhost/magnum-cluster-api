@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.7...v0.3.0) (2023-02-01)
+
+
+### Features
+
+* Use crane for image loader instead of skopeo ([8567f90](https://github.com/vexxhost/magnum-cluster-api/commit/8567f90ad2affacb037e4326e6314106299fad24))
+
+
+### Bug Fixes
+
+* Add clusterctl installation in hack script ([66f36be](https://github.com/vexxhost/magnum-cluster-api/commit/66f36bef91c46e1141e841dcb3a3c579e5334d30))
+* change "fixed_subnet_cidr" default value ([387fd99](https://github.com/vexxhost/magnum-cluster-api/commit/387fd995fa4d8fac95b07bc285843349a58dca6d))
+* incorrect print command ([a555440](https://github.com/vexxhost/magnum-cluster-api/commit/a5554401fbd2844b5b09cd74d3491c856a9ddd2b))
+* update repo for initContainers ([f66bb4b](https://github.com/vexxhost/magnum-cluster-api/commit/f66bb4b450736ef38656a1091c4a794d0b7f560f))
+
+
+### Documentation
+
+* added info where to install crane ([084d191](https://github.com/vexxhost/magnum-cluster-api/commit/084d191253a6050b202f1c080fa68b06c51ff100))
+
 ## [0.2.7](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.6...v0.2.7) (2023-01-16)
 
 
