@@ -1361,7 +1361,7 @@ class Cluster(ClusterBase):
                                 "value": utils.get_cluster_label(
                                     self.cluster,
                                     "fixed_subnet_cidr",
-                                    "10.6.0.0/24",
+                                    "10.0.0.0/24",
                                 ),
                             },
                             {

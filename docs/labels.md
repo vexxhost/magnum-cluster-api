@@ -78,9 +78,16 @@
 
    Default value: `v1.25.3`
 
+## OpenStack
+
+* `fixed_subnet_cidr`
+
+   The CIDR of the fixed subnet to use for the cluster.
+
+   Default value: `10.0.0.0/24`
+
 ## TODO
 
 availability_zone
-fixed_subnet_cidr
 dns_cluster_domain
 calico_ipv4pool
