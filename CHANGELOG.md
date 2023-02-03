@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.3.0...v0.3.1) (2023-02-03)
+
+
+### Bug Fixes
+
+* allow for mirroring to insecure registry ([3d9e364](https://github.com/vexxhost/magnum-cluster-api/commit/3d9e3645360f0f098499d5437fccdd0adab418e8))
+
 ## [0.3.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.2.7...v0.3.0) (2023-02-01)
 
 
