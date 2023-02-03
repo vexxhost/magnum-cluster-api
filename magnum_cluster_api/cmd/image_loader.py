@@ -66,7 +66,12 @@ IMAGES = [
     default="quay.io/vexxhost",
     help="Target image repository",
 )
-def main(repository):
+@click.option(
+    "--insecure",
+    is_flag=True,
+    help="Allow insecure connections to the registry.",
+)
+def main(repository, insecure):
     """
     Load images into a remote registry for `container_infra_prefix` usage.
     """
@@ -83,8 +88,13 @@ def main(repository):
         dst = image_utils.get_image(image, repository)
 
         try:
+            command = [crane_path]
+            if insecure:
+                command.append("--insecure")
+            command += ["copy", src, dst]
+
             subprocess.run(
-                [crane_path, "copy", src, dst], capture_output=True, check=True
+                command, capture_output=True, check=True
             )
         except subprocess.CalledProcessError as e:
             if "401 Unauthorized" in e.stderr.decode():
