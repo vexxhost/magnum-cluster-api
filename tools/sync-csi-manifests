@@ -34,13 +34,12 @@ MANIFESTS = set(
 for manifest in MANIFESTS:
     url = f"https://raw.githubusercontent.com/kubernetes/cloud-provider-openstack/master/manifests/cinder-csi-plugin/{manifest}"  # noqa E501
 
+    docs = []
     r = requests.get(url)
 
     # NOTE(mnaser): CAPI does not like "List" type resources, so we refactor
     #               them to be a list of YAML documents.
     for doc in yaml.safe_load_all(r.text):
-        docs = []
-
         if doc["kind"] == "Deployment":
             # NOTE(mnaser): Use `/etc/kuberentes/cloud.conf` instead of the
             #               default mounted secret.
@@ -58,19 +57,6 @@ for manifest in MANIFESTS:
             doc["spec"]["template"]["spec"]["securityContext"] = {
                 "runAsUser": 0,
             }
-
-            # NOTE(mnaser): Because of the above, Kubernetes will not create a
-            #               service account, so we make one manually.
-            docs.append(
-                {
-                    "apiVersion": "v1",
-                    "kind": "ServiceAccount",
-                    "metadata": {
-                        "name": "csi-cinder-controller-sa",
-                        "namespace": "kube-system",
-                    },
-                }
-            )
 
         if doc["kind"] == "DaemonSet":
             # NOTE(mnaser): Use `/etc/kuberentes/cloud.conf` instead of the
@@ -90,24 +76,11 @@ for manifest in MANIFESTS:
                 "runAsUser": 0,
             }
 
-            # NOTE(mnaser): Because of the above, Kubernetes will not create a
-            #               service account, so we make one manually.
-            docs.append(
-                {
-                    "apiVersion": "v1",
-                    "kind": "ServiceAccount",
-                    "metadata": {
-                        "name": "csi-cinder-node-sa",
-                        "namespace": "kube-system",
-                    },
-                }
-            )
-
         if doc["kind"] == "List":
             for item in doc["items"]:
                 docs.append(item)
         else:
             docs.append(doc)
 
-        with open(f"magnum_cluster_api/manifests/csi/{manifest}", "w") as fd:
-            yaml.dump_all(docs, fd, default_flow_style=False)
+    with open(f"magnum_cluster_api/manifests/csi/{manifest}", "w") as fd:
+        yaml.dump_all(docs, fd, default_flow_style=False)
