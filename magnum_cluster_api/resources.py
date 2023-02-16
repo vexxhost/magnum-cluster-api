@@ -38,7 +38,7 @@ CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
 AUTOSCALER_HELM_CHART_VERSION = "9.21.0"
 CSI_TAG = "v1.25.3"
-CALICO_IPV4_POOL = "10.100.0.0/16"
+CALICO_IPV4_POOL = "10.200.0.0/16"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
@@ -1196,7 +1196,7 @@ class Cluster(ClusterBase):
                                 utils.get_cluster_label(
                                     self.cluster,
                                     "calico_ipv4pool",
-                                    "10.100.0.0/16",
+                                    "10.200.0.0/16",
                                 )
                             ],
                         },
