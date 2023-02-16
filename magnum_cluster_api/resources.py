@@ -1151,7 +1151,7 @@ class Cluster(ClusterBase):
         labels = {
             "cni": f"calico-{cni_version}",
             "ccm": f"openstack-cloud-controller-manager-{ccm_version}",
-            "calico_ipv4pool": f"{calico_ipv4pool}",
+            "calico_ipv4pool": calico_ipv4pool,
         }
 
         if utils.get_cluster_label_as_bool(self.cluster, "cinder_csi_enabled", True):
@@ -1186,7 +1186,6 @@ class Cluster(ClusterBase):
                 },
                 "spec": {
                     "clusterNetwork": {
-                        ""
                         "serviceDomain": utils.get_cluster_label(
                             self.cluster,
                             "dns_cluster_domain",
