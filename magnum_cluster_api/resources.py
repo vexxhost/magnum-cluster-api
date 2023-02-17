@@ -38,7 +38,6 @@ CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
 AUTOSCALER_HELM_CHART_VERSION = "9.21.0"
 CSI_TAG = "v1.25.3"
-CALICO_IPV4_POOL = "10.200.0.0/16"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
@@ -1145,13 +1144,9 @@ class Cluster(ClusterBase):
             self.cluster, "cloud_provider_tag", CLOUD_PROVIDER_TAG
         )
         cni_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
-        calico_ipv4pool = utils.get_cluster_label(
-            self.cluster, "calico_ipv4pool", CALICO_IPV4_POOL
-        ) 
         labels = {
             "cni": f"calico-{cni_version}",
             "ccm": f"openstack-cloud-controller-manager-{ccm_version}",
-            "calico_ipv4pool": calico_ipv4pool,
         }
 
         if utils.get_cluster_label_as_bool(self.cluster, "cinder_csi_enabled", True):
@@ -1196,7 +1191,16 @@ class Cluster(ClusterBase):
                                 utils.get_cluster_label(
                                     self.cluster,
                                     "calico_ipv4pool",
-                                    "10.200.0.0/16",
+                                    "10.100.0.0/16",
+                                )
+                            ],
+                        },
+                        "services": {
+                            "cidrBlocks": [
+                                utils.get_cluster_label(
+                                    self.cluster,
+                                    "service_cluster_ip_range",
+                                    "10.254.0.0/16",
                                 )
                             ],
                         },
