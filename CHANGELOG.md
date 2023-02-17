@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.3.1...v0.3.2) (2023-02-17)
+
+
+### Bug Fixes
+
+* solve cinder-csi usage ([8e9157b](https://github.com/vexxhost/magnum-cluster-api/commit/8e9157b8974a02ed92cf41cd36d4014241f7083c))
+
 ## [0.3.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.3.0...v0.3.1) (2023-02-03)
 
 
