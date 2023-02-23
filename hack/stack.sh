@@ -99,10 +99,10 @@ sudo chmod +x /usr/local/bin/clusterctl
 export EXP_CLUSTER_RESOURCE_SET=true
 export CLUSTER_TOPOLOGY=true
 clusterctl init \
-   --core cluster-api:v1.3.0-rc.0 \
-   --bootstrap kubeadm:v1.3.0-rc.0 \
-   --control-plane kubeadm:v1.3.0-rc.0
-curl -L https://storage.googleapis.com/artifacts.k8s-staging-capi-openstack.appspot.com/components/nightly_main_20221109/infrastructure-components.yaml | kubectl apply -f-
+  --core cluster-api:v1.3.3 \
+  --bootstrap kubeadm:v1.3.3 \
+  --control-plane kubeadm:v1.3.3 \
+  --infrastructure openstack:v0.7.0
 
 # Install Skopeo
 sudo curl -Lo /usr/local/bin/skopeo https://github.com/lework/skopeo-binary/releases/download/v1.10.0/skopeo-linux-amd64
