@@ -102,7 +102,7 @@ clusterctl init \
   --core cluster-api:v1.3.3 \
   --bootstrap kubeadm:v1.3.3 \
   --control-plane kubeadm:v1.3.3 \
-  --infrastructure openstack:v0.7.0
+  --infrastructure openstack:v0.7.1
 
 # Install Skopeo
 sudo curl -Lo /usr/local/bin/skopeo https://github.com/lework/skopeo-binary/releases/download/v1.10.0/skopeo-linux-amd64
