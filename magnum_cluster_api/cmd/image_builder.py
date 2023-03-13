@@ -40,20 +40,20 @@ QEMU_PACKAGES = [
 @click.option(
     "--operating-system",
     show_default=True,
-    default="ubuntu-2004",
-    type=click.Choice(["ubuntu-2004"]),
+    default="ubuntu-2204",
+    type=click.Choice(["ubuntu-2004", "ubuntu-2204"]),
     help="Operating system to build image for",
 )
 @click.option(
     "--version",
     show_default=True,
-    default="v1.25.3",
+    default="v1.26.2",
     help="Kubernetes version",
 )
 @click.option(
     "--image-builder-version",
     show_default=True,
-    default="v0.1.13",
+    default="v0.1.14",
     help="Image builder tag (or commit) to use for building image",
 )
 def main(operating_system, version, image_builder_version):
