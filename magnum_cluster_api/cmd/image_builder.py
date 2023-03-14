@@ -40,7 +40,7 @@ QEMU_PACKAGES = [
 @click.option(
     "--operating-system",
     show_default=True,
-    default="ubuntu-2204",
+    default="ubuntu-2004",
     type=click.Choice(["ubuntu-2004", "ubuntu-2204"]),
     help="Operating system to build image for",
 )
