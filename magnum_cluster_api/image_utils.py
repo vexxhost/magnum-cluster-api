@@ -72,7 +72,7 @@ def get_image(name: str, repository: str = None):
         or new_image_name.startswith("registry.k8s.io/kube-")
         or new_image_name.startswith("registry.k8s.io/pause")
     ):
-        return new_image_name.replace("k8s.gcr.io", repository)
+        return new_image_name.replace("registry.k8s.io", repository)
 
     assert new_image_name.startswith(repository) is True
     return new_image_name
