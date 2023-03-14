@@ -65,12 +65,12 @@ def get_image(name: str, repository: str = None):
         new_image_name = name.replace("k8s.gcr.io/sig-storage", repository)
     if new_image_name.startswith(f"{repository}/livenessprobe"):
         return new_image_name.replace("livenessprobe", "csi-livenessprobe")
-    if new_image_name.startswith("k8s.gcr.io/coredns"):
-        return new_image_name.replace("k8s.gcr.io/coredns", repository)
+    if new_image_name.startswith("registry.k8s.io/coredns"):
+        return new_image_name.replace("registry.k8s.io/coredns", repository)
     if (
-        new_image_name.startswith("k8s.gcr.io/etcd")
-        or new_image_name.startswith("k8s.gcr.io/kube-")
-        or new_image_name.startswith("k8s.gcr.io/pause")
+        new_image_name.startswith("registry.k8s.io/etcd")
+        or new_image_name.startswith("registry.k8s.io/kube-")
+        or new_image_name.startswith("registry.k8s.io/pause")
     ):
         return new_image_name.replace("k8s.gcr.io", repository)
 
