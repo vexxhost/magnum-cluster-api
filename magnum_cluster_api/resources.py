@@ -1098,21 +1098,6 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/files",
-                                            "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    path: "/etc/containerd/config.toml"
-                                                    owner: "root:root"
-                                                    permissions: "0644"
-                                                    content: "{{ .containerdConfig }}"
-                                                    encoding: "base64"
-                                                    """
-                                                )
-                                            },
-                                        },
-                                        {
-                                            "op": "add",
                                             "path": "/spec/template/spec/clusterConfiguration",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
@@ -1132,6 +1117,11 @@ class ClusterClass(Base):
                                                       owner: "root:root"
                                                       permissions: "0600"
                                                       content: "{{ .cloudControllerManagerConfig }}"
+                                                      encoding: "base64"
+                                                    - path: "/etc/containerd/config.toml"
+                                                      owner: "root:root"
+                                                      permissions: "0644"
+                                                      content: "{{ .containerdConfig }}"
                                                       encoding: "base64"
                                                 """
                                                 ),
