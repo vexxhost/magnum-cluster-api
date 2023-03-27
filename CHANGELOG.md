@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/vexxhost/magnum-cluster-api/compare/v0.3.3...v0.3.4) (2023-03-27)
+
+
+### Bug Fixes
+
+* add containerd settings to workers ([ff708dd](https://github.com/vexxhost/magnum-cluster-api/commit/ff708dd6e110a8ef8fb2d40348dd6dad35e057ae))
+
 ## [0.3.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.3.2...v0.3.3) (2023-03-27)
 
 
