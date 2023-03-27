@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.3.2...v0.3.3) (2023-03-27)
+
+
+### Bug Fixes
+
+* addd 1.26.2 images ([119b2c6](https://github.com/vexxhost/magnum-cluster-api/commit/119b2c6fed91dc4ad82878007ed84f3bc77df6ad))
+* name replacement for new repo ([0eaeeba](https://github.com/vexxhost/magnum-cluster-api/commit/0eaeeba06bf3161260cb139a5da45a4755dcb3f0))
+* replace the repository name ([bda20a2](https://github.com/vexxhost/magnum-cluster-api/commit/bda20a23d1845f022091029e0ed10598e07c1a94))
+* use 20.04 by default ([0af2de3](https://github.com/vexxhost/magnum-cluster-api/commit/0af2de3c5a4ce4600bcc28be944edef19a887dfd))
+* use correct sandbox_image ([80d74d2](https://github.com/vexxhost/magnum-cluster-api/commit/80d74d26d5d341c0042a794a2f5ab7151952442c))
+* use new registry + 1.26.2 images ([b6c814f](https://github.com/vexxhost/magnum-cluster-api/commit/b6c814f503b939ae48ed97a8b86f003f7b9346e1))
+
+
+### Documentation
+
+* remove broken 1.26.2 images ([42f8a5f](https://github.com/vexxhost/magnum-cluster-api/commit/42f8a5f9a5221b8b7609c9524c1a079ac919d6b8))
+
 ## [0.3.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.3.1...v0.3.2) (2023-02-17)
 
 
