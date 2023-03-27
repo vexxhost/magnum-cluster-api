@@ -24,7 +24,7 @@ from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
 
-from magnum_cluster_api import clients, objects
+from magnum_cluster_api import clients, image_utils, images, objects
 
 
 def get_or_generate_cluster_api_cloud_config_secret_name(
@@ -84,6 +84,39 @@ def generate_cloud_controller_manager_config(
         tls-insecure={"false" if cloud_config["clouds"]["default"]["verify"] else "true"}
         """
     )
+
+
+def get_cluster_container_infra_prefix(cluster: magnum_objects.Cluster) -> str:
+    return get_cluster_label(
+        cluster,
+        "container_infra_prefix",
+        "quay.io/vexxhost",
+    )
+
+
+def generate_containerd_config(
+    cluster: magnum_objects.Cluster,
+):
+    image_repository = get_cluster_container_infra_prefix(cluster)
+    sandbox_image = image_utils.get_image(images.PAUSE, image_repository)
+
+    return textwrap.dedent(
+        """\
+        # Use config version 2 to enable new configuration fields.
+        # Config file is parsed as version 1 by default.
+        version = 2
+
+        imports = ["/etc/containerd/conf.d/*.toml"]
+
+        [plugins]
+        [plugins."io.containerd.grpc.v1.cri"]
+            sandbox_image = "{sandbox_image}"
+        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+            runtime_type = "io.containerd.runc.v2"
+        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+            SystemdCgroup = true
+        """
+    ).format(sandbox_image=sandbox_image)
 
 
 def get_node_group_label(

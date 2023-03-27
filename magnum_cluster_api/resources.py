@@ -186,11 +186,7 @@ class ClusterResourcesConfigMap(ClusterBase):
             self.cluster, "cinder_csi_plugin_tag", CSI_TAG
         )
 
-        repository = utils.get_cluster_label(
-            self.cluster,
-            "container_infra_prefix",
-            "quay.io/vexxhost",
-        )
+        repository = utils.get_cluster_container_infra_prefix(self.cluster)
 
         osc = clients.get_openstack_api(self.context)
         volume_types = osc.cinder().volume_types.list()
@@ -742,6 +738,15 @@ class ClusterClass(Base):
                             },
                         },
                         {
+                            "name": "containerdConfig",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
                             "name": "controlPlaneFlavor",
                             "required": True,
                             "schema": {
@@ -1043,6 +1048,21 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    path: "/etc/containerd/config.toml"
+                                                    owner: "root:root"
+                                                    permissions: "0644"
+                                                    content: "{{ .containerdConfig }}"
+                                                    encoding: "base64"
+                                                    """
+                                                )
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/imageRepository",  # noqa: E501
                                             "valueFrom": {
                                                 "variable": "imageRepository",
@@ -1076,6 +1096,21 @@ class ClusterClass(Base):
                                         },
                                     },
                                     "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/files",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    path: "/etc/containerd/config.toml"
+                                                    owner: "root:root"
+                                                    permissions: "0644"
+                                                    content: "{{ .containerdConfig }}"
+                                                    encoding: "base64"
+                                                    """
+                                                )
+                                            },
+                                        },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/clusterConfiguration",
@@ -1346,6 +1381,12 @@ class Cluster(ClusterBase):
                                 ),
                             },
                             {
+                                "name": "containerdConfig",
+                                "value": base64.encode_as_text(
+                                    utils.generate_containerd_config(self.cluster)
+                                ),
+                            },
+                            {
                                 "name": "controlPlaneFlavor",
                                 "value": self.cluster.master_flavor_id,
                             },
@@ -1368,10 +1409,8 @@ class Cluster(ClusterBase):
                             },
                             {
                                 "name": "imageRepository",
-                                "value": utils.get_cluster_label(
+                                "value": utils.get_cluster_container_infra_prefix(
                                     self.cluster,
-                                    "container_infra_prefix",
-                                    "quay.io/vexxhost",
                                 ),
                             },
                             {

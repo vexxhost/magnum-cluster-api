@@ -17,7 +17,7 @@ import subprocess
 
 import click
 
-from magnum_cluster_api import image_utils
+from magnum_cluster_api import image_utils, images
 
 IMAGES = [
     "docker.io/calico/cni:v3.24.2",
@@ -52,10 +52,7 @@ IMAGES = [
     "registry.k8s.io/kube-scheduler:v1.24.7",
     "registry.k8s.io/kube-scheduler:v1.25.3",
     "registry.k8s.io/kube-scheduler:v1.26.2",
-    "registry.k8s.io/pause:3.6",
-    "registry.k8s.io/pause:3.7",
-    "registry.k8s.io/pause:3.8",
-    "registry.k8s.io/pause:3.9",
+    images.PAUSE,
     "registry.k8s.io/sig-storage/csi-attacher:v3.4.0",
     "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1",
     "registry.k8s.io/sig-storage/csi-provisioner:v3.1.0",
@@ -99,9 +96,7 @@ def main(repository, insecure):
                 command.append("--insecure")
             command += ["copy", src, dst]
 
-            subprocess.run(
-                command, capture_output=True, check=True
-            )
+            subprocess.run(command, capture_output=True, check=True)
         except subprocess.CalledProcessError as e:
             if "401 Unauthorized" in e.stderr.decode():
                 click.echo(
