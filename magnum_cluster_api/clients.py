@@ -13,7 +13,40 @@
 # under the License.
 
 import pykube
-from magnum.common import clients
+from magnum.common import clients, exception
+from manilaclient.v2 import client as manilaclient
+
+
+class OpenStackClients(clients.OpenStackClients):
+    """Convenience class to create and cache client instances."""
+
+    def __init__(self, context):
+        super(OpenStackClients, self).__init__(context)
+        self._manila = None
+
+    @exception.wrap_keystone_exception
+    def manila(self):
+        if self._manila:
+            return self._manila
+        endpoint_type = self._get_client_option("manila", "endpoint_type")
+        region_name = self._get_client_option("manila", "region_name")
+        manilaclient_version = self._get_client_option("manila", "api_version")
+        endpoint = self.url_for(
+            service_type="sharev2", interface=endpoint_type, region_name=region_name
+        )
+        args = {
+            "cacert": self._get_client_option("manila", "ca_file"),
+            "insecure": self._get_client_option("manila", "insecure"),
+        }
+
+        session = self.keystone().session
+        self._manila = manilaclient.Client(
+            api_version=manilaclient_version,
+            session=session,
+            service_catalog_url=endpoint,
+            **args
+        )
+        return self._manila
 
 
 def get_pykube_api() -> pykube.HTTPClient:
@@ -22,3 +55,7 @@ def get_pykube_api() -> pykube.HTTPClient:
 
 def get_openstack_api(context) -> clients.OpenStackClients:
     return clients.OpenStackClients(context)
+
+
+def get_openstack_api(context) -> OpenStackClients:
+    return OpenStackClients(context)

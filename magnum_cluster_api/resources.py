@@ -35,7 +35,8 @@ from magnum_cluster_api import clients, helm, image_utils, images, objects, util
 CONF = cfg.CONF
 CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
-CSI_TAG = "v1.25.3"
+CINDER_CSI_TAG = "v1.25.3"
+MANILA_CSI_TAG = "v1.25.3"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
@@ -163,15 +164,129 @@ class ClusterResourcesConfigMap(ClusterBase):
         ccm_version = utils.get_cluster_label(
             self.cluster, "cloud_provider_tag", CLOUD_PROVIDER_TAG
         )
-        csi_version = utils.get_cluster_label(
-            self.cluster, "cinder_csi_plugin_tag", CSI_TAG
-        )
 
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
 
         osc = clients.get_openstack_api(self.context)
-        volume_types = osc.cinder().volume_types.list()
-        default_volume_type = osc.cinder().volume_types.default()
+
+        data = {
+            **{
+                os.path.basename(manifest): image_utils.update_manifest_images(
+                    self.cluster.uuid,
+                    manifest,
+                    repository=repository,
+                    replacements=[
+                        (
+                            "docker.io/k8scloudprovider/openstack-cloud-controller-manager:latest",
+                            f"docker.io/k8scloudprovider/openstack-cloud-controller-manager:{ccm_version}",
+                        ),
+                    ],
+                )
+                for manifest in glob.glob(os.path.join(manifests_path, "ccm/*.yaml"))
+            },
+            **{
+                "calico.yml": image_utils.update_manifest_images(
+                    self.cluster.uuid,
+                    os.path.join(manifests_path, f"calico/{calico_version}.yaml"),
+                    repository=repository,
+                )
+            },
+        }
+
+        if utils.is_cinder_csi_enabled(self.cluster):
+            volume_types = osc.cinder().volume_types.list()
+            default_volume_type = osc.cinder().volume_types.default()
+            csi_version = utils.get_cluster_label(
+                self.cluster, "cinder_csi_plugin_tag", CINDER_CSI_TAG
+            )
+            data = {
+                **data,
+                **{
+                    os.path.basename(manifest): image_utils.update_manifest_images(
+                        self.cluster.uuid,
+                        manifest,
+                        repository=repository,
+                        replacements=[
+                            (
+                                "docker.io/k8scloudprovider/cinder-csi-plugin:latest",
+                                f"docker.io/k8scloudprovider/cinder-csi-plugin:{csi_version}",
+                            ),
+                        ],
+                    )
+                    for manifest in glob.glob(
+                        os.path.join(manifests_path, "cinder-csi/*.yaml")
+                    )
+                },
+                **{
+                    f"storageclass-cinder-{vt.name}.yaml": yaml.dump(
+                        {
+                            "apiVersion": objects.StorageClass.version,
+                            "allowVolumeExpansion": True,
+                            "kind": objects.StorageClass.kind,
+                            "metadata": {
+                                "annotations": {
+                                    "storageclass.kubernetes.io/is-default-class": "true"
+                                }
+                                if default_volume_type.name == vt.name
+                                else {},
+                                "name": "cinder-%s" % vt.name.lower(),
+                            },
+                            "provisioner": "kubernetes.io/cinder",
+                            "parameters": {
+                                "type": vt.name,
+                            },
+                            "reclaimPolicy": "Delete",
+                            "volumeBindingMode": "Immediate",
+                        }
+                    )
+                    for vt in volume_types
+                    if vt.name != "__DEFAULT__"
+                },
+            }
+
+        if utils.is_manila_csi_enabled(self.cluster):
+            share_types = osc.manila().share_types.list()
+            csi_version = utils.get_cluster_label(
+                self.cluster, "manila_csi_plugin_tag", MANILA_CSI_TAG
+            )
+            data = {
+                **data,
+                **{
+                    os.path.basename(manifest): image_utils.update_manifest_images(
+                        self.cluster.uuid,
+                        manifest,
+                        repository=repository,
+                        replacements=[
+                            (
+                                "registry.k8s.io/provider-os/manila-csi-plugin:latest",
+                                f"registry.k8s.io/provider-os/manila-csi-plugin:{csi_version}",
+                            ),
+                        ],
+                    )
+                    for manifest in glob.glob(
+                        os.path.join(manifests_path, "manila-csi/*.yaml")
+                    )
+                },
+                **{
+                    f"storageclass-manila-{st.name}.yaml": yaml.dump(
+                        {
+                            "apiVersion": objects.StorageClass.version,
+                            "allowVolumeExpansion": True,
+                            "kind": objects.StorageClass.kind,
+                            "metadata": {
+                                "name": "manila-%s" % st.name.lower(),
+                            },
+                            "provisioner": "manila.csi.openstack.org",
+                            "parameters": {
+                                "type": st.name,
+                            },
+                            "reclaimPolicy": "Delete",
+                            "volumeBindingMode": "Immediate",
+                        }
+                    )
+                    for st in share_types
+                },
+            }
 
         return pykube.ConfigMap(
             self.api,
@@ -182,74 +297,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                     "name": self.cluster.uuid,
                     "namespace": "magnum-system",
                 },
-                "data": {
-                    **{
-                        os.path.basename(manifest): image_utils.update_manifest_images(
-                            self.cluster.uuid,
-                            manifest,
-                            repository=repository,
-                            replacements=[
-                                (
-                                    "docker.io/k8scloudprovider/openstack-cloud-controller-manager:latest",
-                                    f"docker.io/k8scloudprovider/openstack-cloud-controller-manager:{ccm_version}",
-                                ),
-                            ],
-                        )
-                        for manifest in glob.glob(
-                            os.path.join(manifests_path, "ccm/*.yaml")
-                        )
-                    },
-                    **{
-                        os.path.basename(manifest): image_utils.update_manifest_images(
-                            self.cluster.uuid,
-                            manifest,
-                            repository=repository,
-                            replacements=[
-                                (
-                                    "docker.io/k8scloudprovider/cinder-csi-plugin:latest",
-                                    f"docker.io/k8scloudprovider/cinder-csi-plugin:{csi_version}",
-                                ),
-                            ],
-                        )
-                        for manifest in glob.glob(
-                            os.path.join(manifests_path, "csi/*.yaml")
-                        )
-                    },
-                    **{
-                        "calico.yml": image_utils.update_manifest_images(
-                            self.cluster.uuid,
-                            os.path.join(
-                                manifests_path, f"calico/{calico_version}.yaml"
-                            ),
-                            repository=repository,
-                        )
-                    },
-                    **{
-                        f"storageclass-{vt.name}.yaml": yaml.dump(
-                            {
-                                "apiVersion": objects.StorageClass.version,
-                                "allowVolumeExpansion": True,
-                                "kind": objects.StorageClass.kind,
-                                "metadata": {
-                                    "annotations": {
-                                        "storageclass.kubernetes.io/is-default-class": "true"
-                                    }
-                                    if default_volume_type.name == vt.name
-                                    else {},
-                                    "name": vt.name.lower(),
-                                },
-                                "provisioner": "kubernetes.io/cinder",
-                                "parameters": {
-                                    "type": vt.name,
-                                },
-                                "reclaimPolicy": "Delete",
-                                "volumeBindingMode": "Immediate",
-                            }
-                        )
-                        for vt in volume_types
-                        if vt.name != "__DEFAULT__"
-                    },
-                },
+                "data": data,
             },
         )
 
@@ -1334,12 +1382,18 @@ class Cluster(ClusterBase):
             "ccm": f"openstack-cloud-controller-manager-{ccm_version}",
         }
 
-        if utils.get_cluster_label_as_bool(self.cluster, "cinder_csi_enabled", True):
+        if utils.is_cinder_csi_enabled(self.cluster):
             csi_version = utils.get_cluster_label(
-                self.cluster, "cinder_csi_plugin_tag", CSI_TAG
+                self.cluster, "cinder_csi_plugin_tag", CINDER_CSI_TAG
             )
             labels["csi"] = "cinder"
             labels["cinder-csi-version"] = csi_version
+
+        if utils.is_manila_csi_enabled(self.cluster):
+            manila_version = utils.get_cluster_label(
+                self.cluster, "manila_csi_plugin_tag", MANILA_CSI_TAG
+            )
+            labels["manila-csi-version"] = manila_version
 
         return {**super().labels, **labels}
 
