@@ -28,12 +28,14 @@ from magnum.common import cert_manager, cinder, context, neutron
 from magnum.common import utils as magnum_utils
 from magnum.common.x509 import operations as x509
 from oslo_config import cfg
+from oslo_log import log as logging
 from oslo_serialization import base64
 from oslo_utils import encodeutils
 
 from magnum_cluster_api import clients, image_utils, objects, utils
 
 CONF = cfg.CONF
+LOG = logging.getLogger(__name__)
 KUBE_TAG = "v1.25.3"
 CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
@@ -49,16 +51,18 @@ PLACEHOLDER = "PLACEHOLDER"
 
 
 class BaseCli:
-    APPLY_CMD = ""
-    DELETE_CMD = ""
+    APPLY_CMD = []
+    DELETE_CMD = []
 
     def __init__(self) -> None:
         pass
 
     def apply(self) -> None:
+        LOG.debug(self.APPLY_CMD)
         subprocess.run(self.APPLY_CMD, capture_output=True, check=True)
 
     def delete(self) -> None:
+        LOG.debug(self.DELETE_CMD)
         subprocess.run(self.DELETE_CMD, capture_output=True, check=True)
 
 
@@ -71,8 +75,8 @@ class HelmRepository(BaseCli):
     def __init__(self) -> None:
         assert self.REPO_NANME
         assert self.REPO_SOURCE
-        APPLY_CMD += [self.REPO_NANME, self.REPO_SOURCE]
-        DELETE_CMD += [self.REPO_NANME]
+        self.APPLY_CMD += [self.REPO_NANME, self.REPO_SOURCE]
+        self.DELETE_CMD += [self.REPO_NANME]
 
 
 class HelmRelease(BaseCli):
@@ -91,25 +95,26 @@ class HelmRelease(BaseCli):
         self.APPLY_CMD += [
             self.RELEASE_NAME,
             self.CHART_SOURCE,
-            "-n",
-            self.RELEASE_NAMESPACE,
             *self.EXTRA_ARGS,
         ]
+        self.DELETE_CMD += [self.RELEASE_NAME]
+        if self.RELEASE_NAMESPACE:
+            self.APPLY_CMD += ["-n", self.RELEASE_NAMESPACE]
+            self.DELETE_CMD += ["-n", self.RELEASE_NAMESPACE]
         if self.VALUES:
-            APPLY_CMD += ["-f", self._generate_values()]
-        self.DELETE_CMD += [self.REPO_NANME, "-n", self.RELEASE_NAMESPACE]
+            self.APPLY_CMD += ["-f", self._generate_values()]
 
     def _generate_values(self):
         yaml_string = yaml.dump(self.VALUES)
         values_file_path = os.path.join(
             "/tmp", "%s-%s.yaml" % (self.RELEASE_NAME, self.RELEASE_NAMESPACE)
         )
-        with open(values_file_path) as fd:
+        with open(values_file_path, "w") as fd:
             fd.write(yaml_string)
         return values_file_path
 
 
-class ClusterAutoscalerHelmRelease(BaseCli):
+class ClusterAutoscalerHelmRelease(HelmRelease):
     RELEASE_NAMESPACE = "magnum-system"
 
     def __init__(self, api, cluster) -> None:
@@ -132,7 +137,7 @@ class ClusterAutoscalerHelmRelease(BaseCli):
                 "openstack-control-plane": "enabled",
             },
         }
-        super(ClusterAutoscalerHelmRelease, self)
+        super(ClusterAutoscalerHelmRelease, self).__init__()
 
 
 class Base:
