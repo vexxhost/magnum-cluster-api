@@ -39,7 +39,6 @@ LOG = logging.getLogger(__name__)
 KUBE_TAG = "v1.25.3"
 CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
-AUTOSCALER_HELM_CHART_VERSION = "9.21.0"
 CSI_TAG = "v1.25.3"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
