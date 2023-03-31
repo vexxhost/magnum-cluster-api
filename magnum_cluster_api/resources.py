@@ -21,6 +21,7 @@ import types
 import certifi
 import pkg_resources
 import pykube
+import subprocess
 import yaml
 from magnum import objects as magnum_objects
 from magnum.common import cert_manager, cinder, context, neutron
@@ -45,6 +46,93 @@ CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
 CLUSTER_UPGRADE_LABELS = {"kube_tag"}
 
 PLACEHOLDER = "PLACEHOLDER"
+
+
+class BaseCli:
+    APPLY_CMD = ""
+    DELETE_CMD = ""
+
+    def __init__(self) -> None:
+        pass
+
+    def apply(self) -> None:
+        subprocess.run(self.APPLY_CMD, capture_output=True, check=True)
+
+    def delete(self) -> None:
+        subprocess.run(self.DELETE_CMD, capture_output=True, check=True)
+
+
+class HelmRepository(BaseCli):
+    APPLY_CMD = "helm repo add".split()
+    DELETE_CMD = "helm repo delete".split()
+    REPO_NANME = ""
+    REPO_SOURCE = ""
+
+    def __init__(self) -> None:
+        assert self.REPO_NANME
+        assert self.REPO_SOURCE
+        APPLY_CMD += [self.REPO_NANME, self.REPO_SOURCE]
+        DELETE_CMD += [self.REPO_NANME]
+
+
+class HelmRelease(BaseCli):
+    APPLY_CMD = "helm upgrade --install".split()
+    DELETE_CMD = "helm delete".split()
+    CHART_SOURCE = ""
+    RELEASE_NAME = ""
+
+    RELEASE_NAMESPACE = ""
+    EXTRA_ARGS = []
+    VALUES = {}
+
+    def __init__(self) -> None:
+        assert self.RELEASE_NAME
+        assert self.CHART_SOURCE
+        self.APPLY_CMD += [
+            self.RELEASE_NAME,
+            self.CHART_SOURCE,
+            "-n",
+            self.RELEASE_NAMESPACE,
+            *self.EXTRA_ARGS,
+        ]
+        if self.VALUES:
+            APPLY_CMD += ["-f", self._generate_values()]
+        self.DELETE_CMD += [self.REPO_NANME, "-n", self.RELEASE_NAMESPACE]
+
+    def _generate_values(self):
+        yaml_string = yaml.dump(self.VALUES)
+        values_file_path = os.path.join(
+            "/tmp", "%s-%s.yaml" % (self.RELEASE_NAME, self.RELEASE_NAMESPACE)
+        )
+        with open(values_file_path) as fd:
+            fd.write(yaml_string)
+        return values_file_path
+
+
+class ClusterAutoscalerHelmRelease(BaseCli):
+    RELEASE_NAMESPACE = "magnum-system"
+
+    def __init__(self, api, cluster) -> None:
+        cluster_name = utils.get_or_generate_cluster_api_name(api, cluster)
+        self.RELEASE_NAME = cluster_name
+
+        manifests_path = pkg_resources.resource_filename(
+            "magnum_cluster_api", "manifests"
+        )
+        self.CHART_SOURCE = os.path.join(manifests_path, "cluster-autoscaler/")
+        self.VALUES = {
+            "fullnameOverride": f"{cluster_name}-autoscaler",
+            "cloudProvider": "clusterapi",
+            "clusterAPIMode": "kubeconfig-incluster",
+            "clusterAPIKubeconfigSecret": f"{cluster_name}-kubeconfig",
+            "autoDiscovery": {
+                "clusterName": cluster_name,
+            },
+            "nodeSelector": {
+                "openstack-control-plane": "enabled",
+            },
+        }
+        super(ClusterAutoscalerHelmRelease, self)
 
 
 class Base:
@@ -98,66 +186,6 @@ class ClusterBase(Base):
         return {
             "cluster-uuid": self.cluster.uuid,
         }
-
-
-class ClusterAutoscalerHelmRepository(Base):
-    def get_object(self) -> objects.HelmRepository:
-        return objects.HelmRepository(
-            self.api,
-            {
-                "apiVersion": objects.HelmRepository.version,
-                "kind": objects.HelmRepository.kind,
-                "metadata": {
-                    "name": "autoscaler",
-                    "namespace": "magnum-system",
-                },
-                "spec": {
-                    "interval": "1m",
-                    "url": "https://kubernetes.github.io/autoscaler",
-                },
-            },
-        )
-
-
-class ClusterAutoscalerHelmRelease(ClusterBase):
-    def get_object(self) -> objects.HelmRelease:
-        cluster_name = utils.get_or_generate_cluster_api_name(self.api, self.cluster)
-        return objects.HelmRelease(
-            self.api,
-            {
-                "apiVersion": objects.HelmRelease.version,
-                "kind": objects.HelmRelease.kind,
-                "metadata": {
-                    "name": cluster_name,
-                    "namespace": "magnum-system",
-                },
-                "spec": {
-                    "interval": "60s",
-                    "chart": {
-                        "spec": {
-                            "chart": "cluster-autoscaler",
-                            "version": AUTOSCALER_HELM_CHART_VERSION,
-                            "sourceRef": {
-                                "kind": objects.HelmRepository.kind,
-                                "name": "autoscaler",
-                            },
-                        },
-                    },
-                    "values": {
-                        "fullnameOverride": f"{cluster_name}-autoscaler",
-                        "cloudProvider": "clusterapi",
-                        "clusterAPIMode": "kubeconfig-incluster",
-                        "clusterAPIKubeconfigSecret": f"{cluster_name}-kubeconfig",
-                        "autoDiscovery": {
-                            "clusterName": cluster_name,
-                        },
-                        "nodeSelector": {
-                            "openstack-control-plane": "enabled",
-                        },
-                    },
-                },
-            },
-        )
 
 
 class ClusterResourcesConfigMap(ClusterBase):
@@ -1491,7 +1519,6 @@ def apply_cluster_from_magnum_cluster(
     ClusterResourcesConfigMap(context, api, cluster).apply()
     ClusterResourceSet(api, cluster).apply()
     Cluster(context, api, cluster).apply()
-    ClusterAutoscalerHelmRepository(api).apply()
     if utils.get_cluster_label_as_bool(cluster, "auto_scaling_enabled", False):
         ClusterAutoscalerHelmRelease(api, cluster).apply()
 
