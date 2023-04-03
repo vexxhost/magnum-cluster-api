@@ -15,15 +15,14 @@
 import glob
 import json
 import os
+import subprocess
+import tempfile
 import textwrap
 import types
 
 import certifi
 import pkg_resources
 import pykube
-import tempfile
-
-import subprocess
 import yaml
 from magnum import objects as magnum_objects
 from magnum.common import cert_manager, cinder, context, neutron
@@ -116,10 +115,8 @@ class ClusterAutoscalerHelmRelease(HelmRelease):
         )
         self.release_name = cluster_name
 
-        manifests_path = pkg_resources.resource_filename(
-            "magnum_cluster_api", "manifests"
-        )
-        self.chart = os.path.join(manifests_path, "cluster-autoscaler/")
+        charts_path = pkg_resources.resource_filename("magnum_cluster_api", "charts")
+        self.chart = os.path.join(charts_path, "cluster-autoscaler/")
         self.values = {
             "fullnameOverride": f"{cluster_name}-autoscaler",
             "cloudProvider": "clusterapi",
