@@ -57,12 +57,15 @@ class BaseCli:
         pass
 
     def apply(self) -> None:
-        LOG.debug(self.APPLY_CMD)
         subprocess.run(self.APPLY_CMD, capture_output=True, check=True)
 
     def delete(self) -> None:
-        LOG.debug(self.DELETE_CMD)
-        subprocess.run(self.DELETE_CMD, capture_output=True, check=True)
+        try:
+            subprocess.run(self.DELETE_CMD, capture_output=True, check=False)
+        except subprocess.CalledProcessError as e:
+            if "release: not found" in e.output:
+                return
+            raise e
 
 
 class HelmRepository(BaseCli):
