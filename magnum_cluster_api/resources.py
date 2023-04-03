@@ -21,6 +21,8 @@ import types
 import certifi
 import pkg_resources
 import pykube
+import tempfile
+
 import subprocess
 import yaml
 from magnum import objects as magnum_objects
@@ -28,14 +30,12 @@ from magnum.common import cert_manager, cinder, context, neutron
 from magnum.common import utils as magnum_utils
 from magnum.common.x509 import operations as x509
 from oslo_config import cfg
-from oslo_log import log as logging
 from oslo_serialization import base64
 from oslo_utils import encodeutils
 
 from magnum_cluster_api import clients, image_utils, objects, utils
 
 CONF = cfg.CONF
-LOG = logging.getLogger(__name__)
 KUBE_TAG = "v1.25.3"
 CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
@@ -50,90 +50,87 @@ PLACEHOLDER = "PLACEHOLDER"
 
 
 class BaseCli:
-    APPLY_CMD = []
-    DELETE_CMD = []
+    deploy_cmd = []
+    delete_cmd = []
 
     def __init__(self) -> None:
         pass
 
     def apply(self) -> None:
-        subprocess.run(self.APPLY_CMD, capture_output=True, check=True)
+        subprocess.run(self.deploy_cmd, capture_output=True, check=True)
 
     def delete(self) -> None:
         try:
-            subprocess.run(self.DELETE_CMD, capture_output=True, check=False)
+            subprocess.run(self.delete_cmd, capture_output=True, check=False)
         except subprocess.CalledProcessError as e:
             if "release: not found" in e.output:
                 return
             raise e
 
 
-class HelmRepository(BaseCli):
-    APPLY_CMD = "helm repo add".split()
-    DELETE_CMD = "helm repo delete".split()
-    REPO_NANME = ""
-    REPO_SOURCE = ""
-
-    def __init__(self) -> None:
-        assert self.REPO_NANME
-        assert self.REPO_SOURCE
-        self.APPLY_CMD += [self.REPO_NANME, self.REPO_SOURCE]
-        self.DELETE_CMD += [self.REPO_NANME]
-
-
 class HelmRelease(BaseCli):
-    APPLY_CMD = "helm upgrade --install".split()
-    DELETE_CMD = "helm delete".split()
-    CHART_SOURCE = ""
-    RELEASE_NAME = ""
+    deploy_cmd = ["helm", "upgrade", "--install", "--wait"]
+    delete_cmd = ["helm", "delete"]
 
-    RELEASE_NAMESPACE = ""
-    EXTRA_ARGS = []
-    VALUES = {}
+    def __init__(self, release_name, chart, namespace="", values={}) -> None:
+        assert release_name
+        assert chart
+        self.release_name = release_name
+        self.chart = chart
+        self.namespace = namespace
+        self.values = values
+        self._generate_deploy_command()
+        self._generate_delete_command()
 
-    def __init__(self) -> None:
-        assert self.RELEASE_NAME
-        assert self.CHART_SOURCE
-        self.APPLY_CMD += [
-            self.RELEASE_NAME,
-            self.CHART_SOURCE,
-            *self.EXTRA_ARGS,
+    def _generate_deploy_command(self):
+        self.deploy_cmd += [
+            self.release_name,
+            self.chart,
         ]
-        self.DELETE_CMD += [self.RELEASE_NAME]
-        if self.RELEASE_NAMESPACE:
-            self.APPLY_CMD += ["-n", self.RELEASE_NAMESPACE]
-            self.DELETE_CMD += ["-n", self.RELEASE_NAMESPACE]
-        if self.VALUES:
-            self.APPLY_CMD += ["-f", self._generate_values()]
+        if self.namespace:
+            self.deploy_cmd += ["-n", self.namespace]
+        if self.values:
+            self.deploy_cmd += ["-f", self._generate_values()]
+
+    def _generate_delete_command(self):
+        self.delete_cmd += [self.release_name]
+        if self.namespace:
+            self.delete_cmd += ["-n", self.namespace]
 
     def _generate_values(self):
-        yaml_string = yaml.dump(self.VALUES)
-        values_file_path = os.path.join(
-            "/tmp", "%s-%s.yaml" % (self.RELEASE_NAME, self.RELEASE_NAMESPACE)
-        )
-        with open(values_file_path, "w") as fd:
+        yaml_string = yaml.dump(self.values)
+        with tempfile.NamedTemporaryFile("w") as fd:
             fd.write(yaml_string)
-        return values_file_path
+            fd.flush()
+        return fd.name
 
 
 class ClusterAutoscalerHelmRelease(HelmRelease):
-    RELEASE_NAMESPACE = "magnum-system"
+    namespace = "magnum-system"
 
     def __init__(self, api, cluster) -> None:
         cluster_name = utils.get_or_generate_cluster_api_name(api, cluster)
-        self.RELEASE_NAME = cluster_name
+        image_tag = utils.get_cluster_label(cluster, "autoscaler_tag", "v1.24.0")
+        image_repo = utils.get_cluster_label(
+            cluster, "autoscaler_repo", "registry.k8s.io/autoscaling/cluster-autoscaler"
+        )
+        self.release_name = cluster_name
 
         manifests_path = pkg_resources.resource_filename(
             "magnum_cluster_api", "manifests"
         )
-        self.CHART_SOURCE = os.path.join(manifests_path, "cluster-autoscaler/")
-        self.VALUES = {
+        self.chart = os.path.join(manifests_path, "cluster-autoscaler/")
+        self.values = {
             "fullnameOverride": f"{cluster_name}-autoscaler",
             "cloudProvider": "clusterapi",
             "clusterAPIMode": "kubeconfig-incluster",
             "clusterAPIKubeconfigSecret": f"{cluster_name}-kubeconfig",
             "autoDiscovery": {
                 "clusterName": cluster_name,
+            },
+            "image": {
+                "repository": image_repo,
+                "tag": image_tag,
             },
             "nodeSelector": {
                 "openstack-control-plane": "enabled",
