@@ -114,6 +114,9 @@ clusterctl init \
 sudo curl -Lo /usr/local/bin/skopeo https://github.com/lework/skopeo-binary/releases/download/v1.10.0/skopeo-linux-amd64
 sudo chmod +x /usr/local/bin/skopeo
 
+# Vendor the chart
+make vendor
+
 # Install `magnum-cluster-api`
 pip install -U setuptools pip
 $HOME/.local/bin/pip3 install -e .
