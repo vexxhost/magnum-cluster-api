@@ -53,7 +53,6 @@ class ClusterAutoscalerHelmRelease:
         cluster_name = utils.get_or_generate_cluster_api_name(api, cluster)
         image = images.get_cluster_autoscaler_image(
             utils.get_kube_tag(cluster),
-            image_repository=utils.get_cluster_container_infra_prefix(cluster),
         )
         image_repo, image_tag = image.split(":", 1)
 
