@@ -72,6 +72,13 @@
 
    Default value: `true`
 
+* `auto_scaling_enabled`
+
+   Enable auto-scaling for the cluster.  This will automatically scale the
+   cluster up and down based on the number of pods running in the cluster.
+
+   Default value: `false`
+
 * `kube_tag`
 
    The version of Kubernetes to use.

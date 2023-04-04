@@ -86,6 +86,14 @@ def generate_cloud_controller_manager_config(
     )
 
 
+def get_kube_tag(cluster: magnum_objects.Cluster) -> str:
+    return get_cluster_label(cluster, "kube_tag", "v1.25.3")
+
+
+def get_auto_scaling_enabled(cluster: magnum_objects.Cluster) -> bool:
+    return get_cluster_label_as_bool(cluster, "auto_scaling_enabled", False)
+
+
 def get_cluster_container_infra_prefix(cluster: magnum_objects.Cluster) -> str:
     return get_cluster_label(
         cluster,
@@ -135,17 +143,21 @@ def get_node_group_min_node_count(
 ) -> int:
     if node_group.min_node_count == 0:
         return default
-    else:
-        return node_group.min_node_count
+    return node_group.min_node_count
 
 
 def get_node_group_max_node_count(
+    context: context.RequestContext,
     node_group: magnum_objects.NodeGroup,
 ) -> int:
     if node_group.max_node_count is None:
-        return get_node_group_min_node_count(node_group) + 1
-    else:
-        return node_group.max_node_count
+        return get_node_group_label_as_int(
+            context,
+            node_group,
+            "max_node_count",
+            get_node_group_min_node_count(node_group) + 1,
+        )
+    return node_group.max_node_count
 
 
 def get_cluster_label(cluster: magnum_objects.Cluster, key: str, default: str) -> str:

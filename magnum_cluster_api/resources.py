@@ -15,8 +15,6 @@
 import glob
 import json
 import os
-import subprocess
-import tempfile
 import textwrap
 import types
 
@@ -32,10 +30,10 @@ from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import encodeutils
 
-from magnum_cluster_api import clients, image_utils, objects, utils
+from magnum_cluster_api import (clients, helm, image_utils, images, objects,
+                                utils)
 
 CONF = cfg.CONF
-KUBE_TAG = "v1.25.3"
 CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
 CSI_TAG = "v1.25.3"
@@ -47,93 +45,49 @@ CLUSTER_UPGRADE_LABELS = {"kube_tag"}
 
 PLACEHOLDER = "PLACEHOLDER"
 
-
-class BaseCli:
-    deploy_cmd = []
-    delete_cmd = []
-
-    def __init__(self) -> None:
-        pass
-
-    def apply(self) -> None:
-        subprocess.run(self.deploy_cmd, capture_output=True, check=True)
-
-    def delete(self) -> None:
-        try:
-            subprocess.run(self.delete_cmd, capture_output=True, check=False)
-        except subprocess.CalledProcessError as e:
-            if "release: not found" in e.output:
-                return
-            raise e
+AUTOSCALE_ANNOTATION_MIN = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size"
+AUTOSCALE_ANNOTATION_MAX = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"
 
 
-class HelmRelease(BaseCli):
-    deploy_cmd = ["helm", "upgrade", "--install", "--wait"]
-    delete_cmd = ["helm", "delete"]
-
-    def __init__(self, release_name, chart, namespace="", values={}) -> None:
-        assert release_name
-        assert chart
-        self.release_name = release_name
-        self.chart = chart
-        self.namespace = namespace
-        self.values = values
-        self._generate_deploy_command()
-        self._generate_delete_command()
-
-    def _generate_deploy_command(self):
-        self.deploy_cmd += [
-            self.release_name,
-            self.chart,
-        ]
-        if self.namespace:
-            self.deploy_cmd += ["-n", self.namespace]
-        if self.values:
-            self.deploy_cmd += ["-f", self._generate_values()]
-
-    def _generate_delete_command(self):
-        self.delete_cmd += [self.release_name]
-        if self.namespace:
-            self.delete_cmd += ["-n", self.namespace]
-
-    def _generate_values(self):
-        yaml_string = yaml.dump(self.values)
-        with tempfile.NamedTemporaryFile("w") as fd:
-            fd.write(yaml_string)
-            fd.flush()
-        return fd.name
-
-
-class ClusterAutoscalerHelmRelease(HelmRelease):
-    namespace = "magnum-system"
-
+class ClusterAutoscalerHelmRelease:
     def __init__(self, api, cluster) -> None:
         cluster_name = utils.get_or_generate_cluster_api_name(api, cluster)
-        image_tag = utils.get_cluster_label(cluster, "autoscaler_tag", "v1.24.0")
-        image_repo = utils.get_cluster_label(
-            cluster, "autoscaler_repo", "registry.k8s.io/autoscaling/cluster-autoscaler"
+        image = images.get_cluster_autoscaler_image(
+            utils.get_kube_tag(cluster),
+            image_repository=utils.get_cluster_container_infra_prefix(cluster),
         )
-        self.release_name = cluster_name
+        image_repo, image_tag = image.split(":", 1)
 
-        charts_path = pkg_resources.resource_filename("magnum_cluster_api", "charts")
-        self.chart = os.path.join(charts_path, "cluster-autoscaler/")
-        self.values = {
-            "fullnameOverride": f"{cluster_name}-autoscaler",
-            "cloudProvider": "clusterapi",
-            "clusterAPIMode": "kubeconfig-incluster",
-            "clusterAPIKubeconfigSecret": f"{cluster_name}-kubeconfig",
-            "autoDiscovery": {
-                "clusterName": cluster_name,
+        self.apply = helm.UpgradeReleaseCommand(
+            namespace="magnum-system",
+            release_name=cluster_name,
+            chart_ref=os.path.join(
+                pkg_resources.resource_filename("magnum_cluster_api", "charts"),
+                "cluster-autoscaler/",
+            ),
+            values={
+                "fullnameOverride": f"{cluster_name}-autoscaler",
+                "cloudProvider": "clusterapi",
+                "clusterAPIMode": "kubeconfig-incluster",
+                "clusterAPIKubeconfigSecret": f"{cluster_name}-kubeconfig",
+                "autoDiscovery": {
+                    "clusterName": cluster_name,
+                },
+                "image": {
+                    "repository": image_repo,
+                    "tag": image_tag,
+                },
+                "nodeSelector": {
+                    "openstack-control-plane": "enabled",
+                },
             },
-            "image": {
-                "repository": image_repo,
-                "tag": image_tag,
-            },
-            "nodeSelector": {
-                "openstack-control-plane": "enabled",
-            },
-        }
-        super(ClusterAutoscalerHelmRelease, self).__init__()
+        )
+
+        self.delete = helm.DeleteReleaseCommand(
+            namespace="magnum-system",
+            release_name=cluster_name,
+            skip_missing=True,
+        )
 
 
 class Base:
@@ -1218,9 +1172,7 @@ class Cluster(ClusterBase):
         )
 
     def get_object(self) -> objects.Cluster:
-        auto_scaling_enabled = utils.get_cluster_label_as_bool(
-            self.cluster, "auto_scaling_enabled", False
-        )
+        auto_scaling_enabled = utils.get_auto_scaling_enabled(self.cluster)
         return objects.Cluster(
             self.api,
             {
@@ -1261,9 +1213,7 @@ class Cluster(ClusterBase):
                     },
                     "topology": {
                         "class": CLUSTER_CLASS_NAME,
-                        "version": utils.get_cluster_label(
-                            self.cluster, "kube_tag", KUBE_TAG
-                        ),
+                        "version": utils.get_kube_tag(self.cluster),
                         "controlPlane": {
                             "replicas": self.cluster.master_count,
                             "machineHealthCheck": {
@@ -1282,8 +1232,8 @@ class Cluster(ClusterBase):
                                     else ng.node_count,
                                     "metadata": {
                                         "annotations": {
-                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size": f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
-                                            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size": f"{utils.get_node_group_max_node_count(ng)}",  # noqa: E501
+                                            AUTOSCALE_ANNOTATION_MIN: f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
+                                            AUTOSCALE_ANNOTATION_MAX: f"{utils.get_node_group_max_node_count(self.context, ng)}",  # noqa: E501
                                         }
                                     }
                                     if auto_scaling_enabled
@@ -1461,14 +1411,12 @@ class Cluster(ClusterBase):
 
 
 def set_autoscaler_metadata_in_machinedeployment(
+    context: context.RequestContext,
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
     nodegroup: magnum_objects.NodeGroup,
 ):
-    # Set autoscaler annotations to MachineDeployment(MD)s because annotations in Cluster topology
-    # are not propogated to MDs. Upstream issue:  https://github.com/kubernetes-sigs/cluster-api/pull/7088
-
-    if not utils.get_cluster_label_as_bool(cluster, "auto_scaling_enabled", False):
+    if not utils.get_auto_scaling_enabled(cluster):
         return
     mds = objects.MachineDeployment.objects(api).filter(
         namespace="magnum-system",
@@ -1480,12 +1428,16 @@ def set_autoscaler_metadata_in_machinedeployment(
         },
     )
     for md in mds:
-        md.obj["metadata"]["annotations"][
-            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"
-        ] = f"{utils.get_node_group_max_node_count(nodegroup)}"
-        md.obj["metadata"]["annotations"][
-            "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size"
-        ] = f"{utils.get_node_group_min_node_count(nodegroup)}"
+        # NOTE(mnaser): The autoscaler will not scale under the minimum number
+        #               of nodes, so we do that ourselves here.
+        if AUTOSCALE_ANNOTATION_MIN not in md.obj["metadata"]["annotations"]:
+            md.obj["spec"]["replicas"] = nodegroup.node_count
+        md.obj["metadata"]["annotations"][AUTOSCALE_ANNOTATION_MIN] = str(
+            utils.get_node_group_min_node_count(nodegroup)
+        )
+        md.obj["metadata"]["annotations"][AUTOSCALE_ANNOTATION_MAX] = str(
+            utils.get_node_group_max_node_count(context, nodegroup)
+        )
         md.update()
 
 
@@ -1520,7 +1472,7 @@ def apply_cluster_from_magnum_cluster(
     ClusterResourcesConfigMap(context, api, cluster).apply()
     ClusterResourceSet(api, cluster).apply()
     Cluster(context, api, cluster).apply()
-    if utils.get_cluster_label_as_bool(cluster, "auto_scaling_enabled", False):
+    if utils.get_auto_scaling_enabled(cluster):
         ClusterAutoscalerHelmRelease(api, cluster).apply()
 
 
