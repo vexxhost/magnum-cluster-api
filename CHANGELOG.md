@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.4.0...v0.4.1) (2023-04-04)
+
+
+### Bug Fixes
+
+* build generic wheels ([1f1273b](https://github.com/vexxhost/magnum-cluster-api/commit/1f1273b043402ae406965b7bddf7831ece6e715a))
+
 ## [0.4.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.3.4...v0.4.0) (2023-04-04)
 
 
