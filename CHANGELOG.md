@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.4.1...v0.4.2) (2023-04-04)
+
+
+### Bug Fixes
+
+* Add missing autoscaler chart manifests ([122f4b9](https://github.com/vexxhost/magnum-cluster-api/commit/122f4b9d9d417a13150b692149533e7b6c81f2db))
+
 ## [0.4.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.4.0...v0.4.1) (2023-04-04)
 
 
