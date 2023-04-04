@@ -3,6 +3,23 @@ on:
   pull_request: {}
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v3
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          cache: poetry
+
+      - name: Install dependencies
+        run: poetry build
+
   pre-commit:
     runs-on: ubuntu-latest
     steps:
