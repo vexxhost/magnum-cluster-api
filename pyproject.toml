@@ -34,3 +34,6 @@ magnum-cluster-api-image-loader = "magnum_cluster_api.cmd.image_loader:main"
 
 [tool.poetry.plugins."magnum.drivers"]
 "k8s_cluster_api_ubuntu_focal" = "magnum_cluster_api.driver:UbuntuFocalDriver"
+
+[tool.isort]
+profile = "black"

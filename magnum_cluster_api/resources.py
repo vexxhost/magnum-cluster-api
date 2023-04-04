@@ -30,8 +30,7 @@ from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import encodeutils
 
-from magnum_cluster_api import (clients, helm, image_utils, images, objects,
-                                utils)
+from magnum_cluster_api import clients, helm, image_utils, images, objects, utils
 
 CONF = cfg.CONF
 CLOUD_PROVIDER_TAG = "v1.25.3"
