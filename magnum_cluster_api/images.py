@@ -14,34 +14,19 @@
 
 import semver
 
-from magnum_cluster_api import image_utils
+from magnum_cluster_api import conf
+
+CONF = conf.CONF
 
 PAUSE = "registry.k8s.io/pause:3.9"
 
-CLUSTER_AUTOSCALER_V1_22 = "registry.k8s.io/autoscaling/cluster-autoscaler:v1.22.1"
-CLUSTER_AUTOSCALER_V1_23 = "registry.k8s.io/autoscaling/cluster-autoscaler:v1.23.0"
-CLUSTER_AUTOSCALER_V1_24 = "registry.k8s.io/autoscaling/cluster-autoscaler:v1.24.1"
-CLUSTER_AUTOSCALER_V1_25 = "registry.k8s.io/autoscaling/cluster-autoscaler:v1.25.1"
-CLUSTER_AUTOSCALER_V1_26 = "registry.k8s.io/autoscaling/cluster-autoscaler:v1.26.1"
 
-
-def get_cluster_autoscaler_image(version: str, image_repository=None):
-    image = None
-
+def get_cluster_autoscaler_image(version: str):
     version = semver.VersionInfo.parse(version[1:])
-    if version.major == 1 and version.minor == 22:
-        image = CLUSTER_AUTOSCALER_V1_22
-    elif version.major == 1 and version.minor == 23:
-        image = CLUSTER_AUTOSCALER_V1_23
-    elif version.major == 1 and version.minor == 24:
-        image = CLUSTER_AUTOSCALER_V1_24
-    elif version.major == 1 and version.minor == 25:
-        image = CLUSTER_AUTOSCALER_V1_25
-    elif version.major == 1 and version.minor == 26:
-        image = CLUSTER_AUTOSCALER_V1_26
+    config_option = f"v{version.major}_{version.minor}_image"
 
-    if image:
-        return image_utils.get_image(image, image_repository)
+    if hasattr(CONF.auto_scaling, config_option):
+        return getattr(CONF.auto_scaling, config_option)
 
     raise ValueError(
         f"Unsupported Kubernetes version: {version}. "

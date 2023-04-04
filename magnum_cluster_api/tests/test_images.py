@@ -13,6 +13,7 @@
 # under the License.
 
 import pytest
+from oslo_config import cfg
 
 from magnum_cluster_api import images
 
@@ -43,4 +44,8 @@ from magnum_cluster_api import images
     ],
 )
 def test_get_cluster_autoscaler_image(image_repository, version, image):
-    assert images.get_cluster_autoscaler_image(version, image_repository) == image
+    if image_repository:
+        cfg.CONF.set_override(
+            "image_repository", image_repository, group="auto_scaling"
+        )
+    assert images.get_cluster_autoscaler_image(version) == image
