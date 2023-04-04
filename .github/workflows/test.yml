@@ -33,7 +33,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Build package
-        run: poetry build
+        run: make build
 
   black:
     runs-on: ubuntu-latest
@@ -93,8 +93,5 @@ jobs:
           cache: poetry
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
-        run: poetry install
-
       - name: Run tests
-        run: poetry run pytest
+        run: make test

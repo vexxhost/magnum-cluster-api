@@ -24,10 +24,6 @@ pytest-mock = "^3.6.1"
 requires = ["setuptools", "poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry.build]
-generate-setup-file = false
-script = "hack/build.py"
-
 [tool.poetry.scripts]
 magnum-cluster-api-image-builder = "magnum_cluster_api.cmd.image_builder:main"
 magnum-cluster-api-image-loader = "magnum_cluster_api.cmd.image_loader:main"
