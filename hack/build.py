@@ -33,6 +33,15 @@ def download_autoscaler_chart():
     download_helm_chart(
         AUTOSCALER_HELM_REPO_NAME, AUTOSCALER_HELM_CHART, AUTOSCALER_HELM_VERSION
     )
+    with open("hack/add-omt-to-clusterrole.patch", "rb", 0) as fd:
+        subprocess.check_call(
+            [
+                "patch",
+                "-p0",
+            ],
+            cwd=f"magnum_cluster_api/charts/{AUTOSCALER_HELM_CHART}/templates",
+            stdin=fd,
+        )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,17 @@
+--- clusterrole.yaml.orig	2023-04-04 03:30:47.711856778 +0000
++++ clusterrole.yaml	2023-04-04 03:31:04.607355748 +0000
+@@ -159,5 +159,14 @@
+     - list
+     - update
+     - watch
++  - apiGroups:
++    - infrastructure.cluster.x-k8s.io
++    resources:
++    - openstackmachinetemplates
++    verbs:
++    - get
++    - list
++    - update
++    - watch
+ {{- end }}
+ {{- end -}}

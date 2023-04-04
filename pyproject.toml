@@ -13,9 +13,12 @@ click = "*"
 requests = "*"
 shortuuid = "*"
 certifi = "*"
+"oslo.concurrency" = "*"
+semver = "^2.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "<7"
+pytest-mock = "^3.6.1"
 
 [build-system]
 requires = ["setuptools", "poetry-core"]
