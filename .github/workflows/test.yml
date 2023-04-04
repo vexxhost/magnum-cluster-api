@@ -35,6 +35,35 @@ jobs:
       - name: Build package
         run: poetry build
 
+  black:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: psf/black@stable
+
+  flake8:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - run: pipx install flake8
+      - uses: suo/flake8-github-action@releases/v1
+        with:
+          checkName: flake8
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  isort:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - uses: isort/isort-action@master
+
   pytest:
     runs-on: ${{ matrix.runs-on }}
     strategy:
@@ -69,15 +98,3 @@ jobs:
 
       - name: Run tests
         run: poetry run pytest
-
-  pre-commit:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout project
-        uses: actions/checkout@v3.1.0
-
-      - name: Setup Python
-        uses: actions/setup-python@v4.3.0
-
-      - name: Setup pre-commit
-        uses: pre-commit/action@v3.0.0
