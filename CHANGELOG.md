@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.3.4...v0.4.0) (2023-04-04)
+
+
+### Features
+
+* add cluster-autoscaler ([cf05ce5](https://github.com/vexxhost/magnum-cluster-api/commit/cf05ce5f463b0f32794ca7047b46eb48796486f3))
+* Eliminate flux dependency for cluster autoscaler ([3276d9a](https://github.com/vexxhost/magnum-cluster-api/commit/3276d9ace559bfc585c211292f584a8cfdef8a08))
+
+
+### Bug Fixes
+
+* solve black conflict ([e17ca40](https://github.com/vexxhost/magnum-cluster-api/commit/e17ca4088f1abd4c5ee6b7ee481f2117fadf5057))
+
 ## [0.3.4](https://github.com/vexxhost/magnum-cluster-api/compare/v0.3.3...v0.3.4) (2023-03-27)
 
 
