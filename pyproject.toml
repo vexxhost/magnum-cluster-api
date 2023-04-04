@@ -5,6 +5,7 @@ description = "Cluster API driver for Magnum"
 authors = ["Mohammed Naser <mnaser@vexxhost.com>"]
 readme = "README.md"
 packages = [{include = "magnum_cluster_api"}]
+include = ["magnum_cluster_api/charts/**/*"]
 
 [tool.poetry.dependencies]
 python = "^3.6"
