@@ -8,14 +8,21 @@ packages = [{include = "magnum_cluster_api"}]
 include = ["magnum_cluster_api/charts/**/*"]
 
 [tool.poetry.dependencies]
-python = "^3.6"
-pykube-ng = "*"
-click = "*"
-requests = "*"
-shortuuid = "*"
 certifi = "*"
-"oslo.concurrency" = "*"
+click = ">=8.0.4"
+magnum = ">=14.0.0"
+oslo-concurrency = ">=4.5.0"
+oslo-config = ">=8.8.0"
+oslo-context = ">=4.1.0"
+oslo-log = ">=4.7.0"
+oslo-privsep = ">=2.7.0"
+oslo-service = ">=2.8.0"
+pykube-ng = "*"
+pyroute2 = ">=0.3.4"
+python = "^3.6"
+requests = ">=2.27.1"
 semver = "^2.0.0"
+shortuuid = "*"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "<7"
@@ -28,6 +35,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 magnum-cluster-api-image-builder = "magnum_cluster_api.cmd.image_builder:main"
 magnum-cluster-api-image-loader = "magnum_cluster_api.cmd.image_loader:main"
+magnum-cluster-api-proxy = "magnum_cluster_api.cmd.proxy:main"
 
 [tool.poetry.plugins."magnum.drivers"]
 "k8s_cluster_api_ubuntu_focal" = "magnum_cluster_api.driver:UbuntuFocalDriver"

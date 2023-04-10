@@ -85,6 +85,14 @@
 
    Default value: `v1.25.3`
 
+* `master_lb_floating_ip_enabled`
+
+   Attach a floating IP to the load balancer that fronts the Kubernetes API
+   servers.  In order to disable this, you must be running the
+   `magnum-cluster-api-proxy` service on all your Neutron network nodes.
+
+   Default value: `true`
+
 ## OpenStack
 
 * `fixed_subnet_cidr`
