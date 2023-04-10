@@ -737,6 +737,15 @@ class ClusterClass(Base):
                             },
                         },
                         {
+                            "name": "disableAPIServerFloatingIP",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "boolean",
+                                },
+                            },
+                        },
+                        {
                             "name": "dnsNameservers",
                             "required": True,
                             "schema": {
@@ -750,6 +759,24 @@ class ClusterClass(Base):
                         },
                         {
                             "name": "externalNetworkId",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "fixedNetworkName",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "fixedSubnetId",
                             "required": True,
                             "schema": {
                                 "openAPIV3Schema": {
@@ -996,6 +1023,13 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
+                                            "path": "/spec/template/spec/disableAPIServerFloatingIP",
+                                            "valueFrom": {
+                                                "variable": "disableAPIServerFloatingIP"
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
                                             "path": "/spec/template/spec/dnsNameservers",
                                             "valueFrom": {"variable": "dnsNameservers"},
                                         },
@@ -1006,10 +1040,73 @@ class ClusterClass(Base):
                                                 "variable": "externalNetworkId"
                                             },
                                         },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            "name": "newNetworkConfig",
+                            "enabledIf": '{{ if eq .fixedNetworkName "" }}true{{end}}',
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackClusterTemplate.version,
+                                        "kind": objects.OpenStackClusterTemplate.kind,
+                                        "matchResources": {
+                                            "infrastructureCluster": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/nodeCidr",
                                             "valueFrom": {"variable": "nodeCidr"},
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            "name": "existingFixedNetworkNameConfig",
+                            "enabledIf": '{{ if ne .fixedNetworkName "" }}true{{end}}',
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackClusterTemplate.version,
+                                        "kind": objects.OpenStackClusterTemplate.kind,
+                                        "matchResources": {
+                                            "infrastructureCluster": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/network/name",
+                                            "valueFrom": {
+                                                "variable": "fixedNetworkName"
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            "name": "existingFixedSubnetIdConfig",
+                            "enabledIf": '{{ if ne .fixedSubnetId "" }}true{{end}}',
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackClusterTemplate.version,
+                                        "kind": objects.OpenStackClusterTemplate.kind,
+                                        "matchResources": {
+                                            "infrastructureCluster": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/subnet/id",
+                                            "valueFrom": {"variable": "fixedSubnetId"},
                                         },
                                     ],
                                 },
@@ -1047,6 +1144,20 @@ class ClusterClass(Base):
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/imageRepository",  # noqa: E501
                                             "valueFrom": {
                                                 "variable": "imageRepository",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/certSANs",  # noqa: E501
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - {{ .builtin.cluster.name }}
+                                                    - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}
+                                                    - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc
+                                                    - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc.cluster.local # noqa: E501
+                                                    """
+                                                ),
                                             },
                                         },
                                         {
@@ -1358,6 +1469,12 @@ class Cluster(ClusterBase):
                                 "value": self.cluster.master_flavor_id,
                             },
                             {
+                                "name": "disableAPIServerFloatingIP",
+                                "value": utils.get_cluster_floating_ip_disabled(
+                                    self.cluster
+                                ),
+                            },
+                            {
                                 "name": "dnsNameservers",
                                 "value": self.cluster.cluster_template.dns_nameserver.split(
                                     ","
@@ -1369,6 +1486,20 @@ class Cluster(ClusterBase):
                                     self.context,
                                     self.cluster.cluster_template.external_network_id,
                                 ),
+                            },
+                            {
+                                "name": "fixedNetworkName",
+                                "value": neutron.get_fixed_network_name(
+                                    self.context, self.cluster.fixed_network
+                                )
+                                or "",
+                            },
+                            {
+                                "name": "fixedSubnetId",
+                                "value": neutron.get_fixed_subnet_id(
+                                    self.context, self.cluster.fixed_subnet
+                                )
+                                or "",
                             },
                             {
                                 "name": "flavor",

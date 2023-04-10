@@ -35,6 +35,40 @@ jobs:
       - name: Build package
         run: make build
 
+  install:
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs-on: ubuntu-20.04
+            openstack-version: yoga
+            python-version: "3.6"
+          - runs-on: ubuntu-latest
+            python-version: "3.8"
+            openstack-version: zed
+          - runs-on: ubuntu-latest
+            python-version: "3.8"
+            openstack-version: "2023.1"
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v3
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          cache: poetry
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build package
+        run: make build
+
+      - name: Install package using constraints
+        run: pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} ./dist/*.whl
+
   black:
     runs-on: ubuntu-latest
     steps:

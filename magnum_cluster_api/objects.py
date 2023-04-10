@@ -15,6 +15,12 @@
 import pykube
 
 
+class EndpointSlice(pykube.objects.NamespacedAPIObject):
+    version = "discovery.k8s.io/v1"
+    endpoint = "endpointslices"
+    kind = "EndpointSlice"
+
+
 class ClusterResourceSet(pykube.objects.NamespacedAPIObject):
     version = "addons.cluster.x-k8s.io/v1beta1"
     endpoint = "clusterresourcesets"
@@ -61,6 +67,12 @@ class OpenStackClusterTemplate(pykube.objects.NamespacedAPIObject):
     version = "infrastructure.cluster.x-k8s.io/v1alpha6"
     endpoint = "openstackclustertemplates"
     kind = "OpenStackClusterTemplate"
+
+
+class OpenStackCluster(pykube.objects.NamespacedAPIObject):
+    version = "infrastructure.cluster.x-k8s.io/v1alpha6"
+    endpoint = "openstackclusters"
+    kind = "OpenStackCluster"
 
 
 class ClusterClass(pykube.objects.NamespacedAPIObject):
