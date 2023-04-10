@@ -20,11 +20,15 @@ import shortuuid
 import yaml
 from magnum import objects as magnum_objects
 from magnum.common import context, exception, octavia
+from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
 
 from magnum_cluster_api import clients, image_utils, images, objects
+
+
+CONF = cfg.CONF
 
 
 def get_or_generate_cluster_api_cloud_config_secret_name(
@@ -225,3 +229,15 @@ def delete_loadbalancers(ctx, cluster):
         octavia.wait_for_lb_deleted(octavia_client, candidates)
     except Exception as e:
         raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
+
+
+def get_master_lb_allowed_cidrs(cluster: magnum_objects.Cluster):
+    master_lb_allowed_cidrs = get_cluster_label_as_bool(
+        cluster, "master_lb_allowed_cidrs", []
+    )
+    if master_lb_allowed_cidrs:
+        master_lb_allowed_cidrs += get_cluster_label_as_bool(
+            cluster, "fixed_subnet_cidr", []
+        )
+        master_lb_allowed_cidrs += CONF.DEFAULT.master_lb_allowed_cidrs or []
+    return master_lb_allowed_cidrs

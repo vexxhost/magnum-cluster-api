@@ -641,6 +641,12 @@ class ClusterClass(Base):
                                         "enabled": {
                                             "type": "boolean",
                                         },
+                                        "allowedCidrs": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string",
+                                            },
+                                        },
                                     },
                                 },
                             },
@@ -1171,6 +1177,7 @@ class Cluster(ClusterBase):
 
     def get_object(self) -> objects.Cluster:
         auto_scaling_enabled = utils.get_auto_scaling_enabled(self.cluster)
+        master_lb_allowed_cidrs = utils.get_master_lb_allowed_cidrs(self.cluster)
         return objects.Cluster(
             self.api,
             {
@@ -1294,6 +1301,7 @@ class Cluster(ClusterBase):
                                 "name": "apiServerLoadBalancer",
                                 "value": {
                                     "enabled": self.cluster.master_lb_enabled,
+                                    "allowedCidrs": master_lb_allowed_cidrs,
                                 },
                             },
                             {
