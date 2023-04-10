@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.4.2...v0.5.0) (2023-04-10)
+
+
+### Features
+
+* add m-capi-proxy ([a699349](https://github.com/vexxhost/magnum-cluster-api/commit/a699349f61d3db0d1d81fe5a94fd8b5fdaa6db12))
+
 ## [0.4.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.4.1...v0.4.2) (2023-04-04)
 
 
