@@ -26,8 +26,18 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v3
 
+      - name: Build wheels
+        run: make build
+
+      - name: Start HTTP server with wheels
+        uses: Eun/http-server-action@v1
+        with:
+          directory: dist
+
       - name: Setup environment variables
-        run: echo PROJECT_REF=$(curl -Ls https://github.com/vexxhost/docker-openstack-magnum/raw/main/manifest.yml | yq '."${{ matrix.release }}".sha') >> $GITHUB_ENV
+        run: |-
+          echo WHEEL_URL=http://$(ip addr show eth0 | grep -Po 'inet \K[\d.]+'):8000/$(ls -1 dist | grep whl) >> $GITHUB_ENV
+          echo PROJECT_REF=$(curl -Ls https://github.com/vexxhost/docker-openstack-magnum/raw/main/manifest.yml | yq '."${{ matrix.release }}".sha') >> $GITHUB_ENV
 
       - name: Authenticate with Quay.io
         uses: docker/login-action@v2
@@ -54,7 +64,7 @@ jobs:
             PROJECT_REPO=https://github.com/vexxhost/magnum
             PROJECT_REF=${{ env.PROJECT_REF }}
             DIST_PACKAGES=haproxy
-            PIP_PACKAGES=cryptography python-binary-memcached git+https://github.com/vexxhost/magnum-cluster-api.git@${{ github.sha }}
+            PIP_PACKAGES=cryptography python-binary-memcached ${{ env.WHEEL_URL }}
 
       - name: Promote image
         uses: akhilerm/tag-push-action@v2.0.0
