@@ -23,9 +23,6 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v3
 
-      - name: Install Poetry
-        run: pipx install poetry
-
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
@@ -53,9 +50,6 @@ jobs:
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
-
-      - name: Install Poetry
-        run: pipx install poetry
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -117,9 +111,6 @@ jobs:
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
-
-      - name: Install Poetry
-        run: pipx install poetry
 
       - name: Setup Python
         uses: actions/setup-python@v4
