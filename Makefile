@@ -7,11 +7,14 @@ vendor: clean
 	helm fetch autoscaler/cluster-autoscaler --version 9.27.0 --untar --untardir magnum_cluster_api/charts
 	patch -p0 magnum_cluster_api/charts/cluster-autoscaler/templates/clusterrole.yaml < hack/add-omt-to-clusterrole.patch
 
-build: vendor
+poetry:
+	pipx install poetry
+
+build: vendor poetry
 	poetry build
 
-install: build
+install: build poetry
 	poetry install
 
-test: install
+test: install poetry
 	poetry run pytest
