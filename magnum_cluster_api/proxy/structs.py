@@ -15,6 +15,7 @@
 import dataclasses
 import os
 import socket
+from datetime import datetime, timezone
 
 from oslo_log import log as logging
 from pyroute2 import netns
@@ -32,6 +33,7 @@ class ProxiedCluster:
     NODE_LABEL = "magnum-cluster-api.vexxhost.com/node"
     CLUSTER_LABEL = "magnum-cluster-api.vexxhost.com/proxied-cluster"
     SERVICE_LABEL = "magnum-cluster-api.vexxhost.com/proxied-service"
+    TIMESTAMP_ANNOTATION = "magnum-cluster-api.vexxhost.com/timestamp"
 
     name: str
     internal_ip: str
@@ -79,6 +81,13 @@ class ProxiedCluster:
             "kubernetes.io/service-name": self.name,
             self.NODE_LABEL: socket.gethostname(),
             self.CLUSTER_LABEL: self.name,
+            self.SERVICE_LABEL: "true",
+        }
+
+    @property
+    def endpoint_slice_annotations(self) -> dict:
+        return {
+            self.TIMESTAMP_ANNOTATION: datetime.now(timezone.utc).isoformat(),
         }
 
     @property

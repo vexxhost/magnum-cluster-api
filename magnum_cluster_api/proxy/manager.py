@@ -14,6 +14,7 @@
 
 import base64
 import socket
+from datetime import datetime, timezone
 from pathlib import Path
 
 import jinja2
@@ -187,6 +188,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
                             "name": proxied_cluster.endpoint_slice_name,
                             "namespace": "magnum-system",
                             "labels": proxied_cluster.endpoint_slice_labels,
+                            "annotations": proxied_cluster.endpoint_slice_annotations,
                         },
                         "addressType": "IPv4",
                         "endpoints": proxied_cluster.endpoint_slice_endpoints,
@@ -200,6 +202,8 @@ class ProxyManager(periodic_task.PeriodicTasks):
             if (
                 endpoint_slice.metadata["labels"]
                 != proxied_cluster.endpoint_slice_labels
+                or endpoint_slice.metadata["annotations"]
+                != proxied_cluster.endpoint_slice_annotations
                 or endpoint_slice.obj["endpoints"]
                 != proxied_cluster.endpoint_slice_endpoints
                 or endpoint_slice.obj["ports"] != endpoint_slice_ports
@@ -208,6 +212,9 @@ class ProxyManager(periodic_task.PeriodicTasks):
                 endpoint_slice.metadata[
                     "labels"
                 ] = proxied_cluster.endpoint_slice_labels
+                endpoint_slice.metadata[
+                    "annotations"
+                ] = proxied_cluster.endpoint_slice_annotations
                 endpoint_slice.obj[
                     "endpoints"
                 ] = proxied_cluster.endpoint_slice_endpoints
@@ -250,6 +257,24 @@ class ProxyManager(periodic_task.PeriodicTasks):
             ).decode("utf-8")
             secret.update()
 
+    def _cleanup_endpoint_slices(self):
+        # Get list of all endpoint slices managed by the proxy service
+        endpoint_slices = objects.EndpointSlice.objects(
+            self.api, namespace="magnum-system"
+        ).filter(selector={structs.ProxiedCluster.SERVICE_LABEL: "true"})
+
+        # Look if any of the endpoint slices should be expired (aka >30s age)
+        for endpoint_slice in endpoint_slices:
+            timestamp = datetime.fromisoformat(
+                endpoint_slice.metadata["annotations"][
+                    structs.ProxiedCluster.TIMESTAMP_ANNOTATION
+                ]
+            )
+
+            if (datetime.now(timezone.utc) - timestamp).total_seconds() > 30:
+                LOG.info("Deleting expired EndpointSlice %s", endpoint_slice.name)
+                endpoint_slice.delete()
+
     @periodic_task.periodic_task(spacing=10, run_immediately=True)
     def sync(self, context):
         # Generate list of all clusters
@@ -268,3 +293,4 @@ class ProxyManager(periodic_task.PeriodicTasks):
         self._sync_services(proxied_clusters, clusters)
         self._sync_endpoint_slices(proxied_clusters)
         self._sync_kubeconfigs(proxied_clusters)
+        self._cleanup_endpoint_slices()
