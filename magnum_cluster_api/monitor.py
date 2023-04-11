@@ -25,12 +25,13 @@ class Monitor(k8s_monitor.K8sMonitor):
     def poll_health_status(self):
         # NOTE(mnaser): We override the `api_address` for the cluster if it's
         #               an isolated cluster so we can go through the proxy.
-        if utils.get_cluster_floating_ip_disabled(self.cluster):
-            api_address = f"https://{self.cluster.stack_id}.magnum-system:6443"
-            self.cluster.api_address = api_address
+        cluster = self.cluster.obj_clone()
+        if utils.get_cluster_floating_ip_disabled(cluster):
+            api_address = f"https://{cluster.stack_id}.magnum-system:6443"
+            cluster.api_address = api_address
             LOG.debug("Overriding cluster api_address to %s", api_address)
 
-        k8s_api = k8s.KubernetesAPI(self.context, self.cluster)
+        k8s_api = k8s.KubernetesAPI(self.context, cluster)
         status, reason = self._poll_health_status(k8s_api)
 
         self.data["health_status"] = status
