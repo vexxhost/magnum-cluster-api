@@ -66,6 +66,12 @@ class BaseDriver(driver.Driver):
             "CREATE_IN_PROGRESS",
             "UPDATE_IN_PROGRESS",
         ):
+            # NOTE(mnaser): It's possible we run a cluster status update before
+            #               the cluster is created. In that case, we don't want
+            #               to update the cluster status.
+            if capi_cluster is None:
+                return
+
             capi_cluster.reload()
             status_map = {
                 c["type"]: c["status"] for c in capi_cluster.obj["status"]["conditions"]
@@ -203,7 +209,7 @@ class BaseDriver(driver.Driver):
             if kcp is None:
                 return nodegroup
 
-            generation = kcp.obj["status"].get("observedGeneration")
+            generation = kcp.obj.get("status", {}).get("observedGeneration", 1)
             if generation > 1:
                 action = "UPDATE"
 
