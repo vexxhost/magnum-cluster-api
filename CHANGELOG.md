@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.5.0...v0.5.1) (2023-04-11)
+
+
+### Bug Fixes
+
+* avoid overriding api_address ([f7009cc](https://github.com/vexxhost/magnum-cluster-api/commit/f7009ccd36756cbd40c622538c2831d0bff3004c))
+* clean-up old endpoint slices ([730743e](https://github.com/vexxhost/magnum-cluster-api/commit/730743efe4ecd1233033fd7fa8119076981e4d01))
+* correct dependency list ([65e2ea1](https://github.com/vexxhost/magnum-cluster-api/commit/65e2ea1f5ff3e6ea8287b97f14af8111d84f5f4c))
+* remove tracebacks for missing objects ([a148d4f](https://github.com/vexxhost/magnum-cluster-api/commit/a148d4f89744b01c6e29c4f1ecbd723230f6b21c)), closes [#68](https://github.com/vexxhost/magnum-cluster-api/issues/68)
+
 ## [0.5.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.4.2...v0.5.0) (2023-04-10)
 
 
