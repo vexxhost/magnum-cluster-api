@@ -25,11 +25,9 @@ jobs:
 
       - name: Checkout project
         uses: actions/checkout@v3
-        with:
-          repository: vexxhost/docker-openstack-magnum
 
       - name: Setup environment variables
-        run: echo PROJECT_REF=$(cat manifest.yml | yq '."${{ matrix.release }}".sha') >> $GITHUB_ENV
+        run: echo PROJECT_REF=$(curl -Ls https://github.com/vexxhost/docker-openstack-magnum/raw/main/manifest.yml | yq '."${{ matrix.release }}".sha') >> $GITHUB_ENV
 
       - name: Authenticate with Quay.io
         uses: docker/login-action@v2
@@ -42,7 +40,7 @@ jobs:
       - name: Build image
         uses: docker/build-push-action@v3
         with:
-          context: .
+          context: https://github.com/vexxhost/docker-openstack-magnum.git
           push: ${{ github.event_name == 'push' }}
           cache-from: type=gha,scope=${{ env.PROJECT_REF }}-${{ github.sha }}
           cache-to: type=gha,mode=max,scope=${{ env.PROJECT_REF }}-${{ github.sha }}
@@ -62,5 +60,5 @@ jobs:
         uses: akhilerm/tag-push-action@v2.0.0
         if: github.event_name == 'push'
         with:
-          dst: quay.io/vexxhost/magnum-cluster-api:${{ matrix.release }}
           src: quay.io/vexxhost/magnum-cluster-api:${{ env.PROJECT_REF }}-${{ github.sha }}
+          dst: quay.io/vexxhost/magnum-cluster-api:${{ matrix.release }}
