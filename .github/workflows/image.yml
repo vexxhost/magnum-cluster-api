@@ -30,9 +30,7 @@ jobs:
         run: make build
 
       - name: Start HTTP server with wheels
-        uses: Eun/http-server-action@v1
-        with:
-          directory: dist
+        run: python3 -m http.server 8000 --directory dist &
 
       - name: Setup environment variables
         run: |-
