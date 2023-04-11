@@ -1302,6 +1302,10 @@ class Cluster(ClusterBase):
                                 "value": {
                                     "enabled": self.cluster.master_lb_enabled,
                                     "allowedCidrs": master_lb_allowed_cidrs,
+                                }
+                                if master_lb_allowed_cidrs
+                                else {
+                                    "enabled": self.cluster.master_lb_enabled,
                                 },
                             },
                             {

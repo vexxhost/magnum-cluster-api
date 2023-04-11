@@ -49,3 +49,12 @@ auto_scaling_opts = [
 
 CONF = cfg.CONF
 CONF.register_opts(auto_scaling_opts, "auto_scaling")
+
+
+capi_opts = [
+    cfg.StrOpt(
+        "egress_ip_cidr",
+        help="Outgoing IP CIDR of CAPI management Cluster",
+    ),
+]
+CONF.register_opts(capi_opts, "capi")

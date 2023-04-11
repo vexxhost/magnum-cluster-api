@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import ipaddress
 import re
 import textwrap
 
@@ -25,7 +26,13 @@ from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
 
-from magnum_cluster_api import clients, image_utils, images, objects
+from magnum_cluster_api import (
+    clients,
+    image_utils,
+    images,
+    objects,
+    exceptions as mexception,
+)
 
 
 CONF = cfg.CONF
@@ -231,13 +238,27 @@ def delete_loadbalancers(ctx, cluster):
         raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
 
 
+def validate_ip_cidr_notation(cidrs):
+    cidr_list = cidrs.split(",")
+    try:
+        for cidr in cidr_list:
+            ipaddress.ip_network(cidr, False)
+    except ValueError:
+        raise mexception.InvalidCIDR(cidr=cidrs)
+    else:
+        return cidr_list
+
+
 def get_master_lb_allowed_cidrs(cluster: magnum_objects.Cluster):
-    master_lb_allowed_cidrs = get_cluster_label_as_bool(
-        cluster, "master_lb_allowed_cidrs", []
+    master_lb_allowed_cidrs = validate_ip_cidr_notation(
+        get_cluster_label(cluster, "master_lb_allowed_cidrs", "")
     )
     if master_lb_allowed_cidrs:
-        master_lb_allowed_cidrs += get_cluster_label_as_bool(
-            cluster, "fixed_subnet_cidr", []
+        master_lb_allowed_cidrs += validate_ip_cidr_notation(
+            get_cluster_label(cluster, "fixed_subnet_cidr", "")
         )
-        master_lb_allowed_cidrs += CONF.DEFAULT.master_lb_allowed_cidrs or []
+        if not CONF.capi.egress_ip_cidr:
+            raise mexception.RequiredConfigNotProvided(config="capi.egress_ip_cidr")
+        master_lb_allowed_cidrs += validate_ip_cidr_notation(CONF.capi.egress_ip_cidr)
+
     return master_lb_allowed_cidrs
