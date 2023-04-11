@@ -1,0 +1,66 @@
+name: image
+
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+  push:
+    branches:
+    - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        release:
+        - yoga
+        - zed
+        - "2023.1"
+    steps:
+      - name: Configure Buildkit
+        uses: docker/setup-buildx-action@v2
+
+      - name: Checkout project
+        uses: actions/checkout@v3
+        with:
+          repository: vexxhost/docker-openstack-magnum
+
+      - name: Setup environment variables
+        run: echo PROJECT_REF=$(cat manifest.yml | yq '."${{ matrix.release }}".sha') >> $GITHUB_ENV
+
+      - name: Authenticate with Quay.io
+        uses: docker/login-action@v2
+        if: ${{ github.event_name == 'push' }}
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+
+      - name: Build image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: ${{ github.event_name == 'push' }}
+          cache-from: type=gha,scope=${{ env.PROJECT_REF }}-${{ github.sha }}
+          cache-to: type=gha,mode=max,scope=${{ env.PROJECT_REF }}-${{ github.sha }}
+          tags: |-
+            quay.io/vexxhost/magnum-cluster-api:${{ env.PROJECT_REF }}-${{ github.sha }}
+          build-args: |-
+            BUILDER_IMAGE=quay.io/vexxhost/openstack-builder-jammy
+            RUNTIME_IMAGE=quay.io/vexxhost/openstack-runtime-jammy
+            RELEASE=${{ matrix.release }}
+            PROJECT=magnum
+            PROJECT_REPO=https://github.com/vexxhost/magnum
+            PROJECT_REF=${{ env.PROJECT_REF }}
+            DIST_PACKAGES=haproxy
+            PIP_PACKAGES=cryptography python-binary-memcached git+https://github.com/vexxhost/magnum-cluster-api.git@${{ github.sha }}
+
+      - name: Promote image
+        uses: akhilerm/tag-push-action@v2.0.0
+        if: github.event_name == 'push'
+        with:
+          dst: quay.io/vexxhost/magnum-cluster-api:${{ matrix.release }}
+          src: quay.io/vexxhost/magnum-cluster-api:${{ env.PROJECT_REF }}-${{ github.sha }}
