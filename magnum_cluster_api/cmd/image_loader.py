@@ -17,7 +17,10 @@ import subprocess
 
 import click
 
-from magnum_cluster_api import image_utils, images
+from magnum_cluster_api import conf, image_utils, images
+
+CONF = conf.CONF
+
 
 IMAGES = [
     "docker.io/calico/cni:v3.24.2",
@@ -27,11 +30,11 @@ IMAGES = [
     "docker.io/k8scloudprovider/openstack-cloud-controller-manager:v1.25.3",
     "registry.k8s.io/coredns/coredns:v1.8.6",
     "registry.k8s.io/coredns/coredns:v1.9.3",
-    images.CLUSTER_AUTOSCALER_V1_22,
-    images.CLUSTER_AUTOSCALER_V1_23,
-    images.CLUSTER_AUTOSCALER_V1_24,
-    images.CLUSTER_AUTOSCALER_V1_25,
-    images.CLUSTER_AUTOSCALER_V1_26,
+    CONF.auto_scaling.v1_22_image,
+    CONF.auto_scaling.v1_23_image,
+    CONF.auto_scaling.v1_24_image,
+    CONF.auto_scaling.v1_25_image,
+    CONF.auto_scaling.v1_26_image,
     "registry.k8s.io/etcd:3.5.1-0",
     "registry.k8s.io/etcd:3.5.3-0",
     "registry.k8s.io/etcd:3.5.3-0",
