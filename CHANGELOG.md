@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.5.1...v0.5.2) (2023-04-13)
+
+
+### Bug Fixes
+
+* test image loader ([7e7b30c](https://github.com/vexxhost/magnum-cluster-api/commit/7e7b30c57f8cd5ad16bf71d84fc6a2c99cb5e7c7))
+
 ## [0.5.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.5.0...v0.5.1) (2023-04-11)
 
 
