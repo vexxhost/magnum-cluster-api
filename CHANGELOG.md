@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.5.2...v0.5.3) (2023-04-13)
+
+
+### Bug Fixes
+
+* add tests to validate rewriting manifests ([c8944da](https://github.com/vexxhost/magnum-cluster-api/commit/c8944dac31204a42ffc572f21b0c2581f71415a3))
+
 ## [0.5.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.5.1...v0.5.2) (2023-04-13)
 
 
