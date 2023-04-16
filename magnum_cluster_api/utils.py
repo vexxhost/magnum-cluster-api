@@ -13,6 +13,7 @@
 # under the License.
 
 import re
+import string
 import textwrap
 
 import pykube
@@ -37,7 +38,7 @@ def get_or_generate_cluster_api_name(
     api: pykube.HTTPClient, cluster: magnum_objects.Cluster
 ) -> str:
     if cluster.stack_id is None:
-        cluster.stack_id = generate_cluster_api_name(api, cluster)
+        cluster.stack_id = generate_cluster_api_name(api)
         cluster.save()
     return cluster.stack_id
 
@@ -45,17 +46,22 @@ def get_or_generate_cluster_api_name(
 @retry(retry=retry_if_exception_type(exception.Conflict))
 def generate_cluster_api_name(
     api: pykube.HTTPClient,
-    cluster: magnum_objects.Cluster,
 ) -> str:
-    name = f"{cluster.name}-{shortuuid.uuid()[:10].lower()}".replace(".", "-")
-    if (
-        objects.Cluster.objects(api)
-        .filter(namespace="magnum-system")
-        .get_or_none(name=name)
-        is not None
-    ):
+    alphabet = string.ascii_lowercase + string.digits
+    su = shortuuid.ShortUUID(alphabet=alphabet)
+
+    name = "kube-%s" % (su.random(length=5))
+    if cluster_exists(api, name):
         raise exception.Conflict("Generated name already exists")
     return name
+
+
+def cluster_exists(api: pykube.HTTPClient, name: str) -> bool:
+    try:
+        objects.Cluster.objects(api, namespace="magnum-system").get(name=name)
+        return True
+    except pykube.exceptions.ObjectDoesNotExist:
+        return False
 
 
 def generate_cloud_controller_manager_config(
