@@ -72,8 +72,6 @@ def generate_cloud_controller_manager_config(
     Generate coniguration for openstack-cloud-controller-manager if it does
     already exist.
     """
-    api = clients.get_pykube_api()
-
     data = pykube.Secret.objects(api, namespace="magnum-system").get_by_name(
         get_or_generate_cluster_api_cloud_config_secret_name(api, cluster)
     )
