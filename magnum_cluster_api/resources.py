@@ -1244,6 +1244,73 @@ def create_cluster_class(
     ClusterClass(api).apply()
 
 
+def generate_machine_deployments_for_cluster(
+    context: context.RequestContext, cluster: objects.Cluster
+) -> list:
+    auto_scaling_enabled = utils.get_auto_scaling_enabled(cluster)
+    return [
+        {
+            "class": "default-worker",
+            "name": ng.name,
+            "replicas": None if auto_scaling_enabled else ng.node_count,
+            "metadata": {
+                "annotations": {
+                    AUTOSCALE_ANNOTATION_MIN: f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
+                    AUTOSCALE_ANNOTATION_MAX: f"{utils.get_node_group_max_node_count(context, ng)}",  # noqa: E501
+                }
+            }
+            if auto_scaling_enabled
+            else {},
+            "failureDomain": utils.get_cluster_label(cluster, "availability_zone", ""),
+            "machineHealthCheck": {
+                "enable": utils.get_cluster_label_as_bool(
+                    cluster, "auto_healing_enabled", True
+                )
+            },
+            "variables": {
+                "overrides": [
+                    {
+                        "name": "bootVolume",
+                        "value": {
+                            "size": utils.get_node_group_label_as_int(
+                                context,
+                                ng,
+                                "boot_volume_size",
+                                CONF.cinder.default_boot_volume_size,
+                            ),
+                            "type": utils.get_node_group_label(
+                                context,
+                                ng,
+                                "boot_volume_type",
+                                cinder.get_default_boot_volume_type(context),
+                            ),
+                        },
+                    },
+                    {
+                        "name": "flavor",
+                        "value": ng.flavor_id,
+                    },
+                    {
+                        "name": "imageRepository",
+                        "value": utils.get_node_group_label(
+                            context,
+                            ng,
+                            "container_infra_prefix",
+                            "quay.io/vexxhost",
+                        ),
+                    },
+                    {
+                        "name": "imageUUID",
+                        "value": ng.image_id,
+                    },
+                ],
+            },
+        }
+        for ng in cluster.nodegroups
+        if ng.role != "master" and not ng.status.startswith("DELETE")
+    ]
+
+
 class Cluster(ClusterBase):
     def __init__(
         self,
@@ -1281,7 +1348,6 @@ class Cluster(ClusterBase):
         )
 
     def get_object(self) -> objects.Cluster:
-        auto_scaling_enabled = utils.get_auto_scaling_enabled(self.cluster)
         return objects.Cluster(
             self.api,
             {
@@ -1332,73 +1398,9 @@ class Cluster(ClusterBase):
                             },
                         },
                         "workers": {
-                            "machineDeployments": [
-                                {
-                                    "class": "default-worker",
-                                    "name": ng.name,
-                                    "replicas": None
-                                    if auto_scaling_enabled
-                                    else ng.node_count,
-                                    "metadata": {
-                                        "annotations": {
-                                            AUTOSCALE_ANNOTATION_MIN: f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
-                                            AUTOSCALE_ANNOTATION_MAX: f"{utils.get_node_group_max_node_count(self.context, ng)}",  # noqa: E501
-                                        }
-                                    }
-                                    if auto_scaling_enabled
-                                    else {},
-                                    "failureDomain": utils.get_cluster_label(
-                                        self.cluster, "availability_zone", ""
-                                    ),
-                                    "machineHealthCheck": {
-                                        "enable": utils.get_cluster_label_as_bool(
-                                            self.cluster, "auto_healing_enabled", True
-                                        )
-                                    },
-                                    "variables": {
-                                        "overrides": [
-                                            {
-                                                "name": "bootVolume",
-                                                "value": {
-                                                    "size": utils.get_node_group_label_as_int(
-                                                        self.context,
-                                                        ng,
-                                                        "boot_volume_size",
-                                                        CONF.cinder.default_boot_volume_size,
-                                                    ),
-                                                    "type": utils.get_node_group_label(
-                                                        self.context,
-                                                        ng,
-                                                        "boot_volume_type",
-                                                        cinder.get_default_boot_volume_type(
-                                                            self.context
-                                                        ),
-                                                    ),
-                                                },
-                                            },
-                                            {
-                                                "name": "flavor",
-                                                "value": ng.flavor_id,
-                                            },
-                                            {
-                                                "name": "imageRepository",
-                                                "value": utils.get_node_group_label(
-                                                    self.context,
-                                                    ng,
-                                                    "container_infra_prefix",
-                                                    "quay.io/vexxhost",
-                                                ),
-                                            },
-                                            {
-                                                "name": "imageUUID",
-                                                "value": ng.image_id,
-                                            },
-                                        ],
-                                    },
-                                }
-                                for ng in self.cluster.nodegroups
-                                if ng.role != "master"
-                            ]
+                            "machineDeployments": generate_machine_deployments_for_cluster(
+                                self.context, self.cluster
+                            ),
                         },
                         "variables": [
                             {
