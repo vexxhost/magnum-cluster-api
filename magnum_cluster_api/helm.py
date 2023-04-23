@@ -15,14 +15,16 @@
 import yaml
 from oslo_concurrency import processutils
 
+from magnum_cluster_api import exceptions
+
 
 class Command:
     def __call__(self, *args, **kwargs):
-        processutils.execute("helm", self.COMMAND, *args, **kwargs)
+        return processutils.execute("helm", *self.COMMAND, *args, **kwargs)
 
 
 class VersionCommand(Command):
-    COMMAND = "version"
+    COMMAND = ["version"]
 
 
 class ReleaseCommand(Command):
@@ -31,7 +33,7 @@ class ReleaseCommand(Command):
         self.release_name = release_name
 
     def __call__(self, *args, **kwargs):
-        super().__call__(
+        return super().__call__(
             "--namespace",
             self.namespace,
             self.release_name,
@@ -40,8 +42,27 @@ class ReleaseCommand(Command):
         )
 
 
+class GetValuesReleaseCommand(ReleaseCommand):
+    COMMAND = ["get", "values"]
+
+    def __call__(self):
+        try:
+            return super().__call__(
+                "--namespace",
+                self.namespace,
+                self.release_name,
+                "--output",
+                "yaml",
+            )
+        except processutils.ProcessExecutionError as e:
+            if "release: not found" in e.stderr:
+                raise exceptions.HelmReleaseNotFound(self.release_name)
+            else:
+                raise
+
+
 class UpgradeReleaseCommand(ReleaseCommand):
-    COMMAND = "upgrade"
+    COMMAND = ["upgrade"]
 
     def __init__(self, namespace, release_name, chart_ref, values={}):
         super().__init__(namespace, release_name)
@@ -49,7 +70,7 @@ class UpgradeReleaseCommand(ReleaseCommand):
         self.values = values
 
     def __call__(self):
-        super().__call__(
+        return super().__call__(
             self.chart_ref,
             "--install",
             "--wait",
@@ -60,7 +81,7 @@ class UpgradeReleaseCommand(ReleaseCommand):
 
 
 class DeleteReleaseCommand(ReleaseCommand):
-    COMMAND = "delete"
+    COMMAND = ["delete"]
 
     def __init__(self, namespace, release_name, skip_missing=False):
         super().__init__(namespace, release_name)
@@ -68,9 +89,12 @@ class DeleteReleaseCommand(ReleaseCommand):
 
     def __call__(self):
         try:
-            super().__call__()
+            return super().__call__()
         except processutils.ProcessExecutionError as e:
-            if self.skip_missing and "release: not found" in e.stderr:
-                pass
+            if "release: not found" in e.stderr:
+                if self.skip_missing:
+                    pass
+                else:
+                    raise exceptions.HelmReleaseNotFound(self.release_name)
             else:
                 raise
