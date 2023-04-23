@@ -16,7 +16,7 @@ import pytest
 import yaml
 from oslo_concurrency import processutils
 
-from magnum_cluster_api import helm
+from magnum_cluster_api import exceptions, helm
 
 
 def test_helm_upgrade(mocker):
@@ -77,7 +77,7 @@ def test_helm_delete_with_no_release(mocker):
 
     delete = helm.DeleteReleaseCommand(namespace, release_name)
 
-    with pytest.raises(processutils.ProcessExecutionError):
+    with pytest.raises(exceptions.HelmReleaseNotFound):
         delete()
 
     mock_execute.assert_called_once_with(
