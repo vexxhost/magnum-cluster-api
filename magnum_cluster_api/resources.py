@@ -228,6 +228,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                         f"storageclass-{vt.name}.yaml": yaml.dump(
                             {
                                 "apiVersion": objects.StorageClass.version,
+                                "allowVolumeExpansion": True,
                                 "kind": objects.StorageClass.kind,
                                 "metadata": {
                                     "annotations": {
