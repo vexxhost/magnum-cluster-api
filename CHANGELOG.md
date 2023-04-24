@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.4](https://github.com/vexxhost/magnum-cluster-api/compare/v0.5.3...v0.5.4) (2023-04-24)
+
+
+### Bug Fixes
+
+* remove deleted nodegroups ([66c650f](https://github.com/vexxhost/magnum-cluster-api/commit/66c650faf481058261e2befe917bfc1d289f8a39))
+* stop adding cluster name to node name ([0024683](https://github.com/vexxhost/magnum-cluster-api/commit/002468379a0ffd8cc20490477e46ac43bacb6478)), closes [#96](https://github.com/vexxhost/magnum-cluster-api/issues/96)
+* use api from arg ([386eead](https://github.com/vexxhost/magnum-cluster-api/commit/386eeadd6614cb30d108ba42fb3456da226d5f34))
+
 ## [0.5.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.5.2...v0.5.3) (2023-04-13)
 
 
