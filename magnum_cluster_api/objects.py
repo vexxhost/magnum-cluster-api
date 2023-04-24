@@ -12,7 +12,14 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import configparser
+import io
+
 import pykube
+import yaml
+from oslo_serialization import base64
+
+from magnum_cluster_api import exceptions
 
 
 class EndpointSlice(pykube.objects.NamespacedAPIObject):
@@ -74,6 +81,72 @@ class OpenStackCluster(pykube.objects.NamespacedAPIObject):
     endpoint = "openstackclusters"
     kind = "OpenStackCluster"
 
+    @property
+    def identity_ref(self):
+        return self.obj["spec"]["identityRef"]
+
+    @property
+    def identity_ref_secret(self) -> pykube.Secret:
+        return pykube.Secret.objects(self.api, namespace=self.namespace).get(
+            name=self.identity_ref["name"]
+        )
+
+    @property
+    def clouds_yaml(self):
+        return yaml.safe_load(
+            base64.decode_as_text(self.identity_ref_secret.obj["data"]["clouds.yaml"])
+        )
+
+    @property
+    def cloud_config(self):
+        return self.clouds_yaml["clouds"]["default"]
+
+    @property
+    def floating_network_id(self):
+        try:
+            return self.obj["status"]["externalNetwork"]["id"]
+        except KeyError:
+            raise exceptions.OpenStackClusterExternalNetworkNotReady()
+
+    @property
+    def network_id(self):
+        try:
+            return self.obj["status"]["network"]["id"]
+        except KeyError:
+            raise exceptions.OpenStackClusterNetworkNotReady()
+
+    @property
+    def subnet_id(self):
+        try:
+            return self.obj["status"]["network"]["subnet"]["id"]
+        except KeyError:
+            raise exceptions.OpenStackClusterSubnetNotReady()
+
+    @property
+    def cloud_controller_manager_config(self):
+        config = configparser.ConfigParser()
+        config["Global"] = {
+            "auth-url": self.cloud_config["auth"]["auth_url"],
+            "region": self.cloud_config["region_name"],
+            "application-credential-id": self.cloud_config["auth"][
+                "application_credential_id"
+            ],
+            "application-credential-secret": self.cloud_config["auth"][
+                "application_credential_secret"
+            ],
+            "tls-insecure": "false" if self.cloud_config["verify"] else "true",
+        }
+        config["LoadBalancer"] = {
+            "floating-network-id": self.floating_network_id,
+            "network-id": self.network_id,
+            "subnet-id": self.subnet_id,
+        }
+
+        fd = io.StringIO()
+        config.write(fd)
+
+        return fd.getvalue()
+
 
 class ClusterClass(pykube.objects.NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
@@ -85,6 +158,19 @@ class Cluster(pykube.objects.NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
     endpoint = "clusters"
     kind = "Cluster"
+
+    @property
+    def openstack_cluster(self):
+        filtered_clusters = (
+            OpenStackCluster.objects(self.api, namespace=self.namespace)
+            .filter(selector={"cluster.x-k8s.io/cluster-name": self.name})
+            .all()
+        )
+
+        if len(filtered_clusters) == 0:
+            raise exceptions.OpenStackClusterNotCreated()
+
+        return filtered_clusters[0]
 
 
 class StorageClass(pykube.objects.APIObject):

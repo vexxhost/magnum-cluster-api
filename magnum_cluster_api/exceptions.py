@@ -19,3 +19,27 @@ class HelmException(Exception):
 
 class HelmReleaseNotFound(HelmException):
     pass
+
+
+class OpenStackClusterException(Exception):
+    pass
+
+
+class OpenStackClusterNotCreated(OpenStackClusterException):
+    pass
+
+
+class OpenStackClusterNotReady(OpenStackClusterException):
+    pass
+
+
+class OpenStackClusterExternalNetworkNotReady(OpenStackClusterNotReady):
+    pass
+
+
+class OpenStackClusterNetworkNotReady(OpenStackClusterNotReady):
+    pass
+
+
+class OpenStackClusterSubnetNotReady(OpenStackClusterNotReady):
+    pass
