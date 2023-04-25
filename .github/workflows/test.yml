@@ -98,7 +98,7 @@ jobs:
           python-version: "3.10"
       - uses: isort/isort-action@master
 
-  pytest:
+  unit:
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
@@ -127,23 +127,14 @@ jobs:
           cache: poetry
           python-version: ${{ matrix.python-version }}
 
-      - name: Run tests
-        run: make test
+      - name: Run unit tests
+        run: make unit-tests
 
-  integration:
+  functional:
     runs-on: ubuntu-latest-16-cores
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
-
-      - name: Install Poetry
-        run: make poetry
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          cache: poetry
-          python-version: "3.10"
 
       - name: Clean-up node
         run: sudo apt-get purge -y postgresql* mysql-*
@@ -151,4 +142,13 @@ jobs:
       - name: Install Magnum with Cluster API
         run: ./hack/stack.sh
 
-      # TODO: run tests
+      - name: Upload test image
+        run: |
+          source /opt/stack/openrc
+          curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2004-v1.25.3.qcow2
+          openstack image create ubuntu-2004-v1.25.3 --disk-format=qcow2 --container-format=bare --property os_distro=ubuntu-focal --file=ubuntu-2004-v1.25.3.qcow2
+
+      - name: Run functional tests
+        run: |
+          source /opt/stack/openrc
+          make functional-tests

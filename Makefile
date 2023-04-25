@@ -16,5 +16,8 @@ build: vendor poetry
 install: build poetry
 	poetry install
 
-test: install poetry
-	poetry run pytest
+unit-tests: install poetry
+	poetry run pytest magnum_cluster_api/tests/unit/
+
+functional-tests: install poetry
+	poetry run pytest magnum_cluster_api/tests/functional/

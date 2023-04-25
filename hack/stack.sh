@@ -34,7 +34,7 @@ cat <<EOF > /opt/stack/local.conf
 GIT_BASE=https://github.com
 
 # Secrets
-DATABASE_PASSWORD=secrete123
+DATABASE_PASSWORD=root
 RABBIT_PASSWORD=secrete123
 SERVICE_PASSWORD=secrete123
 ADMIN_PASSWORD=secrete123
