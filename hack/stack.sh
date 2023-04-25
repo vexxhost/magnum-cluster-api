@@ -14,10 +14,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-# Install dependencies
-sudo apt-get update
-sudo apt-get install -y pwgen
-
 # Setup folders for DevStack
 sudo mkdir -p /opt/stack
 sudo chown -R ${USER}. /opt/stack
@@ -34,29 +30,41 @@ fi
 # Create DevStack configuration file
 cat <<EOF > /opt/stack/local.conf
 [[local|localrc]]
-KEYSTONE_ADMIN_ENDPOINT=true
+# General
+GIT_BASE=https://github.com
+
+# Secrets
 DATABASE_PASSWORD=secrete123
 RABBIT_PASSWORD=secrete123
 SERVICE_PASSWORD=secrete123
 ADMIN_PASSWORD=secrete123
-LIBVIRT_TYPE=kvm
-VOLUME_BACKING_FILE_SIZE=50G
+
+# Keystone
+KEYSTONE_ADMIN_ENDPOINT=true
+
+# Glance
 GLANCE_LIMIT_IMAGE_SIZE_TOTAL=10000
-enable_plugin barbican https://opendev.org/openstack/barbican
-enable_plugin heat https://opendev.org/openstack/heat
+
+# Cinder
+VOLUME_BACKING_FILE_SIZE=50G
+
+# Nova
+LIBVIRT_TYPE=kvm
+
+# Neutron
 enable_plugin neutron https://opendev.org/openstack/neutron
-enable_plugin magnum https://opendev.org/openstack/magnum
-enable_plugin magnum-ui https://opendev.org/openstack/magnum-ui
+FIXED_RANGE=10.1.0.0/20
+
+# Barbican
+enable_plugin barbican https://opendev.org/openstack/barbican
+
+# Octavia
 enable_plugin octavia https://opendev.org/openstack/octavia
-enable_service octavia
-enable_service o-cw
-enable_service o-api
-enable_service o-hk
-enable_service o-hm
-[[post-config|/etc/neutron/neutron.conf]]
-[DEFAULT]
-advertise_mtu = True
-global_physnet_mtu = 1400
+enable_plugin ovn-octavia-provider https://opendev.org/openstack/ovn-octavia-provider
+enable_service octavia o-api o-cw o-hm o-hk o-da
+
+# Magnum
+enable_plugin magnum https://opendev.org/openstack/magnum
 
 [[post-config|/etc/magnum/magnum.conf]]
 [cluster_template]
@@ -109,10 +117,6 @@ clusterctl init \
   --bootstrap kubeadm:v1.3.3 \
   --control-plane kubeadm:v1.3.3 \
   --infrastructure openstack:v0.7.1
-
-# Install Skopeo
-sudo curl -Lo /usr/local/bin/skopeo https://github.com/lework/skopeo-binary/releases/download/v1.10.0/skopeo-linux-amd64
-sudo chmod +x /usr/local/bin/skopeo
 
 # Vendor the chart
 make vendor
