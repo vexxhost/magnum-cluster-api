@@ -15,8 +15,11 @@
 import keystoneauth1
 from magnum import objects as magnum_objects
 from magnum.drivers.common import driver
+from oslo_log import log as logging
 
-from magnum_cluster_api import clients, monitor, objects, resources, utils
+from magnum_cluster_api import clients, exceptions, monitor, objects, resources, utils
+
+LOG = logging.getLogger(__name__)
 
 
 class BaseDriver(driver.Driver):
@@ -51,6 +54,33 @@ class BaseDriver(driver.Driver):
 
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
+    def _reconcile_api_address(
+        self, magnum_cluster: magnum_objects.Cluster, capi_cluster: objects.Cluster
+    ):
+        """
+        Reconcile the API address between Magnum and the Cluster API cluster.
+
+        :param magnum_cluster: The Magnum cluster object.
+        :param capi_cluster: The Cluster API cluster object.
+        """
+        if magnum_cluster.api_address != capi_cluster.api_address:
+            magnum_cluster.api_address = capi_cluster.api_address
+            magnum_cluster.save()
+
+    def _reconcile_coe_version(
+        self, magnum_cluster: magnum_objects.Cluster, capi_cluster: objects.Cluster
+    ):
+        """
+        Reconcile the container orchestration engine version between Magnum and
+        the Cluster API cluster.
+
+        :param magnum_cluster: The Magnum cluster object.
+        :param capi_cluster: The Cluster API cluster object.
+        """
+        if magnum_cluster.coe_version != capi_cluster.version:
+            magnum_cluster.coe_version = capi_cluster.version
+            magnum_cluster.save()
+
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
         node_groups = [
             self.update_nodegroup_status(context, cluster, node_group)
@@ -73,6 +103,14 @@ class BaseDriver(driver.Driver):
                 return
 
             capi_cluster.reload()
+
+            try:
+                self._reconcile_api_address(cluster, capi_cluster)
+                self._reconcile_coe_version(cluster, capi_cluster)
+            except exceptions.ClusterNotReady as exc:
+                LOG.debug("Cluster attribute not ready: %s", exc)
+                return
+
             status_map = {
                 c["type"]: c["status"] for c in capi_cluster.obj["status"]["conditions"]
             }
@@ -80,12 +118,6 @@ class BaseDriver(driver.Driver):
             for condition in ("ControlPlaneReady", "InfrastructureReady", "Ready"):
                 if status_map.get(condition) != "True":
                     return
-
-            api_endpoint = capi_cluster.obj["spec"]["controlPlaneEndpoint"]
-            cluster.api_address = (
-                f"https://{api_endpoint['host']}:{api_endpoint['port']}"
-            )
-            cluster.coe_version = capi_cluster.obj["spec"]["topology"]["version"]
 
             for ng in node_groups:
                 if not ng.status.endswith("_COMPLETE"):

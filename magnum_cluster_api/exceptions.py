@@ -21,7 +21,15 @@ class HelmReleaseNotFound(HelmException):
     pass
 
 
-class OpenStackClusterException(Exception):
+class ClusterException(Exception):
+    pass
+
+
+class ClusterNotReady(ClusterException):
+    pass
+
+
+class OpenStackClusterException(ClusterException):
     pass
 
 

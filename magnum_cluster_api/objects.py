@@ -160,6 +160,22 @@ class Cluster(pykube.objects.NamespacedAPIObject):
     kind = "Cluster"
 
     @property
+    def api_address(self) -> str:
+        endpoint = self.obj.get("spec", {}).get("controlPlaneEndpoint")
+        if endpoint:
+            return f"https://{endpoint['host']}:{endpoint['port']}"
+        raise exceptions.ClusterNotReady(
+            "The control plane API endpoint is not available yet"
+        )
+
+    @property
+    def version(self) -> str:
+        version = self.obj.get("spec", {}).get("topology", {}).get("version")
+        if version:
+            return version
+        raise exceptions.ClusterNotReady("The version attribute is not available yet")
+
+    @property
     def openstack_cluster(self):
         filtered_clusters = (
             OpenStackCluster.objects(self.api, namespace=self.namespace)
