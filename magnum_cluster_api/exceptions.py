@@ -21,7 +21,27 @@ class HelmReleaseNotFound(HelmException):
     pass
 
 
-class OpenStackClusterException(Exception):
+class ClusterException(Exception):
+    pass
+
+
+class ClusterNotReady(ClusterException):
+    pass
+
+
+class ClusterEndpointNotReady(ClusterNotReady):
+    message = "Cluster endpoint is not ready"
+
+
+class ClusterVersionNotReady(ClusterNotReady):
+    message = "Cluster version is not ready"
+
+
+class ClusterKubeConfigNotReady(ClusterNotReady):
+    message = "Cluster KUBECONFIG is not ready"
+
+
+class OpenStackClusterException(ClusterException):
     pass
 
 

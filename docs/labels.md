@@ -51,17 +51,6 @@
 
    Default value: `v3.24.2`
 
-## Container Storage Interface (CSI)
-
-### Cinder
-
-* `cinder_csi_plugin_tag`
-
-   The version of the Cinder CSI container image to use when bootstrapping the
-   cluster.
-
-   Default value: `v1.25.3`
-
 ## Kubernetes
 
 * `auto_healing_enabled`

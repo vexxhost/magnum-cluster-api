@@ -42,7 +42,6 @@ def test_helm_upgrade(mocker):
         release_name,
         chart_ref,
         "--install",
-        "--wait",
         "--values",
         "-",
         process_input=yaml.dump(values),

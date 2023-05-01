@@ -12,14 +12,17 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import configparser
-import io
+import tempfile
+from contextlib import contextmanager
 
 import pykube
 import yaml
 from oslo_serialization import base64
+from oslo_utils import strutils
 
-from magnum_cluster_api import exceptions
+from magnum_cluster_api import conf, exceptions, images
+
+CONF = conf.CONF
 
 
 class EndpointSlice(pykube.objects.NamespacedAPIObject):
@@ -122,31 +125,6 @@ class OpenStackCluster(pykube.objects.NamespacedAPIObject):
         except KeyError:
             raise exceptions.OpenStackClusterSubnetNotReady()
 
-    @property
-    def cloud_controller_manager_config(self):
-        config = configparser.ConfigParser()
-        config["Global"] = {
-            "auth-url": self.cloud_config["auth"]["auth_url"],
-            "region": self.cloud_config["region_name"],
-            "application-credential-id": self.cloud_config["auth"][
-                "application_credential_id"
-            ],
-            "application-credential-secret": self.cloud_config["auth"][
-                "application_credential_secret"
-            ],
-            "tls-insecure": "false" if self.cloud_config["verify"] else "true",
-        }
-        config["LoadBalancer"] = {
-            "floating-network-id": self.floating_network_id,
-            "network-id": self.network_id,
-            "subnet-id": self.subnet_id,
-        }
-
-        fd = io.StringIO()
-        config.write(fd)
-
-        return fd.getvalue()
-
 
 class ClusterClass(pykube.objects.NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
@@ -160,8 +138,51 @@ class Cluster(pykube.objects.NamespacedAPIObject):
     kind = "Cluster"
 
     @property
+    def api_address(self) -> str:
+        endpoint = self.obj.get("spec", {}).get("controlPlaneEndpoint")
+        if endpoint is None:
+            raise exceptions.ClusterEndpointNotReady()
+        return f"https://{endpoint['host']}:{endpoint['port']}"
+
+    @property
+    def conditions(self) -> dict:
+        return {
+            c["type"]: strutils.bool_from_string(c["status"])
+            for c in self.obj.get("status", {}).get("conditions", [])
+        }
+
+    @property
+    def kubernetes_version(self) -> str:
+        version = self.obj.get("spec", {}).get("topology", {}).get("version")
+        if version is None:
+            raise exceptions.ClusterVersionNotReady()
+        return version
+
+    @property
+    def kubeconfig_secret_name(self) -> str:
+        return f"{self.name}-kubeconfig"
+
+    @property
+    def kubeconfig(self) -> str:
+        secret = pykube.Secret.objects(self.api, namespace=self.namespace).get_or_none(
+            name=self.kubeconfig_secret_name
+        )
+        if secret is None:
+            raise exceptions.ClusterKubeConfigNotReady()
+        return base64.decode_as_text(secret.obj["data"]["value"])
+
+    @contextmanager
+    def config_file(self):
+        with tempfile.NamedTemporaryFile() as fd:
+            fd.write(self.kubeconfig.encode())
+            fd.flush()
+            fd.seek(0)
+
+            yield fd
+
+    @property
     def openstack_cluster(self):
-        filtered_clusters = (
+        filtered_clusters = list(
             OpenStackCluster.objects(self.api, namespace=self.namespace)
             .filter(selector={"cluster.x-k8s.io/cluster-name": self.name})
             .all()
@@ -171,6 +192,159 @@ class Cluster(pykube.objects.NamespacedAPIObject):
             raise exceptions.OpenStackClusterNotCreated()
 
         return filtered_clusters[0]
+
+    @property
+    def cluster_uuid(self):
+        return self.metadata["labels"]["cluster-uuid"]
+
+    @property
+    def cloud_controller_manager_values(self):
+        image = images.CloudControllerManagerImage(self.kubernetes_version)
+        cloud_config = self.openstack_cluster.cloud_config
+
+        return {
+            "image": {
+                "repository": image.repository,
+                "tag": image.tag,
+            },
+            "nodeSelector": {
+                "node-role.kubernetes.io/control-plane": "",
+            },
+            "tolerations": [
+                {
+                    "key": "node-role.kubernetes.io/control-plane",
+                    "effect": "NoSchedule",
+                },
+                {
+                    "key": "node.cloudprovider.kubernetes.io/uninitialized",
+                    "effect": "NoSchedule",
+                    "value": "true",
+                },
+            ],
+            "cloudConfig": {
+                "global": {
+                    "auth-url": cloud_config["auth"]["auth_url"],
+                    "region": cloud_config["region_name"],
+                    "application-credential-id": cloud_config["auth"][
+                        "application_credential_id"
+                    ],
+                    "application-credential-secret": cloud_config["auth"][
+                        "application_credential_secret"
+                    ],
+                    "tls-insecure": "false" if cloud_config["verify"] else "true",
+                },
+                "loadBalancer": {
+                    "floating-network-id": self.openstack_cluster.floating_network_id,
+                    "network-id": self.openstack_cluster.network_id,
+                    "subnet-id": self.openstack_cluster.subnet_id,
+                },
+            },
+            "extraVolumes": [
+                {
+                    "name": "ca-certs",
+                    "hostPath": {
+                        "path": "/etc/ssl/certs",
+                    },
+                },
+                {
+                    "name": "k8s-certs",
+                    "hostPath": {
+                        "path": "/etc/kubernetes/pki",
+                    },
+                },
+            ],
+            "extraVolumeMounts": [
+                {
+                    "name": "ca-certs",
+                    "mountPath": "/etc/ssl/certs",
+                    "readOnly": True,
+                },
+                {
+                    "name": "k8s-certs",
+                    "mountPath": "/etc/kubernetes/pki",
+                    "readOnly": True,
+                },
+            ],
+            "cluster": {
+                "name": self.cluster_uuid,
+            },
+        }
+
+    @property
+    def cinder_csi_values(self):
+        attacher_image = images.Image(CONF.csi.attacher_image)
+        provisioner_image = images.Image(CONF.csi.provisioner_image)
+        snapshotter_image = images.Image(CONF.csi.snapshotter_image)
+        resizer_image = images.Image(CONF.csi.resizer_image)
+        liveness_probe_image = images.Image(CONF.csi.liveness_probe_image)
+        node_driver_registrar_image = images.Image(CONF.csi.node_driver_registrar_image)
+        cinder_csi_plugin_image = images.CinderCSIPluginImage(self.kubernetes_version)
+
+        return {
+            "csi": {
+                "attacher": {
+                    "image": {
+                        "repository": attacher_image.repository,
+                        "tag": attacher_image.tag,
+                    }
+                },
+                "provisioner": {
+                    "image": {
+                        "repository": provisioner_image.repository,
+                        "tag": provisioner_image.tag,
+                    }
+                },
+                "snapshotter": {
+                    "image": {
+                        "repository": snapshotter_image.repository,
+                        "tag": snapshotter_image.tag,
+                    }
+                },
+                "resizer": {
+                    "image": {
+                        "repository": resizer_image.repository,
+                        "tag": resizer_image.tag,
+                    }
+                },
+                "livenessprobe": {
+                    "image": {
+                        "repository": liveness_probe_image.repository,
+                        "tag": liveness_probe_image.tag,
+                    }
+                },
+                "nodeDriverRegistrar": {
+                    "image": {
+                        "repository": node_driver_registrar_image.repository,
+                        "tag": node_driver_registrar_image.tag,
+                    }
+                },
+                "plugin": {
+                    "image": {
+                        "repository": cinder_csi_plugin_image.repository,
+                        "tag": cinder_csi_plugin_image.tag,
+                    },
+                    "controllerPlugin": {
+                        "nodeSelector": {
+                            "node-role.kubernetes.io/control-plane": "",
+                        },
+                        "tolerations": [
+                            {
+                                "key": "node-role.kubernetes.io/control-plane",
+                                "effect": "NoSchedule",
+                            },
+                        ],
+                    },
+                },
+            },
+            "secret": {
+                "enabled": True,
+                "name": "cloud-config",
+            },
+            "storageClass": {
+                "enabled": False,
+            },
+            "clusterID": self.cluster_uuid,
+        }
 
 
 class StorageClass(pykube.objects.APIObject):

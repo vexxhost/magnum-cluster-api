@@ -27,8 +27,6 @@ from magnum_cluster_api import image_utils
     "glob_path",
     [
         "calico/*.yaml",
-        "ccm/*.yaml",
-        "csi/*.yaml",
     ],
 )
 def test_update_manifest_images(glob_path):
