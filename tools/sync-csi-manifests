@@ -14,7 +14,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-# This script is used to sync the CCM manifests from the CCM repo to the
+# This script is used to sync the CSI manifests from the CSI repo to the
 # manifests folder.
 
 import requests

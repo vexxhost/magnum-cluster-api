@@ -12,7 +12,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import configparser
 import textwrap
 
 import pytest
@@ -118,28 +117,3 @@ class TestOpenStackCluster:
         del mock_openstack_cluster.obj["status"]["network"]["subnet"]["id"]
         with pytest.raises(exceptions.OpenStackClusterSubnetNotReady):
             mock_openstack_cluster.subnet_id
-
-    def test_cloud_controller_manager_config(self, mock_openstack_cluster):
-        config = configparser.ConfigParser()
-        config.read_string(mock_openstack_cluster.cloud_controller_manager_config)
-
-        assert {s: dict(config.items(s)) for s in config.sections()} == {
-            "Global": {
-                "auth-url": mock_openstack_cluster.cloud_config["auth"]["auth_url"],
-                "region": mock_openstack_cluster.cloud_config["region_name"],
-                "application-credential-id": mock_openstack_cluster.cloud_config[
-                    "auth"
-                ]["application_credential_id"],
-                "application-credential-secret": mock_openstack_cluster.cloud_config[
-                    "auth"
-                ]["application_credential_secret"],
-                "tls-insecure": "false"
-                if mock_openstack_cluster.cloud_config["verify"]
-                else "true",
-            },
-            "LoadBalancer": {
-                "floating-network-id": mock_openstack_cluster.floating_network_id,
-                "network-id": mock_openstack_cluster.network_id,
-                "subnet-id": mock_openstack_cluster.subnet_id,
-            },
-        }

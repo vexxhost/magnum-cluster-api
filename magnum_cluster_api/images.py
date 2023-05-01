@@ -21,6 +21,19 @@ CONF = conf.CONF
 PAUSE = "registry.k8s.io/pause:3.9"
 
 
+def get_cloud_controller_manager_image(version: str):
+    version = semver.VersionInfo.parse(version[1:])
+    config_option = f"v{version.major}_{version.minor}_image"
+
+    if hasattr(CONF.cloud_controller_manager, config_option):
+        return getattr(CONF.cloud_controller_manager, config_option)
+
+    raise ValueError(
+        f"Unsupported Kubernetes version: {version}. "
+        "Please specify a supported version in the cluster template."
+    )
+
+
 def get_cluster_autoscaler_image(version: str):
     version = semver.VersionInfo.parse(version[1:])
     config_option = f"v{version.major}_{version.minor}_image"

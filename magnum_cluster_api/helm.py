@@ -12,6 +12,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import os
+
 import yaml
 from oslo_concurrency import processutils
 
@@ -19,7 +21,13 @@ from magnum_cluster_api import exceptions
 
 
 class Command:
+    def __init__(self, kubeconfig):
+        self.kubeconfig = kubeconfig
+
     def __call__(self, *args, **kwargs):
+        if self.kubeconfig:
+            kwargs["env_variables"] = os.environ.copy()
+            kwargs["env_variables"]["KUBECONFIG"] = self.kubeconfig
         return processutils.execute("helm", *self.COMMAND, *args, **kwargs)
 
 
@@ -28,7 +36,8 @@ class VersionCommand(Command):
 
 
 class ReleaseCommand(Command):
-    def __init__(self, namespace, release_name):
+    def __init__(self, namespace, release_name, kubeconfig=None):
+        super().__init__(kubeconfig)
         self.namespace = namespace
         self.release_name = release_name
 
@@ -47,10 +56,7 @@ class GetValuesReleaseCommand(ReleaseCommand):
 
     def __call__(self):
         try:
-            return super().__call__(
-                "--namespace",
-                self.namespace,
-                self.release_name,
+            stdout, _ = super().__call__(
                 "--output",
                 "yaml",
             )
@@ -60,12 +66,14 @@ class GetValuesReleaseCommand(ReleaseCommand):
             else:
                 raise
 
+        return yaml.safe_load(stdout)
+
 
 class UpgradeReleaseCommand(ReleaseCommand):
     COMMAND = ["upgrade"]
 
-    def __init__(self, namespace, release_name, chart_ref, values={}):
-        super().__init__(namespace, release_name)
+    def __init__(self, namespace, release_name, chart_ref, values={}, kubeconfig=None):
+        super().__init__(namespace, release_name, kubeconfig=kubeconfig)
         self.chart_ref = chart_ref
         self.values = values
 

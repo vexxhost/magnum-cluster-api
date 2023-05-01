@@ -34,15 +34,6 @@ def update_manifest_images(cluster_uuid: str, file, repository=None, replacement
                 if repository:
                     container["image"] = get_image(container["image"], repository)
 
-        # Fix CCM cluster-name
-        if (
-            doc["kind"] == "DaemonSet"
-            and doc["metadata"]["name"] == "openstack-cloud-controller-manager"
-        ):
-            for env in doc["spec"]["template"]["spec"]["containers"][0]["env"]:
-                if env["name"] == "CLUSTER_NAME":
-                    env["value"] = cluster_uuid
-
         docs.append(doc)
 
     return yaml.safe_dump_all(docs, default_flow_style=False)

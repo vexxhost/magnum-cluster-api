@@ -18,10 +18,8 @@ import textwrap
 
 import pykube
 import shortuuid
-import yaml
 from magnum import objects as magnum_objects
 from magnum.common import context, exception, octavia
-from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
 
@@ -62,32 +60,6 @@ def cluster_exists(api: pykube.HTTPClient, name: str) -> bool:
         return True
     except pykube.exceptions.ObjectDoesNotExist:
         return False
-
-
-def generate_cloud_controller_manager_config(
-    api: pykube.HTTPClient,
-    cluster: magnum_objects.Cluster,
-) -> str:
-    """
-    Generate coniguration for openstack-cloud-controller-manager if it does
-    already exist.
-    """
-    data = pykube.Secret.objects(api, namespace="magnum-system").get_by_name(
-        get_or_generate_cluster_api_cloud_config_secret_name(api, cluster)
-    )
-    clouds_yaml = base64.decode_as_text(data.obj["data"]["clouds.yaml"])
-    cloud_config = yaml.safe_load(clouds_yaml)
-
-    return textwrap.dedent(
-        f"""\
-        [Global]
-        auth-url={cloud_config["clouds"]["default"]["auth"]["auth_url"]}
-        region={cloud_config["clouds"]["default"]["region_name"]}
-        application-credential-id={cloud_config["clouds"]["default"]["auth"]["application_credential_id"]}
-        application-credential-secret={cloud_config["clouds"]["default"]["auth"]["application_credential_secret"]}
-        tls-insecure={"false" if cloud_config["clouds"]["default"]["verify"] else "true"}
-        """
-    )
 
 
 def get_kube_tag(cluster: magnum_objects.Cluster) -> str:

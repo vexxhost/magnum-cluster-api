@@ -115,4 +115,5 @@ class ProxiedCluster:
 
     @property
     def kubeconfig_secret_name(self) -> str:
+        # TODO(mnaser): Refactor to using `objects.Cluster.kubeconfig_secret_name`
         return f"{self.name}-kubeconfig"

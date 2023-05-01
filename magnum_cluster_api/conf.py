@@ -47,5 +47,44 @@ auto_scaling_opts = [
     ),
 ]
 
+cloud_controller_manager_opts = [
+    cfg.StrOpt(
+        "legacy_image_repository",
+        default="docker.io/k8scloudprovider",
+        help="Legacy image repository for the OpenStack cloud controller manager.",
+    ),
+    cfg.StrOpt(
+        "v1_22_image",
+        default="$legacy_image_repository/openstack-cloud-controller-manager:v1.22.2",
+        help="Image for the OpenStack cloud controller manager for Kubernetes v1.22.",
+    ),
+    cfg.StrOpt(
+        "v1_23_image",
+        default="$legacy_image_repository/openstack-cloud-controller-manager:v1.23.4",
+        help="Image for the OpenStack cloud controller manager for Kubernetes v1.23.",
+    ),
+    cfg.StrOpt(
+        "image_repository",
+        default="registry.k8s.io/provider-os",
+        help="Image repository for the OpenStack cloud controller manager.",
+    ),
+    cfg.StrOpt(
+        "v1_24_image",
+        default="$image_repository/openstack-cloud-controller-manager:v1.24.6",
+        help="Image for the OpenStack cloud controller manager for Kubernetes v1.24.",
+    ),
+    cfg.StrOpt(
+        "v1_25_image",
+        default="$image_repository/openstack-cloud-controller-manager:v1.25.5",
+        help="Image for the OpenStack cloud controller manager for Kubernetes v1.25.",
+    ),
+    cfg.StrOpt(
+        "v1_26_image",
+        default="$image_repository/openstack-cloud-controller-manager:v1.26.2",
+        help="Image for the OpenStack cloud controller manager for Kubernetes v1.26.",
+    ),
+]
+
 CONF = cfg.CONF
 CONF.register_opts(auto_scaling_opts, "auto_scaling")
+CONF.register_opts(cloud_controller_manager_opts, "cloud_controller_manager")

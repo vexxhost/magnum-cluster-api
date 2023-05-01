@@ -12,12 +12,23 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import os
+
 import keystoneauth1
+import pkg_resources
 from magnum import objects as magnum_objects
 from magnum.drivers.common import driver
 from oslo_log import log as logging
 
-from magnum_cluster_api import clients, exceptions, monitor, objects, resources, utils
+from magnum_cluster_api import (
+    clients,
+    exceptions,
+    helm,
+    monitor,
+    objects,
+    resources,
+    utils,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -77,9 +88,66 @@ class BaseDriver(driver.Driver):
         :param magnum_cluster: The Magnum cluster object.
         :param capi_cluster: The Cluster API cluster object.
         """
-        if magnum_cluster.coe_version != capi_cluster.version:
-            magnum_cluster.coe_version = capi_cluster.version
+        if magnum_cluster.coe_version != capi_cluster.kubernetes_version:
+            magnum_cluster.coe_version = capi_cluster.kubernetes_version
             magnum_cluster.save()
+
+    def _reconcile_helm_chart(
+        self,
+        capi_cluster: objects.Cluster,
+        release_name: str,
+        chart_ref: str,
+        values: dict,
+    ):
+        """
+        This is a helper function to allow us to reconcile a Helm chart onto
+        the workload cluster.
+
+        :param capi_cluster: The Cluster API cluster object.
+        :param release_name: The name of the Helm release.
+        :param chart_ref: The chart reference to use.
+        :param values: The values to reconcile.
+        """
+        with capi_cluster.config_file() as kubeconfig_file:
+            try:
+                get_values = helm.GetValuesReleaseCommand(
+                    kubeconfig=kubeconfig_file.name,
+                    namespace="kube-system",
+                    release_name=release_name,
+                )
+                cluster_values = get_values()
+            except exceptions.HelmReleaseNotFound:
+                cluster_values = {}
+
+            generated_values = values
+            if cluster_values != generated_values:
+                LOG.info("Updating cloud-controller-manager Helm chart")
+                upgrade = helm.UpgradeReleaseCommand(
+                    kubeconfig=kubeconfig_file.name,
+                    namespace="kube-system",
+                    release_name=release_name,
+                    chart_ref=chart_ref,
+                    values=generated_values,
+                )
+                upgrade()
+
+    def _reconcile_cloud_controller_manager(self, capi_cluster: objects.Cluster):
+        """
+        Reconcile the OpenStack Cloud Controller Manager Helm chart into the
+        workload cluster.
+
+        :param capi_cluster: The Cluster API cluster object.
+        """
+        self._reconcile_helm_chart(
+            capi_cluster,
+            release_name="cloud-controller-manager",
+            # TODO: vendor!!
+            chart_ref=os.path.join(
+                pkg_resources.resource_filename("magnum_cluster_api", "charts"),
+                "openstack-cloud-controller-manager/",
+            ),
+            values=capi_cluster.cloud_controller_manager_values,
+        )
 
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
         node_groups = [
@@ -107,16 +175,13 @@ class BaseDriver(driver.Driver):
             try:
                 self._reconcile_api_address(cluster, capi_cluster)
                 self._reconcile_coe_version(cluster, capi_cluster)
+                self._reconcile_cloud_controller_manager(capi_cluster)
             except exceptions.ClusterNotReady as exc:
                 LOG.debug("Cluster attribute not ready: %s", exc)
                 return
 
-            status_map = {
-                c["type"]: c["status"] for c in capi_cluster.obj["status"]["conditions"]
-            }
-
             for condition in ("ControlPlaneReady", "InfrastructureReady", "Ready"):
-                if status_map.get(condition) != "True":
+                if capi_cluster.conditions[condition] is not True:
                     return
 
             for ng in node_groups:
