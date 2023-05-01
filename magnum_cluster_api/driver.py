@@ -141,12 +141,28 @@ class BaseDriver(driver.Driver):
         self._reconcile_helm_chart(
             capi_cluster,
             release_name="cloud-controller-manager",
-            # TODO: vendor!!
             chart_ref=os.path.join(
                 pkg_resources.resource_filename("magnum_cluster_api", "charts"),
                 "openstack-cloud-controller-manager/",
             ),
             values=capi_cluster.cloud_controller_manager_values,
+        )
+
+    def _reconcile_cinder_csi(self, capi_cluster: objects.Cluster):
+        """
+        Reconcile the Cinder CSI Helm chart into the workload cluster.
+
+        :param capi_cluster: The Cluster API cluster object.
+        """
+        # TODO: detect if Cinder is enabled
+        self._reconcile_helm_chart(
+            capi_cluster,
+            release_name="openstack-cinder-csi",
+            chart_ref=os.path.join(
+                pkg_resources.resource_filename("magnum_cluster_api", "charts"),
+                "openstack-cinder-csi/",
+            ),
+            values=capi_cluster.cinder_csi_values,
         )
 
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
@@ -176,6 +192,7 @@ class BaseDriver(driver.Driver):
                 self._reconcile_api_address(cluster, capi_cluster)
                 self._reconcile_coe_version(cluster, capi_cluster)
                 self._reconcile_cloud_controller_manager(capi_cluster)
+                self._reconcile_cinder_csi(capi_cluster)
             except exceptions.ClusterNotReady as exc:
                 LOG.debug("Cluster attribute not ready: %s", exc)
                 return
@@ -190,8 +207,8 @@ class BaseDriver(driver.Driver):
                 if ng.status == "DELETE_COMPLETE":
                     ng.destroy()
 
-            if cluster.status == "CREATE_IN_PROGRESS":
-                cluster.status = "CREATE_COMPLETE"
+            # if cluster.status == "CREATE_IN_PROGRESS":
+            #     cluster.status = "CREATE_COMPLETE"
             if cluster.status == "UPDATE_IN_PROGRESS":
                 cluster.status = "UPDATE_COMPLETE"
 

@@ -20,7 +20,9 @@ import yaml
 from oslo_serialization import base64
 from oslo_utils import strutils
 
-from magnum_cluster_api import exceptions, images
+from magnum_cluster_api import conf, exceptions, images
+
+CONF = conf.CONF
 
 
 class EndpointSlice(pykube.objects.NamespacedAPIObject):
@@ -264,6 +266,99 @@ class Cluster(pykube.objects.NamespacedAPIObject):
             "cluster": {
                 "name": self.metadata["labels"]["cluster-uuid"],
             },
+        }
+
+    @property
+    def cinder_csi_values(self):
+        attacher_image_repository, attacher_image_tag = CONF.csi.attacher_image.split(
+            ":"
+        )
+        (
+            provisioner_image_repository,
+            provisioner_image_tag,
+        ) = CONF.csi.provisioner_image.split(":")
+        (
+            snapshotter_image_repository,
+            snapshotter_image_tag,
+        ) = CONF.csi.snapshotter_image.split(":")
+        resizer_image_repository, resizer_image_tag = CONF.csi.resizer_image.split(":")
+        (
+            liveness_probe_image_repository,
+            liveness_probe_image_tag,
+        ) = CONF.csi.liveness_probe_image.split(":")
+        (
+            node_driver_registrar_image_repository,
+            node_driver_registrar_image_tag,
+        ) = CONF.csi.node_driver_registrar_image.split(":")
+        (
+            cinder_csi_plugin_image_repository,
+            cinder_csi_plugin_image_tag,
+        ) = images.get_cinder_csi_plugin_image(self.kubernetes_version).split(":")
+
+        return {
+            "csi": {
+                "attacher": {
+                    "image": {
+                        "repository": attacher_image_repository,
+                        "tag": attacher_image_tag,
+                    }
+                },
+                "provisioner": {
+                    "image": {
+                        "repository": provisioner_image_repository,
+                        "tag": provisioner_image_tag,
+                    }
+                },
+                "snapshotter": {
+                    "image": {
+                        "repository": snapshotter_image_repository,
+                        "tag": snapshotter_image_tag,
+                    }
+                },
+                "resizer": {
+                    "image": {
+                        "repository": resizer_image_repository,
+                        "tag": resizer_image_tag,
+                    }
+                },
+                "livenessprobe": {
+                    "image": {
+                        "repository": liveness_probe_image_repository,
+                        "tag": liveness_probe_image_tag,
+                    }
+                },
+                "nodeDriverRegistrar": {
+                    "image": {
+                        "repository": node_driver_registrar_image_repository,
+                        "tag": node_driver_registrar_image_tag,
+                    }
+                },
+                "plugin": {
+                    "image": {
+                        "repository": cinder_csi_plugin_image_repository,
+                        "tag": cinder_csi_plugin_image_tag,
+                    },
+                    "controllerPlugin": {
+                        "nodeSelector": {
+                            "node-role.kubernetes.io/control-plane": "",
+                        },
+                        "tolerations": [
+                            {
+                                "key": "node-role.kubernetes.io/control-plane",
+                                "effect": "NoSchedule",
+                            },
+                        ],
+                    },
+                },
+            },
+            "secret": {
+                "enabled": True,
+                "name": "cloud-config",
+            },
+            "storageClass": {
+                "enabled": False,
+            },
+            "clusterID": self.metadata["labels"]["cluster-uuid"],
         }
 
 

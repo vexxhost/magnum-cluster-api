@@ -50,12 +50,6 @@ def get_image(name: str, repository: str = None):
     new_image_name = name
     if name.startswith("docker.io/calico"):
         new_image_name = name.replace("docker.io/calico/", f"{repository}/calico-")
-    if name.startswith("docker.io/k8scloudprovider"):
-        new_image_name = name.replace("docker.io/k8scloudprovider", repository)
-    if name.startswith("registry.k8s.io/sig-storage"):
-        new_image_name = name.replace("registry.k8s.io/sig-storage", repository)
-    if new_image_name.startswith(f"{repository}/livenessprobe"):
-        return new_image_name.replace("livenessprobe", "csi-livenessprobe")
     if new_image_name.startswith("registry.k8s.io/coredns"):
         return new_image_name.replace("registry.k8s.io/coredns", repository)
     if new_image_name.startswith("registry.k8s.io/autoscaling"):

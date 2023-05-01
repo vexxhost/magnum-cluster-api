@@ -28,7 +28,13 @@ class Command:
         if self.kubeconfig:
             kwargs["env_variables"] = os.environ.copy()
             kwargs["env_variables"]["KUBECONFIG"] = self.kubeconfig
-        return processutils.execute("helm", *self.COMMAND, *args, **kwargs)
+        try:
+            return processutils.execute("helm", *self.COMMAND, *args, **kwargs)
+        except processutils.ProcessExecutionError as e:
+            if "Kubernetes cluster unreachable" in e.stderr:
+                raise exceptions.ClusterNotReady()
+            else:
+                raise
 
 
 class VersionCommand(Command):
@@ -81,7 +87,6 @@ class UpgradeReleaseCommand(ReleaseCommand):
         return super().__call__(
             self.chart_ref,
             "--install",
-            "--wait",
             "--values",
             "-",
             process_input=yaml.dump(self.values),

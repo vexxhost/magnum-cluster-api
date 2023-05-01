@@ -12,7 +12,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import glob
 import json
 import os
 import textwrap
@@ -35,7 +34,6 @@ from magnum_cluster_api import clients, helm, image_utils, images, objects, util
 CONF = cfg.CONF
 CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
-CSI_TAG = "v1.25.3"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
@@ -160,10 +158,6 @@ class ClusterResourcesConfigMap(ClusterBase):
             "magnum_cluster_api", "manifests"
         )
         calico_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
-        csi_version = utils.get_cluster_label(
-            self.cluster, "cinder_csi_plugin_tag", CSI_TAG
-        )
-
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
 
         osc = clients.get_openstack_api(self.context)
@@ -180,22 +174,6 @@ class ClusterResourcesConfigMap(ClusterBase):
                     "namespace": "magnum-system",
                 },
                 "data": {
-                    **{
-                        os.path.basename(manifest): image_utils.update_manifest_images(
-                            self.cluster.uuid,
-                            manifest,
-                            repository=repository,
-                            replacements=[
-                                (
-                                    "docker.io/k8scloudprovider/cinder-csi-plugin:latest",
-                                    f"docker.io/k8scloudprovider/cinder-csi-plugin:{csi_version}",
-                                ),
-                            ],
-                        )
-                        for manifest in glob.glob(
-                            os.path.join(manifests_path, "csi/*.yaml")
-                        )
-                    },
                     **{
                         "calico.yml": image_utils.update_manifest_images(
                             self.cluster.uuid,
@@ -1281,13 +1259,6 @@ class Cluster(ClusterBase):
         labels = {
             "cni": f"calico-{cni_version}",
         }
-
-        if utils.get_cluster_label_as_bool(self.cluster, "cinder_csi_enabled", True):
-            csi_version = utils.get_cluster_label(
-                self.cluster, "cinder_csi_plugin_tag", CSI_TAG
-            )
-            labels["csi"] = "cinder"
-            labels["cinder-csi-version"] = csi_version
 
         return {**super().labels, **labels}
 

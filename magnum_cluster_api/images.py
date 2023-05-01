@@ -34,6 +34,19 @@ def get_cloud_controller_manager_image(version: str):
     )
 
 
+def get_cinder_csi_plugin_image(version: str):
+    version = semver.VersionInfo.parse(version[1:])
+    config_option = f"v{version.major}_{version.minor}_image"
+
+    if hasattr(CONF.cinder_csi, config_option):
+        return getattr(CONF.cinder_csi, config_option)
+
+    raise ValueError(
+        f"Unsupported Kubernetes version: {version}. "
+        "Please specify a supported version in the cluster template."
+    )
+
+
 def get_cluster_autoscaler_image(version: str):
     version = semver.VersionInfo.parse(version[1:])
     config_option = f"v{version.major}_{version.minor}_image"
