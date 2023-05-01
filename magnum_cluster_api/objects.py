@@ -194,16 +194,18 @@ class Cluster(pykube.objects.NamespacedAPIObject):
         return filtered_clusters[0]
 
     @property
+    def cluster_uuid(self):
+        return self.metadata["labels"]["cluster-uuid"]
+
+    @property
     def cloud_controller_manager_values(self):
-        image_repository, image_tag = images.get_cloud_controller_manager_image(
-            self.kubernetes_version
-        ).split(":")
+        image = images.CloudControllerManagerImage(self.kubernetes_version)
         cloud_config = self.openstack_cluster.cloud_config
 
         return {
             "image": {
-                "repository": image_repository,
-                "tag": image_tag,
+                "repository": image.repository,
+                "tag": image.tag,
             },
             "nodeSelector": {
                 "node-role.kubernetes.io/control-plane": "",
@@ -264,79 +266,62 @@ class Cluster(pykube.objects.NamespacedAPIObject):
                 },
             ],
             "cluster": {
-                "name": self.metadata["labels"]["cluster-uuid"],
+                "name": self.cluster_uuid,
             },
         }
 
     @property
     def cinder_csi_values(self):
-        attacher_image_repository, attacher_image_tag = CONF.csi.attacher_image.split(
-            ":"
-        )
-        (
-            provisioner_image_repository,
-            provisioner_image_tag,
-        ) = CONF.csi.provisioner_image.split(":")
-        (
-            snapshotter_image_repository,
-            snapshotter_image_tag,
-        ) = CONF.csi.snapshotter_image.split(":")
-        resizer_image_repository, resizer_image_tag = CONF.csi.resizer_image.split(":")
-        (
-            liveness_probe_image_repository,
-            liveness_probe_image_tag,
-        ) = CONF.csi.liveness_probe_image.split(":")
-        (
-            node_driver_registrar_image_repository,
-            node_driver_registrar_image_tag,
-        ) = CONF.csi.node_driver_registrar_image.split(":")
-        (
-            cinder_csi_plugin_image_repository,
-            cinder_csi_plugin_image_tag,
-        ) = images.get_cinder_csi_plugin_image(self.kubernetes_version).split(":")
+        attacher_image = images.Image(CONF.csi.attacher_image)
+        provisioner_image = images.Image(CONF.csi.provisioner_image)
+        snapshotter_image = images.Image(CONF.csi.snapshotter_image)
+        resizer_image = images.Image(CONF.csi.resizer_image)
+        liveness_probe_image = images.Image(CONF.csi.liveness_probe_image)
+        node_driver_registrar_image = images.Image(CONF.csi.node_driver_registrar_image)
+        cinder_csi_plugin_image = images.CinderCSIPluginImage(self.kubernetes_version)
 
         return {
             "csi": {
                 "attacher": {
                     "image": {
-                        "repository": attacher_image_repository,
-                        "tag": attacher_image_tag,
+                        "repository": attacher_image.repository,
+                        "tag": attacher_image.tag,
                     }
                 },
                 "provisioner": {
                     "image": {
-                        "repository": provisioner_image_repository,
-                        "tag": provisioner_image_tag,
+                        "repository": provisioner_image.repository,
+                        "tag": provisioner_image.tag,
                     }
                 },
                 "snapshotter": {
                     "image": {
-                        "repository": snapshotter_image_repository,
-                        "tag": snapshotter_image_tag,
+                        "repository": snapshotter_image.repository,
+                        "tag": snapshotter_image.tag,
                     }
                 },
                 "resizer": {
                     "image": {
-                        "repository": resizer_image_repository,
-                        "tag": resizer_image_tag,
+                        "repository": resizer_image.repository,
+                        "tag": resizer_image.tag,
                     }
                 },
                 "livenessprobe": {
                     "image": {
-                        "repository": liveness_probe_image_repository,
-                        "tag": liveness_probe_image_tag,
+                        "repository": liveness_probe_image.repository,
+                        "tag": liveness_probe_image.tag,
                     }
                 },
                 "nodeDriverRegistrar": {
                     "image": {
-                        "repository": node_driver_registrar_image_repository,
-                        "tag": node_driver_registrar_image_tag,
+                        "repository": node_driver_registrar_image.repository,
+                        "tag": node_driver_registrar_image.tag,
                     }
                 },
                 "plugin": {
                     "image": {
-                        "repository": cinder_csi_plugin_image_repository,
-                        "tag": cinder_csi_plugin_image_tag,
+                        "repository": cinder_csi_plugin_image.repository,
+                        "tag": cinder_csi_plugin_image.tag,
                     },
                     "controllerPlugin": {
                         "nodeSelector": {
@@ -358,7 +343,7 @@ class Cluster(pykube.objects.NamespacedAPIObject):
             "storageClass": {
                 "enabled": False,
             },
-            "clusterID": self.metadata["labels"]["cluster-uuid"],
+            "clusterID": self.cluster_uuid,
         }
 
 

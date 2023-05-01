@@ -207,8 +207,8 @@ class BaseDriver(driver.Driver):
                 if ng.status == "DELETE_COMPLETE":
                     ng.destroy()
 
-            # if cluster.status == "CREATE_IN_PROGRESS":
-            #     cluster.status = "CREATE_COMPLETE"
+            if cluster.status == "CREATE_IN_PROGRESS":
+                cluster.status = "CREATE_COMPLETE"
             if cluster.status == "UPDATE_IN_PROGRESS":
                 cluster.status = "UPDATE_COMPLETE"
 

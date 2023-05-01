@@ -21,32 +21,6 @@ CONF = conf.CONF
 PAUSE = "registry.k8s.io/pause:3.9"
 
 
-def get_cloud_controller_manager_image(version: str):
-    version = semver.VersionInfo.parse(version[1:])
-    config_option = f"v{version.major}_{version.minor}_image"
-
-    if hasattr(CONF.cloud_controller_manager, config_option):
-        return getattr(CONF.cloud_controller_manager, config_option)
-
-    raise ValueError(
-        f"Unsupported Kubernetes version: {version}. "
-        "Please specify a supported version in the cluster template."
-    )
-
-
-def get_cinder_csi_plugin_image(version: str):
-    version = semver.VersionInfo.parse(version[1:])
-    config_option = f"v{version.major}_{version.minor}_image"
-
-    if hasattr(CONF.cinder_csi, config_option):
-        return getattr(CONF.cinder_csi, config_option)
-
-    raise ValueError(
-        f"Unsupported Kubernetes version: {version}. "
-        "Please specify a supported version in the cluster template."
-    )
-
-
 def get_cluster_autoscaler_image(version: str):
     version = semver.VersionInfo.parse(version[1:])
     config_option = f"v{version.major}_{version.minor}_image"
@@ -58,3 +32,79 @@ def get_cluster_autoscaler_image(version: str):
         f"Unsupported Kubernetes version: {version}. "
         "Please specify a supported version in the cluster template."
     )
+
+
+class Image:
+    def __init__(self, name: str, prefix: str = None):
+        self._name = name
+        self._prefix = prefix
+
+    @property
+    def original_name(self):
+        return self._name
+
+    @property
+    def name(self):
+        if self._prefix is None:
+            return self.original_name
+
+        if hasattr(self, "PREFIX_REPLACEMENTS"):
+            for r in self.PREFIX_REPLACEMENTS:
+                if self.original_name.startswith(r):
+                    return self.original_name.replace(r, self._prefix)
+
+        if self.original_name.startswith("docker.io/calico"):
+            return self.original_name.replace(
+                "docker.io/calico", f"{self._prefix}/calico"
+            )
+        if self.original_name.startswith("registry.k8s.io/coredns"):
+            return self.original_name.replace("registry.k8s.io/coredns", self._prefix)
+        if self.original_name.startswith("registry.k8s.io/autoscaling"):
+            return self.original_name.replace(
+                "registry.k8s.io/autoscaling", self._prefix
+            )
+        if (
+            self.original_name.startswith("registry.k8s.io/etcd")
+            or self.original_name.startswith("registry.k8s.io/kube-")
+            or self.original_name.startswith("registry.k8s.io/pause")
+        ):
+            return self.original_name.replace("registry.k8s.io", self._prefix)
+
+        raise ValueError("Unsupported image: %s" % self.original_name)
+
+    @property
+    def repository(self):
+        return self.name.split(":")[0]
+
+    @property
+    def tag(self):
+        return self.name.split(":")[1]
+
+
+class VersionSpecificImage(Image):
+    def __init__(self, version: str, prefix: str = None):
+        version = semver.VersionInfo.parse(version[1:])
+        config_option = f"v{version.major}_{version.minor}_image"
+
+        if hasattr(self.GROUP, config_option):
+            return super().__init__(
+                getattr(self.GROUP, config_option),
+                prefix,
+            )
+
+        raise ValueError(
+            f"Unsupported Kubernetes version: {version}. "
+            "Please specify a supported version in the cluster template."
+        )
+
+
+class CloudProviderVersionSpecificImage(VersionSpecificImage):
+    PREFIX_REPLACEMENTS = ("docker.io/k8scloudprovider", "registry.k8s.io/provider-os")
+
+
+class CloudControllerManagerImage(CloudProviderVersionSpecificImage):
+    GROUP = CONF.cloud_controller_manager
+
+
+class CinderCSIPluginImage(CloudProviderVersionSpecificImage):
+    GROUP = CONF.cinder_csi
