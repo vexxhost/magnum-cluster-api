@@ -48,10 +48,11 @@ class Image:
         if self._prefix is None:
             return self.original_name
 
+        new_image_name = self.original_name
         if hasattr(self, "PREFIX_REPLACEMENTS"):
             for r in self.PREFIX_REPLACEMENTS:
-                if self.original_name.startswith(r):
-                    return self.original_name.replace(r, self._prefix)
+                new_image_name = new_image_name.replace(r, self._prefix)
+            return new_image_name
 
         if self.original_name.startswith("docker.io/calico"):
             return self.original_name.replace(
