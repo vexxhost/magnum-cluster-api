@@ -82,7 +82,7 @@ sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
 # Install `helm` CLI
 curl -Lo /tmp/helm.tar.gz "https://get.helm.sh/helm-v3.10.3-linux-amd64.tar.gz"
 tar -zxvf /tmp/helm.tar.gz -C /tmp
-mv /tmp/linux-amd64/helm /usr/local/bin/helm
+sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm
 rm -rf /tmp/helm.tar.gz /tmp/linux-amd64/
 
 # Install Docker
