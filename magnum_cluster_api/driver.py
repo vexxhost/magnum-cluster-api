@@ -12,12 +12,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import time
-from tenacity import retry, stop_after_delay, wait_fixed
 
 import keystoneauth1
 from magnum import objects as magnum_objects
 from magnum.drivers.common import driver
+from tenacity import retry, stop_after_delay, wait_fixed
 
 from magnum_cluster_api import clients, exceptions, monitor, objects, resources, utils
 
