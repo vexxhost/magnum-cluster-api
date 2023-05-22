@@ -12,11 +12,13 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import time
+
 import keystoneauth1
 from magnum import objects as magnum_objects
 from magnum.drivers.common import driver
 
-from magnum_cluster_api import clients, monitor, objects, resources, utils
+from magnum_cluster_api import clients, exceptions, monitor, objects, resources, utils
 
 
 class BaseDriver(driver.Driver):
@@ -56,7 +58,6 @@ class BaseDriver(driver.Driver):
             self.update_nodegroup_status(context, cluster, node_group)
             for node_group in cluster.nodegroups
         ]
-
         # TODO: watch for topology change instead
         osc = clients.get_openstack_api(context)
 
@@ -182,9 +183,23 @@ class BaseDriver(driver.Driver):
         """
         # TODO: nodegroup?
 
+        # Get current generation
+        current_generation = resources.Cluster(
+            context, self.k8s_api, cluster
+        ).get_observed_generation()
         resources.apply_cluster_from_magnum_cluster(
             context, self.k8s_api, cluster, cluster_template=cluster_template
         )
+        # Wait till the generation has been increased
+        retry_count = 0
+        while retry_count < 10:
+            new_generation = resources.Cluster(
+                context, self.k8s_api, cluster
+            ).get_observed_generation()
+            if current_generation != new_generation:
+                return
+            time.sleep(1)
+        raise exceptions.ClusterAPIReconcileTimeout()
 
     def delete_cluster(self, context, cluster):
         # NOTE(mnaser): This should be removed when this is fixed:
@@ -254,6 +269,7 @@ class BaseDriver(driver.Driver):
 
     def update_nodegroup(self, context, cluster, nodegroup):
         # TODO
+
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
     def delete_nodegroup(self, context, cluster, nodegroup):
