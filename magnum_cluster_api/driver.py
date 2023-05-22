@@ -13,6 +13,7 @@
 # under the License.
 
 import time
+from tenacity import retry, stop_after_delay, wait_fixed
 
 import keystoneauth1
 from magnum import objects as magnum_objects
@@ -191,14 +192,26 @@ class BaseDriver(driver.Driver):
             context, self.k8s_api, cluster, cluster_template=cluster_template
         )
         # Wait till the generation has been increased
-        retry_count = 0
-        while retry_count < 10:
-            new_generation = resources.Cluster(
-                context, self.k8s_api, cluster
-            ).get_observed_generation()
-            if current_generation != new_generation:
-                return
-            time.sleep(1)
+        self.wait_capi_cluster_reconciliation_start(
+            context, cluster, current_generation
+        )
+
+    @retry(
+        stop=stop_after_delay(10),
+        wait=wait_fixed(1),
+    )
+    def wait_capi_cluster_reconciliation_start(
+        self, context, cluster: magnum_objects.Cluster, old_generation: int
+    ):
+        """Wait until the cluster's new generation is observed by capi-controller
+
+        This means the cluster reconciliation has been started and the conditions has been updated.
+        """
+        current_generation = resources.Cluster(
+            context, self.k8s_api, cluster
+        ).get_observed_generation()
+        if old_generation != current_generation:
+            return
         raise exceptions.ClusterAPIReconcileTimeout()
 
     def delete_cluster(self, context, cluster):
