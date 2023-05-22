@@ -1348,6 +1348,12 @@ class Cluster(ClusterBase):
             name=utils.get_or_generate_cluster_api_name(self.api, self.cluster)
         )
 
+    def get_observed_generation(self) -> int:
+        capi_cluster = self.get_or_none()
+        if capi_cluster:
+            return capi_cluster.obj["status"]["observedGeneration"]
+        raise Exception("Cluster doesn't exists.")
+
     def get_object(self) -> objects.Cluster:
         return objects.Cluster(
             self.api,

@@ -43,3 +43,7 @@ class OpenStackClusterNetworkNotReady(OpenStackClusterNotReady):
 
 class OpenStackClusterSubnetNotReady(OpenStackClusterNotReady):
     pass
+
+
+class ClusterAPIReconcileTimeout(Exception):
+    pass
