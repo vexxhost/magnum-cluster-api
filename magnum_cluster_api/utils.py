@@ -22,6 +22,7 @@ import yaml
 from magnum import objects as magnum_objects
 from magnum.common import context, exception, octavia
 from magnum.common.keystone import KeystoneClientV3
+from oslo_log import log as logging
 from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
