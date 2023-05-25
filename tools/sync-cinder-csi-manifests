@@ -82,5 +82,5 @@ for manifest in MANIFESTS:
         else:
             docs.append(doc)
 
-    with open(f"magnum_cluster_api/manifests/csi/{manifest}", "w") as fd:
+    with open(f"magnum_cluster_api/manifests/cinder-csi/{manifest}", "w") as fd:
         yaml.dump_all(docs, fd, default_flow_style=False)
