@@ -70,6 +70,22 @@ enable_plugin magnum https://opendev.org/openstack/magnum
 [cluster_template]
 kubernetes_allowed_network_drivers = calico
 kubernetes_default_network_driver = calico
+
+# Manila
+LIBS_FROM_GIT=python-manilaclient
+enable_plugin manila https://opendev.org/openstack/manila
+enable_plugin manila-ui https://opendev.org/openstack/manila-ui
+enable_plugin manila-tempest-plugin https://opendev.org/openstack/manila-tempest-plugin
+
+SHARE_DRIVER=manila.share.drivers.generic.GenericShareDriver
+MANILA_ENABLED_BACKENDS=generic
+MANILA_OPTGROUP_generic_driver_handles_share_servers=True
+MANILA_OPTGROUP_generic_connect_share_server_to_tenant_network=True
+MANILA_DEFAULT_SHARE_TYPE_EXTRA_SPECS='snapshot_support=True create_share_from_snapshot_support=True'
+MANILA_CONFIGURE_DEFAULT_TYPES=True
+
+MANILA_SERVICE_IMAGE_ENABLED=True
+MANILA_USE_SERVICE_INSTANCE_PASSWORD=True
 EOF
 
 # Start DevStack deployment
