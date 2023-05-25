@@ -66,11 +66,6 @@ enable_service octavia o-api o-cw o-hm o-hk o-da
 # Magnum
 enable_plugin magnum https://opendev.org/openstack/magnum
 
-[[post-config|/etc/magnum/magnum.conf]]
-[cluster_template]
-kubernetes_allowed_network_drivers = calico
-kubernetes_default_network_driver = calico
-
 # Manila
 LIBS_FROM_GIT=python-manilaclient
 enable_plugin manila https://opendev.org/openstack/manila
@@ -86,6 +81,11 @@ MANILA_CONFIGURE_DEFAULT_TYPES=True
 
 MANILA_SERVICE_IMAGE_ENABLED=True
 MANILA_USE_SERVICE_INSTANCE_PASSWORD=True
+
+[[post-config|/etc/magnum/magnum.conf]]
+[cluster_template]
+kubernetes_allowed_network_drivers = calico
+kubernetes_default_network_driver = calico
 EOF
 
 # Start DevStack deployment
