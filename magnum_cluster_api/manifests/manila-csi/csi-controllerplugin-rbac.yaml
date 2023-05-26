@@ -1,113 +1,196 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: openstack-manila-csi-controllerplugin
   labels:
     app: openstack-manila-csi
     component: controllerplugin
+  name: openstack-manila-csi-controllerplugin
+  namespace: kube-system
 ---
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: openstack-manila-csi-controllerplugin
-  labels:
-    app: openstack-manila-csi
-    component: controllerplugin
 aggregationRule:
   clusterRoleSelectors:
-    - matchLabels:
-        rbac.manila.csi.openstack.org/aggregate-to-openstack-manila-csi-controllerplugin: "true"
+  - matchLabels:
+      rbac.manila.csi.openstack.org/aggregate-to-openstack-manila-csi-controllerplugin: 'true'
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: openstack-manila-csi
+    component: controllerplugin
+  name: openstack-manila-csi-controllerplugin
 rules: []
 ---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
 metadata:
+  labels:
+    app: openstack-manila-csi
+    component: controllerplugin
+    rbac.manila.csi.openstack.org/aggregate-to-openstack-manila-csi-controllerplugin: 'true'
   name: openstack-manila-csi-controllerplugin-rules
-  labels:
-    app: openstack-manila-csi
-    component: controllerplugin
-    rbac.manila.csi.openstack.org/aggregate-to-openstack-manila-csi-controllerplugin: "true"
 rules:
-  - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get", "list"]
-  - apiGroups: [""]
-    resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "create", "delete", "patch"]
-  - apiGroups: [""]
-    resources: ["persistentvolumeclaims"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: [""]
-    resources: ["persistentvolumeclaims/status"]
-    verbs: ["patch"]
-  - apiGroups: [""]
-    resources: ["events"]
-    verbs: ["list", "watch", "create", "update", "patch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["storageclasses"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["csinodes"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["snapshot.storage.k8s.io"]
-    resources: ["volumesnapshotclasses"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["snapshot.storage.k8s.io"]
-    resources: ["volumesnapshots"]
-    verbs: ["get", "list"]
-  - apiGroups: ["snapshot.storage.k8s.io"]
-    resources: ["volumesnapshotcontents"]
-    verbs: ["create", "get", "list", "watch", "update", "delete", "patch"]
-  - apiGroups: ["snapshot.storage.k8s.io"]
-    resources: ["volumesnapshotcontents/status"]
-    verbs: ["update", "patch"]
+- apiGroups:
+  - ''
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ''
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ''
+  resources:
+  - persistentvolumes
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - patch
+- apiGroups:
+  - ''
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+- apiGroups:
+  - ''
+  resources:
+  - persistentvolumeclaims/status
+  verbs:
+  - patch
+- apiGroups:
+  - ''
+  resources:
+  - events
+  verbs:
+  - list
+  - watch
+  - create
+  - update
+  - patch
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csinodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshotclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshots
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshotcontents
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - delete
+  - patch
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshotcontents/status
+  verbs:
+  - update
+  - patch
 ---
-kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
 metadata:
-  name: openstack-manila-csi-controllerplugin
   labels:
     app: openstack-manila-csi
     component: controllerplugin
-subjects:
-  - kind: ServiceAccount
-    name: openstack-manila-csi-controllerplugin
-    namespace: default
+  name: openstack-manila-csi-controllerplugin
 roleRef:
+  apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: openstack-manila-csi-controllerplugin
-  apiGroup: rbac.authorization.k8s.io
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: openstack-manila-csi-controllerplugin
-  labels:
-    app: openstack-manila-csi
-    component: controllerplugin
-rules:
-  - apiGroups: [""]
-    resources: ["endpoints"]
-    verbs: ["get", "watch", "list", "delete", "update", "create"]
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get", "list", "watch", "create", "delete"]
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: openstack-manila-csi-controllerplugin
-  labels:
-    app: openstack-manila-csi
-    component: controllerplugin
 subjects:
-  - kind: ServiceAccount
-    name: openstack-manila-csi-controllerplugin
-    namespace: default
+- kind: ServiceAccount
+  name: openstack-manila-csi-controllerplugin
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app: openstack-manila-csi
+    component: controllerplugin
+  name: openstack-manila-csi-controllerplugin
+  namespace: kube-system
+rules:
+- apiGroups:
+  - ''
+  resources:
+  - endpoints
+  verbs:
+  - get
+  - watch
+  - list
+  - delete
+  - update
+  - create
+- apiGroups:
+  - ''
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app: openstack-manila-csi
+    component: controllerplugin
+  name: openstack-manila-csi-controllerplugin
+  namespace: kube-system
 roleRef:
+  apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: openstack-manila-csi-controllerplugin
-  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: openstack-manila-csi-controllerplugin
+  namespace: kube-system

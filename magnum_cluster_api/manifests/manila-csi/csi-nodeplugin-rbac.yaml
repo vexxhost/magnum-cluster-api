@@ -1,58 +1,78 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: openstack-manila-csi-nodeplugin
   labels:
     app: openstack-manila-csi
     component: nodeplugin
+  name: openstack-manila-csi-nodeplugin
+  namespace: kube-system
 ---
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: openstack-manila-csi-nodeplugin
-  labels:
-    app: openstack-manila-csi
-    component: nodeplugin
 aggregationRule:
   clusterRoleSelectors:
-    - matchLabels:
-        rbac.manila.csi.openstack.org/aggregate-to-openstack-manila-csi-nodeplugin: "true"
+  - matchLabels:
+      rbac.manila.csi.openstack.org/aggregate-to-openstack-manila-csi-nodeplugin: 'true'
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: openstack-manila-csi
+    component: nodeplugin
+  name: openstack-manila-csi-nodeplugin
 rules: []
 ---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
 metadata:
+  labels:
+    app: openstack-manila-csi
+    component: nodeplugin
+    rbac.manila.csi.openstack.org/aggregate-to-openstack-manila-csi-nodeplugin: 'true'
   name: openstack-manila-csi-nodeplugin-rules
-  labels:
-    app: openstack-manila-csi
-    component: nodeplugin
-    rbac.manila.csi.openstack.org/aggregate-to-openstack-manila-csi-nodeplugin: "true"
 rules:
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get", "list"]
-  - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "list", "update"]
-  - apiGroups: [""]
-    resources: ["namespaces"]
-    verbs: ["get", "list"]
-  - apiGroups: [""]
-    resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "update"]
+- apiGroups:
+  - ''
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ''
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - update
+- apiGroups:
+  - ''
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ''
+  resources:
+  - persistentvolumes
+  verbs:
+  - get
+  - list
+  - watch
+  - update
 ---
-kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
 metadata:
-  name: openstack-manila-csi-nodeplugin
   labels:
     app: openstack-manila-csi
     component: nodeplugin
-subjects:
-  - kind: ServiceAccount
-    name: openstack-manila-csi-nodeplugin
-    namespace: default
+  name: openstack-manila-csi-nodeplugin
 roleRef:
+  apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: openstack-manila-csi-nodeplugin
-  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: openstack-manila-csi-nodeplugin
+  namespace: kube-system
