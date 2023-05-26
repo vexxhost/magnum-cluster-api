@@ -37,7 +37,6 @@ CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
 CINDER_CSI_TAG = "v1.25.3"
 MANILA_CSI_TAG = "v1.25.3"
-NFS_CSI_TAG = "v4.2.0"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
@@ -257,12 +256,6 @@ class ClusterResourcesConfigMap(ClusterBase):
                         self.cluster.uuid,
                         manifest,
                         repository=repository,
-                        replacements=[
-                            (
-                                "gcr.io/k8s-staging-sig-storage/nfsplugin:canary",
-                                f"gcr.io/k8s-staging-sig-storage/nfsplugin:{NFS_CSI_TAG}",
-                            ),
-                        ],
                     )
                     for manifest in glob.glob(
                         os.path.join(manifests_path, "nfs-csi/*.yaml")
