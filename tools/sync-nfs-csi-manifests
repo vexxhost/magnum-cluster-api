@@ -28,10 +28,11 @@ MANIFESTS = set(
         "rbac-csi-nfs.yaml",
     ]
 )
+NFS_CSI_TAG = "v4.2.0"
 
 
 for manifest in MANIFESTS:
-    url = f"https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/deploy/{manifest}"  # noqa E501
+    url = f"https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/deploy/{NFS_CSI_TAG}/{manifest}"  # noqa E501
 
     docs = []
     r = requests.get(url)

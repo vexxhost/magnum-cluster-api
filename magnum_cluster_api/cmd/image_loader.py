@@ -29,7 +29,7 @@ IMAGES = [
     "docker.io/k8scloudprovider/cinder-csi-plugin:v1.25.3",
     "docker.io/k8scloudprovider/manila-csi-plugin:v1.25.3",
     "docker.io/k8scloudprovider/openstack-cloud-controller-manager:v1.25.3",
-    "gcr.io/k8s-staging-sig-storage/nfsplugin:v4.2.0",
+    "registry.k8s.io/sig-storage/nfsplugin:v4.2.0",
     "registry.k8s.io/coredns/coredns:v1.8.6",
     "registry.k8s.io/coredns/coredns:v1.9.3",
     CONF.auto_scaling.v1_22_image,
@@ -69,14 +69,13 @@ IMAGES = [
     "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.8.0",
     "registry.k8s.io/sig-storage/csi-provisioner:v3.0.0",
     "registry.k8s.io/sig-storage/csi-provisioner:v3.1.0",
-    "registry.k8s.io/sig-storage/csi-provisioner:v3.5.0",
+    "registry.k8s.io/sig-storage/csi-provisioner:v3.3.0",
     "registry.k8s.io/sig-storage/csi-resizer:v1.4.0",
     "registry.k8s.io/sig-storage/csi-resizer:v1.8.0",
     "registry.k8s.io/sig-storage/csi-snapshotter:v5.0.1",
     "registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1",
-    "registry.k8s.io/sig-storage/csi-snapshotter:v6.2.1",
     "registry.k8s.io/sig-storage/livenessprobe:v2.7.0",
-    "registry.k8s.io/sig-storage/livenessprobe:v2.10.0",
+    "registry.k8s.io/sig-storage/livenessprobe:v2.8.0",
 ]
 
 

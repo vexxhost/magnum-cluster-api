@@ -18,7 +18,7 @@ spec:
         - --probe-timeout=3s
         - --health-port=29653
         - --v=2
-        image: registry.k8s.io/sig-storage/livenessprobe:v2.10.0
+        image: registry.k8s.io/sig-storage/livenessprobe:v2.8.0
         name: liveness-probe
         resources:
           limits:
@@ -40,7 +40,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.8.0
+        image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.6.2
         livenessProbe:
           exec:
             command:
@@ -72,7 +72,7 @@ spec:
               fieldPath: spec.nodeName
         - name: CSI_ENDPOINT
           value: unix:///csi/csi.sock
-        image: gcr.io/k8s-staging-sig-storage/nfsplugin:canary
+        image: registry.k8s.io/sig-storage/nfsplugin:v4.2.0
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 5
@@ -105,14 +105,10 @@ spec:
         - mountPath: /var/lib/kubelet/pods
           mountPropagation: Bidirectional
           name: pods-mount-dir
-      dnsPolicy: ClusterFirstWithHostNet
+      dnsPolicy: Default
       hostNetwork: true
       nodeSelector:
         kubernetes.io/os: linux
-      priorityClassName: system-node-critical
-      securityContext:
-        seccompProfile:
-          type: RuntimeDefault
       serviceAccountName: csi-nfs-node-sa
       tolerations:
       - operator: Exists
