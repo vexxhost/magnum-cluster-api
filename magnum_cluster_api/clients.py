@@ -41,10 +41,7 @@ class OpenStackClients(clients.OpenStackClients):
 
         session = self.keystone().session
         self._manila = manilaclient.Client(
-            api_version=manilaclient_version,
-            session=session,
-            service_catalog_url=endpoint,
-            **args
+            manilaclient_version, session=session, service_catalog_url=endpoint, **args
         )
         return self._manila
 
