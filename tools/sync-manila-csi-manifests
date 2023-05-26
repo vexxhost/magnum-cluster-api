@@ -63,12 +63,14 @@ for manifest in MANIFESTS:
                 "value"
             ] = "unix:///var/lib/kubelet/plugins/csi-nfsplugin/csi.sock"
             doc["spec"]["template"]["spec"]["containers"][3]["env"][4]["value"] = "NFS"
+            doc["spec"]["template"]["spec"]["containers"][3]["image"] = "registry.k8s.io/provider-os/manila-csi-plugin:latest"
 
         if doc["kind"] == "DaemonSet":
             doc["spec"]["template"]["spec"]["containers"][1]["env"][3][
                 "value"
             ] = "unix:///var/lib/kubelet/plugins/csi-nfsplugin/csi.sock"
             doc["spec"]["template"]["spec"]["containers"][1]["env"][4]["value"] = "NFS"
+            doc["spec"]["template"]["spec"]["containers"][1]["image"] = "registry.k8s.io/provider-os/manila-csi-plugin:latest"
 
         if doc["kind"] == "List":
             for item in doc["items"]:
