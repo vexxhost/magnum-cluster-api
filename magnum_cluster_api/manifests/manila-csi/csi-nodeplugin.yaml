@@ -71,11 +71,13 @@ spec:
         volumeMounts:
         - mountPath: /var/lib/kubelet/plugins/manila.csi.openstack.org
           name: plugin-dir
-        - mountPath: /var/lib/kubelet/plugins/FWD-NODEPLUGIN
+        - mountPath: /var/lib/kubelet/plugins/csi-nfsplugin
           name: fwd-plugin-dir
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       serviceAccountName: openstack-manila-csi-nodeplugin
+      tolerations:
+      - operator: Exists
       volumes:
       - hostPath:
           path: /var/lib/kubelet/plugins_registry
@@ -86,6 +88,6 @@ spec:
           type: DirectoryOrCreate
         name: plugin-dir
       - hostPath:
-          path: /var/lib/kubelet/plugins/FWD-NODEPLUGIN
+          path: /var/lib/kubelet/plugins/csi-nfsplugin
           type: DirectoryOrCreate
         name: fwd-plugin-dir

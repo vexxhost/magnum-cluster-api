@@ -64,6 +64,9 @@ for manifest in MANIFESTS:
             ] = "unix:///var/lib/kubelet/plugins/csi-nfsplugin/csi.sock"
             doc["spec"]["template"]["spec"]["containers"][3]["env"][4]["value"] = "NFS"
             doc["spec"]["template"]["spec"]["containers"][3]["image"] = "registry.k8s.io/provider-os/manila-csi-plugin:latest"
+            doc["spec"]["template"]["spec"]["containers"][3]["volumeMounts"][1]["mountPath"] = "/var/lib/kubelet/plugins/csi-nfsplugin"
+            doc["spec"]["template"]["spec"]["volumes"][1]["hostPath"]["path"] = "/var/lib/kubelet/plugins/csi-nfsplugin"
+
 
         if doc["kind"] == "DaemonSet":
             doc["spec"]["template"]["spec"]["containers"][1]["env"][3][
@@ -71,14 +74,17 @@ for manifest in MANIFESTS:
             ] = "unix:///var/lib/kubelet/plugins/csi-nfsplugin/csi.sock"
             doc["spec"]["template"]["spec"]["containers"][1]["env"][4]["value"] = "NFS"
             doc["spec"]["template"]["spec"]["containers"][1]["image"] = "registry.k8s.io/provider-os/manila-csi-plugin:latest"
+            # Set FWD plugin
+            doc["spec"]["template"]["spec"]["containers"][1]["volumeMounts"][1]["mountPath"] = "/var/lib/kubelet/plugins/csi-nfsplugin"
+            doc["spec"]["template"]["spec"]["volumes"][2]["hostPath"]["path"] = "/var/lib/kubelet/plugins/csi-nfsplugin"
+            # Set toleration
+            doc["spec"]["template"]["spec"]["tolerations"] = [{"operator": "Exists"}]
 
         if doc["kind"] == "List":
             for item in doc["items"]:
-                item["metadata"]["namespace"] = "kube-system"
-                docs.append(item)
+                docs.append(set_namespace(item))
         else:
-            doc = set_namespace(doc)
-            docs.append(doc)
+            docs.append(set_namespace(doc))
 
     with open(f"magnum_cluster_api/manifests/manila-csi/{manifest}", "w") as fd:
         yaml.dump_all(docs, fd, default_flow_style=False)
