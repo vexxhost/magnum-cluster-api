@@ -63,6 +63,8 @@ def get_image(name: str, repository: str = None):
         new_image_name = name.replace("docker.io/k8scloudprovider", repository)
     if name.startswith("registry.k8s.io/sig-storage"):
         new_image_name = name.replace("registry.k8s.io/sig-storage", repository)
+    if name.startswith("registry.k8s.io/provider-os"):
+        new_image_name = name.replace("registry.k8s.io/provider-os", repository)
     if new_image_name.startswith(f"{repository}/livenessprobe"):
         return new_image_name.replace("livenessprobe", "csi-livenessprobe")
     if new_image_name.startswith("registry.k8s.io/coredns"):

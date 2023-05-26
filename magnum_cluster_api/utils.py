@@ -281,12 +281,12 @@ def is_manila_enabled():
 def is_cinder_csi_enabled(cluster: magnum_objects.Cluster) -> bool:
     return (
         get_cluster_label_as_bool(cluster, "cinder_csi_enabled", True)
-        and clients.is_cinder_enabled()
+        and is_cinder_enabled()
     )
 
 
 def is_manila_csi_enabled(cluster: magnum_objects.Cluster) -> bool:
     return (
         get_cluster_label_as_bool(cluster, "manila_csi_enabled", True)
-        and clients.is_manila_enabled()
+        and is_manila_enabled()
     )
