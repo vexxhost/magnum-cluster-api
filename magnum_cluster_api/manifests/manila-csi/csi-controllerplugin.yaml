@@ -100,7 +100,7 @@ spec:
         volumeMounts:
         - mountPath: /var/lib/kubelet/plugins/manila.csi.openstack.org
           name: plugin-dir
-        - mountPath: /var/lib/kubelet/plugins/FWD-NODEPLUGIN
+        - mountPath: /var/lib/kubelet/plugins/csi-nfsplugin
           name: fwd-plugin-dir
         - mountPath: /var/lib/kubelet/pods
           mountPropagation: Bidirectional
@@ -112,7 +112,7 @@ spec:
           type: DirectoryOrCreate
         name: plugin-dir
       - hostPath:
-          path: /var/lib/kubelet/plugins/FWD-NODEPLUGIN
+          path: /var/lib/kubelet/plugins/csi-nfsplugin
           type: Directory
         name: fwd-plugin-dir
       - hostPath:
