@@ -252,7 +252,7 @@ class ClusterResourcesConfigMap(ClusterBase):
             data = {
                 **data,
                 **{
-                    f"manila-csi-secret.yaml": yaml.dump(
+                    "manila-csi-secret.yaml": yaml.dump(
                         {
                             "apiVersion": pykube.Secret.version,
                             "kind": pykube.Secret.kind,
