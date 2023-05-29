@@ -94,6 +94,34 @@ def generate_cloud_controller_manager_config(
     )
 
 
+def generate_manila_csi_cloud_config(
+    api: pykube.HTTPClient,
+    cluster: magnum_objects.Cluster,
+) -> str:
+    """
+    Generate coniguration of Openstack authentication  for manila csi
+    """
+    data = pykube.Secret.objects(api, namespace="magnum-system").get_by_name(
+        get_or_generate_cluster_api_cloud_config_secret_name(api, cluster)
+    )
+    clouds_yaml = base64.decode_as_text(data.obj["data"]["clouds.yaml"])
+    cloud_config = yaml.safe_load(clouds_yaml)
+
+    return {
+        "os-authURL": cloud_config["clouds"]["default"]["auth"]["auth_url"],
+        "os-region": cloud_config["clouds"]["default"]["region_name"],
+        "os-applicationCredentialID": cloud_config["clouds"]["default"]["auth"][
+            "application_credential_id"
+        ],
+        "os-applicationCredentialSecret": cloud_config["clouds"]["default"]["auth"][
+            "application_credential_secret"
+        ],
+        "os-TLSInsecure": "false"
+        if cloud_config["clouds"]["default"]["verify"]
+        else "true",
+    }
+
+
 def get_kube_tag(cluster: magnum_objects.Cluster) -> str:
     return get_cluster_label(cluster, "kube_tag", "v1.25.3")
 

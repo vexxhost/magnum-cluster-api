@@ -252,6 +252,22 @@ class ClusterResourcesConfigMap(ClusterBase):
             data = {
                 **data,
                 **{
+                    f"manila-csi-secret.yaml": yaml.dump(
+                        {
+                            "apiVersion": pykube.Secret.version,
+                            "kind": pykube.Secret.kind,
+                            "metadata": {
+                                "name": "csi-manila-secrets",
+                                "namespace": "kube-system",
+                            },
+                            "stringData": utils.generate_manila_csi_cloud_config(
+                                self.api,
+                                self.cluster,
+                            ),
+                        },
+                    )
+                },
+                **{
                     os.path.basename(manifest): image_utils.update_manifest_images(
                         self.cluster.uuid,
                         manifest,
@@ -289,6 +305,14 @@ class ClusterResourcesConfigMap(ClusterBase):
                             "provisioner": "manila.csi.openstack.org",
                             "parameters": {
                                 "type": st.name,
+                                "csi.storage.k8s.io/provisioner-secret-name": "csi-manila-secrets",
+                                "csi.storage.k8s.io/provisioner-secret-namespace": "kube-system",
+                                "csi.storage.k8s.io/controller-expand-secret-name": "csi-manila-secrets",
+                                "csi.storage.k8s.io/controller-expand-secret-namespace": "kube-system",
+                                "csi.storage.k8s.io/node-stage-secret-name": "csi-manila-secrets",
+                                "csi.storage.k8s.io/node-stage-secret-namespace": "kube-system",
+                                "csi.storage.k8s.io/node-publish-secret-name": "csi-manila-secrets",
+                                "csi.storage.k8s.io/node-publish-secret-namespace": "kube-system",
                             },
                             "reclaimPolicy": "Delete",
                             "volumeBindingMode": "Immediate",
