@@ -66,7 +66,7 @@ IMAGES = [
     "registry.k8s.io/sig-storage/csi-attacher:v3.4.0",
     "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.4.0",
     "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1",
-    "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.8.0",
+    "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.6.2",
     "registry.k8s.io/sig-storage/csi-provisioner:v3.0.0",
     "registry.k8s.io/sig-storage/csi-provisioner:v3.1.0",
     "registry.k8s.io/sig-storage/csi-provisioner:v3.3.0",
