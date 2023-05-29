@@ -62,6 +62,21 @@
 
    Default value: `v1.25.3`
 
+### Manila
+
+* `manila_csi_plugin_tag`
+
+   The version of the Manila CSI container image to use when bootstrapping the
+   cluster.
+
+   Default value: `v1.25.3`
+
+* `manila_csi_share_network_id`
+
+   Manila [share network](https://wiki.openstack.org/wiki/Manila/Concepts#share_network) ID.
+
+   Default value: `None`
+
 ## Kubernetes
 
 * `auto_healing_enabled`

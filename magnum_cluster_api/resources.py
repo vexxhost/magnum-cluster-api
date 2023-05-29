@@ -249,6 +249,9 @@ class ClusterResourcesConfigMap(ClusterBase):
             csi_version = utils.get_cluster_label(
                 self.cluster, "manila_csi_plugin_tag", MANILA_CSI_TAG
             )
+            share_network_id = utils.get_cluster_label(
+                self.cluster, "manila_csi_share_network_id", None
+            )
             data = {
                 **data,
                 **{
@@ -293,34 +296,40 @@ class ClusterResourcesConfigMap(ClusterBase):
                         os.path.join(manifests_path, "manila-csi/*.yaml")
                     )
                 },
-                **{
-                    f"storageclass-manila-{st.name}.yaml": yaml.dump(
-                        {
-                            "apiVersion": objects.StorageClass.version,
-                            "allowVolumeExpansion": True,
-                            "kind": objects.StorageClass.kind,
-                            "metadata": {
-                                "name": "manila-%s" % st.name.lower(),
-                            },
-                            "provisioner": "manila.csi.openstack.org",
-                            "parameters": {
-                                "type": st.name,
-                                "csi.storage.k8s.io/provisioner-secret-name": "csi-manila-secrets",
-                                "csi.storage.k8s.io/provisioner-secret-namespace": "kube-system",
-                                "csi.storage.k8s.io/controller-expand-secret-name": "csi-manila-secrets",
-                                "csi.storage.k8s.io/controller-expand-secret-namespace": "kube-system",
-                                "csi.storage.k8s.io/node-stage-secret-name": "csi-manila-secrets",
-                                "csi.storage.k8s.io/node-stage-secret-namespace": "kube-system",
-                                "csi.storage.k8s.io/node-publish-secret-name": "csi-manila-secrets",
-                                "csi.storage.k8s.io/node-publish-secret-namespace": "kube-system",
-                            },
-                            "reclaimPolicy": "Delete",
-                            "volumeBindingMode": "Immediate",
-                        }
-                    )
-                    for st in share_types
-                },
             }
+            # NOTE: We only create StorageClasses if share_network_id specified.
+            if share_network_id:
+                data = {
+                    **data,
+                    **{
+                        f"storageclass-manila-{st.name}.yaml": yaml.dump(
+                            {
+                                "apiVersion": objects.StorageClass.version,
+                                "allowVolumeExpansion": True,
+                                "kind": objects.StorageClass.kind,
+                                "metadata": {
+                                    "name": "manila-%s" % st.name.lower(),
+                                },
+                                "provisioner": "manila.csi.openstack.org",
+                                "parameters": {
+                                    "type": st.name,
+                                    "share_network_id": share_network_id,
+                                    "csi.storage.k8s.io/provisioner-secret-name": "csi-manila-secrets",
+                                    "csi.storage.k8s.io/provisioner-secret-namespace": "kube-system",
+                                    "csi.storage.k8s.io/controller-expand-secret-name": "csi-manila-secrets",
+                                    "csi.storage.k8s.io/controller-expand-secret-namespace": "kube-system",
+                                    "csi.storage.k8s.io/node-stage-secret-name": "csi-manila-secrets",
+                                    "csi.storage.k8s.io/node-stage-secret-namespace": "kube-system",
+                                    "csi.storage.k8s.io/node-publish-secret-name": "csi-manila-secrets",
+                                    "csi.storage.k8s.io/node-publish-secret-namespace": "kube-system",
+                                },
+                                "reclaimPolicy": "Delete",
+                                "volumeBindingMode": "Immediate",
+                            }
+                        )
+                        for st in share_types
+                    },
+                }
 
         return pykube.ConfigMap(
             self.api,
