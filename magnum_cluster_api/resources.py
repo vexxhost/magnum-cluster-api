@@ -313,7 +313,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                                 "provisioner": "manila.csi.openstack.org",
                                 "parameters": {
                                     "type": st.name,
-                                    "share_network_id": share_network_id,
+                                    "shareNetworkID": share_network_id,
                                     "csi.storage.k8s.io/provisioner-secret-name": "csi-manila-secrets",
                                     "csi.storage.k8s.io/provisioner-secret-namespace": "kube-system",
                                     "csi.storage.k8s.io/controller-expand-secret-name": "csi-manila-secrets",
