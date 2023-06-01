@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.5.4...v0.6.0) (2023-06-01)
+
+
+### Features
+
+* Add manila csi ([fceabed](https://github.com/vexxhost/magnum-cluster-api/commit/fceabedb2e8913b8bff858073f6eb532c4d93dc3))
+
+
+### Bug Fixes
+
+* return helm output ([95c32a7](https://github.com/vexxhost/magnum-cluster-api/commit/95c32a79bdb1630365b951176e1c6c9fbc50d93c))
+* Wait until observedGeneration of the capi cluster is increased in cluster upgrade ([58b6325](https://github.com/vexxhost/magnum-cluster-api/commit/58b632569496961ac9ffb09c00e043627791bb6e)), closes [#57](https://github.com/vexxhost/magnum-cluster-api/issues/57)
+
 ## [0.5.4](https://github.com/vexxhost/magnum-cluster-api/compare/v0.5.3...v0.5.4) (2023-04-24)
 
 
