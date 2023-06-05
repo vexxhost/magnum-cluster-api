@@ -19,7 +19,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build image
-        run: earthly +mkdocs-build
+        run: earthly --secret GITHUB_TOKEN +mkdocs-build
         env:
           EARTHLY_CI: true
           EARTHLY_PUSH: "${{ github.event_name == 'push' }}"
