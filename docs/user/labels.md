@@ -1,5 +1,44 @@
 # Labels
 
+Magnum cluster template labels are key-value pairs that are used to provide
+metadata and configuration information for Kubernetes clusters created through
+Magnum.
+
+They can be used to define characteristics such as the operating system,
+networking settings, container runtime, Kubernetes version, or any other custom
+attributes relevant to the cluster deployment.
+
+## Volumes
+
+If you require your cluster to have the root filesystem on a volume, you can
+specify the volume size and type using the following labels:
+
+`boot_volume_size`
+
+:   The size in gigabytes of the boot volume.  
+    **Default value**: `[cinder]/default_boot_volume_size` from Magnum configuration.
+
+`boot_volume_type`
+
+:   The volume type of the boot volume.  
+    **Default value**: `[cinder]/default_boot_volume_type` from Magnum configuration.
+
+!!! note
+
+    Volume labels cannot be changed once the cluster is deployed.  However, you
+    generally do not need a large boot volume since the root filesystem is
+    only used for the operating system and container runtime.
+
+## Images
+
+The Cluster API driver for Magnum relies on specific container images for the
+deployment process.
+
+`container_infra_prefix`
+
+:   The prefix of the container images to use for the cluster.  
+    **Default value**: `quay.io/vexxhost`
+
 ## Auditing
 
 * `audit_log_enabled`
