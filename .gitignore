@@ -2,3 +2,4 @@ __pycache__
 dist
 magnum_cluster_api/charts/*
 !magnum_cluster_api/charts/.gitkeep
+site
