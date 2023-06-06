@@ -51,7 +51,6 @@ AUTOSCALE_ANNOTATION_MAX = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-m
 
 class ClusterAutoscalerHelmRelease:
     def __init__(self, api, cluster) -> None:
-        cluster_name = utils.get_or_generate_cluster_api_name(api, cluster)
         image = images.get_cluster_autoscaler_image(
             utils.get_kube_tag(cluster),
         )
@@ -59,18 +58,18 @@ class ClusterAutoscalerHelmRelease:
 
         self.apply = helm.UpgradeReleaseCommand(
             namespace="magnum-system",
-            release_name=cluster_name,
+            release_name=cluster.stack_id,
             chart_ref=os.path.join(
                 pkg_resources.resource_filename("magnum_cluster_api", "charts"),
                 "cluster-autoscaler/",
             ),
             values={
-                "fullnameOverride": f"{cluster_name}-autoscaler",
+                "fullnameOverride": f"{cluster.stack_id}-autoscaler",
                 "cloudProvider": "clusterapi",
                 "clusterAPIMode": "kubeconfig-incluster",
-                "clusterAPIKubeconfigSecret": f"{cluster_name}-kubeconfig",
+                "clusterAPIKubeconfigSecret": f"{cluster.stack_id}-kubeconfig",
                 "autoDiscovery": {
-                    "clusterName": cluster_name,
+                    "clusterName": cluster.stack_id,
                 },
                 "image": {
                     "repository": image_repo,
@@ -84,7 +83,7 @@ class ClusterAutoscalerHelmRelease:
 
         self.delete = helm.DeleteReleaseCommand(
             namespace="magnum-system",
-            release_name=cluster_name,
+            release_name=cluster.stack_id,
             skip_missing=True,
         )
 
@@ -397,7 +396,7 @@ class CertificateAuthoritySecret(ClusterBase):
                 "kind": pykube.Secret.kind,
                 "type": "kubernetes.io/tls",
                 "metadata": {
-                    "name": f"{utils.get_or_generate_cluster_api_name(self.api, self.cluster)}-{self.CERT}",
+                    "name": f"{self.cluster.stack_id}-{self.CERT}",
                     "namespace": "magnum-system",
                 },
                 "stringData": {
@@ -1442,7 +1441,7 @@ class Cluster(ClusterBase):
 
     def get_or_none(self) -> objects.Cluster:
         return objects.Cluster.objects(self.api, namespace="magnum-system").get_or_none(
-            name=utils.get_or_generate_cluster_api_name(self.api, self.cluster)
+            name=self.cluster.stack_id
         )
 
     def get_observed_generation(self) -> int:
@@ -1458,9 +1457,7 @@ class Cluster(ClusterBase):
                 "apiVersion": objects.Cluster.version,
                 "kind": objects.Cluster.kind,
                 "metadata": {
-                    "name": utils.get_or_generate_cluster_api_name(
-                        self.api, self.cluster
-                    ),
+                    "name": self.cluster.stack_id,
                     "namespace": "magnum-system",
                     "labels": self.labels,
                 },
@@ -1656,9 +1653,7 @@ def set_autoscaler_metadata_in_machinedeployment(
     mds = objects.MachineDeployment.objects(api).filter(
         namespace="magnum-system",
         selector={
-            "cluster.x-k8s.io/cluster-name": utils.get_or_generate_cluster_api_name(
-                api, cluster
-            ),
+            "cluster.x-k8s.io/cluster-name": cluster.stack_id,
             "topology.cluster.x-k8s.io/deployment-name": nodegroup.name,
         },
     )
@@ -1716,9 +1711,7 @@ def get_kubeadm_control_plane(
 ) -> objects.KubeadmControlPlane:
     kcps = objects.KubeadmControlPlane.objects(api, namespace="magnum-system").filter(
         selector={
-            "cluster.x-k8s.io/cluster-name": utils.get_or_generate_cluster_api_name(
-                api, cluster
-            )
+            "cluster.x-k8s.io/cluster-name": cluster.stack_id,
         },
     )
     if len(kcps) == 1:
@@ -1733,9 +1726,7 @@ def get_machine_deployment(
 ) -> objects.KubeadmControlPlane:
     mds = objects.MachineDeployment.objects(api, namespace="magnum-system").filter(
         selector={
-            "cluster.x-k8s.io/cluster-name": utils.get_or_generate_cluster_api_name(
-                api, cluster
-            ),
+            "cluster.x-k8s.io/cluster-name": cluster.stack_id,
             "topology.cluster.x-k8s.io/deployment-name": node_group.name,
         },
     )

@@ -26,6 +26,11 @@ class BaseDriver(driver.Driver):
         self.k8s_api = clients.get_pykube_api()
 
     def create_cluster(self, context, cluster, cluster_create_timeout):
+        # NOTE(mnaser): We want to set the `stack_id` as early as possible to
+        #               make sure we can use it in the cluster creation.
+        cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
+        cluster.save()
+
         osc = clients.get_openstack_api(context)
 
         resources.Namespace(self.k8s_api).apply()
@@ -147,9 +152,7 @@ class BaseDriver(driver.Driver):
             machines = objects.Machine.objects(self.k8s_api).filter(
                 namespace="magnum-system",
                 selector={
-                    "cluster.x-k8s.io/cluster-name": utils.get_or_generate_cluster_api_name(
-                        self.k8s_api, cluster
-                    ),
+                    "cluster.x-k8s.io/cluster-name": cluster.stack_id,
                     "topology.cluster.x-k8s.io/deployment-name": nodegroup.name,
                 },
             )

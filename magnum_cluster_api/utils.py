@@ -35,16 +35,7 @@ LOG = logging.getLogger(__name__)
 def get_or_generate_cluster_api_cloud_config_secret_name(
     api: pykube.HTTPClient, cluster: magnum_objects.Cluster
 ) -> str:
-    return f"{get_or_generate_cluster_api_name(api, cluster)}-cloud-config"
-
-
-def get_or_generate_cluster_api_name(
-    api: pykube.HTTPClient, cluster: magnum_objects.Cluster
-) -> str:
-    if cluster.stack_id is None:
-        cluster.stack_id = generate_cluster_api_name(api)
-        cluster.save()
-    return cluster.stack_id
+    return f"{cluster.stack_id}-cloud-config"
 
 
 @retry(retry=retry_if_exception_type(exception.Conflict))
