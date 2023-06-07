@@ -85,6 +85,14 @@ class BaseDriver(driver.Driver):
 
             for condition in ("ControlPlaneReady", "InfrastructureReady", "Ready"):
                 if status_map.get(condition) != "True":
+                    cluster.status_reason = (
+                        "Cluster status reason: %s. OpenstackCluster status reason: %s"
+                        % resources.get_last_cluster_event(self.k8s_api, cluster)
+                        + resources.get_last_openstack_cluster_event(
+                            self.k8s_api, cluster
+                        )
+                    )
+                    cluster.save()
                     return
 
             api_endpoint = capi_cluster.obj["spec"]["controlPlaneEndpoint"]
@@ -100,14 +108,22 @@ class BaseDriver(driver.Driver):
                     ng.destroy()
 
             if cluster.status == "CREATE_IN_PROGRESS":
+                cluster.status_reason = None
                 cluster.status = "CREATE_COMPLETE"
             if cluster.status == "UPDATE_IN_PROGRESS":
+                cluster.status_reason = None
                 cluster.status = "UPDATE_COMPLETE"
 
             cluster.save()
 
         if cluster.status == "DELETE_IN_PROGRESS":
             if capi_cluster and capi_cluster.exists():
+                cluster.status_reason = (
+                    "Cluster status reason: %s. OpenstackCluster status reason: %s"
+                    % resources.get_last_cluster_event(self.k8s_api, cluster)
+                    + resources.get_last_openstack_cluster_event(self.k8s_api, cluster)
+                )
+                cluster.save()
                 return
 
             # NOTE(mnaser): We delete the application credentials at this stage
@@ -130,6 +146,7 @@ class BaseDriver(driver.Driver):
                 self.k8s_api, cluster
             ).delete()
 
+            cluster.status_reason = None
             cluster.status = "DELETE_COMPLETE"
             cluster.save()
 

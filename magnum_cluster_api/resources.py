@@ -1671,6 +1671,53 @@ def set_autoscaler_metadata_in_machinedeployment(
         md.update()
 
 
+def get_last_cluster_event(
+    api: pykube.HTTPClient,
+    cluster: magnum_objects.Cluster,
+) -> str:
+    cluster_events = pykube.Event.objects(api, namespace="magnum-system").filter(
+        field_selector={
+            "involvedObject.name": cluster.stack_id,
+            "involvedObject.apiVersion": objects.Cluster.version,
+            "involvedObject.kind": objects.Cluster.kind,
+        },
+    )
+    if len(cluster_events) == 1:
+        cluster_event = list(cluster_events)[0]
+    else:
+        return ""
+    return cluster_event.obj["message"]
+
+
+def get_last_openstack_cluster_event(
+    api: pykube.HTTPClient,
+    cluster: magnum_objects.Cluster,
+) -> str:
+    ops_clusters = objects.OpenStackCluster.objects.filter(
+        selector={
+            "cluster.x-k8s.io/cluster-name": cluster.stack_id,
+        }
+    )
+
+    if len(ops_clusters) == 1:
+        ops_cluster = list(ops_clusters)[0]
+    else:
+        return ""
+
+    cluster_events = pykube.Event.objects(api, namespace="magnum-system").filter(
+        field_selector={
+            "involvedObject.name": ops_cluster.obj["metadata"]["name"],
+            "involvedObject.apiVersion": objects.OpenStackCluster.version,
+            "involvedObject.kind": objects.OpenStackCluster.kind,
+        },
+    )
+    if len(cluster_events) == 1:
+        cluster_event = list(cluster_events)[0]
+    else:
+        return ""
+    return cluster_event.obj["message"]
+
+
 def apply_cluster_from_magnum_cluster(
     context: context.RequestContext,
     api: pykube.HTTPClient,
