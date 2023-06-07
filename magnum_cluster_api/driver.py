@@ -120,8 +120,12 @@ class BaseDriver(driver.Driver):
             if capi_cluster and capi_cluster.exists():
                 cluster.status_reason = (
                     "Cluster status reason: %s. OpenstackCluster status reason: %s"
-                    % resources.get_last_cluster_event(self.k8s_api, cluster)
-                    + resources.get_last_openstack_cluster_event(self.k8s_api, cluster)
+                    % (
+                        resources.get_last_cluster_event(self.k8s_api, cluster),
+                        resources.get_last_openstack_cluster_event(
+                            self.k8s_api, cluster
+                        ),
+                    )
                 )
                 cluster.save()
                 return
