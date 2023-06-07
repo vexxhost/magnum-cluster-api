@@ -1440,6 +1440,8 @@ class Cluster(ClusterBase):
         return {**super().labels, **labels}
 
     def get_or_none(self) -> objects.Cluster:
+        if self.cluster.stack_id is None:
+            return None
         return objects.Cluster.objects(self.api, namespace="magnum-system").get_or_none(
             name=self.cluster.stack_id
         )
@@ -1709,6 +1711,8 @@ def apply_cluster_from_magnum_cluster(
 def get_kubeadm_control_plane(
     api: pykube.HTTPClient, cluster: magnum_objects.Cluster
 ) -> objects.KubeadmControlPlane:
+    if cluster.stack_id is None:
+        return None
     kcps = objects.KubeadmControlPlane.objects(api, namespace="magnum-system").filter(
         selector={
             "cluster.x-k8s.io/cluster-name": cluster.stack_id,
@@ -1724,6 +1728,8 @@ def get_machine_deployment(
     cluster: magnum_objects.Cluster,
     node_group: magnum_objects.NodeGroup,
 ) -> objects.KubeadmControlPlane:
+    if cluster.stack_id is None:
+        return None
     mds = objects.MachineDeployment.objects(api, namespace="magnum-system").filter(
         selector={
             "cluster.x-k8s.io/cluster-name": cluster.stack_id,
