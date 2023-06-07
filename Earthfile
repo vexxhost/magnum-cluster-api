@@ -17,4 +17,4 @@ mkdocs-build:
   COPY . /docs
   RUN mkdocs build
   RUN --push --secret GITHUB_TOKEN git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/vexxhost/magnum-cluster-api.git
-  RUN --push mkdocs gh-deploy
+  RUN --push mkdocs gh-deploy --force
