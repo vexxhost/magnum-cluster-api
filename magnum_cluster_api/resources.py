@@ -1693,7 +1693,9 @@ def get_last_openstack_cluster_event(
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
 ) -> str:
-    ops_clusters = objects.OpenStackCluster.objects.filter(
+    ops_clusters = objects.OpenStackCluster.objects(
+        api, namespace="magnum-system"
+    ).filter(
         selector={
             "cluster.x-k8s.io/cluster-name": cluster.stack_id,
         }
