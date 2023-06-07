@@ -1682,11 +1682,9 @@ def get_last_cluster_event(
             "involvedObject.kind": objects.Cluster.kind,
         },
     )
-    if len(cluster_events) == 1:
-        cluster_event = list(cluster_events)[0]
-    else:
+    if not cluster_events:
         return ""
-    return cluster_event.obj["message"]
+    return list(cluster_events)[-1].obj["message"]
 
 
 def get_last_openstack_cluster_event(
@@ -1713,11 +1711,9 @@ def get_last_openstack_cluster_event(
             "involvedObject.kind": objects.OpenStackCluster.kind,
         },
     )
-    if len(cluster_events) == 1:
-        cluster_event = list(cluster_events)[0]
-    else:
+    if cluster_events:
         return ""
-    return cluster_event.obj["message"]
+    return list(cluster_events)[-1].obj["message"]
 
 
 def apply_cluster_from_magnum_cluster(
