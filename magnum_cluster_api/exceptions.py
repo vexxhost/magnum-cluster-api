@@ -47,3 +47,7 @@ class OpenStackClusterSubnetNotReady(OpenStackClusterNotReady):
 
 class ClusterAPIReconcileTimeout(Exception):
     pass
+
+
+class ClusterMasterCountEven(Exception):
+    pass

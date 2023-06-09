@@ -27,7 +27,13 @@ from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
 
-from magnum_cluster_api import clients, image_utils, images, objects
+from magnum_cluster_api import (
+    clients,
+    image_utils,
+    images,
+    objects,
+    exceptions as mcapi_exceptions,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -309,3 +315,9 @@ def is_manila_csi_enabled(cluster: magnum_objects.Cluster) -> bool:
         get_cluster_label_as_bool(cluster, "manila_csi_enabled", True)
         and is_manila_enabled()
     )
+
+
+def validate_cluster(cluster: magnum_objects.Cluster):
+    # Check master count
+    if (cluster.master_count % 2) == 0:
+        raise mcapi_exceptions.ClusterMasterCountEven
