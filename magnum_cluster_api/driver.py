@@ -31,6 +31,8 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
+        utils.validate_cluster(cluster)
+
         osc = clients.get_openstack_api(context)
 
         resources.Namespace(self.k8s_api).apply()
@@ -145,6 +147,8 @@ class BaseDriver(driver.Driver):
         nodes_to_remove,
         nodegroup=None,
     ):
+        utils.validate_cluster(cluster)
+
         if nodegroup is None:
             nodegroup = cluster.default_ng_worker
 
