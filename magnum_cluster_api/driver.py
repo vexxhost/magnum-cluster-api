@@ -217,6 +217,8 @@ class BaseDriver(driver.Driver):
         raise exceptions.ClusterAPIReconcileTimeout()
 
     def delete_cluster(self, context, cluster):
+        if cluster.stack_id is None:
+            return
         # NOTE(mnaser): This should be removed when this is fixed:
         #
         #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/issues/842
