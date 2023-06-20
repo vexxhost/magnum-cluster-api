@@ -309,3 +309,10 @@ def is_manila_csi_enabled(cluster: magnum_objects.Cluster) -> bool:
         get_cluster_label_as_bool(cluster, "manila_csi_enabled", True)
         and is_manila_enabled()
     )
+
+
+def format_event_message(event: pykube.Event):
+    return "%s: %s" % (
+        event.obj["reason"],
+        event.obj["message"],
+    )

@@ -58,6 +58,34 @@ class BaseDriver(driver.Driver):
 
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
+    def _get_cluster_status_reason(self, capi_cluster):
+        capi_cluster_status_reason = ""
+        capi_ops_cluster_status_reason = ""
+
+        # Get the latest event message of the CAPI Cluster
+        capi_cluster_events = capi_cluster.events()
+        if capi_cluster_events:
+            capi_cluster_status_reason += utils.format_event_message(
+                list(capi_cluster_events)[-1]
+            )
+
+        # Get the latest event message of the CAPI OpenstackCluster
+        capi_ops_cluster_events = []
+        capi_ops_cluster = resources.get_capi_openstack_cluster(
+            self.k8s_api, capi_cluster.name
+        )
+        if capi_ops_cluster:
+            capi_ops_cluster_events = capi_ops_cluster.events()
+        if capi_ops_cluster_events:
+            capi_ops_cluster_status_reason += utils.format_event_message(
+                list(capi_ops_cluster_events)[-1]
+            )
+
+        return "CAPI Cluster status: %s. CAPI OpenstackCluster status reason: %s" % (
+            capi_cluster_status_reason,
+            capi_ops_cluster_status_reason,
+        )
+
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
         node_groups = [
             self.update_nodegroup_status(context, cluster, node_group)
@@ -85,14 +113,8 @@ class BaseDriver(driver.Driver):
 
             for condition in ("ControlPlaneReady", "InfrastructureReady", "Ready"):
                 if status_map.get(condition) != "True":
-                    cluster.status_reason = (
-                        "Cluster status reason: %s. OpenstackCluster status reason: %s"
-                        % (
-                            resources.get_last_cluster_event(self.k8s_api, cluster),
-                            resources.get_last_openstack_cluster_event(
-                                self.k8s_api, cluster
-                            ),
-                        )
+                    cluster.status_reason = self._get_cluster_status_reason(
+                        capi_cluster
                     )
                     cluster.save()
                     return
@@ -120,15 +142,7 @@ class BaseDriver(driver.Driver):
 
         if cluster.status == "DELETE_IN_PROGRESS":
             if capi_cluster and capi_cluster.exists():
-                cluster.status_reason = (
-                    "Cluster status reason: %s. OpenstackCluster status reason: %s"
-                    % (
-                        resources.get_last_cluster_event(self.k8s_api, cluster),
-                        resources.get_last_openstack_cluster_event(
-                            self.k8s_api, cluster
-                        ),
-                    )
-                )
+                cluster.status_reason = self._get_cluster_status_reason(capi_cluster)
                 cluster.save()
                 return
 

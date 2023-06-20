@@ -1671,55 +1671,25 @@ def set_autoscaler_metadata_in_machinedeployment(
         md.update()
 
 
-def get_last_cluster_event(
+def get_capi_openstack_cluster(
     api: pykube.HTTPClient,
-    cluster: magnum_objects.Cluster,
-) -> str:
-    cluster_events = pykube.Event.objects(api, namespace="magnum-system").filter(
-        field_selector={
-            "involvedObject.name": cluster.stack_id,
-            "involvedObject.apiVersion": objects.Cluster.version,
-            "involvedObject.kind": objects.Cluster.kind,
-        },
-    )
-    if not cluster_events:
-        return ""
-    return "%s: %s" % (
-        list(cluster_events)[-1].obj["reason"],
-        list(cluster_events)[-1].obj["message"],
-    )
-
-
-def get_last_openstack_cluster_event(
-    api: pykube.HTTPClient,
-    cluster: magnum_objects.Cluster,
-) -> str:
+    capi_cluster_name: str,
+) -> objects.OpenStackCluster:
     ops_clusters = objects.OpenStackCluster.objects(
         api, namespace="magnum-system"
     ).filter(
         selector={
-            "cluster.x-k8s.io/cluster-name": cluster.stack_id,
+            "cluster.x-k8s.io/cluster-name": capi_cluster_name,
         }
     )
 
-    if len(ops_clusters) == 1:
-        ops_cluster = list(ops_clusters)[0]
-    else:
-        return ""
+    if not ops_clusters:
+        return None
 
-    cluster_events = pykube.Event.objects(api, namespace="magnum-system").filter(
-        field_selector={
-            "involvedObject.name": ops_cluster.obj["metadata"]["name"],
-            "involvedObject.apiVersion": objects.OpenStackCluster.version,
-            "involvedObject.kind": objects.OpenStackCluster.kind,
-        },
-    )
-    if not cluster_events:
-        return ""
-    return "%s: %s" % (
-        list(cluster_events)[-1].obj["reason"],
-        list(cluster_events)[-1].obj["message"],
-    )
+    if len(ops_clusters) == 1:
+        return list(ops_clusters)[0]
+
+    raise Exception("More than 2 OpenstackClusters exist for one capi cluster.")
 
 
 def apply_cluster_from_magnum_cluster(
