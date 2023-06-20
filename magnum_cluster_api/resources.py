@@ -1671,27 +1671,6 @@ def set_autoscaler_metadata_in_machinedeployment(
         md.update()
 
 
-def get_capi_openstack_cluster(
-    api: pykube.HTTPClient,
-    capi_cluster_name: str,
-) -> objects.OpenStackCluster:
-    ops_clusters = objects.OpenStackCluster.objects(
-        api, namespace="magnum-system"
-    ).filter(
-        selector={
-            "cluster.x-k8s.io/cluster-name": capi_cluster_name,
-        }
-    )
-
-    if not ops_clusters:
-        return None
-
-    if len(ops_clusters) == 1:
-        return list(ops_clusters)[0]
-
-    raise Exception("More than 2 OpenstackClusters exist for one capi cluster.")
-
-
 def apply_cluster_from_magnum_cluster(
     context: context.RequestContext,
     api: pykube.HTTPClient,

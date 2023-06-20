@@ -182,7 +182,7 @@ class Cluster(NamespacedAPIObject):
         if len(filtered_clusters) == 0:
             raise exceptions.OpenStackClusterNotCreated()
 
-        return filtered_clusters[0]
+        return list(filtered_clusters)[0]
 
 
 class StorageClass(pykube.objects.APIObject):

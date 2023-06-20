@@ -63,7 +63,7 @@ class BaseDriver(driver.Driver):
         capi_ops_cluster_status_reason = ""
 
         # Get the latest event message of the CAPI Cluster
-        capi_cluster_events = capi_cluster.events()
+        capi_cluster_events = capi_cluster.events
         if capi_cluster_events:
             capi_cluster_status_reason += utils.format_event_message(
                 list(capi_cluster_events)[-1]
@@ -71,11 +71,9 @@ class BaseDriver(driver.Driver):
 
         # Get the latest event message of the CAPI OpenstackCluster
         capi_ops_cluster_events = []
-        capi_ops_cluster = resources.get_capi_openstack_cluster(
-            self.k8s_api, capi_cluster.name
-        )
+        capi_ops_cluster = capi_cluster.openstack_cluster
         if capi_ops_cluster:
-            capi_ops_cluster_events = capi_ops_cluster.events()
+            capi_ops_cluster_events = capi_ops_cluster.events
         if capi_ops_cluster_events:
             capi_ops_cluster_status_reason += utils.format_event_message(
                 list(capi_ops_cluster_events)[-1]
