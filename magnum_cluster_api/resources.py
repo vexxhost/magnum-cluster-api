@@ -1060,6 +1060,16 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-claim",  # noqa: E501
+                                            "value": "{{ .apiServerOIDC.oidcGroupsClaim }}",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-prefix",  # noqa: E501
+                                            "value": "{{ .apiServerOIDC.oidcGroupsPrefix }}",
+                                        },
+                                        {
+                                            "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-issuer-url",  # noqa: E501
                                             "value": "{{ .apiServerOIDC.oidcIssuerUrl }}",
                                         },
@@ -1072,16 +1082,6 @@ class ClusterClass(Base):
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-username-prefix",  # noqa: E501
                                             "value": "{{ .apiServerOIDC.oidcUsernamePrefix }}",
-                                        },
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-claim",  # noqa: E501
-                                            "value": "{{ .apiServerOIDC.oidcGroupsClaim }}",
-                                        },
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-prefix",  # noqa: E501
-                                            "value": "{{ .apiServerOIDC.oidcGroupsPrefix }}",
                                         },
                                     ],
                                 }
@@ -1613,6 +1613,32 @@ class Cluster(ClusterBase):
                                 },
                             },
                             {
+                                "name": "apiServerOIDC",
+                                "value": {
+                                    "enabled": utils.get_cluster_label_as_bool(
+                                        self.cluster, "oidc_enabled", False
+                                    ),
+                                    "oidcClientId": utils.get_cluster_label(
+                                        self.cluster, "oidc_client_id", ""
+                                    ),
+                                    "oidcGroupsClaim": utils.get_cluster_label(
+                                        self.cluster, "oidc_groups_claim", ""
+                                    ),
+                                    "oidcGroupsPrefix": utils.get_cluster_label(
+                                        self.cluster, "oidc_groups_prefix", ""
+                                    ),
+                                    "oidcIssuerUrl": utils.get_cluster_label(
+                                        self.cluster, "oidc_issuer_url", ""
+                                    ),
+                                    "oidcUsernameClaim": utils.get_cluster_label(
+                                        self.cluster, "oidc_username_claim", "sub"
+                                    ),
+                                    "oidcUsernamePrefix": utils.get_cluster_label(
+                                        self.cluster, "oidc_username_prefix", "-"
+                                    ),
+                                },
+                            },
+                            {
                                 "name": "auditLog",
                                 "value": {
                                     "enabled": utils.get_cluster_label_as_bool(
@@ -1626,32 +1652,6 @@ class Cluster(ClusterBase):
                                     ),
                                     "maxSize": utils.get_cluster_label(
                                         self.cluster, "audit_log_max_size", "100"
-                                    ),
-                                },
-                            },
-                            {
-                                "name": "apiServerOIDC",
-                                "value": {
-                                    "enabled": utils.get_cluster_label_as_bool(
-                                        self.cluster, "oidc_enabled", False
-                                    ),
-                                    "oidcClientId": utils.get_cluster_label(
-                                        self.cluster, "oidc_client_id", ""
-                                    ),
-                                    "oidcIssuerUrl": utils.get_cluster_label(
-                                        self.cluster, "oidc_issuer_url", ""
-                                    ),
-                                    "oidcUsernameClaim": utils.get_cluster_label(
-                                        self.cluster, "oidc_username_claim", "sub"
-                                    ),
-                                    "oidcUsernamePrefix": utils.get_cluster_label(
-                                        self.cluster, "oidc_username_prefix", "-"
-                                    ),
-                                    "oidcGroupsClaim": utils.get_cluster_label(
-                                        self.cluster, "oidc_groups_claim", ""
-                                    ),
-                                    "oidcGroupsPrefix": utils.get_cluster_label(
-                                        self.cluster, "oidc_groups_prefix", ""
                                     ),
                                 },
                             },
