@@ -174,7 +174,7 @@ deployment process.
    If provided, all groups will be prefixed with this value to prevent conflicts
    with other authentication strategies.
 
-   Default value: `30`
+   Default value: ``
 
 * `oidc_issuer_url`
 
