@@ -383,9 +383,23 @@ class ClusterResourceSet(ClusterBase):
 
 
 class CertificateAuthoritySecret(ClusterBase):
+    def delete(self) -> None:
+        resource = self.get_or_none()
+        if resource:
+            resource.delete()
+
+    def get_or_none(self) -> pykube.Secret:
+        return pykube.Secret.objects(self.api, namespace="magnum-system").get_or_none(
+            name=f"{self.cluster.stack_id}-{self.CERT}"
+        )
+
     def get_object(self) -> pykube.Secret:
+        cert_ref = getattr(self.cluster, self.REF)
+        if cert_ref is None:
+            raise Exception("Certificate for %s doesn't exist." % self.REF)
+
         ca_cert = cert_manager.get_backend().CertManager.get_cert(
-            getattr(self.cluster, self.REF),
+            cert_ref,
             resource_ref=self.cluster.uuid,
         )
 
