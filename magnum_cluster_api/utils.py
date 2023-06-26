@@ -27,7 +27,9 @@ from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
 
-from magnum_cluster_api import clients, image_utils, images, objects
+from magnum_cluster_api import clients
+from magnum_cluster_api import exceptions as mcapi_exceptions
+from magnum_cluster_api import image_utils, images, objects
 
 LOG = logging.getLogger(__name__)
 
@@ -316,3 +318,9 @@ def format_event_message(event: pykube.Event):
         event.obj["reason"],
         event.obj["message"],
     )
+
+
+def validate_cluster(cluster: magnum_objects.Cluster):
+    # Check master count
+    if (cluster.master_count % 2) == 0:
+        raise mcapi_exceptions.ClusterMasterCountEven

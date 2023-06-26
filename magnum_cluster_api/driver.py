@@ -31,6 +31,8 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
+        utils.validate_cluster(cluster)
+
         osc = clients.get_openstack_api(context)
 
         resources.Namespace(self.k8s_api).apply()
@@ -180,6 +182,8 @@ class BaseDriver(driver.Driver):
         nodes_to_remove,
         nodegroup=None,
     ):
+        utils.validate_cluster(cluster)
+
         if nodegroup is None:
             nodegroup = cluster.default_ng_worker
 
@@ -252,6 +256,8 @@ class BaseDriver(driver.Driver):
         raise exceptions.ClusterAPIReconcileTimeout()
 
     def delete_cluster(self, context, cluster):
+        if cluster.stack_id is None:
+            return
         # NOTE(mnaser): This should be removed when this is fixed:
         #
         #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/issues/842
@@ -320,7 +326,15 @@ class BaseDriver(driver.Driver):
     def update_nodegroup(self, context, cluster, nodegroup):
         # TODO
 
+        # NOTE(okozachenko1203): First we save the nodegroup status because update_cluster_status()
+        #                        could be finished before update_nodegroup().
+        nodegroup.save()
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
+        # NOTE(okozachenko1203): We set the cluster status as UPDATE_IN_PROGRESS again at the end because
+        #                        update_cluster_status() could be finished and cluster status has been set as
+        #                        UPDATE_COMPLETE before nodegroup_conductor.Handler.nodegroup_update finished.
+        cluster.status = "UPDATE_IN_PROGRESS"
+        cluster.save()
 
     def delete_nodegroup(self, context, cluster, nodegroup):
         nodegroup.status = "DELETE_IN_PROGRESS"
