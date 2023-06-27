@@ -751,36 +751,36 @@ class ClusterClass(Base):
                             },
                         },
                         {
-                            "name": "apiServerOIDC",
+                            "name": "openidConnect",
                             "required": True,
                             "schema": {
                                 "openAPIV3Schema": {
                                     "type": "object",
                                     "required": [
-                                        "oidcIssuerUrl",
-                                        "oidcClientId",
-                                        "oidcUsernameClaim",
-                                        "oidcUsernamePrefix",
-                                        "oidcGroupsClaim",
-                                        "oidcGroupsPrefix",
+                                        "issuerUrl",
+                                        "clientId",
+                                        "usernameClaim",
+                                        "usernamePrefix",
+                                        "groupsClaim",
+                                        "groupsPrefix",
                                     ],
                                     "properties": {
-                                        "oidcIssuerUrl": {
+                                        "issuerUrl": {
                                             "type": "string",
                                         },
-                                        "oidcClientId": {
+                                        "clientId": {
                                             "type": "string",
                                         },
-                                        "oidcUsernameClaim": {
+                                        "usernameClaim": {
                                             "type": "string",
                                         },
-                                        "oidcUsernamePrefix": {
+                                        "usernamePrefix": {
                                             "type": "string",
                                         },
-                                        "oidcGroupsClaim": {
+                                        "groupsClaim": {
                                             "type": "string",
                                         },
-                                        "oidcGroupsPrefix": {
+                                        "groupsPrefix": {
                                             "type": "string",
                                         },
                                     },
@@ -1037,8 +1037,8 @@ class ClusterClass(Base):
                             ],
                         },
                         {
-                            "name": "apiServerOIDC",
-                            "enabledIf": "{{ if .apiServerOIDC.oidcIssuerUrl }}true{{end}}",
+                            "name": "openidConnect",
+                            "enabledIf": "{{ if .openidConnect.issuerUrl }}true{{end}}",
                             "definitions": [
                                 {
                                     "selector": {
@@ -1052,32 +1052,32 @@ class ClusterClass(Base):
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-issuer-url",  # noqa: E501
-                                            "value": "{{ .apiServerOIDC.oidcIssuerUrl }}",
+                                            "value": "{{ .openidConnect.issuerUrl }}",
                                         },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-client-id",  # noqa: E501
-                                            "value": "{{ .apiServerOIDC.oidcClientId }}",
+                                            "value": "{{ .openidConnect.clientId }}",
                                         },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-username-claim",  # noqa: E501
-                                            "value": "{{ .apiServerOIDC.oidcUsernameClaim }}",
+                                            "value": "{{ .openidConnect.usernameClaim }}",
                                         },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-username-prefix",  # noqa: E501
-                                            "value": "{{ .apiServerOIDC.oidcUsernamePrefix }}",
+                                            "value": "{{ .openidConnect.usernamePrefix }}",
                                         },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-claim",  # noqa: E501
-                                            "value": "{{ .apiServerOIDC.oidcGroupsClaim }}",
+                                            "value": "{{ .openidConnect.groupsClaim }}",
                                         },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-prefix",  # noqa: E501
-                                            "value": "{{ .apiServerOIDC.oidcGroupsPrefix }}",
+                                            "value": "{{ .openidConnect.groupsPrefix }}",
                                         },
                                     ],
                                 }
@@ -1609,24 +1609,24 @@ class Cluster(ClusterBase):
                                 },
                             },
                             {
-                                "name": "apiServerOIDC",
+                                "name": "openidConnect",
                                 "value": {
-                                    "oidcClientId": utils.get_cluster_label(
+                                    "clientId": utils.get_cluster_label(
                                         self.cluster, "oidc_client_id", ""
                                     ),
-                                    "oidcGroupsClaim": utils.get_cluster_label(
+                                    "groupsClaim": utils.get_cluster_label(
                                         self.cluster, "oidc_groups_claim", ""
                                     ),
-                                    "oidcGroupsPrefix": utils.get_cluster_label(
+                                    "groupsPrefix": utils.get_cluster_label(
                                         self.cluster, "oidc_groups_prefix", ""
                                     ),
-                                    "oidcIssuerUrl": utils.get_cluster_label(
+                                    "issuerUrl": utils.get_cluster_label(
                                         self.cluster, "oidc_issuer_url", ""
                                     ),
-                                    "oidcUsernameClaim": utils.get_cluster_label(
+                                    "usernameClaim": utils.get_cluster_label(
                                         self.cluster, "oidc_username_claim", "sub"
                                     ),
-                                    "oidcUsernamePrefix": utils.get_cluster_label(
+                                    "usernamePrefix": utils.get_cluster_label(
                                         self.cluster, "oidc_username_prefix", "-"
                                     ),
                                 },
