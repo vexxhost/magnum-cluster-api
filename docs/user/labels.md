@@ -149,37 +149,17 @@ deployment process.
 
 ## OIDC
 
-* `oidc_enabled`
+* `oidc_issuer_url`
 
-   Enable OpenID Connect for the kube-api login.
+   The URL of the OpenID issuer, only HTTPS scheme will be accepted. If set, it
+   will be used to verify the OIDC JSON Web Token (JWT).
 
-   Default value: `false`
+   Default value: ``
 
 * `oidc_client_id`
 
    The client ID for the OpenID Connect client, must be set if `oidc_issuer_url`
    is set.
-
-   Default value: ``
-
-* `oidc_groups_claim`
-
-   If provided, the name of a custom OpenID Connect claim for specifying user
-   groups. The claim value is expected to be a string or array of strings.
-
-   Default value: ``
-
-* `oidc_groups_prefix`
-
-   If provided, all groups will be prefixed with this value to prevent conflicts
-   with other authentication strategies.
-
-   Default value: ``
-
-* `oidc_issuer_url`
-
-   The URL of the OpenID issuer, only HTTPS scheme will be accepted. If set, it
-   will be used to verify the OIDC JSON Web Token (JWT).
 
    Default value: ``
 
@@ -196,6 +176,20 @@ deployment process.
    clashes. To skip any prefixing, use the default value.
 
    Default value: `-`
+
+* `oidc_groups_claim`
+
+   If provided, the name of a custom OpenID Connect claim for specifying user
+   groups. The claim value is expected to be a string or array of strings.
+
+   Default value: ``
+
+* `oidc_groups_prefix`
+
+   If provided, all groups will be prefixed with this value to prevent conflicts
+   with other authentication strategies.
+
+   Default value: ``
 
 ## OpenStack
 
