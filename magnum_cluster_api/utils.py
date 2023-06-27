@@ -313,6 +313,13 @@ def is_manila_csi_enabled(cluster: magnum_objects.Cluster) -> bool:
     )
 
 
+def format_event_message(event: pykube.Event):
+    return "%s: %s" % (
+        event.obj["reason"],
+        event.obj["message"],
+    )
+
+
 def validate_cluster(cluster: magnum_objects.Cluster):
     # Check master count
     if (cluster.master_count % 2) == 0:

@@ -60,6 +60,32 @@ class BaseDriver(driver.Driver):
 
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
 
+    def _get_cluster_status_reason(self, capi_cluster):
+        capi_cluster_status_reason = ""
+        capi_ops_cluster_status_reason = ""
+
+        # Get the latest event message of the CAPI Cluster
+        capi_cluster_events = capi_cluster.events
+        if capi_cluster_events:
+            capi_cluster_status_reason += utils.format_event_message(
+                list(capi_cluster_events)[-1]
+            )
+
+        # Get the latest event message of the CAPI OpenstackCluster
+        capi_ops_cluster_events = []
+        capi_ops_cluster = capi_cluster.openstack_cluster
+        if capi_ops_cluster:
+            capi_ops_cluster_events = capi_ops_cluster.events
+        if capi_ops_cluster_events:
+            capi_ops_cluster_status_reason += utils.format_event_message(
+                list(capi_ops_cluster_events)[-1]
+            )
+
+        return "CAPI Cluster status: %s. CAPI OpenstackCluster status reason: %s" % (
+            capi_cluster_status_reason,
+            capi_ops_cluster_status_reason,
+        )
+
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
         node_groups = [
             self.update_nodegroup_status(context, cluster, node_group)
@@ -87,6 +113,10 @@ class BaseDriver(driver.Driver):
 
             for condition in ("ControlPlaneReady", "InfrastructureReady", "Ready"):
                 if status_map.get(condition) != "True":
+                    cluster.status_reason = self._get_cluster_status_reason(
+                        capi_cluster
+                    )
+                    cluster.save()
                     return
 
             api_endpoint = capi_cluster.obj["spec"]["controlPlaneEndpoint"]
@@ -102,14 +132,18 @@ class BaseDriver(driver.Driver):
                     ng.destroy()
 
             if cluster.status == "CREATE_IN_PROGRESS":
+                cluster.status_reason = None
                 cluster.status = "CREATE_COMPLETE"
             if cluster.status == "UPDATE_IN_PROGRESS":
+                cluster.status_reason = None
                 cluster.status = "UPDATE_COMPLETE"
 
             cluster.save()
 
         if cluster.status == "DELETE_IN_PROGRESS":
             if capi_cluster and capi_cluster.exists():
+                cluster.status_reason = self._get_cluster_status_reason(capi_cluster)
+                cluster.save()
                 return
 
             # NOTE(mnaser): We delete the application credentials at this stage
@@ -132,6 +166,7 @@ class BaseDriver(driver.Driver):
                 self.k8s_api, cluster
             ).delete()
 
+            cluster.status_reason = None
             cluster.status = "DELETE_COMPLETE"
             cluster.save()
 

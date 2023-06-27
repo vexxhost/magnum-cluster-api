@@ -22,61 +22,73 @@ from oslo_serialization import base64
 from magnum_cluster_api import exceptions
 
 
-class EndpointSlice(pykube.objects.NamespacedAPIObject):
+class NamespacedAPIObject(pykube.objects.NamespacedAPIObject):
+    @property
+    def events(self):
+        return pykube.Event.objects(self.api, namespace=self.namespace).filter(
+            field_selector={
+                "involvedObject.name": self.name,
+                "involvedObject.apiVersion": self.version,
+                "involvedObject.kind": self.kind,
+            },
+        )
+
+
+class EndpointSlice(NamespacedAPIObject):
     version = "discovery.k8s.io/v1"
     endpoint = "endpointslices"
     kind = "EndpointSlice"
 
 
-class ClusterResourceSet(pykube.objects.NamespacedAPIObject):
+class ClusterResourceSet(NamespacedAPIObject):
     version = "addons.cluster.x-k8s.io/v1beta1"
     endpoint = "clusterresourcesets"
     kind = "ClusterResourceSet"
 
 
-class OpenStackMachineTemplate(pykube.objects.NamespacedAPIObject):
+class OpenStackMachineTemplate(NamespacedAPIObject):
     version = "infrastructure.cluster.x-k8s.io/v1alpha6"
     endpoint = "openstackmachinetemplates"
     kind = "OpenStackMachineTemplate"
 
 
-class KubeadmConfigTemplate(pykube.objects.NamespacedAPIObject):
+class KubeadmConfigTemplate(NamespacedAPIObject):
     version = "bootstrap.cluster.x-k8s.io/v1beta1"
     endpoint = "kubeadmconfigtemplates"
     kind = "KubeadmConfigTemplate"
 
 
-class KubeadmControlPlane(pykube.objects.NamespacedAPIObject):
+class KubeadmControlPlane(NamespacedAPIObject):
     version = "controlplane.cluster.x-k8s.io/v1beta1"
     endpoint = "kubeadmcontrolplanes"
     kind = "KubeadmControlPlane"
 
 
-class KubeadmControlPlaneTemplate(pykube.objects.NamespacedAPIObject):
+class KubeadmControlPlaneTemplate(NamespacedAPIObject):
     version = "controlplane.cluster.x-k8s.io/v1beta1"
     endpoint = "kubeadmcontrolplanetemplates"
     kind = "KubeadmControlPlaneTemplate"
 
 
-class MachineDeployment(pykube.objects.NamespacedAPIObject):
+class MachineDeployment(NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
     endpoint = "machinedeployments"
     kind = "MachineDeployment"
 
 
-class Machine(pykube.objects.NamespacedAPIObject):
+class Machine(NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
     endpoint = "machines"
     kind = "Machine"
 
 
-class OpenStackClusterTemplate(pykube.objects.NamespacedAPIObject):
+class OpenStackClusterTemplate(NamespacedAPIObject):
     version = "infrastructure.cluster.x-k8s.io/v1alpha6"
     endpoint = "openstackclustertemplates"
     kind = "OpenStackClusterTemplate"
 
 
-class OpenStackCluster(pykube.objects.NamespacedAPIObject):
+class OpenStackCluster(NamespacedAPIObject):
     version = "infrastructure.cluster.x-k8s.io/v1alpha6"
     endpoint = "openstackclusters"
     kind = "OpenStackCluster"
@@ -148,13 +160,13 @@ class OpenStackCluster(pykube.objects.NamespacedAPIObject):
         return fd.getvalue()
 
 
-class ClusterClass(pykube.objects.NamespacedAPIObject):
+class ClusterClass(NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
     endpoint = "clusterclasses"
     kind = "ClusterClass"
 
 
-class Cluster(pykube.objects.NamespacedAPIObject):
+class Cluster(NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
     endpoint = "clusters"
     kind = "Cluster"
@@ -170,7 +182,7 @@ class Cluster(pykube.objects.NamespacedAPIObject):
         if len(filtered_clusters) == 0:
             raise exceptions.OpenStackClusterNotCreated()
 
-        return filtered_clusters[0]
+        return list(filtered_clusters)[0]
 
 
 class StorageClass(pykube.objects.APIObject):
