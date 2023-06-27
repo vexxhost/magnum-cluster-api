@@ -757,22 +757,18 @@ class ClusterClass(Base):
                                 "openAPIV3Schema": {
                                     "type": "object",
                                     "required": [
-                                        "enabled",
-                                        "oidcClientId",
                                         "oidcIssuerUrl",
+                                        "oidcClientId",
                                         "oidcUsernameClaim",
                                         "oidcUsernamePrefix",
                                         "oidcGroupsClaim",
                                         "oidcGroupsPrefix",
                                     ],
                                     "properties": {
-                                        "enabled": {
-                                            "type": "boolean",
-                                        },
-                                        "oidcClientId": {
+                                        "oidcIssuerUrl": {
                                             "type": "string",
                                         },
-                                        "oidcIssuerUrl": {
+                                        "oidcClientId": {
                                             "type": "string",
                                         },
                                         "oidcUsernameClaim": {
@@ -1042,7 +1038,7 @@ class ClusterClass(Base):
                         },
                         {
                             "name": "apiServerOIDC",
-                            "enabledIf": "{{ if .apiServerOIDC.enabled }}true{{end}}",
+                            "enabledIf": "{{ if .apiServerOIDC.oidcIssuerUrl }}true{{end}}",
                             "definitions": [
                                 {
                                     "selector": {
@@ -1055,23 +1051,13 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-client-id",  # noqa: E501
-                                            "value": "{{ .apiServerOIDC.oidcClientId }}",
-                                        },
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-claim",  # noqa: E501
-                                            "value": "{{ .apiServerOIDC.oidcGroupsClaim }}",
-                                        },
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-prefix",  # noqa: E501
-                                            "value": "{{ .apiServerOIDC.oidcGroupsPrefix }}",
-                                        },
-                                        {
-                                            "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-issuer-url",  # noqa: E501
                                             "value": "{{ .apiServerOIDC.oidcIssuerUrl }}",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-client-id",  # noqa: E501
+                                            "value": "{{ .apiServerOIDC.oidcClientId }}",
                                         },
                                         {
                                             "op": "add",
@@ -1082,6 +1068,16 @@ class ClusterClass(Base):
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-username-prefix",  # noqa: E501
                                             "value": "{{ .apiServerOIDC.oidcUsernamePrefix }}",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-claim",  # noqa: E501
+                                            "value": "{{ .apiServerOIDC.oidcGroupsClaim }}",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-prefix",  # noqa: E501
+                                            "value": "{{ .apiServerOIDC.oidcGroupsPrefix }}",
                                         },
                                     ],
                                 }
@@ -1615,9 +1611,6 @@ class Cluster(ClusterBase):
                             {
                                 "name": "apiServerOIDC",
                                 "value": {
-                                    "enabled": utils.get_cluster_label_as_bool(
-                                        self.cluster, "oidc_enabled", False
-                                    ),
                                     "oidcClientId": utils.get_cluster_label(
                                         self.cluster, "oidc_client_id", ""
                                     ),
