@@ -1052,32 +1052,44 @@ class ClusterClass(Base):
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-issuer-url",  # noqa: E501
-                                            "value": "{{ .openidConnect.issuerUrl }}",
+                                            "valueFrom": {
+                                                "variable": "openidConnect.issuerUrl",
+                                            },
                                         },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-client-id",  # noqa: E501
-                                            "value": "{{ .openidConnect.clientId }}",
+                                            "valueFrom": {
+                                                "variable": "openidConnect.clientId",
+                                            },
                                         },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-username-claim",  # noqa: E501
-                                            "value": "{{ .openidConnect.usernameClaim }}",
+                                            "valueFrom": {
+                                                "variable": "openidConnect.usernameClaim",
+                                            },
                                         },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-username-prefix",  # noqa: E501
-                                            "value": "{{ .openidConnect.usernamePrefix }}",
+                                            "valueFrom": {
+                                                "variable": "openidConnect.usernamePrefix",
+                                            },
                                         },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-claim",  # noqa: E501
-                                            "value": "{{ .openidConnect.groupsClaim }}",
+                                            "valueFrom": {
+                                                "variable": "openidConnect.groupsClaim",
+                                            },
                                         },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-prefix",  # noqa: E501
-                                            "value": "{{ .openidConnect.groupsPrefix }}",
+                                            "valueFrom": {
+                                                "variable": "openidConnect.groupsPrefix",
+                                            },
                                         },
                                     ],
                                 }
