@@ -48,9 +48,6 @@ class GetValuesReleaseCommand(ReleaseCommand):
     def __call__(self):
         try:
             return super().__call__(
-                "--namespace",
-                self.namespace,
-                self.release_name,
                 "--output",
                 "yaml",
             )
@@ -66,11 +63,7 @@ class GetStatusReleaseCommand(ReleaseCommand):
 
     def __call__(self):
         try:
-            return super().__call__(
-                "--namespace",
-                self.namespace,
-                self.release_name,
-            )
+            return super().__call__()
         except processutils.ProcessExecutionError as e:
             if "release: not found" in e.stderr:
                 raise exceptions.HelmReleaseNotFound(self.release_name)
