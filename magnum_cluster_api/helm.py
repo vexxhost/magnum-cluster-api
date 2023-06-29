@@ -61,6 +61,23 @@ class GetValuesReleaseCommand(ReleaseCommand):
                 raise
 
 
+class GetStatusReleaseCommand(ReleaseCommand):
+    COMMAND = ["status"]
+
+    def __call__(self):
+        try:
+            return super().__call__(
+                "--namespace",
+                self.namespace,
+                self.release_name,
+            )
+        except processutils.ProcessExecutionError as e:
+            if "release: not found" in e.stderr:
+                raise exceptions.HelmReleaseNotFound(self.release_name)
+            else:
+                raise
+
+
 class UpgradeReleaseCommand(ReleaseCommand):
     COMMAND = ["upgrade"]
 
@@ -70,6 +87,16 @@ class UpgradeReleaseCommand(ReleaseCommand):
         self.values = values
 
     def __call__(self):
+        try:
+            status = GetStatusReleaseCommand(
+                namespace=self.namespace,
+                release_name=self.release_name,
+            )()
+
+            if "STATUS: pending" in status.stdout:
+                return "Other task is in progress"
+        except exceptions.HelmReleaseNotFound:
+            pass
         return super().__call__(
             self.chart_ref,
             "--install",
