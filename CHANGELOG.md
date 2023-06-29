@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.7.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.6.0...v0.7.0) (2023-06-29)
+
+
+### Features
+
+* Allow odd number of master count only ([c6488c7](https://github.com/vexxhost/magnum-cluster-api/commit/c6488c7c3cb0bf494d705b487d74bc76bb1ccdf0))
+* Expose underlying k8s resource status to coe cluster status reason ([cd0438a](https://github.com/vexxhost/magnum-cluster-api/commit/cd0438a30331383771d8e687408130ce33d54610))
+* Support OpenID Connect for kube-api auth ([0a33863](https://github.com/vexxhost/magnum-cluster-api/commit/0a338631793ec8ae6494a5453b5c332ad9ff0094))
+
+
+### Bug Fixes
+
+* Fix the certificate deletion ([17c243a](https://github.com/vexxhost/magnum-cluster-api/commit/17c243a906cdbf14e8fe74f60f3f5f8166eb3c82))
+* Set the cluster status as in_progress at the end of update_nodegroup handler ([9d3312c](https://github.com/vexxhost/magnum-cluster-api/commit/9d3312c3e542b5764b8643453cd0efa052efd082))
+* Skip delete_cluster when stack_id is none ([cabd872](https://github.com/vexxhost/magnum-cluster-api/commit/cabd8729b64d8a716f8b970a1d91234c279a03b4)), closes [#126](https://github.com/vexxhost/magnum-cluster-api/issues/126)
+* solve race condition for stack_id ([43474f1](https://github.com/vexxhost/magnum-cluster-api/commit/43474f1c81cc1268afdac4f4f21681ded28fcfa4))
+
+
+### Documentation
+
+* added basic troubleshooting docs ([f2f2983](https://github.com/vexxhost/magnum-cluster-api/commit/f2f2983c059334f18b94da272a99faa9efd2f46d))
+
 ## [0.6.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.5.4...v0.6.0) (2023-06-01)
 
 
