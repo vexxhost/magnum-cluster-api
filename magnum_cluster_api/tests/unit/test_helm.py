@@ -43,6 +43,7 @@ def test_helm_upgrade(mocker):
                 namespace,
                 release_name,
             ),
+            mocker.call().stdout.__contains__("STATUS: pending"),
             mocker.call(
                 "helm",
                 "upgrade",
