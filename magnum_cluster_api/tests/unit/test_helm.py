@@ -34,18 +34,29 @@ def test_helm_upgrade(mocker):
     )
     upgrade()
 
-    mock_execute.assert_called_once_with(
-        "helm",
-        "upgrade",
-        "--namespace",
-        namespace,
-        release_name,
-        chart_ref,
-        "--install",
-        "--wait",
-        "--values",
-        "-",
-        process_input=yaml.dump(values),
+    mock_execute.assert_has_calls(
+        [
+            mocker.call(
+                "helm",
+                "status",
+                "--namespace",
+                namespace,
+                release_name,
+            ),
+            mocker.call(
+                "helm",
+                "upgrade",
+                "--namespace",
+                namespace,
+                release_name,
+                chart_ref,
+                "--install",
+                "--wait",
+                "--values",
+                "-",
+                process_input=yaml.dump(values),
+            ),
+        ]
     )
 
 
