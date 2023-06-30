@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.7.0...v0.7.1) (2023-06-30)
+
+
+### Bug Fixes
+
+* Do not upgrade helmrelease in pending status ([81bb06c](https://github.com/vexxhost/magnum-cluster-api/commit/81bb06c054d4c7fa2f199171be6d58b2a5e16cf4))
+
 ## [0.7.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.6.0...v0.7.0) (2023-06-29)
 
 
