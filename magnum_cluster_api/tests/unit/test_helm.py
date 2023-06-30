@@ -43,6 +43,8 @@ def test_helm_upgrade(mocker):
                 namespace,
                 release_name,
             ),
+            #  Note(okozachenko1203): call().__str__() is converted to call() so used tuple here.
+            #                         mocker.call is unittest.mock._Call class alias, and _Call is a subclass of tuple.
             (("().stdout.__str__", (), {})),
             mocker.call(
                 "helm",
