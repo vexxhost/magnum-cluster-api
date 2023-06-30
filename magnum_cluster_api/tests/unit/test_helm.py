@@ -43,7 +43,7 @@ def test_helm_upgrade(mocker):
                 namespace,
                 release_name,
             ),
-            mocker.call().stdout.__str__(),
+            mocker.call(("().stdout.__str__", (), {})),
             mocker.call(
                 "helm",
                 "upgrade",
