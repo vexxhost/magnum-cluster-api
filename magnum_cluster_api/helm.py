@@ -86,7 +86,7 @@ class UpgradeReleaseCommand(ReleaseCommand):
                 release_name=self.release_name,
             )()
 
-            if "STATUS: pending" in status.stdout:
+            if "STATUS: pending" in str(status.stdout):
                 return "Other task is in progress"
         except exceptions.HelmReleaseNotFound:
             pass
