@@ -129,9 +129,9 @@ sudo chmod +x /usr/local/bin/clusterctl
 export EXP_CLUSTER_RESOURCE_SET=true
 export CLUSTER_TOPOLOGY=true
 clusterctl init \
-  --core cluster-api:v1.3.3 \
-  --bootstrap kubeadm:v1.3.3 \
-  --control-plane kubeadm:v1.3.3 \
+  --core cluster-api:v1.4.4 \
+  --bootstrap kubeadm:v1.4.4 \
+  --control-plane kubeadm:v1.4.4 \
   --infrastructure openstack:v0.7.1
 
 # Vendor the chart
