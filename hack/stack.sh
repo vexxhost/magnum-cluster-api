@@ -122,7 +122,7 @@ EOF
 kubectl label node kind-control-plane openstack-control-plane=enabled
 
 # Install the `clusterctl` CLI
-sudo curl -Lo /usr/local/bin/clusterctl https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.3.2/clusterctl-linux-amd64
+sudo curl -Lo /usr/local/bin/clusterctl https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.4.4/clusterctl-linux-amd64
 sudo chmod +x /usr/local/bin/clusterctl
 
 # Initialize the `clusterctl` CLI
