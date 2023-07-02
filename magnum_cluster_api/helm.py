@@ -81,15 +81,16 @@ class UpgradeReleaseCommand(ReleaseCommand):
 
     def __call__(self):
         try:
-            status = GetStatusReleaseCommand(
+            stdout, _ = GetStatusReleaseCommand(
                 namespace=self.namespace,
                 release_name=self.release_name,
             )()
 
-            if "STATUS: pending" in str(status.stdout):
+            if "STATUS: pending" in stdout:
                 return "Other task is in progress"
         except exceptions.HelmReleaseNotFound:
             pass
+
         return super().__call__(
             self.chart_ref,
             "--install",
