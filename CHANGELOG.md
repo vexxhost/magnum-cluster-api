@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.7.1...v0.7.2) (2023-07-02)
+
+
+### Bug Fixes
+
+* bump capi ([ba2866d](https://github.com/vexxhost/magnum-cluster-api/commit/ba2866defad25aac12f4055275251497311e4e22))
+* **helm:** upgrade path ([5b9bbca](https://github.com/vexxhost/magnum-cluster-api/commit/5b9bbcad90c9530cd76bdba850c0e455efe027bd))
+
 ## [0.7.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.7.0...v0.7.1) (2023-06-30)
 
 
