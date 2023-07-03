@@ -34,7 +34,7 @@ def conn():
 
 @pytest.fixture(scope="session")
 def image(conn, kube_tag):
-    image_name = os.getenv("CAPI_IMAGE_NAME", f"ubuntu-2004-{kube_tag}")
+    image_name = os.getenv("CAPI_IMAGE_NAME", f"ubuntu-2204-kube-{kube_tag}")
     return conn.image.find_image(image_name)
 
 
