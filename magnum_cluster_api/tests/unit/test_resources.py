@@ -34,9 +34,7 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     cluster_get_by_uuid = mocker.patch("magnum.objects.Cluster.get_by_uuid")
     cluster_get_by_uuid.return_value = cluster
 
-    mock_get_default_boot_volume_type = mocker.patch(
-        "magnum.common.cinder.get_default_boot_volume_type"
-    )
+    mock_get_default_boot_volume_type = mocker.patch("get_default_boot_volume_type")
     mock_get_default_boot_volume_type.return_value = "foo"
 
     mds = resources.generate_machine_deployments_for_cluster(
