@@ -36,24 +36,31 @@ QEMU_PACKAGES = [
 ]
 
 
+def validate_version(_, __, value):
+    if not value.startswith("v"):
+        raise click.BadParameter("Version should start with 'v'")
+    return value
+
+
 @click.command()
 @click.option(
     "--operating-system",
     show_default=True,
-    default="ubuntu-2004",
+    default="ubuntu-2204",
     type=click.Choice(["ubuntu-2004", "ubuntu-2204"]),
     help="Operating system to build image for",
 )
 @click.option(
     "--version",
     show_default=True,
-    default="v1.26.2",
+    default="v1.27.3",
+    callback=validate_version,
     help="Kubernetes version",
 )
 @click.option(
     "--image-builder-version",
     show_default=True,
-    default="v0.1.14",
+    default="d37da2a",
     help="Image builder tag (or commit) to use for building image",
 )
 def main(operating_system, version, image_builder_version):
@@ -111,6 +118,29 @@ def main(operating_system, version, image_builder_version):
         "kubernetes_semver": f"{version}",
         "kubernetes_series": f"{kubernetes_series}",
     }
+
+    # NOTE(mnaser): We use the latest tested daily ISO for Ubuntu 22.04 in order
+    #               to avoid a lengthy upgrade process.
+    if operating_system == "ubuntu-2204":
+        iso = "jammy-live-server-amd64.iso"
+
+        customization[
+            "iso_url"
+        ] = f"http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/{iso}"
+
+        # Get the SHA256 sum for the ISO
+        r = requests.get(
+            "http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/SHA256SUMS"
+        )
+        r.raise_for_status()
+        for line in r.text.splitlines():
+            if iso in line:
+                customization["iso_checksum"] = line.split()[0]
+                break
+
+        # Assert that we have the checksum
+        assert "iso_checksum" in customization
+
     with tempfile.NamedTemporaryFile(suffix=".json") as fp:
         fp.write(json.dumps(customization).encode("utf-8"))
         fp.flush()

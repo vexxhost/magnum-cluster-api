@@ -15,12 +15,12 @@ specify the volume size and type using the following labels:
 
 `boot_volume_size`
 
-:   The size in gigabytes of the boot volume.  
+:   The size in gigabytes of the boot volume.
     **Default value**: `[cinder]/default_boot_volume_size` from Magnum configuration.
 
 `boot_volume_type`
 
-:   The volume type of the boot volume.  
+:   The volume type of the boot volume.
     **Default value**: `[cinder]/default_boot_volume_type` from Magnum configuration.
 
 !!! note
@@ -36,8 +36,8 @@ deployment process.
 
 `container_infra_prefix`
 
-:   The prefix of the container images to use for the cluster.  
-    **Default value**: `quay.io/vexxhost`
+:   The prefix of the container images to use for the cluster.
+    **Default value**: None, defaults to upstream images.
 
 ## Auditing
 

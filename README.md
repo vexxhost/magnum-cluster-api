@@ -43,10 +43,10 @@ steps to be able to test and develop the project.
    pushd /tmp
    source /opt/stack/openrc
    for version in v1.23.13 v1.24.7 v1.25.3; do \
-      curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2004-${version}.qcow2; \
-      openstack image create ubuntu-2004-${version} --disk-format=qcow2 --container-format=bare --property os_distro=ubuntu-focal --file=ubuntu-2004-${version}.qcow2; \
+      curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2204-kube-${version}.qcow2; \
+      openstack image create ubuntu-2204-kube-${version} --disk-format=qcow2 --container-format=bare --property os_distro=ubuntu --file=ubuntu-2204-kube-${version}.qcow2; \
       openstack coe cluster template create \
-         --image $(openstack image show ubuntu-2004-${version} -c id -f value) \
+         --image $(openstack image show ubuntu-2204-kube-${version} -c id -f value) \
          --external-network public \
          --dns-nameserver 8.8.8.8 \
          --master-lb-enabled \

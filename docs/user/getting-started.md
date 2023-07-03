@@ -10,19 +10,19 @@ The Cluster API driver for Magnum is designed to be fast.  It is capable of
 deploying a Kubernetes cluster in under 5 minutes.  However, there are several
 factors that can slow down the deployment process:
 
-* **Operating system image size**  
+* **Operating system image size**
   The average size of the operating system image is around 4 GB.  The image
   needs to be downloaded to each node before deploying the cluster, and the
   download speed depends on the network connection. The compute service caches
   images locally, so the initial cluster deployment is slower than subsequent
   deployments.
 
-* **Network connectivity**  
+* **Network connectivity**
   When the cluster goes up, it needs to pull all the container images from the
-  container registry.  By default, it will pull all the images from the
-  `quay.io/vexxhost` registry.  If you have a slow network connection, you can
-  use a local registry to speed up the deployment process and read more about
-  pointing to it in the [Labels](labels.md#images) section.
+  container registry.  By default, it will pull all the images from the upstream
+  registries.  If you have a slow network connection, you can use a local
+  registry to speed up the deployment process and read more about pointing to
+  it in the [Labels](labels.md#images) section.
 
 !!! note
 

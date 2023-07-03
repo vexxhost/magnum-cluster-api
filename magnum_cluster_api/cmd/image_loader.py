@@ -37,6 +37,7 @@ IMAGES = [
     CONF.auto_scaling.v1_24_image,
     CONF.auto_scaling.v1_25_image,
     CONF.auto_scaling.v1_26_image,
+    CONF.auto_scaling.v1_27_image,
     "registry.k8s.io/etcd:3.5.1-0",
     "registry.k8s.io/etcd:3.5.3-0",
     "registry.k8s.io/etcd:3.5.3-0",
@@ -82,8 +83,7 @@ IMAGES = [
 @click.command()
 @click.option(
     "--repository",
-    show_default=True,
-    default="quay.io/vexxhost",
+    required=True,
     help="Target image repository",
 )
 @click.option(

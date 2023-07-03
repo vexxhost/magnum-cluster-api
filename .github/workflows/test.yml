@@ -146,7 +146,7 @@ jobs:
         run: |
           source /opt/stack/openrc
           curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2004-v1.25.3.qcow2
-          openstack image create ubuntu-2004-v1.25.3 --disk-format=qcow2 --container-format=bare --property os_distro=ubuntu-focal --file=ubuntu-2004-v1.25.3.qcow2
+          openstack image create ubuntu-2004-v1.25.3 --disk-format=qcow2 --container-format=bare --property os_distro=ubuntu --file=ubuntu-2004-v1.25.3.qcow2
 
       - name: Run functional tests
         run: |
