@@ -320,7 +320,7 @@ def validate_flavor_name(cli: clients.OpenStackClients, flavor: str):
     raise exception.FlavorNotFound(flavor=flavor)
 
 
-def validate_cluster(cluster: magnum_objects.Cluster, ctx: context.RequestContext):
+def validate_cluster(context: context.RequestContext, cluster: magnum_objects.Cluster):
     # Check master count
     if (cluster.master_count % 2) == 0:
         raise mcapi_exceptions.ClusterMasterCountEven
