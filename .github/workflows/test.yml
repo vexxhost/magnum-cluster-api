@@ -151,9 +151,6 @@ jobs:
       - name: Install Magnum with Cluster API
         run: ./hack/stack.sh
 
-      - name: Setup "tmate" session
-        uses: mxschmitt/action-tmate@v3
-
       - name: Run functional tests
         run: |
           ./hack/run-functional-tests.sh

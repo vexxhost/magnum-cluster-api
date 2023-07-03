@@ -23,6 +23,12 @@ source /opt/stack/openrc
 NODE_COUNT=${NODE_COUNT:-2}
 SONOBUOY_VERSION=${SONOBUOY_VERSION:-0.56.16}
 SONOBUOY_ARCH=${SONOBUOY_ARCH:-amd64}
+DNS_NAMESERVER=${DNS_NAMESERVER:-1.1.1.1}
+
+# If running inside GitHub Actions, use Azure's "168.63.129.16" for DNS
+if [[ -n "${GITHUB_ACTIONS}" ]]; then
+  DNS_NAMESERVER=168.63.129.16
+fi
 
 # Download image artifact
 curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2204-kube-${KUBE_TAG}.qcow2
@@ -40,7 +46,7 @@ openstack image create \
 openstack coe cluster template create \
     --image $(openstack image show ${IMAGE_NAME} -c id -f value) \
     --external-network public \
-    --dns-nameserver 8.8.8.8 \
+    --dns-nameserver ${DNS_NAMESERVER} \
     --master-lb-enabled \
     --master-flavor m1.medium \
     --flavor m1.medium \
@@ -48,6 +54,7 @@ openstack coe cluster template create \
     --docker-storage-driver overlay2 \
     --coe kubernetes \
     --label kube_tag=${KUBE_TAG} \
+    --label fixed_subnet_cidr=192.168.24.0/24 \
     k8s-${KUBE_TAG};
 
 # Create cluster
