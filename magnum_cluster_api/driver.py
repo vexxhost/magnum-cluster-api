@@ -313,12 +313,6 @@ class BaseDriver(driver.Driver):
             elif phase in ("Failed", "Unknown"):
                 nodegroup.status = f"{action}_FAILED"
 
-            # TODO(mnaser): We can remove this once we support Cluster API 1.4.0
-            #               https://github.com/kubernetes-sigs/cluster-api/pull/7917
-            resources.set_autoscaler_metadata_in_machinedeployment(
-                context, self.k8s_api, cluster, nodegroup
-            )
-
         nodegroup.save()
 
         return nodegroup
