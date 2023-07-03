@@ -38,7 +38,7 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     default_volume_type.name = "foo"
 
     mock_get_default_volume_type = mocker.patch(
-        "magnum_cluster_api.clients.OpenStackClients.cinder.volume_types.default"
+        "magnum.common.clients.OpenStackClients.cinder.volume_types.default"
     )
     mock_get_default_volume_type.return_value = default_volume_type
 
