@@ -132,6 +132,15 @@ jobs:
 
   functional:
     runs-on: ubuntu-latest-16-cores
+    strategy:
+      fail-fast: false
+      matrix:
+        kube:
+          - v1.23.17
+          - v1.24.15
+          - v1.25.11
+          - v1.26.6
+          - v1.27.3
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
@@ -142,13 +151,15 @@ jobs:
       - name: Install Magnum with Cluster API
         run: ./hack/stack.sh
 
-      - name: Upload test image
-        run: |
-          source /opt/stack/openrc
-          curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2004-v1.25.3.qcow2
-          openstack image create ubuntu-2004-v1.25.3 --disk-format=qcow2 --container-format=bare --property os_distro=ubuntu --file=ubuntu-2004-v1.25.3.qcow2
-
       - name: Run functional tests
         run: |
-          source /opt/stack/openrc
-          make functional-tests
+          ./hack/run-functional-tests.sh
+        env:
+          KUBE_TAG: "${{ matrix.kube }}"
+          NODE_COUNT: 5
+
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: sonobuoy-results
+          path: sonobuoy-results.tar.gz
