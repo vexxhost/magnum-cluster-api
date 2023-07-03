@@ -23,7 +23,7 @@ import pkg_resources
 import pykube
 import yaml
 from magnum import objects as magnum_objects
-from magnum.common import cert_manager, cinder, context, neutron
+from magnum.common import cert_manager, context, exception, neutron
 from magnum.common import utils as magnum_utils
 from magnum.common.x509 import operations as x509
 from oslo_config import cfg
@@ -1445,6 +1445,24 @@ def create_cluster_class(
     ClusterClass(api).apply()
 
 
+def get_default_boot_volume_type(context):
+    """
+    Get the default boot volume type
+
+    magnum.common.cinder.get_default_boot_volume_type() returns a random volume type
+    when CONF.cinder.default_boot_volume_type is not defined.
+    Instead of using a random volume type, this func uses a default volume type.
+    """
+    if CONF.cinder.default_boot_volume_type:
+        return CONF.cinder.default_boot_volume_type
+    osc = clients.get_openstack_api(context)
+    default_volume_type = osc.cinder().volume_types.default()
+    if default_volume_type:
+        return default_volume_type.name
+    else:
+        raise exception.VolumeTypeNotFound()
+
+
 def generate_machine_deployments_for_cluster(
     context: context.RequestContext, cluster: objects.Cluster
 ) -> list:
@@ -1483,7 +1501,7 @@ def generate_machine_deployments_for_cluster(
                                 context,
                                 ng,
                                 "boot_volume_type",
-                                cinder.get_default_boot_volume_type(context),
+                                get_default_boot_volume_type(context),
                             ),
                         },
                     },
@@ -1671,9 +1689,7 @@ class Cluster(ClusterBase):
                                     "type": utils.get_cluster_label(
                                         self.cluster,
                                         "boot_volume_type",
-                                        cinder.get_default_boot_volume_type(
-                                            self.context
-                                        ),
+                                        get_default_boot_volume_type(self.context),
                                     ),
                                 },
                             },
