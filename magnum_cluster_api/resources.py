@@ -1783,35 +1783,6 @@ class Cluster(ClusterBase):
             capi_cluster.delete()
 
 
-def set_autoscaler_metadata_in_machinedeployment(
-    context: context.RequestContext,
-    api: pykube.HTTPClient,
-    cluster: magnum_objects.Cluster,
-    nodegroup: magnum_objects.NodeGroup,
-):
-    if not utils.get_auto_scaling_enabled(cluster):
-        return
-    mds = objects.MachineDeployment.objects(api).filter(
-        namespace="magnum-system",
-        selector={
-            "cluster.x-k8s.io/cluster-name": cluster.stack_id,
-            "topology.cluster.x-k8s.io/deployment-name": nodegroup.name,
-        },
-    )
-    for md in mds:
-        # NOTE(mnaser): The autoscaler will not scale under the minimum number
-        #               of nodes, so we do that ourselves here.
-        if AUTOSCALE_ANNOTATION_MIN not in md.obj["metadata"]["annotations"]:
-            md.obj["spec"]["replicas"] = nodegroup.node_count
-        md.obj["metadata"]["annotations"][AUTOSCALE_ANNOTATION_MIN] = str(
-            utils.get_node_group_min_node_count(nodegroup)
-        )
-        md.obj["metadata"]["annotations"][AUTOSCALE_ANNOTATION_MAX] = str(
-            utils.get_node_group_max_node_count(context, nodegroup)
-        )
-        md.update()
-
-
 def apply_cluster_from_magnum_cluster(
     context: context.RequestContext,
     api: pykube.HTTPClient,
