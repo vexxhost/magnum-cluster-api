@@ -51,25 +51,29 @@ AUTOSCALE_ANNOTATION_MAX = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-m
 
 class ClusterAutoscalerHelmRelease:
     def __init__(self, api, cluster) -> None:
+        self.cluster = cluster
+
+    @property
+    def apply(self):
         image = images.get_cluster_autoscaler_image(
-            utils.get_kube_tag(cluster),
+            utils.get_kube_tag(self.cluster),
         )
         image_repo, image_tag = image.split(":", 1)
 
-        self.apply = helm.UpgradeReleaseCommand(
+        return helm.UpgradeReleaseCommand(
             namespace="magnum-system",
-            release_name=cluster.stack_id,
+            release_name=self.cluster.stack_id,
             chart_ref=os.path.join(
                 pkg_resources.resource_filename("magnum_cluster_api", "charts"),
                 "cluster-autoscaler/",
             ),
             values={
-                "fullnameOverride": f"{cluster.stack_id}-autoscaler",
+                "fullnameOverride": f"{self.cluster.stack_id}-autoscaler",
                 "cloudProvider": "clusterapi",
                 "clusterAPIMode": "kubeconfig-incluster",
-                "clusterAPIKubeconfigSecret": f"{cluster.stack_id}-kubeconfig",
+                "clusterAPIKubeconfigSecret": f"{self.cluster.stack_id}-kubeconfig",
                 "autoDiscovery": {
-                    "clusterName": cluster.stack_id,
+                    "clusterName": self.cluster.stack_id,
                 },
                 "image": {
                     "repository": image_repo,
@@ -81,9 +85,11 @@ class ClusterAutoscalerHelmRelease:
             },
         )
 
-        self.delete = helm.DeleteReleaseCommand(
+    @property
+    def delete(self):
+        return helm.DeleteReleaseCommand(
             namespace="magnum-system",
-            release_name=cluster.stack_id,
+            release_name=self.cluster.stack_id,
             skip_missing=True,
         )
 
@@ -1314,6 +1320,54 @@ class ClusterClass(Base):
                             ],
                         },
                         {
+                            "name": "customImageRepository",
+                            "enabledIf": '{{ if ne .imageRepository "" }}true{{end}}',
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                        "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/imageRepository",  # noqa: E501
+                                            "valueFrom": {
+                                                "variable": "imageRepository",
+                                            },
+                                        },
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmConfigTemplate.version,
+                                        "kind": objects.KubeadmConfigTemplate.kind,
+                                        "matchResources": {
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            }
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/clusterConfiguration",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    imageRepository: "{{ .imageRepository }}"
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
                             "name": "controlPlaneConfig",
                             "definitions": [
                                 {
@@ -1338,13 +1392,6 @@ class ClusterClass(Base):
                                                     encoding: "base64"
                                                     """
                                                 )
-                                            },
-                                        },
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/imageRepository",  # noqa: E501
-                                            "valueFrom": {
-                                                "variable": "imageRepository",
                                             },
                                         },
                                         {
@@ -1389,17 +1436,6 @@ class ClusterClass(Base):
                                         },
                                     },
                                     "jsonPatches": [
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/clusterConfiguration",
-                                            "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    imageRepository: "{{ .imageRepository }}"
-                                                    """
-                                                ),
-                                            },
-                                        },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/files",
@@ -1497,7 +1533,7 @@ def generate_machine_deployments_for_cluster(
                             context,
                             ng,
                             "container_infra_prefix",
-                            "quay.io/vexxhost",
+                            "",
                         ),
                     },
                     {

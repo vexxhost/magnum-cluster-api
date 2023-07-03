@@ -53,7 +53,7 @@ def get_image(name: str, repository: str = None):
     Get the image name from the target registry given a full image name.
     """
 
-    if repository is None:
+    if not repository:
         return name
 
     new_image_name = name

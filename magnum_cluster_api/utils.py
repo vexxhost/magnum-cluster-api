@@ -127,7 +127,7 @@ def get_cluster_container_infra_prefix(cluster: magnum_objects.Cluster) -> str:
     return get_cluster_label(
         cluster,
         "container_infra_prefix",
-        "quay.io/vexxhost",
+        "",
     )
 
 

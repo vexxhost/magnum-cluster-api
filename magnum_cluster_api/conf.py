@@ -30,28 +30,33 @@ auto_scaling_opts = [
     ),
     cfg.StrOpt(
         "v1_22_image",
-        default="$image_repository/cluster-autoscaler:v1.22.1",
+        default="$image_repository/cluster-autoscaler:v1.22.3",
         help="Image for the cluster auto-scaler for Kubernetes v1.22.",
     ),
     cfg.StrOpt(
         "v1_23_image",
-        default="$image_repository/cluster-autoscaler:v1.23.0",
+        default="$image_repository/cluster-autoscaler:v1.23.1",
         help="Image for the cluster auto-scaler for Kubernetes v1.23.",
     ),
     cfg.StrOpt(
         "v1_24_image",
-        default="$image_repository/cluster-autoscaler:v1.24.1",
+        default="$image_repository/cluster-autoscaler:v1.24.2",
         help="Image for the cluster auto-scaler for Kubernetes v1.24.",
     ),
     cfg.StrOpt(
         "v1_25_image",
-        default="$image_repository/cluster-autoscaler:v1.25.1",
+        default="$image_repository/cluster-autoscaler:v1.25.5",
         help="Image for the cluster auto-scaler for Kubernetes v1.25.",
     ),
     cfg.StrOpt(
         "v1_26_image",
-        default="$image_repository/cluster-autoscaler:v1.26.1",
+        default="$image_repository/cluster-autoscaler:v1.26.3",
         help="Image for the cluster auto-scaler for Kubernetes v1.26.",
+    ),
+    cfg.StrOpt(
+        "v1_27_image",
+        default="$image_repository/cluster-autoscaler:v1.27.2",
+        help="Image for the cluster auto-scaler for Kubernetes v1.27.",
     ),
 ]
 
