@@ -58,7 +58,7 @@ openstack coe cluster create \
   k8s-cluster
 
 # Wait for cluster to be "CREATE_COMPLETE".
-for i in {1..120}; do
+for i in {1..240}; do
   CLUSTER_STATUS=$(openstack coe cluster show k8s-cluster -c status -f value)
   if [[ ${CLUSTER_STATUS} == *"FAILED"* ]]; then
     echo "Cluster failed to create"
