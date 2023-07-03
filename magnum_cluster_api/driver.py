@@ -363,7 +363,15 @@ class BaseDriver(driver.Driver):
         raise NotImplementedError()
 
 
-class UbuntuFocalDriver(BaseDriver):
+class UbuntuDriver(BaseDriver):
+    @property
+    def provides(self):
+        return [
+            {"server_type": "vm", "os": "ubuntu", "coe": "kubernetes"},
+        ]
+
+
+class UbuntuFocalDriver(UbuntuDriver):
     @property
     def provides(self):
         return [
