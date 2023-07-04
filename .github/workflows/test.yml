@@ -139,10 +139,10 @@ jobs:
       fail-fast: false
       matrix:
         kube:
-          # - v1.23.17
-          # - v1.24.15
-          # - v1.25.11
-          # - v1.26.6
+          - v1.23.17
+          - v1.24.15
+          - v1.25.11
+          - v1.26.6
           - v1.27.3
     steps:
       - name: Checkout project
