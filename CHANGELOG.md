@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.8.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.7.2...v0.8.0) (2023-07-04)
+
+
+### Features
+
+* add 1.27 support ([c256e74](https://github.com/vexxhost/magnum-cluster-api/commit/c256e74c4f76153b30fdaee68b92750a2e140d2f))
+
+
+### Bug Fixes
+
+* correct 1.25 autoscaler image ([52a756c](https://github.com/vexxhost/magnum-cluster-api/commit/52a756c0c6d73d247251de4ee8324b3eecd969b8))
+* use azure dns + fix subnet mismatch ([16d75c6](https://github.com/vexxhost/magnum-cluster-api/commit/16d75c6be0bc7690b9cade2d1198dcf80b43d1fa))
+
+
+### Documentation
+
+* add links to new images ([4fd698f](https://github.com/vexxhost/magnum-cluster-api/commit/4fd698f21a38df58ceb98fda12f673ea7114efbd))
+
 ## [0.7.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.7.1...v0.7.2) (2023-07-02)
 
 
