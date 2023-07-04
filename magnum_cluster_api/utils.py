@@ -21,8 +21,6 @@ import shortuuid
 import yaml
 from magnum import objects as magnum_objects
 from magnum.common import context, exception, octavia
-from magnum.common.keystone import KeystoneClientV3
-from oslo_log import log as logging
 from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
@@ -31,12 +29,8 @@ from magnum_cluster_api import clients
 from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import image_utils, images, objects
 
-LOG = logging.getLogger(__name__)
 
-
-def get_or_generate_cluster_api_cloud_config_secret_name(
-    api: pykube.HTTPClient, cluster: magnum_objects.Cluster
-) -> str:
+def get_cluster_api_cloud_config_secret_name(cluster: magnum_objects.Cluster) -> str:
     return f"{cluster.stack_id}-cloud-config"
 
 
@@ -70,7 +64,7 @@ def generate_cloud_controller_manager_config(
     already exist.
     """
     data = pykube.Secret.objects(api, namespace="magnum-system").get_by_name(
-        get_or_generate_cluster_api_cloud_config_secret_name(api, cluster)
+        get_cluster_api_cloud_config_secret_name(cluster)
     )
     clouds_yaml = base64.decode_as_text(data.obj["data"]["clouds.yaml"])
     cloud_config = yaml.safe_load(clouds_yaml)
@@ -95,7 +89,7 @@ def generate_manila_csi_cloud_config(
     Generate coniguration of Openstack authentication  for manila csi
     """
     data = pykube.Secret.objects(api, namespace="magnum-system").get_by_name(
-        get_or_generate_cluster_api_cloud_config_secret_name(api, cluster)
+        get_cluster_api_cloud_config_secret_name(cluster)
     )
     clouds_yaml = base64.decode_as_text(data.obj["data"]["clouds.yaml"])
     cloud_config = yaml.safe_load(clouds_yaml)
@@ -258,59 +252,6 @@ def delete_loadbalancers(ctx, cluster):
         octavia.wait_for_lb_deleted(octavia_client, candidates)
     except Exception as e:
         raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
-
-
-def is_cinder_enabled():
-    """Check if Cinder service is deployed in the cloud."""
-
-    admin_context = context.make_admin_context()
-    keystone = KeystoneClientV3(admin_context)
-
-    try:
-        cinder_svc = keystone.client.services.list(type="volumev3")
-    except Exception:
-        LOG.exception("Failed to list services")
-        raise exception.ServicesListFailed()
-
-    # Always assume there is only one load balancing service configured.
-    if cinder_svc and cinder_svc[0].enabled:
-        return True
-
-    LOG.info("There is no volumev3 service enabled in the cloud.")
-    return False
-
-
-def is_manila_enabled():
-    """Check if Manila service is deployed in the cloud."""
-
-    admin_context = context.make_admin_context()
-    keystone = KeystoneClientV3(admin_context)
-
-    try:
-        manila_svc = keystone.client.services.list(type="sharev2")
-    except Exception:
-        LOG.exception("Failed to list services")
-        raise exception.ServicesListFailed()
-
-    if manila_svc and manila_svc[0].enabled:
-        return True
-
-    LOG.info("There is no sharev2 service enabled in the cloud.")
-    return False
-
-
-def is_cinder_csi_enabled(cluster: magnum_objects.Cluster) -> bool:
-    return (
-        get_cluster_label_as_bool(cluster, "cinder_csi_enabled", True)
-        and is_cinder_enabled()
-    )
-
-
-def is_manila_csi_enabled(cluster: magnum_objects.Cluster) -> bool:
-    return (
-        get_cluster_label_as_bool(cluster, "manila_csi_enabled", True)
-        and is_manila_enabled()
-    )
 
 
 def format_event_message(event: pykube.Event):

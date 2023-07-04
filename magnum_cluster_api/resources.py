@@ -23,7 +23,7 @@ import pkg_resources
 import pykube
 import yaml
 from magnum import objects as magnum_objects
-from magnum.common import cert_manager, cinder, context, neutron
+from magnum.common import cert_manager, context, neutron
 from magnum.common import utils as magnum_utils
 from magnum.common.x509 import operations as x509
 from oslo_config import cfg
@@ -31,12 +31,10 @@ from oslo_serialization import base64
 from oslo_utils import encodeutils
 
 from magnum_cluster_api import clients, helm, image_utils, images, objects, utils
+from magnum_cluster_api.integrations import cinder, cloud_provider, manila
 
 CONF = cfg.CONF
-CLOUD_PROVIDER_TAG = "v1.25.3"
 CALICO_TAG = "v3.24.2"
-CINDER_CSI_TAG = "v1.25.3"
-MANILA_CSI_TAG = "v1.25.3"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
@@ -166,9 +164,6 @@ class ClusterResourcesConfigMap(ClusterBase):
             "magnum_cluster_api", "manifests"
         )
         calico_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
-        ccm_version = utils.get_cluster_label(
-            self.cluster, "cloud_provider_tag", CLOUD_PROVIDER_TAG
-        )
 
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
 
@@ -183,7 +178,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                     replacements=[
                         (
                             "docker.io/k8scloudprovider/openstack-cloud-controller-manager:latest",
-                            f"docker.io/k8scloudprovider/openstack-cloud-controller-manager:{ccm_version}",
+                            cloud_provider.get_image(self.cluster),
                         ),
                     ],
                 )
@@ -198,12 +193,9 @@ class ClusterResourcesConfigMap(ClusterBase):
             },
         }
 
-        if utils.is_cinder_csi_enabled(self.cluster):
+        if cinder.is_enabled(self.cluster):
             volume_types = osc.cinder().volume_types.list()
             default_volume_type = osc.cinder().volume_types.default()
-            csi_version = utils.get_cluster_label(
-                self.cluster, "cinder_csi_plugin_tag", CINDER_CSI_TAG
-            )
             data = {
                 **data,
                 **{
@@ -214,7 +206,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                         replacements=[
                             (
                                 "docker.io/k8scloudprovider/cinder-csi-plugin:latest",
-                                f"docker.io/k8scloudprovider/cinder-csi-plugin:{csi_version}",
+                                cinder.get_image(self.cluster),
                             ),
                         ],
                     )
@@ -249,11 +241,8 @@ class ClusterResourcesConfigMap(ClusterBase):
                 },
             }
 
-        if utils.is_manila_csi_enabled(self.cluster):
+        if manila.is_enabled(self.cluster):
             share_types = osc.manila().share_types.list()
-            csi_version = utils.get_cluster_label(
-                self.cluster, "manila_csi_plugin_tag", MANILA_CSI_TAG
-            )
             share_network_id = utils.get_cluster_label(
                 self.cluster, "manila_csi_share_network_id", None
             )
@@ -293,7 +282,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                         replacements=[
                             (
                                 "registry.k8s.io/provider-os/manila-csi-plugin:latest",
-                                f"registry.k8s.io/provider-os/manila-csi-plugin:{csi_version}",
+                                manila.get_image(self.cluster),
                             ),
                         ],
                     )
@@ -475,8 +464,8 @@ class CloudConfigSecret(ClusterBase):
                 "apiVersion": pykube.Secret.version,
                 "kind": pykube.Secret.kind,
                 "metadata": {
-                    "name": utils.get_or_generate_cluster_api_cloud_config_secret_name(
-                        self.api, self.cluster
+                    "name": utils.get_cluster_api_cloud_config_secret_name(
+                        self.cluster
                     ),
                     "namespace": "magnum-system",
                     "labels": self.labels,
@@ -1561,27 +1550,10 @@ class Cluster(ClusterBase):
 
     @property
     def labels(self) -> dict:
-        ccm_version = utils.get_cluster_label(
-            self.cluster, "cloud_provider_tag", CLOUD_PROVIDER_TAG
-        )
         cni_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
         labels = {
             "cni": f"calico-{cni_version}",
-            "ccm": f"openstack-cloud-controller-manager-{ccm_version}",
         }
-
-        if utils.is_cinder_csi_enabled(self.cluster):
-            csi_version = utils.get_cluster_label(
-                self.cluster, "cinder_csi_plugin_tag", CINDER_CSI_TAG
-            )
-            labels["csi"] = "cinder"
-            labels["cinder-csi-version"] = csi_version
-
-        if utils.is_manila_csi_enabled(self.cluster):
-            manila_version = utils.get_cluster_label(
-                self.cluster, "manila_csi_plugin_tag", MANILA_CSI_TAG
-            )
-            labels["manila-csi-version"] = manila_version
 
         return {**super().labels, **labels}
 
@@ -1717,8 +1689,8 @@ class Cluster(ClusterBase):
                                 "name": "clusterIdentityRef",
                                 "value": {
                                     "kind": pykube.Secret.kind,
-                                    "name": utils.get_or_generate_cluster_api_cloud_config_secret_name(
-                                        self.api, self.cluster
+                                    "name": utils.get_cluster_api_cloud_config_secret_name(
+                                        self.cluster
                                     ),
                                 },
                             },

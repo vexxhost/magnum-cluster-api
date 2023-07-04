@@ -99,7 +99,7 @@ deployment process.
    The version of the Cinder CSI container image to use when bootstrapping the
    cluster.
 
-   Default value: `v1.25.3`
+   Default value: Automatically detected based on `kube_tag` label.
 
 ### Manila
 
@@ -108,7 +108,7 @@ deployment process.
    The version of the Manila CSI container image to use when bootstrapping the
    cluster.
 
-   Default value: `v1.25.3`
+   Default value: Automatically detected based on `kube_tag` label.
 
 * `manila_csi_share_network_id`
 
