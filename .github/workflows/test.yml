@@ -132,6 +132,9 @@ jobs:
 
   functional:
     runs-on: ubuntu-latest-16-cores
+    concurrency:
+      group: ${{ github.ref }}
+      cancel-in-progress: true
     strategy:
       fail-fast: false
       matrix:
@@ -151,15 +154,15 @@ jobs:
       - name: Install Magnum with Cluster API
         run: ./hack/stack.sh
 
-      - name: Setup "tmate" session
-        uses: mxschmitt/action-tmate@v3
+      # - name: Setup "tmate" session
+      #   uses: mxschmitt/action-tmate@v3
 
       - name: Run functional tests
         run: |
           ./hack/run-functional-tests.sh
         env:
           KUBE_TAG: "${{ matrix.kube }}"
-          NODE_COUNT: 5
+          NODE_COUNT: 2
 
       - name: Upload Sonobuoy results
         uses: actions/upload-artifact@v3
