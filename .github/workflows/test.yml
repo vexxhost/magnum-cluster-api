@@ -167,6 +167,7 @@ jobs:
       - name: Upload Sonobuoy results
         uses: actions/upload-artifact@v3
         if: always()
+        continue-on-error: true
         with:
-          name: sonobuoy-results
+          name: "sonobuoy-results-${{ matrix.kube }}"
           path: sonobuoy-results.tar.gz
