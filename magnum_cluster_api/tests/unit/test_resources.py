@@ -35,7 +35,7 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     cluster_get_by_uuid.return_value = cluster
 
     mock_get_default_boot_volume_type = mocker.patch(
-        "magnum.common.cinder.get_default_boot_volume_type"
+        "magnum_cluster_api.integrations.cinder.get_default_boot_volume_type"
     )
     mock_get_default_boot_volume_type.return_value = "foo"
 
