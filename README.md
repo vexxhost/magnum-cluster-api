@@ -49,7 +49,7 @@ steps to be able to test and develop the project.
    ```bash
    pushd /tmp
    source /opt/stack/openrc
-   for version in v1.23.17 v1.24.15 v1.25.11 1.26.6 1.27.3; do \
+   for version in v1.23.17 v1.24.15 v1.25.11 v1.26.6 v1.27.3; do \
       curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2204-kube-${version}.qcow2; \
       openstack image create ubuntu-2204-kube-${version} --disk-format=qcow2 --container-format=bare --property os_distro=ubuntu --file=ubuntu-2204-kube-${version}.qcow2; \
       openstack coe cluster template create \
