@@ -7,11 +7,17 @@ concurrency:
 on:
   workflow_dispatch:
   pull_request:
+    paths-ignore:
+      - "docs/**"
+      - README.md
   push:
     branches:
       - main
     tags:
       - "v*"
+    paths-ignore:
+      - "docs/**"
+      - README.md
 
 jobs:
   service:
