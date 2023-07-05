@@ -65,21 +65,21 @@ steps to be able to test and develop the project.
          --label kube_tag=${version} \
          k8s-${version};
    done;
-   popd /tmp
+   popd
    ```
 
 1. Spin up a new cluster using the Cluster API driver
 
    ```bash
    openstack coe cluster create \
-     --cluster-template k8s-v1.25.3 \
+     --cluster-template k8s-v1.25.11 \
      --master-count 3 \
      --node-count 2 \
-     k8s-v1.25.3
+     k8s-v1.25.11
    ```
 
 1. Once the cluster reaches `CREATE_COMPLETE` state, you can interact with it:
 
    ```bash
-   eval $(openstack coe cluster config k8s-cluster)
+   eval $(openstack coe cluster config k8s-v1.25.11)
    ```
