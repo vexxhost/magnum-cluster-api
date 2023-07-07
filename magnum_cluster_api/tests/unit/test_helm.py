@@ -39,11 +39,40 @@ def test_helm_upgrade(mocker):
         [
             mocker.call(
                 "helm",
-                "status",
+                "upgrade",
                 "--namespace",
                 namespace,
                 release_name,
+                chart_ref,
+                "--install",
+                "--values",
+                "-",
+                process_input=yaml.dump(values),
             ),
+        ]
+    )
+
+
+def test_helm_upgrade_with_in_progress_operation(mocker):
+    namespace = "test-namespace"
+    release_name = "test-release"
+    chart_ref = "test-chart"
+    values = {"test": "value"}
+
+    mock_execute = mocker.patch("oslo_concurrency.processutils.execute")
+    mock_execute.side_effect = processutils.ProcessExecutionError(
+        stderr="Error: UPGRADE FAILED: another operation (install/upgrade/rollback) is in progress"
+    )
+    upgrade = helm.UpgradeReleaseCommand(
+        namespace,
+        release_name,
+        chart_ref,
+        values,
+    )
+    upgrade()
+
+    mock_execute.assert_has_calls(
+        [
             mocker.call(
                 "helm",
                 "upgrade",
@@ -52,7 +81,81 @@ def test_helm_upgrade(mocker):
                 release_name,
                 chart_ref,
                 "--install",
-                "--wait",
+                "--values",
+                "-",
+                process_input=yaml.dump(values),
+            ),
+        ]
+    )
+
+
+def test_helm_upgrade_with_existing_release(mocker):
+    namespace = "test-namespace"
+    release_name = "test-release"
+    chart_ref = "test-chart"
+    values = {"test": "value"}
+
+    mock_execute = mocker.patch("oslo_concurrency.processutils.execute")
+    mock_execute.side_effect = processutils.ProcessExecutionError(
+        stderr="Error: UPGRADE FAILED: release: already exists"
+    )
+    upgrade = helm.UpgradeReleaseCommand(
+        namespace,
+        release_name,
+        chart_ref,
+        values,
+    )
+    upgrade()
+
+    mock_execute.assert_has_calls(
+        [
+            mocker.call(
+                "helm",
+                "upgrade",
+                "--namespace",
+                namespace,
+                release_name,
+                chart_ref,
+                "--install",
+                "--values",
+                "-",
+                process_input=yaml.dump(values),
+            ),
+        ]
+    )
+
+
+
+def test_helm_upgrade_with_unknown_error(mocker):
+    namespace = "test-namespace"
+    release_name = "test-release"
+    chart_ref = "test-chart"
+    values = {"test": "value"}
+
+    mock_execute = mocker.patch("oslo_concurrency.processutils.execute")
+    mock_execute.side_effect = processutils.ProcessExecutionError(
+        stderr="Error: UPGRADE FAILED: test-release has no deployed releases"
+    )
+    upgrade = helm.UpgradeReleaseCommand(
+        namespace,
+        release_name,
+        chart_ref,
+        values,
+    )
+
+    with pytest.raises(processutils.ProcessExecutionError):
+        upgrade()
+
+    mock_execute.assert_has_calls(
+        [
+            mocker.call(
+                "helm",
+                "upgrade",
+                "--namespace",
+                namespace,
+                release_name,
+                chart_ref,
+                "--install",
                 "--values",
                 "-",
                 process_input=yaml.dump(values),
