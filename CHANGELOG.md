@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.8.0...v0.8.1) (2023-07-07)
+
+
+### Bug Fixes
+
+* **doc:** Fix k8s version string ([b1f371c](https://github.com/vexxhost/magnum-cluster-api/commit/b1f371cd36d8de041b50674006e856e5bed36a04))
+* **doc:** nit picking for README ([848e016](https://github.com/vexxhost/magnum-cluster-api/commit/848e016094aa21e767d03f08bbc8f1d05adb6a18))
+* **helm:** make upgrades more robust ([d42696d](https://github.com/vexxhost/magnum-cluster-api/commit/d42696d70f353a8aa5ac42506d92db03ad93cfaf))
+* **helm:** skip deploying autoscaler unnecessarily ([6299ec5](https://github.com/vexxhost/magnum-cluster-api/commit/6299ec55c499ac62e0bb9e9402d471c73fc9109f))
+* optimize + improve registry builds ([eeb61d2](https://github.com/vexxhost/magnum-cluster-api/commit/eeb61d2441161eb6fe1f8c5e26b1a1c6fd2d2f09))
+
 ## [0.8.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.7.2...v0.8.0) (2023-07-04)
 
 
