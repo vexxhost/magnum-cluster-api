@@ -1788,6 +1788,7 @@ def apply_cluster_from_magnum_cluster(
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
     cluster_template: magnum_objects.ClusterTemplate = None,
+    skip_auto_scaling_release: bool = False,
 ) -> objects.Cluster:
     """
     Create a ClusterAPI cluster given a Magnum Cluster object.
@@ -1814,7 +1815,8 @@ def apply_cluster_from_magnum_cluster(
     ClusterResourcesConfigMap(context, api, cluster).apply()
     ClusterResourceSet(api, cluster).apply()
     Cluster(context, api, cluster).apply()
-    if utils.get_auto_scaling_enabled(cluster):
+
+    if not skip_auto_scaling_release and utils.get_auto_scaling_enabled(cluster):
         ClusterAutoscalerHelmRelease(api, cluster).apply()
 
 
