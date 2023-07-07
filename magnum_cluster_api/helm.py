@@ -13,7 +13,6 @@
 # under the License.
 
 import yaml
-
 from oslo_concurrency import processutils
 from oslo_log import log as logging
 

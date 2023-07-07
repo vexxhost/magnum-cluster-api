@@ -125,7 +125,6 @@ def test_helm_upgrade_with_existing_release(mocker):
     )
 
 
-
 def test_helm_upgrade_with_unknown_error(mocker):
     namespace = "test-namespace"
     release_name = "test-release"
