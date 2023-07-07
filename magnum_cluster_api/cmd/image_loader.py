@@ -12,71 +12,36 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import concurrent.futures
+import os
 import shutil
 import subprocess
+import tempfile
 
 import click
+import platformdirs
+import requests
+from diskcache import FanoutCache
 
-from magnum_cluster_api import conf, image_utils, images
+from magnum_cluster_api import image_utils
 
-CONF = conf.CONF
+CACHE = FanoutCache(
+    directory=platformdirs.user_cache_dir("magnum_cluster_api", "vexxhost"),
+)
 
-
-IMAGES = [
-    "docker.io/calico/cni:v3.24.2",
-    "docker.io/calico/kube-controllers:v3.24.2",
-    "docker.io/calico/node:v3.24.2",
-    "docker.io/k8scloudprovider/cinder-csi-plugin:v1.25.3",
-    "docker.io/k8scloudprovider/manila-csi-plugin:v1.25.3",
-    "docker.io/k8scloudprovider/openstack-cloud-controller-manager:v1.25.3",
-    "registry.k8s.io/sig-storage/nfsplugin:v4.2.0",
-    "registry.k8s.io/coredns/coredns:v1.8.6",
-    "registry.k8s.io/coredns/coredns:v1.9.3",
-    CONF.auto_scaling.v1_22_image,
-    CONF.auto_scaling.v1_23_image,
-    CONF.auto_scaling.v1_24_image,
-    CONF.auto_scaling.v1_25_image,
-    CONF.auto_scaling.v1_26_image,
-    CONF.auto_scaling.v1_27_image,
-    "registry.k8s.io/etcd:3.5.1-0",
-    "registry.k8s.io/etcd:3.5.3-0",
-    "registry.k8s.io/etcd:3.5.3-0",
-    "registry.k8s.io/etcd:3.5.4-0",
-    "registry.k8s.io/etcd:3.5.6-0",
-    "registry.k8s.io/kube-apiserver:v1.23.13",
-    "registry.k8s.io/kube-apiserver:v1.24.7",
-    "registry.k8s.io/kube-apiserver:v1.24.7",
-    "registry.k8s.io/kube-apiserver:v1.25.3",
-    "registry.k8s.io/kube-apiserver:v1.26.2",
-    "registry.k8s.io/kube-controller-manager:v1.23.13",
-    "registry.k8s.io/kube-controller-manager:v1.24.7",
-    "registry.k8s.io/kube-controller-manager:v1.24.7",
-    "registry.k8s.io/kube-controller-manager:v1.25.3",
-    "registry.k8s.io/kube-controller-manager:v1.26.2",
-    "registry.k8s.io/kube-proxy:v1.23.13",
-    "registry.k8s.io/kube-proxy:v1.24.7",
-    "registry.k8s.io/kube-proxy:v1.24.7",
-    "registry.k8s.io/kube-proxy:v1.25.3",
-    "registry.k8s.io/kube-proxy:v1.26.2",
-    "registry.k8s.io/kube-scheduler:v1.23.13",
-    "registry.k8s.io/kube-scheduler:v1.24.7",
-    "registry.k8s.io/kube-scheduler:v1.24.7",
-    "registry.k8s.io/kube-scheduler:v1.25.3",
-    "registry.k8s.io/kube-scheduler:v1.26.2",
-    images.PAUSE,
-    "registry.k8s.io/sig-storage/csi-attacher:v3.4.0",
-    "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.4.0",
-    "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1",
-    "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.6.2",
-    "registry.k8s.io/sig-storage/csi-provisioner:v3.0.0",
-    "registry.k8s.io/sig-storage/csi-provisioner:v3.1.0",
-    "registry.k8s.io/sig-storage/csi-provisioner:v3.3.0",
-    "registry.k8s.io/sig-storage/csi-resizer:v1.4.0",
-    "registry.k8s.io/sig-storage/csi-resizer:v1.8.0",
-    "registry.k8s.io/sig-storage/csi-snapshotter:v5.0.1",
-    "registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1",
-    "registry.k8s.io/sig-storage/livenessprobe:v2.7.0",
-    "registry.k8s.io/sig-storage/livenessprobe:v2.8.0",
+# NOTE(mnaser): This is a list of all the Kubernetes versions which we've
+#               released images for.  This list is used to determine which
+#               images of Kubernetes we should publish to the registry.
+VERSIONS = [
+    "v1.23.13",
+    "v1.23.17",
+    "v1.24.7",
+    "v1.24.15",
+    "v1.25.3",
+    "v1.25.11",
+    "v1.26.2",
+    "v1.26.6",
+    "v1.27.3",
 ]
 
 
@@ -87,11 +52,16 @@ IMAGES = [
     help="Target image repository",
 )
 @click.option(
+    "--parallel",
+    default=8,
+    help="Number of parallel uploads",
+)
+@click.option(
     "--insecure",
     is_flag=True,
     help="Allow insecure connections to the registry.",
 )
-def main(repository, insecure):
+def main(repository, parallel, insecure):
     """
     Load images into a remote registry for `container_infra_prefix` usage.
     """
@@ -103,26 +73,142 @@ def main(repository, insecure):
              https://github.com/google/go-containerregistry/blob/main/cmd/crane/README.md#installation"""
         )
 
-    for image in IMAGES:
-        src = image
-        dst = image_utils.get_image(image, repository)
+    # NOTE(mnaser): This list must be maintained manually because the image
+    #               registry must be able to support a few different versions
+    #               of Kubernetes since it is possible to have multiple
+    #               clusters running different versions of Kubernetes at the
+    #               same time.
+    images = set(
+        _get_all_kubeadm_images()
+        + _get_calico_images()
+        + _get_cloud_provider_images()
+        + _get_infra_images()
+    )
 
-        try:
-            command = [crane_path]
-            if insecure:
-                command.append("--insecure")
-            command += ["copy", src, dst]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=parallel) as executor:
+        future_to_image = {
+            executor.submit(
+                _mirror_image, image, repository, insecure, crane_path
+            ): image
+            for image in images
+        }
 
-            subprocess.run(command, capture_output=True, check=True)
-        except subprocess.CalledProcessError as e:
-            if "401 Unauthorized" in e.stderr.decode():
+        for future in concurrent.futures.as_completed(future_to_image):
+            image = future_to_image[future]
+            try:
+                future.result()
+            except Exception as e:
                 click.echo(
-                    "Authentication failed. Please ensure you're logged in via Crane.",
+                    f"Image upload failed for {image}: {e}",
                     err=True,
                 )
-                return
 
-            click.echo(e.stderr.decode(), err=True)
-            return
 
-        click.echo(f"Successfully mirrored {src} to {dst}")
+def _mirror_image(image: str, repository: str, insecure: bool, crane_path: str):
+    src = image
+    dst = image_utils.get_image(image, repository)
+
+    try:
+        command = [crane_path]
+        if insecure:
+            command.append("--insecure")
+        command += ["copy", "--platform", "linux/amd64", src, dst]
+
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError:
+        click.echo(
+            "Image upload failed. Please ensure you're logged in via Crane.",
+            err=True,
+        )
+        return
+
+
+def _get_all_kubeadm_images():
+    """
+    Get the list of images that are used by Kubernetes by downloading "kubeadm"
+    and running the "kubeadm config images list" command.
+    """
+
+    images = []
+    for version in VERSIONS:
+        images += _get_kubeadm_images(version)
+
+    return images
+
+
+@CACHE.memoize()
+def _get_kubeadm_images(version: str):
+    """
+    Get the list of images that are used by Kubernetes by downloading "kubeadm"
+    and running the "kubeadm config images list" command.
+    """
+
+    # Download kubeadm
+    r = requests.get(f"https://dl.k8s.io/release/{version}/bin/linux/amd64/kubeadm")
+    r.raise_for_status()
+
+    # Write it to a temporary file
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        f.write(r.content)
+        f.close()
+
+        # Make it executable
+        os.chmod(f.name, 0o755)
+
+        # Run the command
+        output = subprocess.check_output([f.name, "config", "images", "list"])
+
+        # Remove the temporary file
+        os.unlink(f.name)
+
+    # Parse the output
+    return output.decode().replace("k8s.gcr.io", "registry.k8s.io").splitlines()
+
+
+def _get_calico_images():
+    return [
+        # Calico 3.24.2
+        "docker.io/calico/cni:v3.24.2",
+        "docker.io/calico/kube-controllers:v3.24.2",
+        "docker.io/calico/node:v3.24.2",
+    ]
+
+
+def _get_cloud_provider_images():
+    return [
+        # 1.24.6
+        "registry.k8s.io/provider-os/cinder-csi-plugin:v1.24.6",
+        "registry.k8s.io/provider-os/manila-csi-plugin:v1.24.6",
+        "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.24.6",
+        # v1.25.3
+        "docker.io/k8scloudprovider/cinder-csi-plugin:v1.25.3",
+        "docker.io/k8scloudprovider/manila-csi-plugin:v1.25.3",
+        "docker.io/k8scloudprovider/openstack-cloud-controller-manager:v1.25.3",
+        # v1.25.6
+        "registry.k8s.io/provider-os/cinder-csi-plugin:v1.25.6",
+        "registry.k8s.io/provider-os/manila-csi-plugin:v1.25.6",
+        "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.25.6",
+        # v1.26.3
+        "registry.k8s.io/provider-os/cinder-csi-plugin:v1.26.3",
+        "registry.k8s.io/provider-os/manila-csi-plugin:v1.26.3",
+        "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.26.3",
+    ]
+
+
+def _get_infra_images():
+    return [
+        "registry.k8s.io/sig-storage/csi-attacher:v3.4.0",
+        "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.4.0",
+        "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1",
+        "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.6.2",
+        "registry.k8s.io/sig-storage/csi-provisioner:v3.0.0",
+        "registry.k8s.io/sig-storage/csi-provisioner:v3.1.0",
+        "registry.k8s.io/sig-storage/csi-provisioner:v3.3.0",
+        "registry.k8s.io/sig-storage/csi-resizer:v1.4.0",
+        "registry.k8s.io/sig-storage/csi-resizer:v1.8.0",
+        "registry.k8s.io/sig-storage/csi-snapshotter:v5.0.1",
+        "registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1",
+        "registry.k8s.io/sig-storage/livenessprobe:v2.7.0",
+        "registry.k8s.io/sig-storage/livenessprobe:v2.8.0",
+        "registry.k8s.io/sig-storage/nfsplugin:v4.2.0",
+    ]
