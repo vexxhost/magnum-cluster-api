@@ -13,9 +13,13 @@
 # under the License.
 
 import yaml
+
 from oslo_concurrency import processutils
+from oslo_log import log as logging
 
 from magnum_cluster_api import exceptions
+
+LOG = logging.getLogger(__name__)
 
 
 class Command:
@@ -58,19 +62,6 @@ class GetValuesReleaseCommand(ReleaseCommand):
                 raise
 
 
-class GetStatusReleaseCommand(ReleaseCommand):
-    COMMAND = ["status"]
-
-    def __call__(self):
-        try:
-            return super().__call__()
-        except processutils.ProcessExecutionError as e:
-            if "release: not found" in e.stderr:
-                raise exceptions.HelmReleaseNotFound(self.release_name)
-            else:
-                raise
-
-
 class UpgradeReleaseCommand(ReleaseCommand):
     COMMAND = ["upgrade"]
 
@@ -81,24 +72,20 @@ class UpgradeReleaseCommand(ReleaseCommand):
 
     def __call__(self):
         try:
-            stdout, _ = GetStatusReleaseCommand(
-                namespace=self.namespace,
-                release_name=self.release_name,
-            )()
-
-            if "STATUS: pending" in stdout:
-                return "Other task is in progress"
-        except exceptions.HelmReleaseNotFound:
-            pass
-
-        return super().__call__(
-            self.chart_ref,
-            "--install",
-            "--wait",
-            "--values",
-            "-",
-            process_input=yaml.dump(self.values),
-        )
+            return super().__call__(
+                self.chart_ref,
+                "--install",
+                "--values",
+                "-",
+                process_input=yaml.dump(self.values),
+            )
+        except processutils.ProcessExecutionError as e:
+            if "UPGRADE FAILED: another operation" in e.stderr:
+                LOG.info("Helm release %s is already in progress", self.release_name)
+            elif "UPGRADE FAILED: release: already exists" in e.stderr:
+                LOG.info("Helm release %s already exists", self.release_name)
+            else:
+                raise
 
 
 class DeleteReleaseCommand(ReleaseCommand):
