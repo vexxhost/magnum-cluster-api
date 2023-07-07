@@ -208,7 +208,9 @@ class BaseDriver(driver.Driver):
         nodegroup.node_count = node_count
         nodegroup.save()
 
-        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
+        resources.apply_cluster_from_magnum_cluster(
+            context, self.k8s_api, cluster, skip_auto_scaling_release=True
+        )
 
     def upgrade_cluster(
         self,
@@ -270,7 +272,9 @@ class BaseDriver(driver.Driver):
         resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).delete()
 
     def create_nodegroup(self, context, cluster, nodegroup):
-        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
+        resources.apply_cluster_from_magnum_cluster(
+            context, self.k8s_api, cluster, skip_auto_scaling_release=True
+        )
 
     def update_nodegroup_status(self, context, cluster, nodegroup):
         action = nodegroup.status.split("_")[0]
@@ -323,7 +327,9 @@ class BaseDriver(driver.Driver):
         # NOTE(okozachenko1203): First we save the nodegroup status because update_cluster_status()
         #                        could be finished before update_nodegroup().
         nodegroup.save()
-        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
+        resources.apply_cluster_from_magnum_cluster(
+            context, self.k8s_api, cluster, skip_auto_scaling_release=True
+        )
         # NOTE(okozachenko1203): We set the cluster status as UPDATE_IN_PROGRESS again at the end because
         #                        update_cluster_status() could be finished and cluster status has been set as
         #                        UPDATE_COMPLETE before nodegroup_conductor.Handler.nodegroup_update finished.
@@ -338,6 +344,7 @@ class BaseDriver(driver.Driver):
             context,
             self.k8s_api,
             cluster,
+            skip_auto_scaling_release=True,
         )
 
     def get_monitor(self, context, cluster):
