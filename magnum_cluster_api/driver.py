@@ -51,11 +51,13 @@ class BaseDriver(driver.Driver):
             credential,
         ).apply()
 
-        resources.ApiCertificateAuthoritySecret(self.k8s_api, cluster).apply()
-        resources.EtcdCertificateAuthoritySecret(self.k8s_api, cluster).apply()
-        resources.FrontProxyCertificateAuthoritySecret(self.k8s_api, cluster).apply()
+        resources.ApiCertificateAuthoritySecret(context, self.k8s_api, cluster).apply()
+        resources.EtcdCertificateAuthoritySecret(context, self.k8s_api, cluster).apply()
+        resources.FrontProxyCertificateAuthoritySecret(
+            context, self.k8s_api, cluster
+        ).apply()
         resources.ServiceAccountCertificateAuthoritySecret(
-            self.k8s_api, cluster
+            context, self.k8s_api, cluster
         ).apply()
 
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
@@ -157,13 +159,17 @@ class BaseDriver(driver.Driver):
                 pass
 
             resources.CloudConfigSecret(self.k8s_api, cluster).delete()
-            resources.ApiCertificateAuthoritySecret(self.k8s_api, cluster).delete()
-            resources.EtcdCertificateAuthoritySecret(self.k8s_api, cluster).delete()
+            resources.ApiCertificateAuthoritySecret(
+                context, self.k8s_api, cluster
+            ).delete()
+            resources.EtcdCertificateAuthoritySecret(
+                context, self.k8s_api, cluster
+            ).delete()
             resources.FrontProxyCertificateAuthoritySecret(
-                self.k8s_api, cluster
+                context, self.k8s_api, cluster
             ).delete()
             resources.ServiceAccountCertificateAuthoritySecret(
-                self.k8s_api, cluster
+                context, self.k8s_api, cluster
             ).delete()
 
             cluster.status_reason = None

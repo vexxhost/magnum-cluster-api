@@ -23,9 +23,11 @@ import pkg_resources
 import pykube
 import yaml
 from magnum import objects as magnum_objects
-from magnum.common import cert_manager, context, neutron
+from magnum.common import context, neutron
 from magnum.common import utils as magnum_utils
+from magnum.common.cert_manager import cert_manager
 from magnum.common.x509 import operations as x509
+from magnum.conductor.handlers.common import cert_manager as cert_manager_handlers
 from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import encodeutils
@@ -378,6 +380,12 @@ class ClusterResourceSet(ClusterBase):
 
 
 class CertificateAuthoritySecret(ClusterBase):
+    def __init__(
+        self, context: context.RequestContext, api: pykube.HTTPClient, cluster: any
+    ):
+        super().__init__(api, cluster)
+        self.context = context
+
     def delete(self) -> None:
         resource = self.get_or_none()
         if resource:
@@ -388,15 +396,14 @@ class CertificateAuthoritySecret(ClusterBase):
             name=f"{self.cluster.stack_id}-{self.CERT}"
         )
 
+    def get_certificate(self) -> cert_manager.Cert:
+        raise NotImplementedError()
+
     def get_object(self) -> pykube.Secret:
         cert_ref = getattr(self.cluster, self.REF)
         if cert_ref is None:
             raise Exception("Certificate for %s doesn't exist." % self.REF)
-
-        ca_cert = cert_manager.get_backend().CertManager.get_cert(
-            cert_ref,
-            resource_ref=self.cluster.uuid,
-        )
+        ca_cert = self.get_certificate()
 
         return pykube.Secret(
             self.api,
@@ -425,20 +432,38 @@ class ApiCertificateAuthoritySecret(CertificateAuthoritySecret):
     CERT = "ca"
     REF = "ca_cert_ref"
 
+    def get_certificate(self) -> cert_manager.Cert:
+        return cert_manager_handlers.get_cluster_ca_certificate(
+            self.cluster, self.context, "kubernetes"
+        )
+
 
 class EtcdCertificateAuthoritySecret(CertificateAuthoritySecret):
     CERT = "etcd"
     REF = "etcd_ca_cert_ref"
+
+    def get_certificate(self) -> cert_manager.Cert:
+        return cert_manager_handlers.get_cluster_ca_certificate(
+            self.cluster, self.context, "etcd"
+        )
 
 
 class FrontProxyCertificateAuthoritySecret(CertificateAuthoritySecret):
     CERT = "proxy"
     REF = "front_proxy_ca_cert_ref"
 
+    def get_certificate(self) -> cert_manager.Cert:
+        return cert_manager_handlers.get_cluster_ca_certificate(
+            self.cluster, self.context, "front-proxy"
+        )
+
 
 class ServiceAccountCertificateAuthoritySecret(CertificateAuthoritySecret):
     CERT = "sa"
     REF = "magnum_cert_ref"
+
+    def get_certificate(self) -> cert_manager.Cert:
+        return cert_manager_handlers.get_cluster_magnum_cert(self.cluster, self.context)
 
 
 class CloudConfigSecret(ClusterBase):
