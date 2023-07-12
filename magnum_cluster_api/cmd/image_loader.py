@@ -156,7 +156,9 @@ def _get_kubeadm_images(version: str):
         os.chmod(f.name, 0o755)
 
         # Run the command
-        output = subprocess.check_output([f.name, "config", "images", "list"])
+        output = subprocess.check_output(
+            [f.name, "config", "images", "list", "--kubernetes-version", version]
+        )
 
         # Remove the temporary file
         os.unlink(f.name)
