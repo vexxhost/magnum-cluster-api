@@ -64,7 +64,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: https://github.com/vexxhost/docker-openstack-magnum.git
-          push: ${{ github.event_name == 'push' || inputs.image_push == true }}
+          push: ${{ github.event_name == 'push' || inputs.image_push == false }}
           cache-from: type=gha,scope=${{ env.PROJECT_REF }}-${{ github.sha }}
           cache-to: type=gha,mode=max,scope=${{ env.PROJECT_REF }}-${{ github.sha }}
           network: host
@@ -114,6 +114,6 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           target: registry
-          push: ${{ github.event_name == 'push' || inputs.image_push == true }}
+          push: ${{ github.event_name == 'push' || inputs.image_push == false }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
