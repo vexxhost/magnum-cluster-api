@@ -1,6 +1,19 @@
 # Troubleshooting
 
-# Cluster stuck in `CREATE_IN_PROGRESS` state
+## Useful commands
+
+### Tracking cluster progress using `clusterctl`
+
+If you'd like to track the progress of a specific cluster from the `clusterctl`
+perspective, you can run the following command to find out the `stack_id` of the
+cluster and then use `clusterctl describe` to get the status of the cluster:
+
+```
+$ export CLUSTER_ID=$(openstack coe cluster show <cluster-name> -f value -c stack_id)
+$ watch -cn1 'clusterctl describe cluster -n magnum-system $CLUSTER_ID --grouping=false --color'
+```
+
+## Cluster stuck in `CREATE_IN_PROGRESS` state
 
 With the Cluster API driver for Magnum, the cluster creation process is
 performed by the Cluster API for OpenStack.  Due to the logic of how the
