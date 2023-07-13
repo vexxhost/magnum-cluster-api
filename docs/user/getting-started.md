@@ -4,6 +4,52 @@
 
 ### Creating
 
+You can use a few different methods to create a Kubernetes cluster with the
+Cluster API driver for Magnum.  We cover a few different methods in this
+section.
+
+#### OpenStack CLI
+
+The OpenStack CLI is the easiest way to create a Kubernetes cluster.  You can
+use the `openstack coe cluster create` command to create a Kubernetes cluster
+with the Cluster API driver for Magnum.
+
+Before you get started, you'll have to make sure that you have the cluster
+templates you want to use available in your environment.  You can create them
+using the OpenStack CLI:
+
+```bash
+for version in v1.23.17 v1.24.15 v1.25.11 v1.26.6 v1.27.3; do \
+  curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2204-kube-${version}.qcow2; \
+  openstack image create ubuntu-2204-kube-${version} --disk-format=qcow2 --container-format=bare --property os_distro=ubuntu --file=ubuntu-2204-kube-${version}.qcow2; \
+  openstack coe cluster template create \
+      --image $(openstack image show ubuntu-2204-kube-${version} -c id -f value) \
+      --external-network public \
+      --dns-nameserver 8.8.8.8 \
+      --master-lb-enabled \
+      --master-flavor m1.medium \
+      --flavor m1.medium \
+      --network-driver calico \
+      --docker-storage-driver overlay2 \
+      --coe kubernetes \
+      --label kube_tag=${version} \
+      k8s-${version};
+done;
+```
+
+Once you've got a cluster template, you can create a cluster using the OpenStack
+CLI:
+
+```console
+$ openstack coe cluster create --cluster-template <cluster-template-name> <cluster-name>
+```
+
+You'll be able to view teh status of the deployment using the OpenStack CLI:
+
+```console
+$ openstack coe cluster show <cluster-name>
+```
+
 #### Deployment Speed
 
 The Cluster API driver for Magnum is designed to be fast.  It is capable of
