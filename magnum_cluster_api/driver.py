@@ -31,7 +31,7 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
-        utils.validate_cluster(cluster)
+        utils.validate_cluster(cluster, context)
 
         osc = clients.get_openstack_api(context)
 
@@ -188,7 +188,7 @@ class BaseDriver(driver.Driver):
         nodes_to_remove,
         nodegroup=None,
     ):
-        utils.validate_cluster(cluster)
+        utils.validate_cluster(cluster, context)
 
         if nodegroup is None:
             nodegroup = cluster.default_ng_worker
@@ -278,6 +278,7 @@ class BaseDriver(driver.Driver):
         resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).delete()
 
     def create_nodegroup(self, context, cluster, nodegroup):
+        utils.validate_nodegroup(nodegroup, context)
         resources.apply_cluster_from_magnum_cluster(
             context, self.k8s_api, cluster, skip_auto_scaling_release=True
         )
@@ -333,6 +334,7 @@ class BaseDriver(driver.Driver):
         # NOTE(okozachenko1203): First we save the nodegroup status because update_cluster_status()
         #                        could be finished before update_nodegroup().
         nodegroup.save()
+        utils.validate_nodegroup(nodegroup, context)
         resources.apply_cluster_from_magnum_cluster(
             context, self.k8s_api, cluster, skip_auto_scaling_release=True
         )
