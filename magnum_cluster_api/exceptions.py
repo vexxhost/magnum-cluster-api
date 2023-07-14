@@ -13,6 +13,10 @@
 # under the License.
 
 
+from magnum.common import exception
+from magnum.i18n import _
+
+
 class HelmException(Exception):
     pass
 
@@ -51,3 +55,7 @@ class ClusterAPIReconcileTimeout(Exception):
 
 class ClusterMasterCountEven(Exception):
     pass
+
+
+class OpenstackFlavorInvalidName(exception.InvalidName):
+    message = _("Expected a flavor name but received flavor id %(flavor)s.")
