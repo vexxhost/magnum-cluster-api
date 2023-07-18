@@ -1508,7 +1508,11 @@ def generate_machine_deployments_for_cluster(
                 "annotations": {
                     AUTOSCALE_ANNOTATION_MIN: f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
                     AUTOSCALE_ANNOTATION_MAX: f"{utils.get_node_group_max_node_count(context, ng)}",  # noqa: E501
-                }
+                },
+                "labels": {
+                    f"node-role.kubernetes.io/{ng.role}": "",
+                    "node.cluster.x-k8s.io/nodegroup": ng.name,
+                },
             }
             if auto_scaling_enabled
             else {},
@@ -1634,6 +1638,11 @@ class Cluster(ClusterBase):
                         "class": CLUSTER_CLASS_NAME,
                         "version": utils.get_kube_tag(self.cluster),
                         "controlPlane": {
+                            "metadata": {
+                                "labels": {
+                                    f"node-role.kubernetes.io/master": "",
+                                }
+                            },
                             "replicas": self.cluster.master_count,
                             "machineHealthCheck": {
                                 "enable": utils.get_cluster_label_as_bool(
