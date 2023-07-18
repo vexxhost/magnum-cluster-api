@@ -99,3 +99,8 @@ OpenStack CLI:
 ```console
 $ openstack coe cluster upgrade <cluster-name> <cluster-template-name>
 ```
+
+### Node group role
+Roles can be used to show the purpose of a node group, and multiple node groups can be given the same role if they share a common purpose.
+Role information is available within Kubernetes as `node-role.kubernetes.io/ROLE_NAME` label on the nodes.
+The label `node.cluster.x-k8s.io/nodegroup` is also available for selecting a specific node group.
