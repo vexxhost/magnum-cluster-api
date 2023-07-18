@@ -1640,7 +1640,7 @@ class Cluster(ClusterBase):
                         "controlPlane": {
                             "metadata": {
                                 "labels": {
-                                    f"node-role.kubernetes.io/master": "",
+                                    "node-role.kubernetes.io/master": "",
                                 }
                             },
                             "replicas": self.cluster.master_count,
