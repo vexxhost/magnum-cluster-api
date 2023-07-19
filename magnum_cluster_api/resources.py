@@ -694,7 +694,7 @@ class ClusterClass(Base):
                             },
                         },
                         "machineHealthCheck": {
-                            "maxUnhealthy": "33%",
+                            "maxUnhealthy": "80%",
                             "unhealthyConditions": [
                                 {
                                     "type": "Ready",
@@ -737,7 +737,7 @@ class ClusterClass(Base):
                                     },
                                 },
                                 "machineHealthCheck": {
-                                    "maxUnhealthy": "33%",
+                                    "maxUnhealthy": "80%",
                                     "unhealthyConditions": [
                                         {
                                             "type": "Ready",
