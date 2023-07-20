@@ -164,6 +164,7 @@ jobs:
         run: |
           ./hack/run-functional-tests.sh
         env:
+          BUILD_NEW_IMAGE: "${{ contains('/build-new-image', github.event.pull_request.body) }}"
           KUBE_TAG: "${{ matrix.kube }}"
           NODE_COUNT: 2
 
@@ -174,3 +175,11 @@ jobs:
         with:
           name: "sonobuoy-results-${{ matrix.kube }}"
           path: sonobuoy-results.tar.gz
+
+      - name: Upload built image
+        uses: actions/upload-artifact@v3
+        if: contains('/build-new-image', github.event.pull_request.body)
+        continue-on-error: true
+        with:
+          name: ubuntu-2204-kube-${{ matrix.kube }}.qcow2
+          path: ubuntu-2204-kube-${{ matrix.kube }}.qcow2

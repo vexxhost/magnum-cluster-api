@@ -30,8 +30,15 @@ if [[ -n "${GITHUB_ACTIONS}" ]]; then
   DNS_NAMESERVER=168.63.129.16
 fi
 
-# Download image artifact
-curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2204-kube-${KUBE_TAG}.qcow2
+# If `BUILD_NEW_IMAGE` is true, then we build an image in CI, otherwise we
+# download the latest promoted image.
+if [[ "${BUILD_NEW_IMAGE}" == "true" ]]; then
+  magnum-cluster-api-image-builder \
+    --operating-system ubuntu-2204 \
+    --version ${KUBE_TAG}
+else
+  curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2204-kube-${KUBE_TAG}.qcow2
+fi
 
 # Upload image to Glance
 IMAGE_NAME=ubuntu-2204-kube-${KUBE_TAG}
