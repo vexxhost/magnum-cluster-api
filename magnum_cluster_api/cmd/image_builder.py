@@ -60,7 +60,7 @@ def validate_version(_, __, value):
 @click.option(
     "--image-builder-version",
     show_default=True,
-    default="d37da2a",
+    default="bab3d4d",
     help="Image builder tag (or commit) to use for building image",
 )
 def main(operating_system, version, image_builder_version):
@@ -166,3 +166,6 @@ def main(operating_system, version, image_builder_version):
                 },
             },
         )
+
+    # Copy from the target to the current working directory
+    os.rename(target, f"{operating_system}-kube-{version}.qcow2")
