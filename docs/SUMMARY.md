@@ -3,3 +3,5 @@
     - user/*.md
 - Administrator Guide
     - admin/*.md
+- Developer Guide
+    - developer/*.md
