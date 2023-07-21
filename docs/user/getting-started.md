@@ -102,5 +102,36 @@ $ openstack coe cluster upgrade <cluster-name> <cluster-template-name>
 
 ### Node group role
 Roles can be used to show the purpose of a node group, and multiple node groups can be given the same role if they share a common purpose.
-Role information is available within Kubernetes as `node-role.kubernetes.io/ROLE_NAME` label on the nodes.
+```sh
+$ openstack coe nodegroup create kube test-ng --node-count 1 --role test
+```
+When listing node groups, the role may be used as a filter:
+```sh
+$ openstack coe nodegroup list kube --role test
++--------------------------------------+---------+-----------+--------------------------------------+------------+-----------------+------+
+| uuid                                 | name    | flavor_id | image_id                             | node_count | status          | role |
++--------------------------------------+---------+-----------+--------------------------------------+------------+-----------------+------+
+| c8acbb1f-2fa3-4d1f-b583-9a2df1e269d7 | test-ng | m1.medium | ef107f29-8f26-474e-8f5f-80d269c7d2cd |          1 | CREATE_COMPLETE | test |
++--------------------------------------+---------+-----------+--------------------------------------+------------+-----------------+------+
+```
+The node group role will default to "worker" if unset, and the only reserved role is "master".
+Role information is available within Kubernetes.
+```sh
+$ kubectl get nodes
+NAME                                          STATUS   ROLES                  AGE     VERSION
+kube-7kjbp-control-plane-vxtrz-nhjr2          Ready    control-plane,master   3d      v1.25.3
+kube-7kjbp-default-worker-infra-hnk8x-v6cp9   Ready    worker                 2d19h   v1.25.3
+kube-7kjbp-test-ng-infra-b8yux-3v6fd          Ready    test                   5m      v1.25.3
+```
+This information can be used for scheduling, using a node selector.
+```sh
+nodeSelector:
+  # node-role.kubernetes.io/ROLE_NAME: ""
+  node-role.kubernetes.io/test: ""
+```
 The label `node.cluster.x-k8s.io/nodegroup` is also available for selecting a specific node group.
+```sh
+nodeSelector:
+  # node.cluster.x-k8s.io/nodegroup: "NODEGROUP_NAME"
+  node.cluster.x-k8s.io/nodegroup: "test-ng"
+```
