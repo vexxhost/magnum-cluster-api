@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.9.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.8.1...v0.9.0) (2023-07-21)
+
+
+### Features
+
+* Add labels for nodegroup name and role name ([bfc2f52](https://github.com/vexxhost/magnum-cluster-api/commit/bfc2f5228bdc6e137918c8ee721b20a689d24f95))
+* Validate flavors ([e438f4b](https://github.com/vexxhost/magnum-cluster-api/commit/e438f4b490b16b7f296e9828f1100067845cafae))
+
+
+### Bug Fixes
+
+* correct images ([df45fc4](https://github.com/vexxhost/magnum-cluster-api/commit/df45fc4d2a89afde952eac9170a2f1b7f079fd43))
+* **mhc:** increase max unhealthy to 80% ([700a19c](https://github.com/vexxhost/magnum-cluster-api/commit/700a19cc52bbf6a62983b3fbb6395eea5b2fa3b5))
+* refactor to using handlers with context ([9e5cb2d](https://github.com/vexxhost/magnum-cluster-api/commit/9e5cb2ded67aac22dcb3512c92b74bf07a96841a))
+
 ## [0.8.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.8.0...v0.8.1) (2023-07-07)
 
 
