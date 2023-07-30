@@ -1,8 +1,9 @@
 [tool.poetry]
-name = "magnum-cluster-api"
+name = "magnum-cluster-api"  
 version = "0.9.0"
 description = "Cluster API driver for Magnum"
 authors = ["Mohammed Naser <mnaser@vexxhost.com>"]
+license = "Apache-2.0"
 readme = "README.md"
 packages = [{include = "magnum_cluster_api"}]
 include = ["magnum_cluster_api/charts/**/*"]
