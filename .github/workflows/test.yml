@@ -133,6 +133,39 @@ jobs:
       - name: Run unit tests
         run: make unit-tests
 
+  build-images:
+    runs-on: ubuntu-latest-16-cores
+    if: contains(github.event.pull_request.body, '/build-new-image')
+    strategy:
+      fail-fast: true
+      matrix:
+        kube:
+          - v1.23.17
+          - v1.24.15
+          - v1.25.11
+          - v1.26.6
+          - v1.27.3
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v3
+
+      - name: Install Cluster API driver for Magnum
+        run: |
+          pip install -U setuptools pip
+          $HOME/.local/bin/pip3 install -e .
+
+      - name: Build image
+        run: |
+          magnum-cluster-api-image-builder
+            --operating-system ubuntu-2204
+            --version ${{ matrix.kube }}
+
+      - name: Upload built image
+        uses: actions/upload-artifact@v3
+        with:
+          name: ubuntu-2204-kube-${{ matrix.kube }}.qcow2
+          path: ubuntu-2204-kube-${{ matrix.kube }}.qcow2
+
   functional:
     runs-on: ubuntu-latest-16-cores
     strategy:
@@ -160,6 +193,21 @@ jobs:
       # - name: Setup "tmate" session
       #   uses: mxschmitt/action-tmate@v3
 
+      - name: Wait for images
+        if: contains(github.event.pull_request.body, '/build-new-image')
+        uses: lewagon/wait-on-check-action@v1.3.1
+        with:
+          ref: ${{ github.ref }}
+          check-name: "build-images (${{ matrix.kube }})"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+
+      - name: Download built image
+        if: contains(github.event.pull_request.body, '/build-new-image')
+        uses: actions/download-artifact@v3
+        with:
+          name: ubuntu-2204-kube-${{ matrix.kube }}.qcow2
+
       - name: Run functional tests
         run: |
           ./hack/run-functional-tests.sh
@@ -175,11 +223,3 @@ jobs:
         with:
           name: "sonobuoy-results-${{ matrix.kube }}"
           path: sonobuoy-results.tar.gz
-
-      - name: Upload built image
-        uses: actions/upload-artifact@v3
-        if: contains(github.event.pull_request.body, '/build-new-image')
-        continue-on-error: true
-        with:
-          name: ubuntu-2204-kube-${{ matrix.kube }}.qcow2
-          path: ubuntu-2204-kube-${{ matrix.kube }}.qcow2
