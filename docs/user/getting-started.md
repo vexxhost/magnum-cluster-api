@@ -38,9 +38,9 @@ dashboard, Terraform, Ansible or the Magnum API directly.
 
 #### OpenStack CLI
 
-The OpenStack CLI is the easiest way to create a Kubernetes cluster.  You can
-use the `openstack coe cluster create` command to create a Kubernetes cluster
-with the Cluster API driver for Magnum.
+The OpenStack CLI is the easiest way to create a Kubernetes cluster from your
+terminal directly.  You can use the `openstack coe cluster create` command to
+create a Kubernetes cluster with the Cluster API driver for Magnum.
 
 Before you get started, you'll have to make sure that you have the cluster
 templates you want to use available in your environment.  You can create them
@@ -76,6 +76,149 @@ You'll be able to view teh status of the deployment using the OpenStack CLI:
 
 ```console
 $ openstack coe cluster show <cluster-name>
+```
+
+#### OpenStack Horizon
+
+The OpenStack Horizon dashboard is the easiest way to create a Kubernetes using
+a simple web interface.  In order to get started, you can review the list of
+current cluster templates in your environment by navigating using the left
+sidebar to *Project* > *Container Infra* > *Cluster Templates*.
+
+![Cluster template list](../static/user/getting-started/cluster-template-list.png)
+
+In order to launch an new cluster, you will need to navigate to *Project* >
+*Container Infra* > *Clusters* and click on the *Launch Cluster* button.
+
+![Cluster list with create button](../static/user/getting-started/cluster-list-create.png)
+
+There is a set of required fields that you will need to fill out in order to
+launch a cluster, the first of which are related to it's basic configuration,
+the required fields are:
+
+* **Cluster Name**  
+  The name of the cluster that will be created.
+
+* **Cluster Template**  
+  The cluster template that will be used to create the cluster.
+
+* **Keypair**  
+  The SSH key pair that will be used to access the cluster.
+
+In this example, we're going to create a cluster with the name of `test-cluster`,
+running Kuberentes 1.27.3 so using the `k8s-v1.27.3` cluster template, and using
+the `admin_key` SSH key pair.
+
+![Cluster create information](../static/user/getting-started/cluster-create-info.png)
+
+The next step is deciding on the size of the cluster and selecting if auto scaling
+will be enabled for the cluster.  The required fields are:
+
+* **Number of Master Nodes**  
+  The number of master nodes that will be created in the cluster.
+
+* **Flavor of Master Nodes**  
+  The flavor of the master nodes that will be created in the cluster.
+
+* **Number of Worker Nodes**  
+  The number of worker nodes that will be created in the cluster.
+
+* **Flavor of Worker Nodes**  
+  The flavor of the worker nodes that will be created in the cluster.
+
+In addition, if you want to enable auto scaling, you will need to provide the
+following information:
+
+* **Auto-scale Worker Nodes**  
+  Whether or not to enable auto scaling for the worker nodes.
+
+* **Minimum Number of Worker Nodes**
+  The minimum number of worker nodes that will be created in the cluster, the
+  auto scaler will not scale below this number even if the cluster is under
+  utilized.
+
+* **Maximum Number of Worker Nodes**
+  The maximum number of worker nodes that will be created in the cluster, the
+  auto scaler will not scale above this number even if the cluster is over
+  utilized.
+
+In this example, we're going to create a cluster with 3 master node and 4 worker
+nodes, using the `m1.medium` flavor for both the master and worker nodes, and we
+will enable auto scaling with a minimum of 2 worker nodes and a maximum of 10
+worker nodes.
+
+![Cluster create size](../static/user/getting-started/cluster-create-size.png)
+
+The next step is managing the network configuration of the cluster.  The required
+fields are:
+
+* **Enable Load Balancer for Master Nodes**  
+  This is required to be **enabled** for the Cluster API driver for Magnum to
+  work properly.
+
+* **Create New Network**
+  This will determine if a new network will be created for the cluster or if an
+  existing network will be used.  It's useful to use an existing network if you
+  want to attach the cluster to an existing network with other resources.
+
+* **Cluster API**  
+  This setting controls if the API will get a floating IP address assigned to
+  it.  You can set this to _Accessible on private network only_ if you are using
+  an existing network and don't want to expose the API to the public internet.
+  Otherwise, you should set it to _Accessible on the public internet_ to allow
+  access to the API from the external network.
+
+In this example, we're going to make sure we have the load balancer enabled for
+the master nodes, we're going to create a new network for the cluster, and we're
+going to make sure that the API is accessible on the public internet.
+
+![Cluster create network](../static/user/getting-started/cluster-create-network.png)
+
+For the next step, we need to decide if we want to enable auto-healing for the
+cluster which automatically detects nodes that are unhealthy and replaces them
+with new nodes.  The required fields are:
+
+* **Automatically Repair Unhealthy Nodes**  
+  Whether or not to enable auto-healing for the cluster.
+
+In this example, we're going to enable auto-healing for the cluster since it
+will help keep the cluster healthy.
+
+![Cluster create management](../static/user/getting-started/cluster-create-mgmt.png)
+
+Finally, you can override labels for the cluster in the _Advanced_ section, we
+do not recommend changing these unless you know what you're doing.  Once you're
+ready, you can click on the _Submit_ button to create the cluster.  The page
+will show your cluster being created.
+
+![Cluster list after creation](../static/user/getting-started/cluster-postcreate-list.png)
+
+If you click on the cluster, you'll be able to track the progress of the cluster
+creation, more specifically in the _Status Reason_ field, seen below:
+
+![Cluster show after creation](../static/user/getting-started/cluster-postcreate-show.png)
+
+Once the cluster is created, you'll be able to see the cluster details,
+including the health status as well:
+
+![Cluster show after creation](../static/user/getting-started/cluster-created-show.png)
+
+At this point, you should have a ready cluster and you can proceed to the
+[Accessing](#accessing) section to learn how to access the cluster.
+
+### Accessing
+
+In order to access the Kubernetes cluster, you will have to request for a
+`KUBECONFIG` file generated by the Cluster API driver for Magnum.  You can do
+this using a few several ways, we cover a few of them in this section.
+
+#### OpenStack CLI
+
+You can use the OpenStack CLI to request a `KUBECONFIG` file for a Kubernetes
+cluster.  You can do this using the `openstack coe cluster config` command:
+
+```console
+$ openstack coe cluster config <cluster-name>
 ```
 
 ### Upgrading
