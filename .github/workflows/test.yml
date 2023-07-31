@@ -159,6 +159,8 @@ jobs:
           magnum-cluster-api-image-builder
             --operating-system ubuntu-2204
             --version ${{ matrix.kube }}
+        env:
+          PACKER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload built image
         uses: actions/upload-artifact@v3
@@ -197,7 +199,7 @@ jobs:
         if: contains(github.event.pull_request.body, '/build-new-image')
         uses: lewagon/wait-on-check-action@v1.3.1
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
           check-name: "build-images (${{ matrix.kube }})"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 10
