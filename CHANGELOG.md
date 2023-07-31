@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.9.0...v0.9.1) (2023-07-31)
+
+
+### Documentation
+
+* add dashboard docs ([2ae4adb](https://github.com/vexxhost/magnum-cluster-api/commit/2ae4adb4f178a340b4f922f7d50cb100d6a5fcd5))
+
 ## [0.9.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.8.1...v0.9.0) (2023-07-21)
 
 
