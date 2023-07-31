@@ -8,6 +8,34 @@ You can use a few different methods to create a Kubernetes cluster with the
 Cluster API driver for Magnum.  We cover a few different methods in this
 section.
 
+!!! note "Notes about deployment speed"
+
+    The Cluster API driver for Magnum is designed to be fast.  It is capable of
+    deploying a Kubernetes cluster in under 5 minutes.  However, there are several
+    factors that can slow down the deployment process:
+
+    * **Operating system image size**
+      The average size of the operating system image is around 4 GB.  The image
+      needs to be downloaded to each node before deploying the cluster, and the
+      download speed depends on the network connection. The compute service caches
+      images locally, so the initial cluster deployment is slower than subsequent
+      deployments.
+
+    * **Network connectivity**
+      When the cluster goes up, it needs to pull all the container images from the
+      container registry.  By default, it will pull all the images from the upstream
+      registries.  If you have a slow network connection, you can use a local
+      registry to speed up the deployment process and read more about pointing to
+      it in the [Labels](labels.md#images) section.
+
+    [Atmosphere](https://github.com/vexxhost/atmosphere) deploys a local
+    registry by default as well as includes several speed optimizations to
+    improve the deployment speed down to 5 minutes.
+
+You can create clusters using several different methods which all end up using
+the Magnum API.  You can either use the OpenStack CLI, OpenStack Horizon
+dashboard, Terraform, Ansible or the Magnum API directly.
+
 #### OpenStack CLI
 
 The OpenStack CLI is the easiest way to create a Kubernetes cluster.  You can
@@ -49,32 +77,6 @@ You'll be able to view teh status of the deployment using the OpenStack CLI:
 ```console
 $ openstack coe cluster show <cluster-name>
 ```
-
-#### Deployment Speed
-
-The Cluster API driver for Magnum is designed to be fast.  It is capable of
-deploying a Kubernetes cluster in under 5 minutes.  However, there are several
-factors that can slow down the deployment process:
-
-* **Operating system image size**
-  The average size of the operating system image is around 4 GB.  The image
-  needs to be downloaded to each node before deploying the cluster, and the
-  download speed depends on the network connection. The compute service caches
-  images locally, so the initial cluster deployment is slower than subsequent
-  deployments.
-
-* **Network connectivity**
-  When the cluster goes up, it needs to pull all the container images from the
-  container registry.  By default, it will pull all the images from the upstream
-  registries.  If you have a slow network connection, you can use a local
-  registry to speed up the deployment process and read more about pointing to
-  it in the [Labels](labels.md#images) section.
-
-!!! note
-
-    [Atmosphere](https://github.com/vexxhost/atmosphere) deploys a local
-    registry by default as well as includes several speed optimizations to
-    improve the deployment speed down to 5 minutes.
 
 ### Upgrading
 
