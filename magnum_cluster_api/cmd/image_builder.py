@@ -141,6 +141,20 @@ def main(operating_system, version, image_builder_version):
         # Assert that we have the checksum
         assert "iso_checksum" in customization
 
+    # NOTE(mnaser): Let's set number of CPUs to equal the number of CPUs on the
+    #               host to speed up the build process.
+    customization["cpus"] = os.cpu_count()
+
+    # NOTE(mnaser): We set the memory of the VM to 50% of the total memory
+    #               of the system.
+    with open('/proc/meminfo', 'r') as f:
+        for line in f:
+            if line.startswith('MemTotal:'):
+                total_memory_kb = int(line.split()[1])
+                break
+    total_memory_mb = total_memory_kb / 1024
+    customization["memory"] = int(total_memory_mb * 0.5)
+
     with tempfile.NamedTemporaryFile(suffix=".json") as fp:
         fp.write(json.dumps(customization).encode("utf-8"))
         fp.flush()
