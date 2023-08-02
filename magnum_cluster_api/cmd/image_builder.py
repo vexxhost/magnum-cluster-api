@@ -27,12 +27,7 @@ import requests
 
 QEMU_PACKAGES = [
     "qemu-kvm",
-    "libvirt-daemon-system",
-    "libvirt-clients",
-    "virtinst",
-    "cpu-checker",
-    "libguestfs-tools",
-    "libosinfo-bin",
+    "qemu-utils",
 ]
 
 
@@ -74,7 +69,9 @@ def main(operating_system, version, image_builder_version):
 
     click.echo("- Install QEMU packages")
     subprocess.run(
-        ["sudo", "/usr/bin/apt", "install", "-y"] + QEMU_PACKAGES, check=True
+        ["sudo", "/usr/bin/apt", "install", "--no-install-recommends", "-y"]
+        + QEMU_PACKAGES,
+        check=True,
     )
 
     click.echo("- Add current user to KVM group")
