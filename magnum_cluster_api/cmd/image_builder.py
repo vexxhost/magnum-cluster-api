@@ -153,7 +153,7 @@ def main(operating_system, version, image_builder_version):
                 total_memory_kb = int(line.split()[1])
                 break
     total_memory_mb = total_memory_kb / 1024
-    customization["memory"] = int(total_memory_mb * 0.5)
+    customization["memory"] = str(int(total_memory_mb * 0.5))
 
     with tempfile.NamedTemporaryFile(suffix=".json") as fp:
         fp.write(json.dumps(customization).encode("utf-8"))
