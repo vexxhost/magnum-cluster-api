@@ -143,7 +143,7 @@ def main(operating_system, version, image_builder_version):
 
     # NOTE(mnaser): Let's set number of CPUs to equal the number of CPUs on the
     #               host to speed up the build process.
-    customization["cpus"] = os.cpu_count()
+    customization["cpus"] = str(os.cpu_count())
 
     # NOTE(mnaser): We set the memory of the VM to 50% of the total memory
     #               of the system.
