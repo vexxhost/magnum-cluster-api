@@ -166,8 +166,8 @@ jobs:
       - name: Build image
         timeout-minutes: 30
         run: |
-          magnum-cluster-api-image-builder
-            --operating-system ubuntu-2204
+          magnum-cluster-api-image-builder \
+            --operating-system ubuntu-2204 \
             --version ${{ matrix.kube }}
         env:
           PACKER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
