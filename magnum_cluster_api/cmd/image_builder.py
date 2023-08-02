@@ -147,9 +147,9 @@ def main(operating_system, version, image_builder_version):
 
     # NOTE(mnaser): We set the memory of the VM to 50% of the total memory
     #               of the system.
-    with open('/proc/meminfo', 'r') as f:
+    with open("/proc/meminfo", "r") as f:
         for line in f:
-            if line.startswith('MemTotal:'):
+            if line.startswith("MemTotal:"):
                 total_memory_kb = int(line.split()[1])
                 break
     total_memory_mb = total_memory_kb / 1024
