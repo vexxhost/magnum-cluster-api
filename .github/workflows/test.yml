@@ -134,7 +134,7 @@ jobs:
         run: make unit-tests
 
   build-images:
-    runs-on: ubuntu-latest-16-cores
+    runs-on: ubuntu-latest-8-cores
     if: contains(github.event.pull_request.body, '/build-new-image')
     strategy:
       fail-fast: false
