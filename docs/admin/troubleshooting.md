@@ -68,7 +68,7 @@ state, you can follow the steps below to troubleshoot the issue:
     the `OpenStackMachine` for the `KubeadmControlPlane`:
 
     ```
-    $ kubectl -n magnum-system descrube openstackmachines -l cluster.x-k8s.io/control-plane=,cluster.x-k8s.io/cluster-name=<stack-id>
+    $ kubectl -n magnum-system describe openstackmachines -l cluster.x-k8s.io/control-plane=,cluster.x-k8s.io/cluster-name=<stack-id>
     ```
 
     From the output, you will need to look at the `Status` field and see if
