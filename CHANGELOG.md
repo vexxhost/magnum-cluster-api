@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.9.1...v0.10.0) (2023-08-04)
+
+
+### Features
+
+* enable in-cluster traffic ([61bf7aa](https://github.com/vexxhost/magnum-cluster-api/commit/61bf7aa3bf1990eb0c067d4272b28305ea8eb155))
+
+
+### Documentation
+
+* refactor into tabs ([8c0cbbb](https://github.com/vexxhost/magnum-cluster-api/commit/8c0cbbbb310bfaff01509585c2b0036631d8a065))
+
 ## [0.9.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.9.0...v0.9.1) (2023-07-31)
 
 
