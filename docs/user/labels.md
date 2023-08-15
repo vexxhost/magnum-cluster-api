@@ -39,6 +39,25 @@ deployment process.
 :   The prefix of the container images to use for the cluster.
     **Default value**: None, defaults to upstream images.
 
+## Network
+
+The way containers talk to each other and the outside world is defined by the networking setup.
+This setup decides how information is shared among containers inside and outside the cluster, and
+is often accomplished by deploying a driver on each node.
+
+`calico_ipv4pool`
+
+:   IPv4 network in CIDR format.
+    It refers to the IPv4 address pool used by the Calico network plugin for allocating IP addresses to pods in Kubernetes clusters.
+    **Default value**: 10.100.0.0/16.
+
+`service_cluster_ip_range`
+
+:   IPv4 network in CIDR format.
+    Defines the range of IP addresses allocated for Kubernetes services within clusters managed by Magnum.
+    These IP addresses are used to expose and connect services.
+    **Default value**: 10.254.0.0/16
+
 ## Auditing
 
 * `audit_log_enabled`
