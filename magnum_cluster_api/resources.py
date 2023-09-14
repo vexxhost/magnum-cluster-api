@@ -514,6 +514,7 @@ class CloudConfigSecret(ClusterBase):
                                         "application_credential_id": self.credential.id,
                                         "application_credential_secret": self.credential.secret,
                                     },
+                                    "cacert": "/etc/config/ca.crt",
                                 }
                             }
                         }
@@ -873,7 +874,25 @@ class ClusterClass(Base):
                             },
                         },
                         {
+                            "name": "cloudCaCert",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
                             "name": "cloudControllerManagerConfig",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "cloudCaCert",
                             "required": True,
                             "schema": {
                                 "openAPIV3Schema": {
@@ -1425,15 +1444,20 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/files",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
                                                     """\
-                                                    path: "/etc/kubernetes/cloud.conf"
-                                                    owner: "root:root"
-                                                    permissions: "0600"
-                                                    content: "{{ .cloudControllerManagerConfig }}"
-                                                    encoding: "base64"
+                                                    - path: "/etc/kubernetes/cloud.conf"
+                                                      owner: "root:root"
+                                                      permissions: "0600"
+                                                      content: "{{ .cloudControllerManagerConfig }}"
+                                                      encoding: "base64"
+                                                    - path: "/etc/kubernetes/cloud_ca.crt"
+                                                      owner: "root:root"
+                                                      permissions: "0600"
+                                                      content: "{{ .cloudCaCert }}"
+                                                      encoding: "base64"
                                                     """
                                                 ),
                                             },
@@ -1461,6 +1485,11 @@ class ClusterClass(Base):
                                                       owner: "root:root"
                                                       permissions: "0600"
                                                       content: "{{ .cloudControllerManagerConfig }}"
+                                                    - path: "/etc/kubernetes/cloud_ca.crt"
+                                                      owner: "root:root"
+                                                      permissions: "0600"
+                                                      content: "{{ .cloudCaCert }}"
+                                                      encoding: "base64"
                                                       encoding: "base64"
                                                     - path: "/etc/containerd/config.toml"
                                                       owner: "root:root"
@@ -1728,6 +1757,12 @@ class Cluster(ClusterBase):
                                         self.cluster
                                     ),
                                 },
+                            },
+                            {
+                                "name": "cloudCaCert",
+                                "value": base64.encode_as_text(
+                                    utils.get_cloud_ca_cert(self.api, self.cluster)
+                                ),
                             },
                             {
                                 "name": "cloudControllerManagerConfig",

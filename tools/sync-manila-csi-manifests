@@ -67,6 +67,19 @@ for manifest in MANIFESTS:
             doc["spec"]["template"]["spec"]["containers"][3]["volumeMounts"][1]["mountPath"] = "/var/lib/kubelet/plugins/csi-nfsplugin"
             doc["spec"]["template"]["spec"]["volumes"][1]["hostPath"]["path"] = "/var/lib/kubelet/plugins/csi-nfsplugin"
 
+            # NOTE(okozachenko1203): Add `/etc/kuberentes/cloud_ca.crt`.
+            doc["spec"]["template"]["spec"]["containers"][3]["volumeMounts"][3] = {
+                "name": "cloud-ca-cert-volume",
+                "readOnly": True,
+                "mountPath": "/etc/config/ca.crt",
+            }
+            doc["spec"]["template"]["spec"]["volumes"][3] = {
+                "name": "cloud-ca-cert-volume",
+                "hostPath": {
+                    "type": "File",
+                    "path": "/etc/kubernetes/cloud_ca.crt",
+                },
+            }
 
         if doc["kind"] == "DaemonSet":
             doc["spec"]["template"]["spec"]["containers"][1]["env"][3][

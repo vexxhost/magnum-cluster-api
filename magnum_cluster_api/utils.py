@@ -55,6 +55,20 @@ def cluster_exists(api: pykube.HTTPClient, name: str) -> bool:
         return False
 
 
+def get_cloud_ca_cert(
+    api: pykube.HTTPClient,
+    cluster: magnum_objects.Cluster,
+) -> str:
+    """
+    Get cloud ca certificate.
+    """
+    data = pykube.Secret.objects(api, namespace="magnum-system").get_by_name(
+        get_cluster_api_cloud_config_secret_name(cluster)
+    )
+    ca_cert = base64.decode_as_text(data.obj["data"]["cacert"])
+    return ca_cert
+
+
 def generate_cloud_controller_manager_config(
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
@@ -106,6 +120,7 @@ def generate_manila_csi_cloud_config(
         "os-TLSInsecure": "false"
         if cloud_config["clouds"]["default"]["verify"]
         else "true",
+        "os-certAuthorityPath": "/etc/config/ca.crt",
     }
 
 
