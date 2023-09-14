@@ -4,6 +4,7 @@ The Cluster API driver for Magnum allows you to deploy fully conformant
 Kubernetes cluster using the [Cluster API](https://cluster-api.sigs.k8s.io/)
 project which are fully integrated with the OpenStack cluster they are running
 on.
+Here is the full [Documentation](https://vexxhost.github.io/magnum-cluster-api/).
 
 ## Community
 
