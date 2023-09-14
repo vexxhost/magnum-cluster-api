@@ -5,12 +5,10 @@ Kubernetes cluster using the [Cluster API](https://cluster-api.sigs.k8s.io/)
 project which are fully integrated with the OpenStack cluster they are running
 on.
 
-## Community
+For more information, please refer to the following resources:
 
-If you have any questions and discussions about this Magnum Cluster API driver,
-you can join the community:
-
-* [`#magnum-cluster-api`](https://kubernetes.slack.com/archives/C05Q8TDTK6Z) channel
+* **Documentation**: https://vexxhost.github.io/magnum-cluster-api/
+* **Community**: [`#magnum-cluster-api`](https://kubernetes.slack.com/archives/C05Q8TDTK6Z) channel
   on the Kubernetes Slack. If you are new to Kubernetes Slack workspace,
   [Join the Kubernetes Slack workspace](https://slack.kubernetes.io/) first.
 
