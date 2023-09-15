@@ -1,9 +1,3 @@
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: csi-cinder-node-sa
-  namespace: kube-system
----
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -31,7 +25,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1
+        image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.6.3
         imagePullPolicy: IfNotPresent
         name: node-driver-registrar
         volumeMounts:
@@ -41,7 +35,7 @@ spec:
           name: registration-dir
       - args:
         - --csi-address=/csi/csi.sock
-        image: registry.k8s.io/sig-storage/livenessprobe:v2.7.0
+        image: registry.k8s.io/sig-storage/livenessprobe:v2.9.0
         name: liveness-probe
         volumeMounts:
         - mountPath: /csi
@@ -50,12 +44,13 @@ spec:
         - /bin/cinder-csi-plugin
         - --endpoint=$(CSI_ENDPOINT)
         - --cloud-config=$(CLOUD_CONFIG)
+        - --v=1
         env:
         - name: CSI_ENDPOINT
           value: unix://csi/csi.sock
         - name: CLOUD_CONFIG
           value: /etc/config/cloud.conf
-        image: docker.io/k8scloudprovider/cinder-csi-plugin:latest
+        image: registry.k8s.io/provider-os/cinder-csi-plugin:v1.28.0
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 5

@@ -105,6 +105,9 @@ spec:
         - mountPath: /var/lib/kubelet/pods
           mountPropagation: Bidirectional
           name: pod-mounts
+        - mountPath: /etc/config/ca.crt
+          name: cloud-ca-cert-volume
+          readOnly: true
       serviceAccountName: openstack-manila-csi-controllerplugin
       volumes:
       - hostPath:
@@ -119,3 +122,7 @@ spec:
           path: /var/lib/kubelet/pods
           type: Directory
         name: pod-mounts
+      - hostPath:
+          path: /etc/kubernetes/cloud_ca.crt
+          type: File
+        name: cloud-ca-cert-volume
