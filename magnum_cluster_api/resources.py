@@ -892,15 +892,6 @@ class ClusterClass(Base):
                             },
                         },
                         {
-                            "name": "cloudCaCert",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
                             "name": "containerdConfig",
                             "required": True,
                             "schema": {
