@@ -58,7 +58,7 @@ for manifest in MANIFESTS:
                 "readOnly": True,
                 "mountPath": "/etc/config/ca.crt",
             })
-            doc["spec"]["template"]["spec"]["volumes"][2].append({
+            doc["spec"]["template"]["spec"]["volumes"].append({
                 "name": "cloud-ca-cert-volume",
                 "hostPath": {
                     "type": "File",
