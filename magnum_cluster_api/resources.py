@@ -513,7 +513,7 @@ class CloudConfigSecret(ClusterBase):
                                         "auth_url": self.auth_url,
                                         "application_credential_id": self.credential.id,
                                         "application_credential_secret": self.credential.secret,
-                                    }
+                                    },
                                 }
                             }
                         }
