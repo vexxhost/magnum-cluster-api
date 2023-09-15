@@ -52,18 +52,18 @@ for manifest in MANIFESTS:
             del doc["spec"]["template"]["spec"]["volumes"][2]["secret"]
 
             # NOTE(okozachenko1203): Add `/etc/kuberentes/cloud_ca.crt`.
-            doc["spec"]["template"]["spec"]["containers"][0]["volumeMounts"][3] = {
+            doc["spec"]["template"]["spec"]["containers"][0]["volumeMounts"].append({
                 "name": "cloud-ca-cert-volume",
                 "readOnly": True,
                 "mountPath": "/etc/config/ca.crt",
-            }
-            doc["spec"]["template"]["spec"]["volumes"][3] = {
+            })
+            doc["spec"]["template"]["spec"]["volumes"].append({
                 "name": "cloud-ca-cert-volume",
                 "hostPath": {
                     "type": "File",
                     "path": "/etc/kubernetes/cloud_ca.crt",
                 },
-            }
+            })
 
             # NOTE(mnaser): We need to run as root in order to read the `cloud.conf`
             #               file from the host.
