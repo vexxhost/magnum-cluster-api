@@ -21,6 +21,7 @@ import shortuuid
 import yaml
 from magnum import objects as magnum_objects
 from magnum.common import context, exception, octavia
+from magnum.common import utils as magnum_utils
 from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
@@ -55,18 +56,11 @@ def cluster_exists(api: pykube.HTTPClient, name: str) -> bool:
         return False
 
 
-def get_cloud_ca_cert(
-    api: pykube.HTTPClient,
-    cluster: magnum_objects.Cluster,
-) -> str:
+def get_cloud_ca_cert() -> str:
     """
     Get cloud ca certificate.
     """
-    data = pykube.Secret.objects(api, namespace="magnum-system").get_by_name(
-        get_cluster_api_cloud_config_secret_name(cluster)
-    )
-    ca_cert = base64.decode_as_text(data.obj["data"]["cacert"])
-    return ca_cert
+    return magnum_utils.get_openstack_ca()
 
 
 def generate_cloud_controller_manager_config(
@@ -91,6 +85,7 @@ def generate_cloud_controller_manager_config(
         application-credential-id={cloud_config["clouds"]["default"]["auth"]["application_credential_id"]}
         application-credential-secret={cloud_config["clouds"]["default"]["auth"]["application_credential_secret"]}
         tls-insecure={"false" if cloud_config["clouds"]["default"]["verify"] else "true"}
+        {"ca-file=/etc/config/ca.crt" if get_cloud_ca_cert() else ""}
         """
     )
 
