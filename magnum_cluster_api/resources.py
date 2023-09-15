@@ -513,8 +513,7 @@ class CloudConfigSecret(ClusterBase):
                                         "auth_url": self.auth_url,
                                         "application_credential_id": self.credential.id,
                                         "application_credential_secret": self.credential.secret,
-                                    },
-                                    "cacert": "/etc/config/ca.crt",
+                                    }
                                 }
                             }
                         }
@@ -1752,7 +1751,7 @@ class Cluster(ClusterBase):
                             {
                                 "name": "cloudCaCert",
                                 "value": base64.encode_as_text(
-                                    utils.get_cloud_ca_cert(self.api, self.cluster)
+                                    utils.get_cloud_ca_cert()
                                 ),
                             },
                             {
