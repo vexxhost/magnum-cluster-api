@@ -410,10 +410,13 @@ class CertificateAuthoritySecret(ClusterBase):
             {
                 "apiVersion": pykube.Secret.version,
                 "kind": pykube.Secret.kind,
-                "type": "kubernetes.io/tls",
+                "type": "cluster.x-k8s.io/secret",
                 "metadata": {
                     "name": f"{self.cluster.stack_id}-{self.CERT}",
                     "namespace": "magnum-system",
+                    "labels": {
+                        "cluster.x-k8s.io/cluster-name": f"{self.cluster.stack_id}",
+                    },
                 },
                 "stringData": {
                     "tls.crt": encodeutils.safe_decode(ca_cert.get_certificate()),

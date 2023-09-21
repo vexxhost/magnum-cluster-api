@@ -32,8 +32,10 @@ from magnum_cluster_api import image_utils, images, objects
 
 AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar"]
 
+
 def get_cluster_api_cloud_config_secret_name(cluster: magnum_objects.Cluster) -> str:
     return f"{cluster.stack_id}-cloud-config"
+
 
 def get_or_generate_cluster_api_cloud_config_secret_name(
     api: pykube.HTTPClient, cluster: magnum_objects.Cluster
@@ -316,6 +318,8 @@ def validate_nodegroup(
     # Validate flavors
     osc = clients.get_openstack_api(ctx)
     validate_flavor_name(osc, nodegroup.flavor_id)
+
+
 def get_operating_system(cluster: magnum_objects.Cluster):
     cluster_distro = cluster.cluster_template.cluster_distro
     for ops in AVAILABLE_OPERATING_SYSTEMS:
