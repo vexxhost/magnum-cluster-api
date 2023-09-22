@@ -206,8 +206,8 @@ jobs:
       - name: Install Magnum with Cluster API
         run: ./hack/stack.sh
 
-      # - name: Setup "tmate" session
-      #   uses: mxschmitt/action-tmate@v3
+      - name: Setup "tmate" session
+        uses: mxschmitt/action-tmate@v3
 
       - name: Wait for images
         if: contains(github.event.pull_request.body, '/build-new-image')
