@@ -217,7 +217,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                     )
                 },
                 **{
-                    f"storageclass-cinder-{vt.name}.yaml": yaml.dump(
+                    f"storageclass-block-{vt.name}.yaml": yaml.dump(
                         {
                             "apiVersion": objects.StorageClass.version,
                             "allowVolumeExpansion": True,
@@ -228,7 +228,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                                 }
                                 if default_volume_type.name == vt.name
                                 else {},
-                                "name": "cinder-%s" % vt.name.lower(),
+                                "name": "block-%s" % vt.name.lower(),
                             },
                             "provisioner": "kubernetes.io/cinder",
                             "parameters": {
@@ -298,13 +298,13 @@ class ClusterResourcesConfigMap(ClusterBase):
                 data = {
                     **data,
                     **{
-                        f"storageclass-manila-{st.name}.yaml": yaml.dump(
+                        f"storageclass-share-{st.name}.yaml": yaml.dump(
                             {
                                 "apiVersion": objects.StorageClass.version,
                                 "allowVolumeExpansion": True,
                                 "kind": objects.StorageClass.kind,
                                 "metadata": {
-                                    "name": "manila-%s" % st.name.lower(),
+                                    "name": "share-%s" % st.name.lower(),
                                 },
                                 "provisioner": "manila.csi.openstack.org",
                                 "parameters": {
