@@ -24,7 +24,6 @@ import pykube
 import yaml
 from magnum import objects as magnum_objects
 from magnum.common import context, neutron
-from magnum.common import utils as magnum_utils
 from magnum.common.cert_manager import cert_manager
 from magnum.common.x509 import operations as x509
 from magnum.conductor.handlers.common import cert_manager as cert_manager_handlers

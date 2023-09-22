@@ -73,7 +73,7 @@ def get_capi_client_ca_cert() -> str:
         with open(ca_file) as fd:
             return fd.read()
     else:
-        return ''
+        return ""
 
 
 def generate_cloud_controller_manager_config(
