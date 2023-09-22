@@ -22,6 +22,7 @@ import yaml
 from magnum import objects as magnum_objects
 from magnum.common import context, exception, octavia
 from magnum.common import utils as magnum_utils
+from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import strutils
 from tenacity import retry, retry_if_exception_type
@@ -29,6 +30,8 @@ from tenacity import retry, retry_if_exception_type
 from magnum_cluster_api import clients
 from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import image_utils, images, objects
+
+CONF = cfg.CONF
 
 
 def get_cluster_api_cloud_config_secret_name(cluster: magnum_objects.Cluster) -> str:
@@ -63,7 +66,18 @@ def get_cloud_ca_cert() -> str:
     return magnum_utils.get_openstack_ca()
 
 
+def get_capi_client_ca_cert() -> str:
+    ca_file = CONF.capi_client.ca_file
+
+    if ca_file:
+        with open(ca_file) as fd:
+            return fd.read()
+    else:
+        return ''
+
+
 def generate_cloud_controller_manager_config(
+    ctx: context.RequestContext,
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
 ) -> str:
@@ -71,6 +85,8 @@ def generate_cloud_controller_manager_config(
     Generate coniguration for openstack-cloud-controller-manager if it does
     already exist.
     """
+
+    osc = clients.get_openstack_api(ctx)
     data = pykube.Secret.objects(api, namespace="magnum-system").get_by_name(
         get_cluster_api_cloud_config_secret_name(cluster)
     )
@@ -80,23 +96,25 @@ def generate_cloud_controller_manager_config(
     return textwrap.dedent(
         f"""\
         [Global]
-        auth-url={cloud_config["clouds"]["default"]["auth"]["auth_url"]}
+        auth-url={osc.url_for(service_type="identity", interface="public")}
         region={cloud_config["clouds"]["default"]["region_name"]}
         application-credential-id={cloud_config["clouds"]["default"]["auth"]["application_credential_id"]}
         application-credential-secret={cloud_config["clouds"]["default"]["auth"]["application_credential_secret"]}
-        tls-insecure={"false" if cloud_config["clouds"]["default"]["verify"] else "true"}
+        tls-insecure={"false" if CONF.drivers.verify_ca else "true"}
         {"ca-file=/etc/config/ca.crt" if get_cloud_ca_cert() else ""}
         """
     )
 
 
 def generate_manila_csi_cloud_config(
+    ctx: context.RequestContext,
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
 ) -> str:
     """
     Generate coniguration of Openstack authentication  for manila csi
     """
+    osc = clients.get_openstack_api(ctx)
     data = pykube.Secret.objects(api, namespace="magnum-system").get_by_name(
         get_cluster_api_cloud_config_secret_name(cluster)
     )
@@ -104,7 +122,7 @@ def generate_manila_csi_cloud_config(
     cloud_config = yaml.safe_load(clouds_yaml)
 
     return {
-        "os-authURL": cloud_config["clouds"]["default"]["auth"]["auth_url"],
+        "os-authURL": osc.url_for(service_type="identity", interface="public"),
         "os-region": cloud_config["clouds"]["default"]["region_name"],
         "os-applicationCredentialID": cloud_config["clouds"]["default"]["auth"][
             "application_credential_id"
@@ -112,7 +130,7 @@ def generate_manila_csi_cloud_config(
         "os-applicationCredentialSecret": cloud_config["clouds"]["default"]["auth"][
             "application_credential_secret"
         ],
-        "os-TLSInsecure": "false"
+        "os-TLSInsecure": {"false" if CONF.drivers.verify_ca else "true"}
         if cloud_config["clouds"]["default"]["verify"]
         else "true",
         "os-certAuthorityPath": "/etc/config/ca.crt",

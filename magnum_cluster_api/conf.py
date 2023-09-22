@@ -17,6 +17,10 @@ from oslo_config import cfg
 
 auto_scaling_group = cfg.OptGroup(name="auto_scaling", title="Options for auto scaling")
 
+capi_client_group = cfg.OptGroup(
+    name="capi_client", title="Options for the Cluster API client"
+)
+
 manila_client_group = cfg.OptGroup(
     name="manila_client", title="Options for the Manila client"
 )
@@ -61,6 +65,18 @@ auto_scaling_opts = [
 ]
 
 
+capi_client_opts = [
+    cfg.StrOpt(
+        "endpoint_type",
+        default="publicURL",
+        help=_(
+            "Type of endpoint in Identity service catalog to use "
+            "for communication with the OpenStack service."
+        ),
+    ),
+]
+
+
 manila_client_opts = [
     cfg.StrOpt(
         "region_name",
@@ -100,7 +116,10 @@ common_security_opts = [
 
 CONF = cfg.CONF
 CONF.register_group(auto_scaling_group)
+CONF.register_group(capi_client_group)
 CONF.register_group(manila_client_group)
 CONF.register_opts(auto_scaling_opts, group=auto_scaling_group)
+CONF.register_opts(capi_client_opts, group=capi_client_group)
+CONF.register_opts(common_security_opts, group=capi_client_group)
 CONF.register_opts(manila_client_opts, group=manila_client_group)
 CONF.register_opts(common_security_opts, group=manila_client_group)
