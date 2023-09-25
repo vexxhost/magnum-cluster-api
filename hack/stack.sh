@@ -138,7 +138,7 @@ clusterctl init \
 make vendor
 
 # Install `magnum-cluster-api`
-pip install -U setuptools pip
+pip install -U setuptools pip python-magnumclient
 $HOME/.local/bin/pip3 install -e .
 
 # Restart Magnum to pick-up new driver
