@@ -4,6 +4,13 @@ on:
     paths-ignore:
       - "docs/**"
       - README.md
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        type: boolean
+        description: 'Run the build with tmate session (https://github.com/marketplace/actions/debugging-with-tmate)'
+        required: false
+        default: false
 
 jobs:
   build:
@@ -202,6 +209,10 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+
+      - name: Setup "tmate" session
+        if: github.event_name == 'workflow_dispatch' && inputs.debug_enabled
+        uses: mxschmitt/action-tmate@v3
 
       - name: Install Magnum with Cluster API
         run: ./hack/stack.sh
