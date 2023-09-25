@@ -16,7 +16,7 @@
 
 # Versions to test
 CAPI_VERSION=${CAPI_VERSION:-v1.4.4}
-CAPO_VERSION=${CAPO_VERSION:-v0.7.1}
+CAPO_VERSION=${CAPO_VERSION:-v0.8.0}
 
 # Setup folders for DevStack
 sudo mkdir -p /opt/stack
