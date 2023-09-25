@@ -15,7 +15,7 @@
 # under the License.
 
 # Versions to test
-CAPI_VERSION=${CAPI_VERSION:-v1.4.4}
+CAPI_VERSION=${CAPI_VERSION:-v1.5.1}
 CAPO_VERSION=${CAPO_VERSION:-v0.8.0}
 
 # Setup folders for DevStack
