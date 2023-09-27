@@ -23,6 +23,7 @@ import pkg_resources
 import pykube
 import yaml
 from magnum import objects as magnum_objects
+from magnum.api import attr_validator
 from magnum.common import context, neutron
 from magnum.common import utils as magnum_utils
 from magnum.common.cert_manager import cert_manager
@@ -1576,7 +1577,7 @@ def generate_machine_deployments_for_cluster(
                     },
                     {
                         "name": "imageUUID",
-                        "value": ng.image_id,
+                        "value": utils.get_image_uuid(ng.image_id, context),
                     },
                 ],
             },
@@ -1817,7 +1818,7 @@ class Cluster(ClusterBase):
                             },
                             {
                                 "name": "imageUUID",
-                                "value": self.cluster.default_ng_master.image_id,
+                                "value": utils.get_image_uuid(self.cluster.default_ng_master.image_id, self.context),
                             },
                             {
                                 "name": "nodeCidr",
