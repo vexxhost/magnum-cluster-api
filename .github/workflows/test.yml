@@ -147,10 +147,10 @@ jobs:
       fail-fast: false
       matrix:
         kube:
-          - v1.24.15
-          - v1.25.11
-          - v1.26.6
-          - v1.27.3
+          - v1.24.16
+          - v1.25.12
+          - v1.26.7
+          - v1.27.4
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
