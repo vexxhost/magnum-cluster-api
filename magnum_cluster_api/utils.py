@@ -304,12 +304,11 @@ def validate_nodegroup(
     validate_flavor_name(osc, nodegroup.flavor_id)
 
 
-def get_image_uuid(
-    image_ref: str, ctx: context.RequestContext
-):
+def get_image_uuid(image_ref: str, ctx: context.RequestContext):
     """Get image uuid from image ref
 
     :param image_ref: Image id or name
     """
-    image_obj = attr_validator.validate_image(osc, self.cluster.default_ng_master.image_id)
+    osc = clients.get_openstack_api(ctx)
+    image_obj = attr_validator.validate_image(osc, image_ref)
     return image_obj.get("id")
