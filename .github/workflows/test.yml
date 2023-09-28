@@ -148,7 +148,7 @@ jobs:
           - v1.26.7
           - v1.27.4
     concurrency:
-      group: ${{ github.ref }}-${{ matrix.kube }}-${{ matrix.os }}
+      group: build-images-${{ github.ref }}-${{ matrix.kube }}-${{ matrix.os }}
       cancel-in-progress: true
     steps:
       - name: Checkout project
@@ -197,7 +197,7 @@ jobs:
           - v1.26.7
           - v1.27.4
     concurrency:
-      group: ${{ github.ref }}-${{ matrix.kube }}-${{ matrix.os }}
+      group: functional-${{ github.ref }}-${{ matrix.kube }}-${{ matrix.os }}
       cancel-in-progress: true
     steps:
       - name: Checkout project
