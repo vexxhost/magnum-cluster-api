@@ -68,7 +68,8 @@ def main(ctx: click.Context, operating_system, version, image_builder_version):
     # at all
     for root, dirs, files in os.walk(output_path):
         if files:
-            message = "There are files in the output directory which will cause the build to fail.  Please remove them before continuing.\n"
+            message = "There are files in the output directory which will cause the build to fail. " \
+                      "Please remove them before continuing.\n"
             for file in files:
                 message += f"- {root}/{file}\n"
 
@@ -118,7 +119,7 @@ def main(ctx: click.Context, operating_system, version, image_builder_version):
     click.echo("- Create customization file")
     kubernetes_series = ".".join(version.split(".")[0:2])
     customization = {
-        "kubernetes_deb_version": f"{version.replace('v', '')}-00",
+        "kubernetes_deb_version": f"{version.replace('v', '')}-1.1",
         "kubernetes_semver": f"{version}",
         "kubernetes_series": f"{kubernetes_series}",
         # https://github.com/flatcar/Flatcar/issues/823
