@@ -147,6 +147,9 @@ jobs:
           - v1.25.12
           - v1.26.7
           - v1.27.4
+    concurrency:
+      group: ${{ github.ref }}-${{ matrix.kube }}-${{ matrix.os }}
+      cancel-in-progress: true
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
@@ -194,7 +197,7 @@ jobs:
           - v1.26.7
           - v1.27.4
     concurrency:
-      group: ${{ github.ref }}-${{ matrix.kube }}
+      group: ${{ github.ref }}-${{ matrix.kube }}-${{ matrix.os }}
       cancel-in-progress: true
     steps:
       - name: Checkout project
