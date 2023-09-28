@@ -56,7 +56,7 @@ def validate_version(_, __, value):
 @click.option(
     "--image-builder-version",
     show_default=True,
-    default="bab3d4d",
+    default="v0.1.19",
     help="Image builder tag (or commit) to use for building image",
 )
 def main(operating_system, version, image_builder_version):
