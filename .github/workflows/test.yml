@@ -139,6 +139,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os:
+          - ubuntu-2204
+          - flatcar
         kube:
           - v1.24.16
           - v1.25.12
@@ -166,7 +169,7 @@ jobs:
         timeout-minutes: 30
         run: |
           magnum-cluster-api-image-builder \
-            --operating-system ubuntu-2204 \
+            --operating-system ${{ matrix.os }} \
             --version ${{ matrix.kube }}
         env:
           PACKER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -174,14 +177,17 @@ jobs:
       - name: Upload built image
         uses: actions/upload-artifact@v3
         with:
-          name: ubuntu-2204-kube-${{ matrix.kube }}.qcow2
-          path: ubuntu-2204-kube-${{ matrix.kube }}.qcow2
+          name: ${{ matrix.os }}-kube-${{ matrix.kube }}.qcow2
+          path: ${{ matrix.os }}-kube-${{ matrix.kube }}.qcow2
 
   functional:
     runs-on: ubuntu-latest-16-cores
     strategy:
       fail-fast: false
       matrix:
+        os:
+          - ubuntu-2204
+          - flatcar
         kube:
           - v1.24.16
           - v1.25.12
@@ -222,13 +228,14 @@ jobs:
         if: contains(github.event.pull_request.body, '/build-new-image')
         uses: actions/download-artifact@v3
         with:
-          name: ubuntu-2204-kube-${{ matrix.kube }}.qcow2
+          name: ${{ matrix.os }}-kube-${{ matrix.kube }}.qcow2
 
       - name: Run functional tests
         run: |
           ./hack/run-functional-tests.sh
         env:
           BUILD_NEW_IMAGE: "${{ contains(github.event.pull_request.body, '/build-new-image') }}"
+          OS: "${{ matrix.os }}"
           KUBE_TAG: "${{ matrix.kube }}"
           NODE_COUNT: 2
 

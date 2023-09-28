@@ -47,7 +47,7 @@ dashboard, Terraform, Ansible or the Magnum API directly.
     them using the OpenStack CLI:
 
     ```bash
-    for version in v1.23.17 v1.24.15 v1.25.11 v1.26.6 v1.27.3; do \
+    for version in v1.24.16 v1.25.12 v1.26.7 v1.27.4; do \
       curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2204-kube-${version}.qcow2; \
       openstack image create ubuntu-2204-kube-${version} --disk-format=qcow2 --container-format=bare --property os_distro=ubuntu --file=ubuntu-2204-kube-${version}.qcow2; \
       openstack coe cluster template create \
@@ -96,13 +96,13 @@ dashboard, Terraform, Ansible or the Magnum API directly.
     to launch a cluster, the first of which are related to it's basic
     configuration, the required fields are:
 
-    * **Cluster Name**  
+    * **Cluster Name**
       The name of the cluster that will be created.
 
-    * **Cluster Template**  
+    * **Cluster Template**
       The cluster template that will be used to create the cluster.
 
-    * **Keypair**  
+    * **Keypair**
       The SSH key pair that will be used to access the cluster.
 
     In this example, we're going to create a cluster with the name of
@@ -114,22 +114,22 @@ dashboard, Terraform, Ansible or the Magnum API directly.
     The next step is deciding on the size of the cluster and selecting if auto
     scaling will be enabled for the cluster.  The required fields are:
 
-    * **Number of Master Nodes**  
+    * **Number of Master Nodes**
       The number of master nodes that will be created in the cluster.
 
-    * **Flavor of Master Nodes**  
+    * **Flavor of Master Nodes**
       The flavor of the master nodes that will be created in the cluster.
 
-    * **Number of Worker Nodes**  
+    * **Number of Worker Nodes**
       The number of worker nodes that will be created in the cluster.
 
-    * **Flavor of Worker Nodes**  
+    * **Flavor of Worker Nodes**
       The flavor of the worker nodes that will be created in the cluster.
 
     In addition, if you want to enable auto scaling, you will need to provide the
     following information:
 
-    * **Auto-scale Worker Nodes**  
+    * **Auto-scale Worker Nodes**
       Whether or not to enable auto scaling for the worker nodes.
 
     * **Minimum Number of Worker Nodes**
@@ -152,7 +152,7 @@ dashboard, Terraform, Ansible or the Magnum API directly.
     The next step is managing the network configuration of the cluster.  The
     required fields are:
 
-    * **Enable Load Balancer for Master Nodes**  
+    * **Enable Load Balancer for Master Nodes**
       This is required to be **enabled** for the Cluster API driver for Magnum
       to work properly.
 
@@ -162,7 +162,7 @@ dashboard, Terraform, Ansible or the Magnum API directly.
       if you want to attach the cluster to an existing network with other
       resources.
 
-    * **Cluster API**  
+    * **Cluster API**
       This setting controls if the API will get a floating IP address assigned
       to it.  You can set this to _Accessible on private network only_ if you
       are using an existing network and don't want to expose the API to the
@@ -179,7 +179,7 @@ dashboard, Terraform, Ansible or the Magnum API directly.
     the cluster which automatically detects nodes that are unhealthy and
     replaces them with new nodes.  The required fields are:
 
-    * **Automatically Repair Unhealthy Nodes**  
+    * **Automatically Repair Unhealthy Nodes**
       Whether or not to enable auto-healing for the cluster.
 
     In this example, we're going to enable auto-healing for the cluster since it
