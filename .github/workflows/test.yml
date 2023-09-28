@@ -220,7 +220,7 @@ jobs:
         uses: lewagon/wait-on-check-action@v1.3.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          check-name: "build-images (${{ matrix.kube }})"
+          check-name: "build-images (${{ matrix.os }}, ${{ matrix.kube }})"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 10
 
