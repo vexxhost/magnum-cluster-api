@@ -38,6 +38,7 @@ def validate_version(_, __, value):
 
 
 @click.command()
+@click.pass_context
 @click.option(
     "--operating-system",
     show_default=True,
@@ -59,14 +60,19 @@ def validate_version(_, __, value):
     default="v0.1.19",
     help="Image builder tag (or commit) to use for building image",
 )
-def main(operating_system, version, image_builder_version):
+def main(ctx: click.Context, operating_system, version, image_builder_version):
     ib_path = f"/tmp/image-builder-{image_builder_version}"
-    output = f"{operating_system}-kube-{version}"
+    output_path = f"{ib_path}/images/capi/output"
 
-    target = f"{ib_path}/images/capi/output/{output}/{output}"
-    if os.path.exists(target):
-        print(f"Image already exists: {target}")
-        return
+    # Scan the entire output directory recursively and stop if there is any file
+    # at all
+    for root, dirs, files in os.walk(output_path):
+        if files:
+            message = "There are files in the output directory which will cause the build to fail.  Please remove them before continuing.\n"
+            for file in files:
+                message += f"- {root}/{file}\n"
+
+            ctx.fail(message)
 
     click.echo("- Install QEMU packages")
     subprocess.run(
@@ -180,6 +186,19 @@ def main(operating_system, version, image_builder_version):
                 },
             },
         )
+
+    # Try and detect the target image path since it can be different depending
+    # on the operating system, so we scan the output directory for the file
+    # that matches the pattern.
+    target = None
+    for root, dirs, files in os.walk(output_path):
+        if len(files) > 1:
+            ctx.fail(f"Unexpected number of files in {root}")
+        if files:
+            target = f"{root}/{files[0]}"
+
+    if target is None:
+        ctx.fail("Unable to detect target image")
 
     # Copy from the target to the current working directory
     os.rename(target, f"{operating_system}-kube-{version}.qcow2")
