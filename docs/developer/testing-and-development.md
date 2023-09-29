@@ -15,12 +15,14 @@ steps to be able to test and develop the project.
    ```bash
    pushd /tmp
    source /opt/stack/openrc
+   export OS_DISTRO=ubuntu # you can change this to "flatcar" if you want to use Flatcar
    for version in v1.24.16 v1.25.12 v1.26.7 v1.27.4; do \
-      curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2204-kube-${version}.qcow2; \
-      openstack image create ubuntu-2204-kube-${version} --disk-format=qcow2 --container-format=bare --property os_distro=ubuntu --file=ubuntu-2204-kube-${version}.qcow2; \
+      [[ "${OS_DISTRO}" == "ubuntu" ]] && IMAGE_NAME="ubuntu-2204-kube-${version}" || IMAGE_NAME="flatcar-kube-${version}"; \
+      curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/${IMAGE_NAME}.qcow2; \
+      openstack image create ${IMAGE_NAME} --disk-format=qcow2 --container-format=bare --property os_distro=${OS_DISTRO} --file=${IMAGE_NAME}.qcow2; \
       openstack coe cluster template create \
-         --image $(openstack image show ubuntu-2204-kube-${version} -c id -f value) \
-         --external-network public \
+        --image $(openstack image show ${IMAGE_NAME} -c id -f value) \
+        --external-network public \
          --dns-nameserver 8.8.8.8 \
          --master-lb-enabled \
          --master-flavor m1.medium \
@@ -29,7 +31,7 @@ steps to be able to test and develop the project.
          --docker-storage-driver overlay2 \
          --coe kubernetes \
          --label kube_tag=${version} \
-         k8s-${version};
+       d   k8s-${version};
    done;
    popd
    ```

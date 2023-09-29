@@ -31,6 +31,13 @@ at the following URL:
 * [v1.26.7](https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2204-kube-v1.26.7.qcow2)
 * [v1.27.4](https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2204-kube-v1.27.4.qcow2)
 
+#### Flatcar
+
+* [v1.24.16](https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/flatcar-kube-v1.24.16.qcow2)
+* [v1.25.12](https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/flatcar-kube-v1.25.12.qcow2)
+* [v1.26.7](https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/flatcar-kube-v1.26.7.qcow2)
+* [v1.27.4](https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/flatcar-kube-v1.27.4.qcow2)
+
 ### Building images
 
 The Cluster API driver for Magnum provides a tool in order to build images, you
