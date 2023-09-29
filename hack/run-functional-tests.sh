@@ -27,7 +27,7 @@ SONOBUOY_ARCH=${SONOBUOY_ARCH:-amd64}
 DNS_NAMESERVER=${DNS_NAMESERVER:-1.1.1.1}
 
 # Determine image name
-[[ "${OS_DISTRO}" == "ubuntu" ]] && IMAGE_NAME="ubuntu-2204-kube-${version}" || IMAGE_NAME="flatcar-kube-${version}";
+[[ "${OS_DISTRO}" == "ubuntu" ]] && IMAGE_NAME="ubuntu-2204-kube-${KUBE_TAG}" || IMAGE_NAME="flatcar-kube-${KUBE_TAG}";
 
 # If running inside GitHub Actions, use Azure's "168.63.129.16" for DNS
 if [[ -n "${GITHUB_ACTIONS}" ]]; then
