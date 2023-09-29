@@ -20,11 +20,14 @@
 
 source /opt/stack/openrc
 
-OS=${OS:-ubuntu-2204}
+OS_DISTRO=${OS_DISTRO:-ubuntu}
 NODE_COUNT=${NODE_COUNT:-2}
 SONOBUOY_VERSION=${SONOBUOY_VERSION:-0.56.16}
 SONOBUOY_ARCH=${SONOBUOY_ARCH:-amd64}
 DNS_NAMESERVER=${DNS_NAMESERVER:-1.1.1.1}
+
+# Determine image name
+[[ "${OS_DISTRO}" == "ubuntu" ]] && IMAGE_NAME="ubuntu-2204-kube-${version}" || IMAGE_NAME="flatcar-kube-${version}";
 
 # If running inside GitHub Actions, use Azure's "168.63.129.16" for DNS
 if [[ -n "${GITHUB_ACTIONS}" ]]; then
@@ -34,15 +37,14 @@ fi
 # If `BUILD_NEW_IMAGE` is true, then we use the provided artifact, otherwise
 # we download the latest promoted image.
 if [[ "${BUILD_NEW_IMAGE}" != "true" ]]; then
-  curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/${OS}-kube-${KUBE_TAG}.qcow2
+  curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/${IMAGE_NAME}.qcow2
 fi
 
 # Upload image to Glance
-IMAGE_NAME=${OS}-kube-${KUBE_TAG}
 openstack image create \
   --disk-format=qcow2 \
   --container-format=bare \
-  --property os_distro=ubuntu \
+  --property os_distro=${OS_DISTRO} \
   --file=${IMAGE_NAME}.qcow2 \
   ${IMAGE_NAME}
 
