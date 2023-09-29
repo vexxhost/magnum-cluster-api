@@ -68,8 +68,10 @@ def main(ctx: click.Context, operating_system, version, image_builder_version):
     # at all
     for root, dirs, files in os.walk(output_path):
         if files:
-            message = "There are files in the output directory which will cause the build to fail. " \
-                      "Please remove them before continuing.\n"
+            message = (
+                "There are files in the output directory which will cause the build to fail. "
+                "Please remove them before continuing.\n"
+            )
             for file in files:
                 message += f"- {root}/{file}\n"
 
