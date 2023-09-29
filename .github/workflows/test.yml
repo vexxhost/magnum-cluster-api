@@ -189,12 +189,12 @@ jobs:
       fail-fast: false
       matrix:
         os_distro:
-          # - ubuntu-2204
+          - ubuntu
           - flatcar
         kube:
-          # - v1.24.16
-          # - v1.25.12
-          # - v1.26.7
+          - v1.24.16
+          - v1.25.12
+          - v1.26.7
           - v1.27.4
     concurrency:
       group: functional-${{ github.ref }}-${{ matrix.kube }}-${{ matrix.os_distro }}
@@ -217,8 +217,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup "tmate" session
-        uses: mxschmitt/action-tmate@v3
+      # - name: Setup "tmate" session
+      #   uses: mxschmitt/action-tmate@v3
 
       - name: Wait for images
         if: contains(github.event.pull_request.body, '/build-new-image')
