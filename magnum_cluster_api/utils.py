@@ -20,6 +20,7 @@ import pykube
 import shortuuid
 import yaml
 from magnum import objects as magnum_objects
+from magnum.api import attr_validator
 from magnum.common import context, exception, octavia
 from magnum.common import utils as magnum_utils
 from oslo_serialization import base64
@@ -326,3 +327,13 @@ def get_operating_system(cluster: magnum_objects.Cluster):
         if cluster_distro.startswith(ops):
             return ops
     return None
+
+
+def get_image_uuid(image_ref: str, ctx: context.RequestContext):
+    """Get image uuid from image ref
+
+    :param image_ref: Image id or name
+    """
+    osc = clients.get_openstack_api(ctx)
+    image_obj = attr_validator.validate_image(osc, image_ref)
+    return image_obj.get("id")
