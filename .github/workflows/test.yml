@@ -146,11 +146,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os_distro:
+          - ubuntu
+          - flatcar
         kube:
           - v1.24.16
           - v1.25.12
           - v1.26.7
           - v1.27.4
+    concurrency:
+      group: build-images-${{ github.ref }}-${{ matrix.kube }}-${{ matrix.os_distro }}
+      cancel-in-progress: true
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
@@ -173,7 +179,7 @@ jobs:
         timeout-minutes: 30
         run: |
           magnum-cluster-api-image-builder \
-            --operating-system ubuntu-2204 \
+            --operating-system ${{ matrix.os_distro }} \
             --version ${{ matrix.kube }}
         env:
           PACKER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -181,21 +187,24 @@ jobs:
       - name: Upload built image
         uses: actions/upload-artifact@v3
         with:
-          name: ubuntu-2204-kube-${{ matrix.kube }}.qcow2
-          path: ubuntu-2204-kube-${{ matrix.kube }}.qcow2
+          name: ${{ matrix.os_distro }}-kube-${{ matrix.kube }}.qcow2
+          path: ${{ matrix.os_distro }}-kube-${{ matrix.kube }}.qcow2
 
   functional:
     runs-on: ubuntu-latest-16-cores
     strategy:
       fail-fast: false
       matrix:
+        os_distro:
+          - ubuntu
+          - flatcar
         kube:
           - v1.24.16
           - v1.25.12
           - v1.26.7
           - v1.27.4
     concurrency:
-      group: ${{ github.ref }}-${{ matrix.kube }}
+      group: functional-${{ github.ref }}-${{ matrix.kube }}-${{ matrix.os_distro }}
       cancel-in-progress: true
     steps:
       - name: Checkout project
@@ -212,13 +221,15 @@ jobs:
 
       - name: Install Magnum with Cluster API
         run: ./hack/stack.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Wait for images
         if: contains(github.event.pull_request.body, '/build-new-image')
         uses: lewagon/wait-on-check-action@v1.3.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          check-name: "build-images (${{ matrix.kube }})"
+          check-name: "build-images (${{ matrix.os_distro }}, ${{ matrix.kube }})"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 10
 
@@ -226,13 +237,14 @@ jobs:
         if: contains(github.event.pull_request.body, '/build-new-image')
         uses: actions/download-artifact@v3
         with:
-          name: ubuntu-2204-kube-${{ matrix.kube }}.qcow2
+          name: ${{ matrix.os_distro }}-kube-${{ matrix.kube }}.qcow2
 
       - name: Run functional tests
         run: |
           ./hack/run-functional-tests.sh
         env:
           BUILD_NEW_IMAGE: "${{ contains(github.event.pull_request.body, '/build-new-image') }}"
+          OS_DISTRO: "${{ matrix.os_distro }}"
           KUBE_TAG: "${{ matrix.kube }}"
           NODE_COUNT: 2
 
