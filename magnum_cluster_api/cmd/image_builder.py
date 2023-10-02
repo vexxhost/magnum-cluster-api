@@ -38,12 +38,14 @@ def validate_version(_, __, value):
 
 
 @click.command()
+@click.pass_context
 @click.option(
     "--operating-system",
     show_default=True,
     default="ubuntu-2204",
-    type=click.Choice(["ubuntu-2004", "ubuntu-2204"]),
+    type=click.Choice(["ubuntu-2004", "ubuntu-2204", "flatcar"]),
     help="Operating system to build image for",
+    prompt="Operating system to build image for",
 )
 @click.option(
     "--version",
@@ -55,17 +57,25 @@ def validate_version(_, __, value):
 @click.option(
     "--image-builder-version",
     show_default=True,
-    default="bab3d4d",
+    default="v0.1.19",
     help="Image builder tag (or commit) to use for building image",
 )
-def main(operating_system, version, image_builder_version):
+def main(ctx: click.Context, operating_system, version, image_builder_version):
     ib_path = f"/tmp/image-builder-{image_builder_version}"
-    output = f"{operating_system}-kube-{version}"
+    output_path = f"{ib_path}/images/capi/output"
 
-    target = f"{ib_path}/images/capi/output/{output}/{output}"
-    if os.path.exists(target):
-        print(f"Image already exists: {target}")
-        return
+    # Scan the entire output directory recursively and stop if there is any file
+    # at all
+    for root, dirs, files in os.walk(output_path):
+        if files:
+            message = (
+                "There are files in the output directory which will cause the build to fail. "
+                "Please remove them before continuing.\n"
+            )
+            for file in files:
+                message += f"- {root}/{file}\n"
+
+            ctx.fail(message)
 
     click.echo("- Install QEMU packages")
     subprocess.run(
@@ -111,9 +121,11 @@ def main(operating_system, version, image_builder_version):
     click.echo("- Create customization file")
     kubernetes_series = ".".join(version.split(".")[0:2])
     customization = {
-        "kubernetes_deb_version": f"{version.replace('v', '')}-00",
+        "kubernetes_deb_version": f"{version.replace('v', '')}-1.1",
         "kubernetes_semver": f"{version}",
         "kubernetes_series": f"{kubernetes_series}",
+        # https://github.com/flatcar/Flatcar/issues/823
+        "ansible_user_vars": "oem_id=openstack",
     }
 
     # NOTE(mnaser): We use the latest tested daily ISO for Ubuntu 22.04 in order
@@ -177,6 +189,19 @@ def main(operating_system, version, image_builder_version):
                 },
             },
         )
+
+    # Try and detect the target image path since it can be different depending
+    # on the operating system, so we scan the output directory for the file
+    # that matches the pattern.
+    target = None
+    for root, dirs, files in os.walk(output_path):
+        if len(files) > 1:
+            ctx.fail(f"Unexpected number of files in {root}")
+        if files:
+            target = f"{root}/{files[0]}"
+
+    if target is None:
+        ctx.fail("Unable to detect target image")
 
     # Copy from the target to the current working directory
     os.rename(target, f"{operating_system}-kube-{version}.qcow2")
