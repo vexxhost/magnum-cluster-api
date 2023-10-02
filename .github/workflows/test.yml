@@ -4,6 +4,13 @@ on:
     paths-ignore:
       - "docs/**"
       - README.md
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        type: boolean
+        description: 'Run the build with tmate session (https://github.com/marketplace/actions/debugging-with-tmate)'
+        required: false
+        default: false
 
 jobs:
   build:
@@ -217,9 +224,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Setup "tmate" session
-      #   uses: mxschmitt/action-tmate@v3
-
       - name: Wait for images
         if: contains(github.event.pull_request.body, '/build-new-image')
         uses: lewagon/wait-on-check-action@v1.3.1
@@ -243,6 +247,10 @@ jobs:
           OS_DISTRO: "${{ matrix.os_distro }}"
           KUBE_TAG: "${{ matrix.kube }}"
           NODE_COUNT: 2
+
+      - name: Setup "tmate" session
+        if: github.event_name == 'workflow_dispatch' && inputs.debug_enabled && failure()
+        uses: mxschmitt/action-tmate@v3
 
       - name: Upload Sonobuoy results
         uses: actions/upload-artifact@v3
