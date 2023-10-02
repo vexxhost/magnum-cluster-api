@@ -289,11 +289,9 @@
 
 ## [0.2.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.1.2...v0.2.0) (2022-11-16)
 
-
 ### Bug Fixes
 
 * added flux + node labels ([5f04d4e](https://github.com/vexxhost/magnum-cluster-api/commit/5f04d4ed8b00ba0d45cc59edd678bdf72679b00b))
-
 
 ### Miscellaneous Chores
 

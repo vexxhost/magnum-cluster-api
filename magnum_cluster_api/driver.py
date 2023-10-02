@@ -386,3 +386,11 @@ class UbuntuFocalDriver(UbuntuDriver):
         return [
             {"server_type": "vm", "os": "ubuntu-focal", "coe": "kubernetes"},
         ]
+
+
+class FlatcarDriver(BaseDriver):
+    @property
+    def provides(self):
+        return [
+            {"server_type": "vm", "os": "flatcar", "coe": "kubernetes"},
+        ]
