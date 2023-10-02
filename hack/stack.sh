@@ -14,6 +14,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+# Versions to test
+CAPI_VERSION=${CAPI_VERSION:-v1.4.4}
+CAPO_VERSION=${CAPO_VERSION:-v0.8.0}
+
 # Setup folders for DevStack
 sudo mkdir -p /opt/stack
 sudo chown -R ${USER}. /opt/stack
@@ -122,23 +126,24 @@ EOF
 kubectl label node kind-control-plane openstack-control-plane=enabled
 
 # Install the `clusterctl` CLI
-sudo curl -Lo /usr/local/bin/clusterctl https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.4.4/clusterctl-linux-amd64
+sudo curl -Lo /usr/local/bin/clusterctl https://github.com/kubernetes-sigs/cluster-api/releases/download/${CAPI_VERSION}/clusterctl-linux-amd64
 sudo chmod +x /usr/local/bin/clusterctl
 
 # Initialize the `clusterctl` CLI
 export EXP_CLUSTER_RESOURCE_SET=true
+export EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true #Used by the kubeadm bootstrap provider
 export CLUSTER_TOPOLOGY=true
 clusterctl init \
-  --core cluster-api:v1.4.4 \
-  --bootstrap kubeadm:v1.4.4 \
-  --control-plane kubeadm:v1.4.4 \
-  --infrastructure openstack:v0.7.1
+  --core cluster-api:${CAPI_VERSION} \
+  --bootstrap kubeadm:${CAPI_VERSION} \
+  --control-plane kubeadm:${CAPI_VERSION} \
+  --infrastructure openstack:${CAPO_VERSION}
 
 # Vendor the chart
 make vendor
 
 # Install `magnum-cluster-api`
-pip install -U setuptools pip
+pip install -U setuptools pip python-magnumclient
 $HOME/.local/bin/pip3 install -e .
 
 # Restart Magnum to pick-up new driver
