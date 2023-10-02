@@ -23,6 +23,12 @@ LOG = logging.getLogger(__name__)
 
 
 class Monitor(monitors.MonitorBase):
+    def metrics_spec(self):
+        pass
+
+    def pull_data(self):
+        pass
+
     def poll_health_status(self):
         k8s_api = clients.get_pykube_api()
         self.data = {
@@ -45,7 +51,7 @@ class Monitor(monitors.MonitorBase):
                 c["type"]: c["status"] for c in machine.obj["status"]["conditions"]
             }
 
-            node_healthy = condition_map.get("NodeHealthy")
+            node_healthy = condition_map.get("NodeHealthy", False)
             health_status = strutils.bool_from_string(node_healthy)
             self.data["health_status_reason"][f"{machine.name}.Ready"] = health_status
 
