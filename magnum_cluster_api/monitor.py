@@ -12,27 +12,51 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from magnum.conductor import k8s_api as k8s
-from magnum.drivers.common import k8s_monitor
+from magnum.conductor import monitors
+from magnum.objects import fields
 from oslo_log import log as logging
+from oslo_utils import strutils
 
-from magnum_cluster_api import utils
+from magnum_cluster_api import clients, objects
 
 LOG = logging.getLogger(__name__)
 
 
-class Monitor(k8s_monitor.K8sMonitor):
+class Monitor(monitors.MonitorBase):
+    def metrics_spec(self):
+        pass
+
+    def pull_data(self):
+        pass
+
     def poll_health_status(self):
-        # NOTE(mnaser): We override the `api_address` for the cluster if it's
-        #               an isolated cluster so we can go through the proxy.
-        cluster = self.cluster.obj_clone()
-        if utils.get_cluster_floating_ip_disabled(cluster):
-            api_address = f"https://{cluster.stack_id}.magnum-system:6443"
-            cluster.api_address = api_address
-            LOG.debug("Overriding cluster api_address to %s", api_address)
+        k8s_api = clients.get_pykube_api()
+        self.data = {
+            "health_status": fields.ClusterHealthStatus.UNKNOWN,
+            "health_status_reason": {},
+        }
 
-        k8s_api = k8s.KubernetesAPI(self.context, cluster)
-        status, reason = self._poll_health_status(k8s_api)
+        machines = objects.Machine.objects(k8s_api).filter(
+            namespace="magnum-system",
+            selector={
+                "cluster.x-k8s.io/cluster-name": self.cluster.stack_id,
+            },
+        )
 
-        self.data["health_status"] = status
-        self.data["health_status_reason"] = reason
+        if len(machines) == 0:
+            return
+
+        for machine in machines:
+            condition_map = {
+                c["type"]: c["status"] for c in machine.obj["status"]["conditions"]
+            }
+
+            node_healthy = condition_map.get("NodeHealthy", False)
+            health_status = strutils.bool_from_string(node_healthy)
+            self.data["health_status_reason"][f"{machine.name}.Ready"] = health_status
+
+            if health_status is False:
+                self.data["health_status"] = fields.ClusterHealthStatus.UNHEALTHY
+
+        if self.data["health_status"] == fields.ClusterHealthStatus.UNKNOWN:
+            self.data["health_status"] = fields.ClusterHealthStatus.HEALTHY
