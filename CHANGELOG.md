@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.11.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.10.0...v0.11.0) (2023-10-02)
+
+
+### Features
+
+* Support endpoint configuration for cluster-api ([#211](https://github.com/vexxhost/magnum-cluster-api/issues/211)) ([8a5ffac](https://github.com/vexxhost/magnum-cluster-api/commit/8a5ffac1e0ed3f1a7166dfd15a62b74f6a140963))
+* Support Flatcar OS ([#225](https://github.com/vexxhost/magnum-cluster-api/issues/225)) ([ef4401f](https://github.com/vexxhost/magnum-cluster-api/commit/ef4401f3019d04735c0ee85e4b8057896086c70a))
+
+
+### Bug Fixes
+
+* Add cacert in cloud config ([9fbdda6](https://github.com/vexxhost/magnum-cluster-api/commit/9fbdda6f0fa95ab48a0c25baa4ef26e1c1cbea96))
+* use capi to determine health ([#226](https://github.com/vexxhost/magnum-cluster-api/issues/226)) ([d599617](https://github.com/vexxhost/magnum-cluster-api/commit/d599617fcc9620d989446b3a8e9875a958b1c725))
+
 ## [0.10.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.9.1...v0.10.0) (2023-08-04)
 
 
