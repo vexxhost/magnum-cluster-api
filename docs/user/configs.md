@@ -88,3 +88,23 @@ Options under this group are used for configuring Manila client.
 :   If set, then the server's certificate will not be verified.
     **Type**: `boolean`
     **Default value**: `False`
+
+## capi_client
+Options under this group are used for configuring Openstack authentication for CAPO.
+
+`endpoint_type`
+
+:   Type of endpoint in Identity service catalog to use for communication with the OpenStack service.
+    **Type**: `string`
+    **Default value**: `publicURL`
+
+`ca_file`
+
+:   Optional CA cert file to use in SSL connections.
+    **Type**: `string`
+
+`insecure`
+
+:   If set, then the server's certificate will not be verified.
+    **Type**: `boolean`
+    **Default value**: `False`

@@ -24,7 +24,6 @@ import pykube
 import yaml
 from magnum import objects as magnum_objects
 from magnum.common import context, neutron
-from magnum.common import utils as magnum_utils
 from magnum.common.cert_manager import cert_manager
 from magnum.common.x509 import operations as x509
 from magnum.conductor.handlers.common import cert_manager as cert_manager_handlers
@@ -260,6 +259,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                                 "namespace": "kube-system",
                             },
                             "stringData": utils.generate_manila_csi_cloud_config(
+                                self.context,
                                 self.api,
                                 self.cluster,
                             ),
@@ -472,19 +472,24 @@ class ServiceAccountCertificateAuthoritySecret(CertificateAuthoritySecret):
 class CloudConfigSecret(ClusterBase):
     def __init__(
         self,
+        context: context.RequestContext,
         api: pykube.HTTPClient,
         cluster: any,
-        auth_url: str = None,
         region_name: str = None,
         credential: any = types.SimpleNamespace(id=None, secret=None),
     ):
         super().__init__(api, cluster)
-        self.auth_url = auth_url
+        self.context = context
+        osc = clients.get_openstack_api(self.context)
+        self.auth_url = osc.url_for(
+            service_type="identity",
+            interface=CONF.capi_client.endpoint_type.replace("URL", ""),
+        )
         self.region_name = region_name
         self.credential = credential
 
     def get_object(self) -> pykube.Secret:
-        ca_certificate = magnum_utils.get_openstack_ca()
+        ca_certificate = utils.get_capi_client_ca_cert()
 
         return pykube.Secret(
             self.api,
@@ -507,11 +512,11 @@ class CloudConfigSecret(ClusterBase):
                             "clouds": {
                                 "default": {
                                     "region_name": self.region_name,
-                                    "interface": CONF.nova_client.endpoint_type.replace(
+                                    "interface": CONF.capi_client.endpoint_type.replace(
                                         "URL", ""
                                     ),
                                     "identity_api_version": 3,
-                                    "verify": CONF.drivers.verify_ca,
+                                    "verify": not CONF.capi_client.insecure,
                                     "auth": {
                                         "auth_url": self.auth_url,
                                         "application_credential_id": self.credential.id,
@@ -1901,7 +1906,7 @@ class Cluster(ClusterBase):
                                 "name": "cloudControllerManagerConfig",
                                 "value": base64.encode_as_text(
                                     utils.generate_cloud_controller_manager_config(
-                                        self.api, self.cluster
+                                        self.context, self.api, self.cluster
                                     )
                                 ),
                             },
