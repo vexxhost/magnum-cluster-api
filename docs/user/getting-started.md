@@ -47,11 +47,13 @@ dashboard, Terraform, Ansible or the Magnum API directly.
     them using the OpenStack CLI:
 
     ```bash
-    for version in v1.23.17 v1.24.15 v1.25.11 v1.26.6 v1.27.3; do \
-      curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/ubuntu-2204-kube-${version}.qcow2; \
-      openstack image create ubuntu-2204-kube-${version} --disk-format=qcow2 --container-format=bare --property os_distro=ubuntu --file=ubuntu-2204-kube-${version}.qcow2; \
+    export OS_DISTRO=ubuntu # you can change this to "flatcar" if you want to use Flatcar
+    for version in v1.24.16 v1.25.12 v1.26.7 v1.27.4; do \
+      [[ "${OS_DISTRO}" == "ubuntu" ]] && IMAGE_NAME="ubuntu-2204-kube-${version}" || IMAGE_NAME="flatcar-kube-${version}"; \
+      curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/${IMAGE_NAME}.qcow2; \
+      openstack image create ${IMAGE_NAME} --disk-format=qcow2 --container-format=bare --property os_distro=${OS_DISTRO} --file=${IMAGE_NAME}.qcow2; \
       openstack coe cluster template create \
-          --image $(openstack image show ubuntu-2204-kube-${version} -c id -f value) \
+          --image $(openstack image show ${IMAGE_NAME} -c id -f value) \
           --external-network public \
           --dns-nameserver 8.8.8.8 \
           --master-lb-enabled \
@@ -152,7 +154,7 @@ dashboard, Terraform, Ansible or the Magnum API directly.
     The next step is managing the network configuration of the cluster.  The
     required fields are:
 
-    * **Enable Load Balancer for Master Nodes**  
+    * **Enable Load Balancer for Master Nodes**
       This is required to be **enabled** for the Cluster API driver for Magnum
       to work properly.
 
