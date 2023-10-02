@@ -410,10 +410,13 @@ class CertificateAuthoritySecret(ClusterBase):
             {
                 "apiVersion": pykube.Secret.version,
                 "kind": pykube.Secret.kind,
-                "type": "kubernetes.io/tls",
+                "type": "cluster.x-k8s.io/secret",
                 "metadata": {
                     "name": f"{self.cluster.stack_id}-{self.CERT}",
                     "namespace": "magnum-system",
+                    "labels": {
+                        "cluster.x-k8s.io/cluster-name": f"{self.cluster.stack_id}",
+                    },
                 },
                 "stringData": {
                     "tls.crt": encodeutils.safe_decode(ca_cert.get_certificate()),
@@ -618,8 +621,8 @@ class KubeadmConfigTemplate(Base):
                                     },
                                 },
                             },
-                        }
-                    }
+                        },
+                    },
                 },
             },
         )
@@ -1000,6 +1003,17 @@ class ClusterClass(Base):
                                 },
                             },
                         },
+                        {
+                            "name": "operatingSystem",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                    "enum": utils.AVAILABLE_OPERATING_SYSTEMS,
+                                    "default": "ubuntu",
+                                },
+                            },
+                        },
                     ],
                     "patches": [
                         {
@@ -1155,6 +1169,135 @@ class ClusterClass(Base):
                                         },
                                     ],
                                 }
+                            ],
+                        },
+                        {
+                            "name": "flatcar",
+                            "enabledIf": '{{ if eq .operatingSystem "flatcar" }}true{{end}}',
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                        "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands",
+                                            "value": [
+                                                textwrap.dedent(
+                                                    """\
+                                                bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                                """  # noqa: E501
+                                                )
+                                            ],
+                                        },
+                                        {
+                                            "op": "replace",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/format",
+                                            "value": "ignition",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/ignition",
+                                            "value": {
+                                                "containerLinuxConfig": {
+                                                    "additionalConfig": textwrap.dedent(
+                                                        """\
+                                                        systemd:
+                                                          units:
+                                                          - name: coreos-metadata-sshkeys@.service
+                                                            enabled: true
+                                                          - name: kubeadm.service
+                                                            enabled: true
+                                                            dropins:
+                                                            - name: 10-flatcar.conf
+                                                              contents: |
+                                                                [Unit]
+                                                                Requires=containerd.service coreos-metadata.service
+                                                                After=containerd.service coreos-metadata.service
+                                                                [Service]
+                                                                EnvironmentFile=/run/metadata/flatcar
+                                                        """  # noqa: E501
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                        {
+                                            "op": "replace",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/initConfiguration/nodeRegistration/name",  # noqa: E501
+                                            "value": "__REPLACE_NODE_NAME__",
+                                        },
+                                        {
+                                            "op": "replace",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/joinConfiguration/nodeRegistration/name",  # noqa: E501
+                                            "value": "__REPLACE_NODE_NAME__",
+                                        },
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmConfigTemplate.version,
+                                        "kind": objects.KubeadmConfigTemplate.kind,
+                                        "matchResources": {
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            }
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/preKubeadmCommands",
+                                            "value": [
+                                                textwrap.dedent(
+                                                    """\
+                                                bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                                """  # noqa: E501
+                                                )
+                                            ],
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/format",
+                                            "value": "ignition",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/ignition",
+                                            "value": {
+                                                "containerLinuxConfig": {
+                                                    "additionalConfig": textwrap.dedent(
+                                                        """\
+                                                        systemd:
+                                                          units:
+                                                          - name: coreos-metadata-sshkeys@.service
+                                                            enabled: true
+                                                          - name: kubeadm.service
+                                                            enabled: true
+                                                            dropins:
+                                                            - name: 10-flatcar.conf
+                                                              contents: |
+                                                                [Unit]
+                                                                Requires=containerd.service coreos-metadata.service
+                                                                After=containerd.service coreos-metadata.service
+                                                                [Service]
+                                                                EnvironmentFile=/run/metadata/flatcar
+                                                        """  # noqa: E501
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                        {
+                                            "op": "replace",
+                                            "path": "/spec/template/spec/joinConfiguration/nodeRegistration/name",
+                                            "value": "__REPLACE_NODE_NAME__",
+                                        },
+                                    ],
+                                },
                             ],
                         },
                         {
@@ -1833,6 +1976,10 @@ class Cluster(ClusterBase):
                             {
                                 "name": "sshKeyName",
                                 "value": self.cluster.keypair or "",
+                            },
+                            {
+                                "name": "operatingSystem",
+                                "value": utils.get_operating_system(self.cluster),
                             },
                         ],
                     },
