@@ -12,8 +12,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import os
 import fcntl
+import os
 import socket
 import struct
 from contextlib import closing
