@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import os
 import fcntl
 import socket
 import struct
@@ -45,3 +46,8 @@ def find_free_port():
         s.bind(("", 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
+
+
+def get_haproxy_pid_path():
+    home_dir = os.path.expanduser("~")
+    return os.path.join(home_dir, ".magnum", "haproxy.pid")

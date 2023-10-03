@@ -2,7 +2,7 @@ global
   master-worker
   log stdout format raw local0
   stats socket /var/run/haproxy.sock mode 600 expose-fd listeners level user
-  pidfile /var/run/haproxy.pid
+  pidfile {{ pid_file }}
 
 defaults
   log global

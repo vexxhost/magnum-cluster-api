@@ -19,6 +19,7 @@ import subprocess
 from oslo_log import log as logging
 
 import magnum_cluster_api.privsep
+from magnum_cluster_api.proxy import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ def start(config_file):
 def reload():
     """Reload HAproxy configuration"""
 
-    with open("/var/run/haproxy.pid", "r") as fd:
+    with open(utils.get_haproxy_pid_path(), "r") as fd:
         pid = int(fd.read().strip())
 
     os.kill(pid, signal.SIGUSR2)
