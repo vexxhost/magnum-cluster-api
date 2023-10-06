@@ -320,7 +320,7 @@ def validate_flavor_name(cli: clients.OpenStackClients, flavor: str):
     raise exception.FlavorNotFound(flavor=flavor)
 
 
-def validate_cluster(context: context.RequestContext, cluster: magnum_objects.Cluster):
+def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluster):
     # Check master count
     if (cluster.master_count % 2) == 0:
         raise mcapi_exceptions.ClusterMasterCountEven
@@ -333,7 +333,7 @@ def validate_cluster(context: context.RequestContext, cluster: magnum_objects.Cl
     if cluster.fixed_network:
         if uuidutils.is_uuid_like(cluster.fixed_network):
             neutron.get_network(
-                context,
+                ctx,
                 cluster.fixed_network,
                 source="id",
                 target="name",
@@ -341,7 +341,7 @@ def validate_cluster(context: context.RequestContext, cluster: magnum_objects.Cl
             )
         else:
             neutron.get_network(
-                context,
+                ctx,
                 cluster.fixed_network,
                 source="name",
                 target="id",
@@ -351,13 +351,9 @@ def validate_cluster(context: context.RequestContext, cluster: magnum_objects.Cl
     # Check if fixed_subnet exists
     if cluster.fixed_subnet:
         if uuidutils.is_uuid_like(cluster.fixed_subnet):
-            neutron.get_subnet(
-                context, cluster.fixed_subnet, source="id", target="name"
-            )
+            neutron.get_subnet(ctx, cluster.fixed_subnet, source="id", target="name")
         else:
-            neutron.get_subnet(
-                context, cluster.fixed_subnet, source="name", target="id"
-            )
+            neutron.get_subnet(ctx, cluster.fixed_subnet, source="name", target="id")
 
 
 def validate_nodegroup(
