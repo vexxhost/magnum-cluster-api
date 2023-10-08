@@ -141,7 +141,7 @@ jobs:
         run: make unit-tests
 
   build-images:
-    runs-on: v3-starter-8
+    runs-on: v3-standard-4
     if: contains(github.event.pull_request.body, '/build-new-image')
     strategy:
       fail-fast: false
@@ -191,7 +191,7 @@ jobs:
           path: ${{ matrix.os_distro }}-kube-${{ matrix.kube }}.qcow2
 
   functional:
-    runs-on: v3-starter-8
+    runs-on: v3-standard-16
     strategy:
       fail-fast: false
       matrix:
@@ -238,6 +238,11 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: ${{ matrix.os_distro }}-kube-${{ matrix.kube }}.qcow2
+
+      - name: Update environment variables for GitHub Hosted Runners
+        if: contains(runner.name, 'GitHub Actions')
+        run: |
+          echo "DNS_NAMESERVER=168.63.129.16" >> $GITHUB_ENV
 
       - name: Run functional tests
         run: |
