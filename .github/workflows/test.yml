@@ -141,7 +141,7 @@ jobs:
         run: make unit-tests
 
   build-images:
-    runs-on: ubuntu-latest-4-cores
+    runs-on: v3-starter-8
     if: contains(github.event.pull_request.body, '/build-new-image')
     strategy:
       fail-fast: false
@@ -191,7 +191,7 @@ jobs:
           path: ${{ matrix.os_distro }}-kube-${{ matrix.kube }}.qcow2
 
   functional:
-    runs-on: ubuntu-latest-16-cores
+    runs-on: v3-starter-8
     strategy:
       fail-fast: false
       matrix:
