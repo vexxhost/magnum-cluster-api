@@ -158,7 +158,8 @@ class BaseDriver(driver.Driver):
             except keystoneauth1.exceptions.http.NotFound:
                 pass
 
-            resources.CloudConfigSecret(self.k8s_api, cluster).delete()
+            resources.CloudConfigSecret(
+                context, self.k8s_api, cluster).delete()
             resources.ApiCertificateAuthoritySecret(
                 context, self.k8s_api, cluster
             ).delete()
