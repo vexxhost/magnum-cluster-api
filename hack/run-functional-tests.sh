@@ -65,6 +65,18 @@ openstack coe cluster create \
   --node-count ${NODE_COUNT} \
   k8s-cluster
 
+# Wait for cluster creation to be queued
+for i in {1..5}; do
+  output=$(openstack coe cluster show k8s-cluster 2>&1)
+  exit_status=$?
+  if [ $exit_status -eq 0 ]; then
+      break
+  else
+      echo "Error: $output"
+      sleep 1
+  fi
+done
+
 # Wait for cluster to be "CREATE_COMPLETE".
 for i in {1..240}; do
   CLUSTER_STATUS=$(openstack coe cluster show k8s-cluster -c status -f value)
