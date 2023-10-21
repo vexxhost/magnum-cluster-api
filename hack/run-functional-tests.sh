@@ -66,16 +66,18 @@ openstack coe cluster create \
   k8s-cluster
 
 # Wait for cluster creation to be queued
+set +e
 for i in {1..5}; do
-  output=$(openstack coe cluster show k8s-cluster 2>&1)
+  openstack coe cluster show k8s-cluster 2>&1
   exit_status=$?
   if [ $exit_status -eq 0 ]; then
       break
   else
-      echo "Error: $output"
+      echo "Error: Cluster k8s-cluster could not be found."
       sleep 1
   fi
 done
+set -e
 
 # Wait for cluster to be "CREATE_COMPLETE".
 for i in {1..240}; do
