@@ -1676,14 +1676,14 @@ def generate_machine_deployments_for_cluster(
                 "annotations": {
                     AUTOSCALE_ANNOTATION_MIN: f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
                     AUTOSCALE_ANNOTATION_MAX: f"{utils.get_node_group_max_node_count(context, ng)}",  # noqa: E501
-                },
+                }
+                if auto_scaling_enabled
+                else {},
                 "labels": {
                     f"node-role.kubernetes.io/{ng.role}": "",
                     "node.cluster.x-k8s.io/nodegroup": ng.name,
                 },
-            }
-            if auto_scaling_enabled
-            else {},
+            },
             "failureDomain": utils.get_cluster_label(cluster, "availability_zone", ""),
             "machineHealthCheck": {
                 "enable": utils.get_cluster_label_as_bool(
