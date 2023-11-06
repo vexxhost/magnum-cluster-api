@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.11.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.11.1...v0.11.2) (2023-11-06)
+
+
+### Features
+
+* Validate fixed_network and fixed_subnet existence ([46ac9ac](https://github.com/vexxhost/magnum-cluster-api/commit/46ac9ac4ed288eac964af647d60d21d7865599c9))
+
+
+### Bug Fixes
+
+* Set nodegroup labels always ([5d5afa5](https://github.com/vexxhost/magnum-cluster-api/commit/5d5afa55331df5dbdfa970d4fc142d34e1163a86))
+
+
+### Miscellaneous Chores
+
+* release 0.11.2 ([9d10552](https://github.com/vexxhost/magnum-cluster-api/commit/9d10552125494bcf3bffafea35429f6c6439b1f0))
+
 ## [0.11.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.11.0...v0.11.1) (2023-10-13)
 
 
