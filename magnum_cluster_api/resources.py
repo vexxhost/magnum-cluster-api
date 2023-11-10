@@ -304,7 +304,8 @@ class ClusterResourcesConfigMap(ClusterBase):
                                 "allowVolumeExpansion": True,
                                 "kind": objects.StorageClass.kind,
                                 "metadata": {
-                                    "name": "share-%s" % st.name.lower(),
+                                    "name": "share-%s"
+                                    % utils.convert_to_rfc1123(st.name),
                                 },
                                 "provisioner": "manila.csi.openstack.org",
                                 "parameters": {
