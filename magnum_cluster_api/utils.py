@@ -380,3 +380,16 @@ def get_image_uuid(image_ref: str, ctx: context.RequestContext):
     osc = clients.get_openstack_api(ctx)
     image_obj = attr_validator.validate_image(osc, image_ref)
     return image_obj.get("id")
+
+
+def convert_to_rfc1123(input: str) -> str:
+    """
+    Convert a given string to RFC1123 format.
+
+    :param input: The string to be converted.
+    :type input: str
+
+    :return: The converted string in RFC1123 format.
+    :rtype: str
+    """
+    return re.sub(r"[^a-zA-Z0-9]+", "-", input).lower()
