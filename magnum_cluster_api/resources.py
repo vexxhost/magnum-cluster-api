@@ -227,11 +227,11 @@ class ClusterResourcesConfigMap(ClusterBase):
                                 }
                                 if default_volume_type.name == vt.name
                                 else {},
-                                "name": "block-%s" % vt.name.lower(),
+                                "name": "block-%s" % utils.convert_to_rfc1123(vt.name),
                             },
                             "provisioner": "kubernetes.io/cinder",
                             "parameters": {
-                                "type": vt.name,
+                                "type": utils.convert_to_rfc1123(vt.name),
                             },
                             "reclaimPolicy": "Delete",
                             "volumeBindingMode": "Immediate",
