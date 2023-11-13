@@ -70,7 +70,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
         # Update checksum
         self.checksum = hash(config)
 
-    def _sync_services(self, proxied_clusters: list, clusters: list):
+    def _sync_services(self, proxied_clusters: list, openstack_clusters: list):
         labels = {
             structs.ProxiedCluster.SERVICE_LABEL: "true",
         }
@@ -81,7 +81,10 @@ class ProxyManager(periodic_task.PeriodicTasks):
         )
 
         # Generate list of all cluster names
-        cluster_names = [cluster.name for cluster in clusters]
+        cluster_names = [
+            cluster.metadata["labels"]["cluster.x-k8s.io/cluster-name"]
+            for cluster in openstack_clusters
+        ]
 
         # Remove any services that are not supposed to be there
         for service in services:
