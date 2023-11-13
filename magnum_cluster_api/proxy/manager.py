@@ -81,7 +81,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
         )
 
         # Generate list of all cluster names
-        cluster_names = [cluster.name for cluster in proxied_clusters]
+        cluster_names = [cluster.name for cluster in clusters]
 
         # Remove any services that are not supposed to be there
         for service in services:
