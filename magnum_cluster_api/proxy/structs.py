@@ -51,10 +51,9 @@ class ProxiedCluster:
             return None
 
         status = cluster.obj.get("status", {})
-        network = status.get("network", {})
 
-        internal_ip = network.get("apiServerLoadBalancer", {}).get("internalIP")
-        network_id = network.get("id")
+        network_id = status.get("network", {}).get("id")
+        internal_ip = status.get("apiServerLoadBalancer", {}).get("internalIP")
 
         if network_id is None:
             LOG.debug("No network ID found for cluster %s", cluster.name)
