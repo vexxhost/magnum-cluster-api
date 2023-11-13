@@ -1671,7 +1671,9 @@ def generate_machine_deployments_for_cluster(
         {
             "class": "default-worker",
             "name": ng.name,
-            "replicas": None if auto_scaling_enabled else ng.node_count,
+            "replicas": utils.get_node_group_min_node_count(ng)
+            if auto_scaling_enabled
+            else ng.node_count,
             "metadata": {
                 "annotations": {
                     AUTOSCALE_ANNOTATION_MIN: f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
