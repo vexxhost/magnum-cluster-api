@@ -17,7 +17,7 @@ from magnum.objects import fields
 from oslo_log import log as logging
 from oslo_utils import strutils
 
-from magnum_cluster_api import clients, objects
+from magnum_cluster_api import clients, objects, resources, utils
 
 LOG = logging.getLogger(__name__)
 
@@ -28,6 +28,21 @@ class Monitor(monitors.MonitorBase):
 
     def pull_data(self):
         pass
+
+    def poll_nodegroup_replicas(self):
+        """
+        Poll the number of replicas of each nodegroup in the cluster when autoscaling enabled.
+        """
+        if not utils.get_auto_scaling_enabled(self.cluster):
+            return
+        for node_group in self.cluster.nodegroups:
+            md = resources.get_machine_deployment(
+                self.k8s_api, self.cluster, node_group
+            )
+            if md is None:
+                continue
+            node_group.node_count = md.obj["spec"]["replicas"]
+            node_group.save()
 
     def poll_health_status(self):
         k8s_api = clients.get_pykube_api()
@@ -60,3 +75,5 @@ class Monitor(monitors.MonitorBase):
 
         if self.data["health_status"] == fields.ClusterHealthStatus.UNKNOWN:
             self.data["health_status"] = fields.ClusterHealthStatus.HEALTHY
+
+        self.poll_nodegroup_replicas()

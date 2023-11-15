@@ -323,9 +323,7 @@ class BaseDriver(driver.Driver):
                 nodegroup.status = f"{action}_COMPLETE"
             elif phase in ("Failed", "Unknown"):
                 nodegroup.status = f"{action}_FAILED"
-            # Note: Fetch node_count from md object when autoscaling enabled
-            if utils.get_auto_scaling_enabled(cluster):
-                nodegroup.node_count = md.obj["spec"]["replicas"]
+
         nodegroup.save()
 
         return nodegroup
