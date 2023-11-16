@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.12.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.11.2...v0.12.0) (2023-11-16)
+
+
+### Features
+
+* Fetch node count from md object when autoscaling enabled ([d64ca86](https://github.com/vexxhost/magnum-cluster-api/commit/d64ca8637da2e181143f3156a07b0ca3abe10e97))
+
+
+### Bug Fixes
+
+* address status changes for v1alpha7 ([5da7223](https://github.com/vexxhost/magnum-cluster-api/commit/5da72233baa3af3935f4624bd67894c68f5aa338))
+* Convert Openstack volume type name to valid rfc1123 string ([7d0f316](https://github.com/vexxhost/magnum-cluster-api/commit/7d0f316c85189f69ebe0787e3d24edb2b733501d))
+* Fix manila csi config ([#254](https://github.com/vexxhost/magnum-cluster-api/issues/254)) ([867efdb](https://github.com/vexxhost/magnum-cluster-api/commit/867efdb40b646d472366e21db8187ad4d7f2f216))
+* Set MachineDeployment replicas as min node count when autoscale enabled ([3cc9b19](https://github.com/vexxhost/magnum-cluster-api/commit/3cc9b195d3964491983063a669af60037490dd63))
+* solve cluster delete sync ([53048c8](https://github.com/vexxhost/magnum-cluster-api/commit/53048c8de81cbef0e643aea94dd62e23d222a455))
+* solve proxied service cleanup ([476d1f7](https://github.com/vexxhost/magnum-cluster-api/commit/476d1f745b4588303cf52f48cddf07f2c11fdba0))
+
 ## [0.11.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.11.1...v0.11.2) (2023-11-06)
 
 
