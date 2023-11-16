@@ -33,12 +33,11 @@ class Monitor(monitors.MonitorBase):
         """
         Poll the number of replicas of each nodegroup in the cluster when autoscaling enabled.
         """
+        k8s_api = clients.get_pykube_api()
         if not utils.get_auto_scaling_enabled(self.cluster):
             return
         for node_group in self.cluster.nodegroups:
-            md = resources.get_machine_deployment(
-                self.k8s_api, self.cluster, node_group
-            )
+            md = resources.get_machine_deployment(k8s_api, self.cluster, node_group)
             if md is None:
                 continue
             node_group.node_count = md.obj["spec"]["replicas"]
