@@ -147,7 +147,7 @@ def generate_manila_csi_cloud_config(
         "os-applicationCredentialSecret": cloud_config["clouds"]["default"]["auth"][
             "application_credential_secret"
         ],
-        "os-TLSInsecure": {"false" if CONF.drivers.verify_ca else "true"}
+        "os-TLSInsecure": ("false" if CONF.drivers.verify_ca else "true")
         if cloud_config["clouds"]["default"]["verify"]
         else "true",
         "os-certAuthorityPath": "/etc/config/ca.crt",
