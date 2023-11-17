@@ -147,7 +147,7 @@ jobs:
       fail-fast: false
       matrix:
         os_distro:
-          - ubuntu
+          - ubuntu-2204
           - flatcar
         kube:
           - v1.24.16
