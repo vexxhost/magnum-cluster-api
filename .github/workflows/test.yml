@@ -173,13 +173,13 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
+      # - name: Setup tmate session
+      #   uses: mxschmitt/action-tmate@v3
 
       - name: Build image
         timeout-minutes: 30
         run: |
-          magnum-cluster-api-image-builder \
+          $HOME/.local/bin/magnum-cluster-api-image-builder \
             --operating-system ${{ matrix.os_distro }} \
             --version ${{ matrix.kube }}
         env:
