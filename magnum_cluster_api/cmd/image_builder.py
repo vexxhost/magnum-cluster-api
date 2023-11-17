@@ -77,6 +77,12 @@ def main(ctx: click.Context, operating_system, version, image_builder_version):
 
             ctx.fail(message)
 
+    click.echo("- Update apt")
+    subprocess.run(
+        ["sudo", "/usr/bin/apt-get", "update", "-y"],
+        check=True,
+    )
+
     click.echo("- Install QEMU packages")
     subprocess.run(
         ["sudo", "/usr/bin/apt", "install", "--no-install-recommends", "-y"]
