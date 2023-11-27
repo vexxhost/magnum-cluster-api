@@ -25,9 +25,10 @@ NODE_COUNT=${NODE_COUNT:-2}
 SONOBUOY_VERSION=${SONOBUOY_VERSION:-0.56.16}
 SONOBUOY_ARCH=${SONOBUOY_ARCH:-amd64}
 DNS_NAMESERVER=${DNS_NAMESERVER:-1.1.1.1}
+IMAGE_NAME="${OS_DISTRO}-kube-${KUBE_TAG}"
 
-# Determine image name
-[[ "${OS_DISTRO}" == "ubuntu" ]] && IMAGE_NAME="ubuntu-2204-kube-${KUBE_TAG}" || IMAGE_NAME="flatcar-kube-${KUBE_TAG}";
+# Determine image os_distro
+[[ "${OS_DISTRO}" == ubuntu* ]] && OS_DISTRO="ubuntu" || OS_DISTRO="flatcar";
 
 # If `BUILD_NEW_IMAGE` is true, then we use the provided artifact, otherwise
 # we download the latest promoted image.

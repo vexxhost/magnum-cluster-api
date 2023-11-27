@@ -50,7 +50,7 @@ def validate_version(_, __, value):
 @click.option(
     "--version",
     show_default=True,
-    default="v1.27.3",
+    default="v1.27.8",
     callback=validate_version,
     help="Kubernetes version",
 )
@@ -76,6 +76,12 @@ def main(ctx: click.Context, operating_system, version, image_builder_version):
                 message += f"- {root}/{file}\n"
 
             ctx.fail(message)
+
+    click.echo("- Update apt")
+    subprocess.run(
+        ["sudo", "/usr/bin/apt-get", "update", "-y"],
+        check=True,
+    )
 
     click.echo("- Install QEMU packages")
     subprocess.run(
