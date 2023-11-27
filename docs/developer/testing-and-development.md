@@ -23,15 +23,15 @@ steps to be able to test and develop the project.
       openstack coe cluster template create \
         --image $(openstack image show ${IMAGE_NAME} -c id -f value) \
         --external-network public \
-         --dns-nameserver 8.8.8.8 \
-         --master-lb-enabled \
-         --master-flavor m1.medium \
-         --flavor m1.medium \
-         --network-driver calico \
-         --docker-storage-driver overlay2 \
-         --coe kubernetes \
-         --label kube_tag=${version} \
-       d   k8s-${version};
+        --dns-nameserver 8.8.8.8 \
+        --master-lb-enabled \
+        --master-flavor m1.medium \
+        --flavor m1.medium \
+        --network-driver calico \
+        --docker-storage-driver overlay2 \
+        --coe kubernetes \
+        --label kube_tag=${version} \
+        k8s-${version};
    done;
    popd
    ```
@@ -40,14 +40,14 @@ steps to be able to test and develop the project.
 
    ```bash
    openstack coe cluster create \
-     --cluster-template k8s-v1.25.11 \
+     --cluster-template k8s-v1.25.12 \
      --master-count 3 \
      --node-count 2 \
-     k8s-v1.25.11
+     k8s-v1.25.12
    ```
 
 1. Once the cluster reaches `CREATE_COMPLETE` state, you can interact with it:
 
    ```bash
-   eval $(openstack coe cluster config k8s-v1.25.11)
+   eval $(openstack coe cluster config k8s-v1.25.12)
    ```
