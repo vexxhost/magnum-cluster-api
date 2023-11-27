@@ -50,7 +50,7 @@ def validate_version(_, __, value):
 @click.option(
     "--version",
     show_default=True,
-    default="v1.27.3",
+    default="v1.27.8",
     callback=validate_version,
     help="Kubernetes version",
 )

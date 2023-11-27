@@ -150,8 +150,8 @@ jobs:
           - ubuntu-2204
           - flatcar
         kube:
-          - v1.26.10
-          - v1.27.7
+          - v1.26.11
+          - v1.27.8
     concurrency:
       group: build-images-${{ github.ref }}-${{ matrix.kube }}-${{ matrix.os_distro }}
       cancel-in-progress: true
@@ -194,8 +194,8 @@ jobs:
           - ubuntu-2204
           - flatcar
         kube:
-          - v1.26.10
-          - v1.27.7
+          - v1.26.11
+          - v1.27.8
     concurrency:
       group: functional-${{ github.ref }}-${{ matrix.kube }}-${{ matrix.os_distro }}
       cancel-in-progress: true
