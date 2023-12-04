@@ -39,6 +39,7 @@ CALICO_TAG = "v3.24.2"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
+CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT = "300"  # seconds
 
 CLUSTER_UPGRADE_LABELS = {"kube_tag"}
 
@@ -691,6 +692,7 @@ class ClusterClass(Base):
                 },
                 "spec": {
                     "controlPlane": {
+                        "nodeVolumeDetachTimeout": CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT,
                         "ref": {
                             "apiVersion": objects.KubeadmControlPlaneTemplate.version,
                             "kind": objects.KubeadmControlPlaneTemplate.kind,
@@ -730,6 +732,7 @@ class ClusterClass(Base):
                         "machineDeployments": [
                             {
                                 "class": "default-worker",
+                                "nodeVolumeDetachTimeout": CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT,
                                 "template": {
                                     "bootstrap": {
                                         "ref": {
@@ -1671,6 +1674,7 @@ def generate_machine_deployments_for_cluster(
     return [
         {
             "class": "default-worker",
+            "nodeVolumeDetachTimeout": CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT,
             "name": ng.name,
             "replicas": utils.get_node_group_min_node_count(ng)
             if auto_scaling_enabled
