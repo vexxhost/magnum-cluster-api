@@ -166,6 +166,14 @@ is often accomplished by deploying a driver on each node.
 
    Default value: `true`
 
+* `tls_cipher_suites`
+
+   Specify the list of TLS cipher suites to use for the Kubernetes API server,
+   separated by commas.  If not specified, the default list of cipher suites
+   will be used using the [Mozilla SSL Configuration Generator](https://ssl-config.mozilla.org/#server=go&config=intermediate).
+
+   Default value: `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305`
+
 ## OIDC
 
 * `oidc_issuer_url`
