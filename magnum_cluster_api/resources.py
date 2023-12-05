@@ -39,7 +39,7 @@ CALICO_TAG = "v3.24.2"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
-CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT = "300"  # seconds
+CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT = "300s"  # seconds
 
 CLUSTER_UPGRADE_LABELS = {"kube_tag"}
 
