@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.12.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.12.0...v0.12.1) (2023-12-05)
+
+
+### Bug Fixes
+
+* allow configuring tls-cipher-suites ([#261](https://github.com/vexxhost/magnum-cluster-api/issues/261)) ([d1b7ab5](https://github.com/vexxhost/magnum-cluster-api/commit/d1b7ab5c2ea42eea35bfc87ede39ecd867ec94cf)), closes [#251](https://github.com/vexxhost/magnum-cluster-api/issues/251)
+* Fix typo in developer guide doc ([ff59cbb](https://github.com/vexxhost/magnum-cluster-api/commit/ff59cbb4a086a7bf63e01927915ca72438ab6351))
+* set nodeVolumeDetachTimeout property for machines ([c52f3e7](https://github.com/vexxhost/magnum-cluster-api/commit/c52f3e7d90d5a18852d1c189f6c3095395f4ac88))
+* Update cluster-autoscaler chart version to support k8s 1.27 ([#192](https://github.com/vexxhost/magnum-cluster-api/issues/192)) ([883968a](https://github.com/vexxhost/magnum-cluster-api/commit/883968a555e31039fe014522621f7eb50c1c261e))
+
 ## [0.12.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.11.2...v0.12.0) (2023-11-16)
 
 
