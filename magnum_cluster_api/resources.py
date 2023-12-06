@@ -1701,14 +1701,14 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/initConfiguration/nodeRegistration/kubeletExtraArgs/tls-cipher-suites",  # noqa: E501
+                                            "path": "/spec/template/spec/initConfiguration/nodeRegistration/kubeletExtraArgs/tls-cipher-suites",  # noqa: E501
                                             "valueFrom": {
                                                 "variable": "kubeletTLSCipherSuites",
                                             },
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/joinConfiguration/nodeRegistration/kubeletExtraArgs/tls-cipher-suites",  # noqa: E501
+                                            "path": "/spec/template/spec/joinConfiguration/nodeRegistration/kubeletExtraArgs/tls-cipher-suites",  # noqa: E501
                                             "valueFrom": {
                                                 "variable": "kubeletTLSCipherSuites",
                                             },
