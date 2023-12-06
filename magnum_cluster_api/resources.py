@@ -1005,6 +1005,15 @@ class ClusterClass(Base):
                             },
                         },
                         {
+                            "name": "kubeletTLSCipherSuites",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
                             "name": "nodeCidr",
                             "required": True,
                             "schema": {
@@ -1573,6 +1582,20 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/initConfiguration/nodeRegistration/kubeletExtraArgs/tls-cipher-suites",  # noqa: E501
+                                            "valueFrom": {
+                                                "variable": "kubeletTLSCipherSuites",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/joinConfiguration/nodeRegistration/kubeletExtraArgs/tls-cipher-suites",  # noqa: E501
+                                            "valueFrom": {
+                                                "variable": "kubeletTLSCipherSuites",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
@@ -1656,6 +1679,38 @@ class ClusterClass(Base):
                                                       encoding: "base64"
                                                 """
                                                 ),
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            "name": "workerConfig",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmConfigTemplate.version,
+                                        "kind": objects.KubeadmConfigTemplate.kind,
+                                        "matchResources": {
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            }
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/clusterConfiguration/initConfiguration/nodeRegistration/kubeletExtraArgs/tls-cipher-suites",  # noqa: E501
+                                            "valueFrom": {
+                                                "variable": "kubeletTLSCipherSuites",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/clusterConfiguration/joinConfiguration/nodeRegistration/kubeletExtraArgs/tls-cipher-suites",  # noqa: E501
+                                            "valueFrom": {
+                                                "variable": "kubeletTLSCipherSuites",
                                             },
                                         },
                                     ],
@@ -1857,7 +1912,7 @@ class Cluster(ClusterBase):
                                 "name": "apiServerTLSCipherSuites",
                                 "value": utils.get_cluster_label(
                                     self.cluster,
-                                    "tls_cipher_suites",
+                                    "api_server_tls_cipher_suites",
                                     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",  # noqa: E501
                                 ),
                             },
@@ -1999,6 +2054,14 @@ class Cluster(ClusterBase):
                                 "value": utils.get_image_uuid(
                                     self.cluster.default_ng_master.image_id,
                                     self.context,
+                                ),
+                            },
+                            {
+                                "name": "kubeletTLSCipherSuites",
+                                "value": utils.get_cluster_label(
+                                    self.cluster,
+                                    "kubelet_tls_cipher_suites",
+                                    "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",  # noqa: E501
                                 ),
                             },
                             {
