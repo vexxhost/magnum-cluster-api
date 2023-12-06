@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.12.1...v0.13.0) (2023-12-06)
+
+
+### Features
+
+* Support tls-cipher-suite configuration for kubelet ([5010c9a](https://github.com/vexxhost/magnum-cluster-api/commit/5010c9a4dd2c2656089b5807c38d95aec8c6ef0a))
+
 ## [0.12.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.12.0...v0.12.1) (2023-12-05)
 
 
