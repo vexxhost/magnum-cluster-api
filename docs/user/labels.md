@@ -137,6 +137,14 @@ is often accomplished by deploying a driver on each node.
 
 ## Kubernetes
 
+* `api_server_tls_cipher_suites`
+
+   Specify the list of TLS cipher suites to use for the Kubernetes API server,
+   separated by commas.  If not specified, the default list of cipher suites
+   will be used using the [Mozilla SSL Configuration Generator](https://ssl-config.mozilla.org/#server=go&config=intermediate).
+
+   Default value: `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305`
+
 * `auto_healing_enabled`
 
    Enable auto-healing for the cluster.  This will automatically replace failed
@@ -152,6 +160,14 @@ is often accomplished by deploying a driver on each node.
 
    Default value: `false`
 
+* `kubelet_tls_cipher_suites`
+
+   Specify the list of TLS cipher suites to use in communication between the
+   kubelet and applications, separated by commas.  If not specified, the
+   default list of cipher suites will be used.
+
+   Default value: `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305`
+
 * `kube_tag`
 
    The version of Kubernetes to use.
@@ -165,14 +181,6 @@ is often accomplished by deploying a driver on each node.
    `magnum-cluster-api-proxy` service on all your Neutron network nodes.
 
    Default value: `true`
-
-* `tls_cipher_suites`
-
-   Specify the list of TLS cipher suites to use for the Kubernetes API server,
-   separated by commas.  If not specified, the default list of cipher suites
-   will be used using the [Mozilla SSL Configuration Generator](https://ssl-config.mozilla.org/#server=go&config=intermediate).
-
-   Default value: `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305`
 
 ## OIDC
 
