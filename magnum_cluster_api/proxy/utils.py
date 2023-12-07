@@ -40,9 +40,11 @@ def get_default_ip_address():
         )
         return ip_address
 
-
-def find_free_port():
+def find_free_port(port_hint=0):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind(("", 0))
+        try:
+            s.bind(("", port_hint))
+        except OSError:
+            s.bind(("", 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
