@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.13.0...v0.13.1) (2023-12-07)
+
+
+### Bug Fixes
+
+* add unit tests for image loader + missing images ([#268](https://github.com/vexxhost/magnum-cluster-api/issues/268)) ([5223b93](https://github.com/vexxhost/magnum-cluster-api/commit/5223b93c19e22b4e7d01a4d44bf0e720ca966832))
+
 ## [0.13.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.12.1...v0.13.0) (2023-12-06)
 
 
