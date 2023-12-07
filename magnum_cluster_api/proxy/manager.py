@@ -46,6 +46,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
         self.haproxy_port = utils.find_free_port(
             port_hint=int(os.getenv("PROXY_PORT", 0))
         )
+        self.haproxy_bind = os.getenv("PROXY_BIND", "*")
         self.haproxy_pid = None
 
     def periodic_tasks(self, context, raise_on_error=False):
@@ -56,6 +57,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
         config = self.template.render(
             pid_file=utils.get_haproxy_pid_path(),
             port=self.haproxy_port,
+            bind=self.haproxy_bind,
             clusters=proxied_clusters,
         )
 
