@@ -1596,21 +1596,6 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
-                                            "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    path: "/etc/containerd/config.toml"
-                                                    owner: "root:root"
-                                                    permissions: "0644"
-                                                    content: "{{ .containerdConfig }}"
-                                                    encoding: "base64"
-                                                    """
-                                                )
-                                            },
-                                        },
-                                        {
-                                            "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/certSANs",  # noqa: E501
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
@@ -1629,6 +1614,11 @@ class ClusterClass(Base):
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
                                                     """\
+                                                    - path: "/etc/containerd/config.toml"
+                                                      owner: "root:root"
+                                                      permissions: "0644"
+                                                      content: "{{ .containerdConfig }}"
+                                                      encoding: "base64"
                                                     - path: "/etc/kubernetes/cloud.conf"
                                                       owner: "root:root"
                                                       permissions: "0600"
