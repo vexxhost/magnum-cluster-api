@@ -1610,47 +1610,27 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/files",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
                                                     """\
-                                                    path: "/etc/containerd/config.toml"
-                                                    owner: "root:root"
-                                                    permissions: "0644"
-                                                    content: "{{ .containerdConfig }}"
-                                                    encoding: "base64"
+                                                    - path: "/etc/containerd/config.toml"
+                                                      owner: "root:root"
+                                                      permissions: "0644"
+                                                      content: "{{ .containerdConfig }}"
+                                                      encoding: "base64"
+                                                    - path: "/etc/kubernetes/cloud.conf"
+                                                      owner: "root:root"
+                                                      permissions: "0600"
+                                                      content: "{{ .cloudControllerManagerConfig }}"
+                                                      encoding: "base64"
+                                                    - path: "/etc/kubernetes/cloud_ca.crt"
+                                                      owner: "root:root"
+                                                      permissions: "0600"
+                                                      content: "{{ .cloudCaCert }}"
+                                                      encoding: "base64"
                                                     """
-                                                )
-                                            },
-                                        },
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
-                                            "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    path: "/etc/kubernetes/cloud.conf"
-                                                    owner: "root:root"
-                                                    permissions: "0600"
-                                                    content: "{{ .cloudControllerManagerConfig }}"
-                                                    encoding: "base64"
-                                                    """
-                                                )
-                                            },
-                                        },
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
-                                            "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    path: "/etc/kubernetes/cloud_ca.crt"
-                                                    owner: "root:root"
-                                                    permissions: "0600"
-                                                    content: "{{ .cloudCaCert }}"
-                                                    encoding: "base64"
-                                                    """
-                                                )
+                                                ),
                                             },
                                         },
                                     ],
