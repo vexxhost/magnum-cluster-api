@@ -66,6 +66,7 @@ openstack coe cluster create \
   --node-count ${NODE_COUNT} \
   --merge-labels \
   --label audit_log_enabled=true \
+  kube_tag=${KUBE_TAG} \
   k8s-cluster
 
 # Wait for cluster creation to be queued
