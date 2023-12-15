@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.13.1...v0.13.2) (2023-12-15)
+
+
+### Bug Fixes
+
+* fix audit log enabled clusters ([#276](https://github.com/vexxhost/magnum-cluster-api/issues/276)) ([ef1a1ff](https://github.com/vexxhost/magnum-cluster-api/commit/ef1a1ffb71cb5584466d201c4d25d49bb0cffa1e))
+
 ## [0.13.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.13.0...v0.13.1) (2023-12-07)
 
 
