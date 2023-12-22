@@ -1745,12 +1745,16 @@ def generate_machine_deployments_for_cluster(
     context: context.RequestContext, cluster: objects.Cluster
 ) -> list:
     auto_scaling_enabled = utils.get_auto_scaling_enabled(cluster)
-    return [
-        {
+
+    machine_deployments = []
+    for ng in cluster.nodegroups:
+        if ng.role != "master" and not ng.status.startswith("DELETE"):
+            continue
+
+        machine_deployment = {
             "class": "default-worker",
             "nodeVolumeDetachTimeout": CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT,
             "name": ng.name,
-            "replicas": None if auto_scaling_enabled else ng.node_count,
             "metadata": {
                 "annotations": {
                     AUTOSCALE_ANNOTATION_MIN: f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
@@ -1808,9 +1812,16 @@ def generate_machine_deployments_for_cluster(
                 ],
             },
         }
-        for ng in cluster.nodegroups
-        if ng.role != "master" and not ng.status.startswith("DELETE")
-    ]
+
+        # NOTE(mnaser): In order for auto-scaler and cluster class reconcilers
+        #               to not fight each other, we only set replicas if the
+        #               auto-scaler is disabled.
+        if not auto_scaling_enabled:
+            machine_deployment["replicas"] = ng.node_count
+
+        machine_deployments.append(machine_deployment)
+
+    return machine_deployments
 
 
 class Cluster(ClusterBase):
