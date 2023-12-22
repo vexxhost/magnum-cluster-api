@@ -1748,7 +1748,7 @@ def generate_machine_deployments_for_cluster(
 
     machine_deployments = []
     for ng in cluster.nodegroups:
-        if ng.role != "master" and not ng.status.startswith("DELETE"):
+        if ng.role == "master" or ng.status.startswith("DELETE"):
             continue
 
         machine_deployment = {
