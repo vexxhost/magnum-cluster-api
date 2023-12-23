@@ -514,7 +514,7 @@ class CloudConfigSecret(ClusterBase):
                             "clouds": {
                                 "default": {
                                     "region_name": self.region_name,
-                                    "interface": CONF.capi_client.endpoint_type.replace(
+                                    "endpoint_type": CONF.capi_client.endpoint_type.replace(
                                         "URL", ""
                                     ),
                                     "identity_api_version": 3,
