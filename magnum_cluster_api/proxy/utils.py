@@ -29,15 +29,16 @@ def get_default_gateway_interface():
 
 def get_default_ip_address():
     interface = get_default_gateway_interface()
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    ip_address = socket.inet_ntoa(
-        fcntl.ioctl(
-            sock.fileno(),
-            0x8915,  # SIOCGIFADDR
-            struct.pack("256s", interface.encode("utf-8")[:15]),
-        )[20:24]
-    )
-    return ip_address
+    if interface:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        ip_address = socket.inet_ntoa(
+            fcntl.ioctl(
+                sock.fileno(),
+                0x8915,  # SIOCGIFADDR
+                struct.pack("256s", interface.encode("utf-8")[:15]),
+            )[20:24]
+        )
+        return ip_address
 
 
 def find_free_port():
