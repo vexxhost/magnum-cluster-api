@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.13.2...v0.13.3) (2023-12-27)
+
+
+### Bug Fixes
+
+* incorrect case ([ab16448](https://github.com/vexxhost/magnum-cluster-api/commit/ab16448e99198510b40e989ace2aaa4fc0c61a8b))
+* only set replicas if auto scaling is disabled ([a6a4bf4](https://github.com/vexxhost/magnum-cluster-api/commit/a6a4bf4b0a606a71b424cabebcbfd992d582e962))
+
 ## [0.13.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.13.1...v0.13.2) (2023-12-15)
 
 
