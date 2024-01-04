@@ -169,7 +169,9 @@ class ClusterResourcesConfigMap(ClusterBase):
 
     def get_object(self) -> pykube.ConfigMap:
         # NOTE(mnaser): We have to assert that the only CNIs we support are Calico and Cilium.
-        assert Counter(CONF.cluster_template.kubernetes_allowed_network_drivers) == Counter(["calico", "cilium"])
+        assert Counter(
+            CONF.cluster_template.kubernetes_allowed_network_drivers
+        ) == Counter(["calico", "cilium"])
 
         manifests_path = pkg_resources.resource_filename(
             "magnum_cluster_api", "manifests"
@@ -2340,12 +2342,19 @@ class Cluster(ClusterBase):
     @property
     def labels(self) -> dict:
         if self.cluster.cluster_template.network_driver == "calico":
-            cni = f"calico-{self.cluster.labels.get("calico_tag", CALICO_TAG)}"
+            cni_version = self.cluster.labels.get(
+                "calico_tag", CALICO_TAG
+            )
+            labels = {
+                "cni": f"calico-{cni_version}",
+            }
         if self.cluster.cluster_template.network_driver == "cilium":
-            cni = f"cilium-{self.cluster.labels.get("cilium_tag", CILIUM_TAG)}"
-        labels = {
-            "cni": cni,
-        }
+            cni_version = self.cluster.labels.get(
+                "cilium_tag", CILIUM_TAG
+            )
+            labels = {
+                "cni": f"cilium-{cni_version}",
+            }
 
         return {**super().labels, **labels}
 
@@ -2359,9 +2368,13 @@ class Cluster(ClusterBase):
         default_volume_type = osc.cinder().volume_types.default()
 
         if self.cluster.cluster_template.network_driver == "calico":
-            pod_cidr = self.cluster.labels.get("calico_ipv4pool", "10.100.0.0/16")
+            pod_cidr = self.cluster.labels.get(
+                "calico_ipv4pool", "10.100.0.0/16"
+            )
         if self.cluster.cluster_template.network_driver == "cilium":
-            pod_cidr = self.cluster.labels.get("cilium_ipv4pool", "10.100.0.0/16")
+            pod_cidr = self.cluster.labels.get(
+                "cilium_ipv4pool", "10.100.0.0/16"
+            )
 
         return objects.Cluster(
             self.api,
