@@ -17,6 +17,7 @@ import json
 import os
 import textwrap
 import types
+from collections import Counter
 
 import certifi
 import pkg_resources
@@ -36,6 +37,7 @@ from magnum_cluster_api.integrations import cinder, cloud_provider, manila
 
 CONF = cfg.CONF
 CALICO_TAG = "v3.24.2"
+CILIUM_TAG = "v1.13.10"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
@@ -159,10 +161,14 @@ class ClusterResourcesConfigMap(ClusterBase):
         self.cluster = cluster
 
     def get_object(self) -> pykube.ConfigMap:
+        # NOTE(mnaser): We have to assert that the only CNIs we support are Calico and Cilium.
+        assert Counter(CONF.cluster_template.kubernetes_allowed_network_drivers) == Counter(["calico", "cilium"])
+
         manifests_path = pkg_resources.resource_filename(
             "magnum_cluster_api", "manifests"
         )
         calico_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
+        cilium_version = utils.get_cluster_label(self.cluster, "cilium_tag", CILIUM_TAG)
 
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
 
@@ -183,14 +189,31 @@ class ClusterResourcesConfigMap(ClusterBase):
                 )
                 for manifest in glob.glob(os.path.join(manifests_path, "ccm/*.yaml"))
             },
-            **{
-                "calico.yml": image_utils.update_manifest_images(
-                    self.cluster.uuid,
-                    os.path.join(manifests_path, f"calico/{calico_version}.yaml"),
-                    repository=repository,
-                )
-            },
         }
+
+        if self.cluster.cluster_template.network_driver == "cilium":
+            data = {
+                **data,
+                **{
+                    "cilium.yml": image_utils.update_manifest_images(
+                        self.cluster.uuid,
+                        os.path.join(manifests_path, f"cilium/{cilium_version}.yaml"),
+                        repository=repository,
+                    )
+                },
+            }
+
+        if self.cluster.cluster_template.network_driver == "calico":
+            data = {
+                **data,
+                **{
+                    "calico.yml": image_utils.update_manifest_images(
+                        self.cluster.uuid,
+                        os.path.join(manifests_path, f"calico/{calico_version}.yaml"),
+                        repository=repository,
+                    )
+                },
+            }
 
         if cinder.is_enabled(self.cluster):
             volume_types = osc.cinder().volume_types.list()
@@ -2275,9 +2298,12 @@ class Cluster(ClusterBase):
 
     @property
     def labels(self) -> dict:
-        cni_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
+        if self.cluster.cluster_template.network_driver == "calico":
+            cni = f"calico-{utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)}"
+        if self.cluster.cluster_template.network_driver == "cilium":
+            cni = f"cilium-{utils.get_cluster_label(self.cluster, "cilium_tag", CILIUM_TAG)}"
         labels = {
-            "cni": f"calico-{cni_version}",
+            "cni": cni,
         }
 
         return {**super().labels, **labels}
@@ -2290,6 +2316,12 @@ class Cluster(ClusterBase):
     def get_object(self) -> objects.Cluster:
         osc = clients.get_openstack_api(self.context)
         default_volume_type = osc.cinder().volume_types.default()
+
+        if self.cluster.cluster_template.network_driver == "calico":
+            pod_cidr = utils.get_cluster_label(self.cluster, "calico_ipv4pool", "10.100.0.0/16")
+        if self.cluster.cluster_template.network_driver == "cilium":
+            pod_cidr = utils.get_cluster_label(self.cluster, "cilium_ipv4pool", "10.100.0.0/16")
+
         return objects.Cluster(
             self.api,
             {
@@ -2308,13 +2340,7 @@ class Cluster(ClusterBase):
                             "cluster.local",
                         ),
                         "pods": {
-                            "cidrBlocks": [
-                                utils.get_cluster_label(
-                                    self.cluster,
-                                    "calico_ipv4pool",
-                                    "10.100.0.0/16",
-                                )
-                            ],
+                            "cidrBlocks": [pod_cidr],
                         },
                         "services": {
                             "cidrBlocks": [
