@@ -69,6 +69,7 @@ enable_service octavia o-api o-cw o-hm o-hk o-da
 
 # Magnum
 enable_plugin magnum https://opendev.org/openstack/magnum
+enable_plugin magnum-ui https://opendev.org/openstack/magnum-ui
 
 # Manila
 LIBS_FROM_GIT=python-manilaclient
