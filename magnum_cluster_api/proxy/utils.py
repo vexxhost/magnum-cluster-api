@@ -40,6 +40,7 @@ def get_default_ip_address():
         )
         return ip_address
 
+
 def find_free_port(port_hint=0):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         try:
