@@ -13,6 +13,7 @@
 # under the License.
 
 import base64
+import os
 import socket
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,7 +43,9 @@ class ProxyManager(periodic_task.PeriodicTasks):
             loader=jinja2.PackageLoader("magnum_cluster_api.proxy"),
             autoescape=jinja2.select_autoescape(),
         ).get_template("haproxy.cfg.j2")
-        self.haproxy_port = utils.find_free_port()
+        self.haproxy_port = utils.find_free_port(
+            port_hint=int(os.getenv("PROXY_PORT", 0))
+        )
         self.haproxy_pid = None
 
     def periodic_tasks(self, context, raise_on_error=False):
