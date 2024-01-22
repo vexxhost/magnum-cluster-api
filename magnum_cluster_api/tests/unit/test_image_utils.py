@@ -13,10 +13,8 @@
 # under the License.
 
 import glob
-import os
 import uuid
 
-import pkg_resources
 import pytest
 import yaml
 
@@ -32,7 +30,6 @@ from magnum_cluster_api import image_utils
     ],
 )
 def test_update_manifest_images(glob_path):
-    manifests_path = pkg_resources.resource_filename("magnum_cluster_api", "manifests")
     repository = "quay.io/test"
 
     cluster_uuid = str(uuid.uuid4())
