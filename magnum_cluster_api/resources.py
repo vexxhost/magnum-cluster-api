@@ -331,6 +331,21 @@ class ClusterResourcesConfigMap(ClusterBase):
                     },
                 }
 
+        if utils.get_cluster_label_as_bool(self.cluster, "keystone_auth_enabled", True):
+            data = {
+                **data,
+                **{
+                    os.path.basename(manifest): image_utils.update_manifest_images(
+                        self.cluster.uuid,
+                        manifest,
+                        repository=repository,
+                    )
+                    for manifest in glob.glob(
+                        os.path.join(manifests_path, "keystone-auth/*.yaml")
+                    )
+                },
+            }
+
         return pykube.ConfigMap(
             self.api,
             {
