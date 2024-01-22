@@ -37,7 +37,7 @@ def test_update_manifest_images(glob_path):
 
     cluster_uuid = str(uuid.uuid4())
 
-    for manifest_file in glob.glob(os.path.join(manifests_path, glob_path)):
+    for manifest_file in glob.glob(glob_path):
         data = image_utils.update_manifest_images(
             cluster_uuid,
             manifest_file,

@@ -13,18 +13,22 @@
 # under the License.
 
 import itertools
-import os
 
 import jinja2
+import pkg_resources
 import yaml
 
 
 ENV = jinja2.Environment(
-    loader=jinja2.FileSystemLoader(os.path.dirname(os.path.realpath(__file__)))
+    loader=jinja2.FileSystemLoader(
+        pkg_resources.resource_filename("magnum_cluster_api", "manifests")
+    )
 )
 
 
-def update_manifest_images(cluster_uuid: str, file, repository=None, replacements=[], **kwargs):
+def update_manifest_images(
+    cluster_uuid: str, file, repository=None, replacements=[], **kwargs
+):
     template = ENV.get_template(file)
     yamldocs = template.render(**kwargs)
 

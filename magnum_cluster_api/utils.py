@@ -411,4 +411,4 @@ def get_keystone_auth_default_policy(cluster: magnum_objects.Cluster):
     except Exception:
         default_policy = json.dumps(json.loads(default_policy), sort_keys=True)
 
-    return default_policy.replace('"', '\"').replace("$PROJECT_ID", cluster.project_id)
+    return default_policy.replace("$PROJECT_ID", cluster.project_id)
