@@ -189,7 +189,7 @@ class ClusterResourcesConfigMap(ClusterBase):
             **{
                 "calico.yml": image_utils.update_manifest_images(
                     self.cluster.uuid,
-                    f"calico/{calico_version}.yaml",
+                    os.path.join(manifests_path, f"calico/{calico_version}.yaml"),
                     repository=repository,
                 )
             },
