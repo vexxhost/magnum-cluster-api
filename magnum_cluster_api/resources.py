@@ -170,7 +170,6 @@ class ClusterResourcesConfigMap(ClusterBase):
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
 
         osc = clients.get_openstack_api(self.context)
-
         data = {
             **{
                 os.path.basename(manifest): image_utils.update_manifest_images(
@@ -332,6 +331,10 @@ class ClusterResourcesConfigMap(ClusterBase):
                 }
 
         if utils.get_cluster_label_as_bool(self.cluster, "keystone_auth_enabled", True):
+            auth_url = osc.url_for(
+                service_type="identity",
+                interface=CONF.capi_client.endpoint_type.replace("URL", ""),
+            )
             data = {
                 **data,
                 **{
@@ -339,6 +342,8 @@ class ClusterResourcesConfigMap(ClusterBase):
                         self.cluster.uuid,
                         manifest,
                         repository=repository,
+                        auth_url=auth_url,
+                        policy=utils.get_keystone_auth_default_policy(self.cluster),
                     )
                     for manifest in glob.glob(
                         os.path.join(manifests_path, "keystone-auth/*.yaml")

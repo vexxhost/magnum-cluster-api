@@ -47,7 +47,7 @@ metadata:
   namespace: kube-system
 data:
   policies: |
-    ${KEYSTONE_AUTH_DEFAULT_POLICY}
+    {{ policy }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -105,7 +105,7 @@ spec:
             - --policy-configmap-name
             - k8s-keystone-auth-policy
             - --keystone-url
-            - ${AUTH_URL}
+            - {{ auth_url }}
             - --sync-configmap-name
             - keystone-sync-policy
             - --keystone-ca-file
