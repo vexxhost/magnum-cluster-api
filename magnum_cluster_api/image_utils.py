@@ -19,9 +19,7 @@ import pkg_resources
 import yaml
 
 ENV = jinja2.Environment(
-    loader=jinja2.FileSystemLoader(
-        pkg_resources.resource_filename("magnum_cluster_api", "manifests")
-    )
+    loader=jinja2.FileSystemLoader(pkg_resources.resource_filename(""))
 )
 
 

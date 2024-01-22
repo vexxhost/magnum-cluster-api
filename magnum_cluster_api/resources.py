@@ -162,11 +162,15 @@ class ClusterResourcesConfigMap(ClusterBase):
         # NOTE(mnaser): We have to assert that the only CNI we support is Calico.
         assert CONF.cluster_template.kubernetes_allowed_network_drivers == ["calico"]
 
+        manifests_path = pkg_resources.resource_filename(
+            "magnum_cluster_api", "manifests"
+        )
         calico_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
 
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
 
         osc = clients.get_openstack_api(self.context)
+
         data = {
             **{
                 os.path.basename(manifest): image_utils.update_manifest_images(
@@ -180,7 +184,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                         ),
                     ],
                 )
-                for manifest in glob.glob("ccm/*.yaml")
+                for manifest in glob.glob(os.path.join(manifests_path, "ccm/*.yaml"))
             },
             **{
                 "calico.yml": image_utils.update_manifest_images(
@@ -208,7 +212,9 @@ class ClusterResourcesConfigMap(ClusterBase):
                             ),
                         ],
                     )
-                    for manifest in glob.glob("cinder-csi/*.yaml")
+                    for manifest in glob.glob(
+                        os.path.join(manifests_path, "cinder-csi/*.yaml")
+                    )
                 },
                 **{
                     f"storageclass-block-{vt.name}.yaml": yaml.dump(
@@ -269,7 +275,9 @@ class ClusterResourcesConfigMap(ClusterBase):
                         manifest,
                         repository=repository,
                     )
-                    for manifest in glob.glob("nfs-csi/*.yaml")
+                    for manifest in glob.glob(
+                        os.path.join(manifests_path, "nfs-csi/*.yaml")
+                    )
                 },
                 **{
                     os.path.basename(manifest): image_utils.update_manifest_images(
@@ -283,7 +291,9 @@ class ClusterResourcesConfigMap(ClusterBase):
                             ),
                         ],
                     )
-                    for manifest in glob.glob("manila-csi/*.yaml")
+                    for manifest in glob.glob(
+                        os.path.join(manifests_path, "manila-csi/*.yaml")
+                    )
                 },
             }
             # NOTE: We only create StorageClasses if share_network_id specified.
@@ -336,7 +346,9 @@ class ClusterResourcesConfigMap(ClusterBase):
                         auth_url=auth_url,
                         policy=utils.get_keystone_auth_default_policy(self.cluster),
                     )
-                    for manifest in glob.glob("keystone-auth/*.yaml")
+                    for manifest in glob.glob(
+                        os.path.join(manifests_path, "keystone-auth/*.yaml")
+                    )
                 },
             }
 
