@@ -230,7 +230,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                                 else {},
                                 "name": "block-%s" % utils.convert_to_rfc1123(vt.name),
                             },
-                            "provisioner": "kubernetes.io/cinder",
+                            "provisioner": "cinder.csi.openstack.org",
                             "parameters": {
                                 "type": utils.convert_to_rfc1123(vt.name),
                             },
