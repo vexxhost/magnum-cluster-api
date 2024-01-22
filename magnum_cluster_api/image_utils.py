@@ -15,7 +15,6 @@
 import itertools
 
 import jinja2
-import pkg_resources
 import yaml
 
 ENV = jinja2.Environment(loader=jinja2.FileSystemLoader(""))
