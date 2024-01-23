@@ -341,7 +341,9 @@ class ClusterResourcesConfigMap(ClusterBase):
                 **{
                     "keystone-auth.yaml": image_utils.update_manifest_images(
                         self.cluster.uuid,
-                        os.path.join(manifests_path, "keystone-auth/keystone-auth.yaml"),
+                        os.path.join(
+                            manifests_path, "keystone-auth/keystone-auth.yaml"
+                        ),
                         repository=repository,
                         auth_url=auth_url,
                         policy=utils.get_keystone_auth_default_policy(self.cluster),
@@ -561,7 +563,9 @@ class KubeadmControlPlaneTemplate(Base):
             "magnum_cluster_api", "manifests"
         )
         audit_policy = open(os.path.join(manifests_path, "audit/policy.yaml")).read()
-        keystone_auth_webhook = open(os.path.join(manifests_path, "keystone-auth/webhook.yaml")).read()
+        keystone_auth_webhook = open(
+            os.path.join(manifests_path, "keystone-auth/webhook.yaml")
+        ).read()
 
         return objects.KubeadmControlPlaneTemplate(
             self.api,
@@ -607,7 +611,9 @@ class KubeadmControlPlaneTemplate(Base):
                                         "path": "/etc/kubernetes/webhooks/webhookconfig.yaml",
                                         "owner": "root:root",
                                         "permissions": "0644",
-                                        "content": base64.encode_as_text(keystone_auth_webhook),
+                                        "content": base64.encode_as_text(
+                                            keystone_auth_webhook
+                                        ),
                                         "encoding": "base64",
                                     },
                                 ],
@@ -1756,6 +1762,19 @@ class ClusterClass(Base):
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authorization-mode",  # noqa: E501
                                             "value": "Node,RBAC,Webhook",
                                         },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-",  # noqa: E501
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    name: webhooks
+                                                    hostPath: /etc/kubernetes/webhooks
+                                                    mountPath: /etc/kubernetes/webhooks
+                                                    """
+                                                ),
+                                            },
+                                        },
                                     ],
                                 }
                             ],
@@ -2300,38 +2319,6 @@ class Cluster(ClusterBase):
                                 "value": utils.get_cluster_label_as_bool(
                                     self.cluster, "keystone_auth_enabled", True
                                 ),
-                            },
-                            {
-                                "name": "enableEtcdVolume",
-                                "value": utils.get_cluster_label_as_int(
-                                    self.cluster,
-                                    "etcd_volume_size",
-                                    0,
-                                )
-                                > 0,
-                            },
-                            {
-                                "name": "etcdVolumeSize",
-                                "value": utils.get_cluster_label_as_int(
-                                    self.cluster,
-                                    "etcd_volume_size",
-                                    0,
-                                ),
-                            },
-                            {
-                                "name": "etcdVolumeType",
-                                "value": utils.get_cluster_label(
-                                    self.cluster,
-                                    "etcd_volume_type",
-                                    default_volume_type.name,
-                                ),
-                            },
-                            {
-                                "name": "availabilityZone",
-                                "value": utils.get_cluster_label(
-                                    self.cluster, "availability_zone", ""
-                                )
-                                or "",
                             },
                         ],
                     },
