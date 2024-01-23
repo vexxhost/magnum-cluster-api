@@ -60,6 +60,19 @@ data:
       - keystone-role: member
         groups: []
 ---
+kind: Service
+apiVersion: v1
+metadata:
+  name: k8s-keystone-auth-service
+  namespace: kube-system
+spec:
+  selector:
+    app: k8s-keystone-auth
+  ports:
+    - protocol: TCP
+      port: 8443
+      targetPort: 8443
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -72,13 +85,13 @@ spec:
   # The controllers can only have a single active instance.
   selector:
     matchLabels:
-      k8s-app: k8s-keystone-auth
+      app: k8s-keystone-auth
   template:
     metadata:
       name: k8s-keystone-auth
       namespace: kube-system
       labels:
-        k8s-app: k8s-keystone-auth
+        app: k8s-keystone-auth
     spec:
       serviceAccountName: k8s-keystone-auth
       tolerations:
@@ -106,12 +119,6 @@ spec:
             - k8s-keystone-auth-policy
             - --keystone-url
             - {{ auth_url }}
-            - --sync-configmap-name
-            - keystone-sync-policy
-            - --keystone-ca-file
-            - /etc/kubernetes/pki/ca.crt
-            - --listen
-            - 127.0.0.1:8443
           volumeMounts:
             - mountPath: /etc/kubernetes/pki
               name: k8s-certs
