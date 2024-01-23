@@ -121,8 +121,10 @@ spec:
             - {{ auth_url }}
             - --sync-configmap-name
             - keystone-sync-policy
+            {% if cloud_ca %}
             - --keystone-ca-file
             - /etc/kubernetes/cloud_ca.crt
+           {% endif %}
             - --listen
             - 127.0.0.1:8443
           volumeMounts:

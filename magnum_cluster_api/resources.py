@@ -347,6 +347,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                         repository=repository,
                         auth_url=auth_url + ("" if auth_url.endswith("/v3") else "/v3"),
                         policy=utils.get_keystone_auth_default_policy(self.cluster),
+                        cloud_ca=True if utils.get_cloud_ca_cert() else False,
                     )
                 },
             }
