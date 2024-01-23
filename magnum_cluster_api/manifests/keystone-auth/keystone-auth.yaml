@@ -129,9 +129,9 @@ spec:
             - mountPath: /etc/kubernetes/pki
               name: k8s-certs
               readOnly: true
-          - mountPath: /etc/kubernetes/cloud_ca.crt
-            name: cloud-ca-cert-volume
-            readOnly: true
+            - mountPath: /etc/kubernetes/cloud_ca.crt
+              name: cloud-ca-cert-volume
+              readOnly: true
           resources:
             requests:
               cpu: 200m
