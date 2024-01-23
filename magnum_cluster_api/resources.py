@@ -586,7 +586,15 @@ class KubeadmControlPlaneTemplate(Base):
                                             "cloud-provider": "external",
                                             "profiling": "false",
                                         },
-                                        "extraVolumes": [],
+                                        "extraVolumes": [
+                                            # Note(oleks): Add this as default as a workaround of the json patch limitation # noqa: E501
+                                            # https://cluster-api.sigs.k8s.io/tasks/experimental-features/cluster-class/write-clusterclass#json-patches-tips--tricks
+                                            {
+                                                "name": "webhooks",
+                                                "hostPath": "/etc/kubernetes/webhooks",
+                                                "mountPath": "/etc/kubernetes/webhooks",
+                                            }
+                                        ],
                                     },
                                     "controllerManager": {
                                         "extraArgs": {
@@ -1761,19 +1769,6 @@ class ClusterClass(Base):
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authorization-mode",  # noqa: E501
                                             "value": "Node,RBAC,Webhook",
-                                        },
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-",  # noqa: E501
-                                            "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    name: webhooks
-                                                    hostPath: /etc/kubernetes/webhooks
-                                                    mountPath: /etc/kubernetes/webhooks
-                                                    """
-                                                ),
-                                            },
                                         },
                                     ],
                                 }
