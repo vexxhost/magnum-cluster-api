@@ -345,7 +345,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                             manifests_path, "keystone-auth/keystone-auth.yaml"
                         ),
                         repository=repository,
-                        auth_url=auth_url,
+                        auth_url=auth_url + ("" if auth_url.endswith("/v3") else "/v3"),
                         policy=utils.get_keystone_auth_default_policy(self.cluster),
                     )
                 },

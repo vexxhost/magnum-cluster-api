@@ -119,10 +119,19 @@ spec:
             - k8s-keystone-auth-policy
             - --keystone-url
             - {{ auth_url }}
+            - --sync-configmap-name
+            - keystone-sync-policy
+            - --keystone-ca-file
+            - /etc/kubernetes/cloud_ca.crt
+            - --listen
+            - 127.0.0.1:8443
           volumeMounts:
             - mountPath: /etc/kubernetes/pki
               name: k8s-certs
               readOnly: true
+          - mountPath: /etc/kubernetes/cloud_ca.crt
+            name: cloud-ca-cert-volume
+            readOnly: true
           resources:
             requests:
               cpu: 200m
@@ -137,3 +146,7 @@ spec:
             path: /etc/kubernetes/pki
             type: DirectoryOrCreate
           name: k8s-certs
+        - hostPath:
+            path: /etc/kubernetes/cloud_ca.crt
+            type: File
+          name: cloud-ca-cert-volume
