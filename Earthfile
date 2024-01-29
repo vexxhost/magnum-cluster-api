@@ -11,6 +11,7 @@ build:
   COPY hack/add-omt-to-clusterrole.patch /hack/
 	RUN patch -p0 magnum_cluster_api/charts/cluster-autoscaler/templates/clusterrole.yaml < /hack/add-omt-to-clusterrole.patch
   DO github.com/vexxhost/atmosphere/images/openstack-service+PIP_INSTALL --PACKAGES /src
+  SAVE ARTIFACT /var/lib/openstack venv
 
 image:
   FROM github.com/vexxhost/atmosphere/images/openstack-service+image --PROJECT magnum --RELEASE 2023.2
@@ -18,7 +19,7 @@ image:
   COPY github.com/vexxhost/atmosphere/images/helm+binary/helm /usr/local/bin/helm
   COPY +build/venv /var/lib/openstack
   ARG --required GIT_SHA
-  SAVE ARTIFACT quay.io/vexxhost/magnum-cluster-api:${GIT_SHA}
+  SAVE IMAGE --push quay.io/vexxhost/magnum-cluster-api:${GIT_SHA}
 
 mkdocs-image:
   FROM squidfunk/mkdocs-material:9.1.15
