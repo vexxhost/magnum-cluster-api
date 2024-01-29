@@ -166,7 +166,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
             cluster.endpoint_slice_name for cluster in proxied_clusters
         ]
 
-        # Delete EndpointSlices that are no longer needed
+        # Delete EndpointSlices that are no longer needed or if they are not healthy
         for endpoint_slice in endpoint_slices_for_host:
             if endpoint_slice.name not in proxied_clusters_endpoint_slice_names:
                 LOG.info(
@@ -174,9 +174,23 @@ class ProxyManager(periodic_task.PeriodicTasks):
                     endpoint_slice.name,
                 )
                 endpoint_slice.delete()
+                continue
+
+            proxied_cluster = structs.ProxiedCluster.from_endpoint_slice(endpoint_slice)
+            if not proxied_cluster.healthy:
+                LOG.info(
+                    "Deleting unhealthy EndpointSlice %s since the backend is unhealthy",
+                    endpoint_slice.name,
+                )
+                endpoint_slice.delete()
+                continue
 
         # Create EndpointSlices for each cluster
         for proxied_cluster in proxied_clusters:
+            # Skip creating endpoint slices if the backend is unhealthy
+            if not proxied_cluster.healthy:
+                continue
+
             endpoint_slice_ports = proxied_cluster.endpoint_slice_ports(
                 haproxy_port=self.haproxy_port
             )
