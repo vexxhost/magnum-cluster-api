@@ -47,7 +47,7 @@ class ClusterResourceSet(NamespacedAPIObject):
 
 
 class OpenStackMachineTemplate(NamespacedAPIObject):
-    version = "infrastructure.cluster.x-k8s.io/v1alpha7"
+    version = "infrastructure.cluster.x-k8s.io/v1alpha8"
     endpoint = "openstackmachinetemplates"
     kind = "OpenStackMachineTemplate"
 
@@ -83,13 +83,13 @@ class Machine(NamespacedAPIObject):
 
 
 class OpenStackClusterTemplate(NamespacedAPIObject):
-    version = "infrastructure.cluster.x-k8s.io/v1alpha7"
+    version = "infrastructure.cluster.x-k8s.io/v1alpha8"
     endpoint = "openstackclustertemplates"
     kind = "OpenStackClusterTemplate"
 
 
 class OpenStackCluster(NamespacedAPIObject):
-    version = "infrastructure.cluster.x-k8s.io/v1alpha7"
+    version = "infrastructure.cluster.x-k8s.io/v1alpha8"
     endpoint = "openstackclusters"
     kind = "OpenStackCluster"
 
