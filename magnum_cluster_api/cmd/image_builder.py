@@ -139,9 +139,9 @@ def main(ctx: click.Context, operating_system, version, image_builder_version):
     if operating_system == "ubuntu-2204":
         iso = "jammy-live-server-amd64.iso"
 
-        customization[
-            "iso_url"
-        ] = f"http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/{iso}"
+        customization["iso_url"] = (
+            f"http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/{iso}"
+        )
 
         # Get the SHA256 sum for the ISO
         r = requests.get(

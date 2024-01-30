@@ -223,11 +223,13 @@ class ClusterResourcesConfigMap(ClusterBase):
                             "allowVolumeExpansion": True,
                             "kind": objects.StorageClass.kind,
                             "metadata": {
-                                "annotations": {
-                                    "storageclass.kubernetes.io/is-default-class": "true"
-                                }
-                                if default_volume_type.name == vt.name
-                                else {},
+                                "annotations": (
+                                    {
+                                        "storageclass.kubernetes.io/is-default-class": "true"
+                                    }
+                                    if default_volume_type.name == vt.name
+                                    else {}
+                                ),
                                 "name": "block-%s" % utils.convert_to_rfc1123(vt.name),
                             },
                             "provisioner": "cinder.csi.openstack.org",
@@ -506,9 +508,11 @@ class CloudConfigSecret(ClusterBase):
                     "labels": self.labels,
                 },
                 "stringData": {
-                    "cacert": ca_certificate
-                    if ca_certificate
-                    else open(certifi.where(), "r").read(),
+                    "cacert": (
+                        ca_certificate
+                        if ca_certificate
+                        else open(certifi.where(), "r").read()
+                    ),
                     "clouds.yaml": yaml.dump(
                         {
                             "clouds": {
@@ -1756,12 +1760,14 @@ def generate_machine_deployments_for_cluster(
             "nodeVolumeDetachTimeout": CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT,
             "name": ng.name,
             "metadata": {
-                "annotations": {
-                    AUTOSCALE_ANNOTATION_MIN: f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
-                    AUTOSCALE_ANNOTATION_MAX: f"{utils.get_node_group_max_node_count(context, ng)}",  # noqa: E501
-                }
-                if auto_scaling_enabled
-                else {},
+                "annotations": (
+                    {
+                        AUTOSCALE_ANNOTATION_MIN: f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
+                        AUTOSCALE_ANNOTATION_MAX: f"{utils.get_node_group_max_node_count(context, ng)}",  # noqa: E501
+                    }
+                    if auto_scaling_enabled
+                    else {}
+                ),
                 "labels": {
                     f"node-role.kubernetes.io/{ng.role}": "",
                     "node.cluster.x-k8s.io/nodegroup": ng.name,
