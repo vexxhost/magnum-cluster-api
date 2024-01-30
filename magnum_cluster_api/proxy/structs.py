@@ -15,9 +15,9 @@
 import dataclasses
 import os
 import socket
-import haproxyadmin
 from datetime import datetime, timezone
 
+import haproxyadmin
 from oslo_log import log as logging
 from pyroute2 import netns
 
@@ -70,7 +70,7 @@ class ProxiedCluster:
             internal_ip=internal_ip,
             namespace=namespaces[0],
         )
-    
+
     @classmethod
     def from_endpoint_slice(
         cls, endpoint_slice: objects.EndpointSlice
@@ -135,7 +135,7 @@ class ProxiedCluster:
     @property
     def kubeconfig_secret_name(self) -> str:
         return f"{self.name}-kubeconfig"
-    
+
     @property
     def backend_name(self) -> str:
         """
