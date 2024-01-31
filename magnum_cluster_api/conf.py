@@ -25,9 +25,7 @@ manila_client_group = cfg.OptGroup(
     name="manila_client", title="Options for the Manila client"
 )
 
-proxy_group = cfg.OptGroup(
-    name="proxy", title="Options for Cluster API proxy"
-)
+proxy_group = cfg.OptGroup(name="proxy", title="Options for Cluster API proxy")
 
 
 auto_scaling_opts = [
