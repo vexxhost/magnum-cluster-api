@@ -222,11 +222,16 @@ class ProxyManager(periodic_task.PeriodicTasks):
                     self.api, namespace="magnum-system"
                 ).get(name=proxied_cluster.endpoint_slice_name)
 
+            # NOTE(mnaser): We always update the annotations since it contains the timestamp
+            #               which we need for liveness.
+            endpoint_slice.metadata[
+                "annotations"
+            ] = proxied_cluster.endpoint_slice_annotations
+            endpoint_slice.update()
+
             if (
                 endpoint_slice.metadata["labels"]
                 != proxied_cluster.endpoint_slice_labels
-                or endpoint_slice.metadata["annotations"]
-                != proxied_cluster.endpoint_slice_annotations
                 or endpoint_slice.obj["endpoints"]
                 != proxied_cluster.endpoint_slice_endpoints
                 or endpoint_slice.obj["ports"] != endpoint_slice_ports
@@ -243,19 +248,6 @@ class ProxyManager(periodic_task.PeriodicTasks):
                     endpoint_slice.metadata[
                         "labels"
                     ] = proxied_cluster.endpoint_slice_labels
-
-                if (
-                    endpoint_slice.metadata["annotations"]
-                    != proxied_cluster.endpoint_slice_annotations
-                ):
-                    LOG.info(
-                        "old_annotations: %s, new_annotations: %s",
-                        endpoint_slice.metadata["annotations"],
-                        proxied_cluster.endpoint_slice_annotations,
-                    )
-                    endpoint_slice.metadata[
-                        "annotations"
-                    ] = proxied_cluster.endpoint_slice_annotations
 
                 if (
                     endpoint_slice.obj["endpoints"]
