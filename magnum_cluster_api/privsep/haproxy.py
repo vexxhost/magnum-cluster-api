@@ -16,12 +16,12 @@ import os
 import signal
 import subprocess
 
-from oslo_config import cfg
 from oslo_log import log as logging
 
 import magnum_cluster_api.privsep
+from magnum_cluster_api import conf
 
-CONF = cfg.CONF
+CONF = conf.CONF
 LOG = logging.getLogger(__name__)
 
 

@@ -21,15 +21,14 @@ from pathlib import Path
 import jinja2
 import pykube
 import yaml
-from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_service import periodic_task
 
 import magnum_cluster_api.privsep.haproxy
-from magnum_cluster_api import clients, objects
+from magnum_cluster_api import clients, conf, objects
 from magnum_cluster_api.proxy import structs, utils
 
-CONF = cfg.CONF
+CONF = conf.CONF
 LOG = logging.getLogger(__name__)
 
 
