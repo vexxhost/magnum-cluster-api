@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.4](https://github.com/vexxhost/magnum-cluster-api/compare/v0.13.3...v0.13.4) (2024-01-31)
+
+
+### Bug Fixes
+
+* **csi:** Use up-to-date provisioner name for Cinder CSI ([#295](https://github.com/vexxhost/magnum-cluster-api/issues/295)) ([79a0ce2](https://github.com/vexxhost/magnum-cluster-api/commit/79a0ce25633d8ea91a072ef1442aeb58db7e5111))
+* solve proxy issue with ovn ([#302](https://github.com/vexxhost/magnum-cluster-api/issues/302)) ([5b4bad4](https://github.com/vexxhost/magnum-cluster-api/commit/5b4bad49415d6daa5df7399d77d364c8839d7a87))
+
 ## [0.13.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.13.2...v0.13.3) (2023-12-27)
 
 
