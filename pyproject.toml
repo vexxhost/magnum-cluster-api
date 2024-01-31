@@ -27,6 +27,7 @@ semver = "^2.0.0"
 shortuuid = "*"
 diskcache = ">=5.6.1"
 platformdirs = ">=2.4.0"
+haproxyadmin = "^0.2.4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "<7"
