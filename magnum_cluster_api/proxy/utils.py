@@ -13,11 +13,9 @@
 # under the License.
 
 import fcntl
-import os
 import socket
 import struct
 from contextlib import closing
-from pathlib import Path
 
 
 def get_default_gateway_interface():
