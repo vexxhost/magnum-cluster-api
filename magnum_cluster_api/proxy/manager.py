@@ -232,16 +232,54 @@ class ProxyManager(periodic_task.PeriodicTasks):
                 or endpoint_slice.obj["ports"] != endpoint_slice_ports
             ):
                 LOG.info("Updating EndpointSlice %s", endpoint_slice.name)
-                endpoint_slice.metadata["labels"] = (
-                    proxied_cluster.endpoint_slice_labels
-                )
-                endpoint_slice.metadata["annotations"] = (
-                    proxied_cluster.endpoint_slice_annotations
-                )
-                endpoint_slice.obj["endpoints"] = (
-                    proxied_cluster.endpoint_slice_endpoints
-                )
-                endpoint_slice.obj["ports"] = endpoint_slice_ports
+
+                if (
+                    endpoint_slice.metadata["labels"]
+                    != proxied_cluster.endpoint_slice_labels
+                ):
+                    LOG.debug(
+                        "old_labels: %s, new_labels: %s",
+                        endpoint_slice.labels,
+                        proxied_cluster.endpoint_slice_labels,
+                    )
+                    endpoint_slice.metadata[
+                        "labels"
+                    ] = proxied_cluster.endpoint_slice_labels
+
+                if (
+                    endpoint_slice.metadata["annotations"]
+                    != proxied_cluster.endpoint_slice_annotations
+                ):
+                    LOG.debug(
+                        "old_annotations: %s, new_annotations: %s",
+                        endpoint_slice.metadata["annotations"],
+                        proxied_cluster.endpoint_slice_annotations,
+                    )
+                    endpoint_slice.metadata[
+                        "annotations"
+                    ] = proxied_cluster.endpoint_slice_annotations
+
+                if (
+                    endpoint_slice.obj["endpoints"]
+                    != proxied_cluster.endpoint_slice_endpoints
+                ):
+                    LOG.debug(
+                        "old_endpoints: %s, new_endpoints: %s",
+                        endpoint_slice.obj["endpoints"],
+                        proxied_cluster.endpoint_slice_endpoints,
+                    )
+                    endpoint_slice.obj[
+                        "endpoints"
+                    ] = proxied_cluster.endpoint_slice_endpoints
+
+                if endpoint_slice.obj["ports"] != endpoint_slice_ports:
+                    LOG.debug(
+                        "old_ports: %s, new_ports: %s",
+                        endpoint_slice.obj["ports"],
+                        endpoint_slice_ports,
+                    )
+                    endpoint_slice.obj["ports"] = endpoint_slice_ports
+
                 endpoint_slice.update()
 
     def _sync_kubeconfigs(self, proxied_clusters: list):
