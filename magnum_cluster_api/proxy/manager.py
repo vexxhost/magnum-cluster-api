@@ -106,7 +106,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
             {
                 "name": "https",
                 "port": 6443,
-                "targetPort": self.haproxy_port,
+                "targetPort": 6443,
                 "protocol": "TCP",
             },
         ]
