@@ -54,7 +54,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
     def _sync_haproxy(self, proxied_clusters: list):
         # Generate HAproxy config
         config = self.template.render(
-            pid_file=utils.get_haproxy_pid_path(),
+            pid_file=CONF.proxy.haproxy_pid_path,
             port=self.haproxy_port,
             clusters=proxied_clusters,
         )

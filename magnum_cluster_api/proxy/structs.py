@@ -141,7 +141,7 @@ class ProxiedCluster:
         """
         Returns the name of the backend for this cluster.
         """
-        return f"{self.name}.{self.namespace}"
+        return f"{self.name}.magnum-system"
 
     @property
     def backend(self) -> haproxyadmin.backend.Backend:

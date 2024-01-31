@@ -25,6 +25,10 @@ manila_client_group = cfg.OptGroup(
     name="manila_client", title="Options for the Manila client"
 )
 
+proxy_group = cfg.OptGroup(
+    name="proxy", title="Options for Cluster API proxy"
+)
+
 
 auto_scaling_opts = [
     cfg.StrOpt(
@@ -100,6 +104,16 @@ manila_client_opts = [
     ),
 ]
 
+
+proxy_opts = [
+    cfg.StrOpt(
+        "haproxy_pid_path",
+        default="/var/run/haproxy.pid",
+        help=_("Path to HAProxy PID file."),
+    ),
+]
+
+
 common_security_opts = [
     cfg.StrOpt("ca_file", help=_("Optional CA cert file to use in SSL connections.")),
     cfg.StrOpt("cert_file", help=_("Optional PEM-formatted certificate chain file.")),
@@ -118,8 +132,10 @@ CONF = cfg.CONF
 CONF.register_group(auto_scaling_group)
 CONF.register_group(capi_client_group)
 CONF.register_group(manila_client_group)
+CONF.register_group(proxy_group)
 CONF.register_opts(auto_scaling_opts, group=auto_scaling_group)
 CONF.register_opts(capi_client_opts, group=capi_client_group)
 CONF.register_opts(common_security_opts, group=capi_client_group)
 CONF.register_opts(manila_client_opts, group=manila_client_group)
 CONF.register_opts(common_security_opts, group=manila_client_group)
+CONF.register_opts(proxy_opts, group=proxy_group)

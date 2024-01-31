@@ -51,9 +51,3 @@ def find_free_port(port_hint=0):
             s.bind(("", 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
-
-
-def get_haproxy_pid_path() -> str:
-    path = Path.home() / ".magnum" / "haproxy.pid"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    return str(path)
