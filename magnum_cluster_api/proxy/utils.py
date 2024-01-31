@@ -17,6 +17,7 @@ import os
 import socket
 import struct
 from contextlib import closing
+from pathlib import Path
 
 
 def get_default_gateway_interface():
@@ -52,6 +53,7 @@ def find_free_port(port_hint=0):
         return s.getsockname()[1]
 
 
-def get_haproxy_pid_path():
-    home_dir = os.path.expanduser("~")
-    return os.path.join(home_dir, ".magnum", "haproxy.pid")
+def get_haproxy_pid_path() -> str:
+    path = Path.home() / ".magnum" / "haproxy.pid"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return str(path)
