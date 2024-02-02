@@ -223,11 +223,13 @@ class ClusterResourcesConfigMap(ClusterBase):
                             "allowVolumeExpansion": True,
                             "kind": objects.StorageClass.kind,
                             "metadata": {
-                                "annotations": {
-                                    "storageclass.kubernetes.io/is-default-class": "true"
-                                }
-                                if default_volume_type.name == vt.name
-                                else {},
+                                "annotations": (
+                                    {
+                                        "storageclass.kubernetes.io/is-default-class": "true"
+                                    }
+                                    if default_volume_type.name == vt.name
+                                    else {}
+                                ),
                                 "name": "block-%s" % utils.convert_to_rfc1123(vt.name),
                             },
                             "provisioner": "cinder.csi.openstack.org",
@@ -506,9 +508,11 @@ class CloudConfigSecret(ClusterBase):
                     "labels": self.labels,
                 },
                 "stringData": {
-                    "cacert": ca_certificate
-                    if ca_certificate
-                    else open(certifi.where(), "r").read(),
+                    "cacert": (
+                        ca_certificate
+                        if ca_certificate
+                        else open(certifi.where(), "r").read()
+                    ),
                     "clouds.yaml": yaml.dump(
                         {
                             "clouds": {
@@ -539,7 +543,6 @@ class KubeadmControlPlaneTemplate(Base):
             "magnum_cluster_api.manifests", "audit"
         )
         audit_policy = open(os.path.join(manifests_path, "policy.yaml")).read()
-
         return objects.KubeadmControlPlaneTemplate(
             self.api,
             {
@@ -648,7 +651,10 @@ class OpenStackMachineTemplate(Base):
                 },
                 "spec": {
                     "template": {
-                        "spec": {"cloudName": "default", "flavor": PLACEHOLDER}
+                        "spec": {
+                            "cloudName": "default",
+                            "flavor": PLACEHOLDER,
+                        }
                     }
                 },
             },
@@ -1038,6 +1044,42 @@ class ClusterClass(Base):
                                     "type": "string",
                                     "enum": utils.AVAILABLE_OPERATING_SYSTEMS,
                                     "default": "ubuntu",
+                                },
+                            },
+                        },
+                        {
+                            "name": "enableEtcdVolume",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "boolean",
+                                },
+                            },
+                        },
+                        {
+                            "name": "etcdVolumeSize",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "integer",
+                                },
+                            },
+                        },
+                        {
+                            "name": "etcdVolumeType",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "availabilityZone",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
                                 },
                             },
                         },
@@ -1562,6 +1604,86 @@ class ClusterClass(Base):
                             ],
                         },
                         {
+                            "name": "etcdVolume",
+                            "enabledIf": "{{ if .enableEtcdVolume }}true{{end}}",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                        "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/diskSetup",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    "partitions":
+                                                      - "device": "/dev/vda1",
+                                                        "tableType": "gpt",
+                                                        "layout": True,
+                                                        "overwrite": False,
+                                                    "filesystems":
+                                                      - "label": "etcd_disk",
+                                                        "filesystem": "ext4",
+                                                        "device": "/dev/vda1",
+                                                        "extraOpts": ["-F", "-E", "lazy_itable_init=1,lazy_journal_init=1"],
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/mounts",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - - LABEL=etcd_disk
+                                                      - /var/lib/etcd
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackMachineTemplate.version,
+                                        "kind": objects.OpenStackMachineTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            },
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/additionalBlockDevices",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - name: etcd
+                                                      sizeGiB: {{ .etcdVolumeSize }}
+                                                      storage:
+                                                        type: volume,
+                                                        volume:
+                                                          type: {{ .etcdVolumeType }}
+                                                          availabilityZone: {{ .availabilityZone }}
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
                             "name": "controlPlaneConfig",
                             "definitions": [
                                 {
@@ -1756,12 +1878,14 @@ def generate_machine_deployments_for_cluster(
             "nodeVolumeDetachTimeout": CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT,
             "name": ng.name,
             "metadata": {
-                "annotations": {
-                    AUTOSCALE_ANNOTATION_MIN: f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
-                    AUTOSCALE_ANNOTATION_MAX: f"{utils.get_node_group_max_node_count(context, ng)}",  # noqa: E501
-                }
-                if auto_scaling_enabled
-                else {},
+                "annotations": (
+                    {
+                        AUTOSCALE_ANNOTATION_MIN: f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
+                        AUTOSCALE_ANNOTATION_MAX: f"{utils.get_node_group_max_node_count(context, ng)}",  # noqa: E501
+                    }
+                    if auto_scaling_enabled
+                    else {}
+                ),
                 "labels": {
                     f"node-role.kubernetes.io/{ng.role}": "",
                     "node.cluster.x-k8s.io/nodegroup": ng.name,
@@ -1856,6 +1980,8 @@ class Cluster(ClusterBase):
         raise Exception("Cluster doesn't exists.")
 
     def get_object(self) -> objects.Cluster:
+        osc = clients.get_openstack_api(self.context)
+        default_volume_type = osc.cinder().volume_types.default()
         return objects.Cluster(
             self.api,
             {
@@ -2091,6 +2217,37 @@ class Cluster(ClusterBase):
                             {
                                 "name": "operatingSystem",
                                 "value": utils.get_operating_system(self.cluster),
+                            },
+                            {
+                                "name": "enableEtcdVolume",
+                                "value": utils.get_cluster_label_as_int(
+                                    self.cluster,
+                                    "etcd_volume_size",
+                                    0,
+                                )
+                                > 0,
+                            },
+                            {
+                                "name": "enableVolumeSize",
+                                "value": utils.get_cluster_label_as_int(
+                                    self.cluster,
+                                    "etcd_volume_size",
+                                    0,
+                                ),
+                            },
+                            {
+                                "name": "enableVolumeType",
+                                "value": utils.get_cluster_label(
+                                    self.cluster,
+                                    "etcd_volume_type",
+                                    default_volume_type,
+                                ),
+                            },
+                            {
+                                "name": "availabilityZone",
+                                "value": utils.get_cluster_label(
+                                    self.cluster, "availability_zone", ""
+                                ),
                             },
                         ],
                     },
