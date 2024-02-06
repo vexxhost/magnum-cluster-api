@@ -1624,15 +1624,15 @@ class ClusterClass(Base):
                                                 "template": textwrap.dedent(
                                                     """\
                                                     "partitions":
-                                                      - "device": "/dev/vda",
-                                                        "tableType": "gpt",
-                                                        "layout": True,
-                                                        "overwrite": False,
+                                                      - "device": "/dev/vda"
+                                                        "tableType": "gpt"
+                                                        "layout": True
+                                                        "overwrite": False
                                                     "filesystems":
-                                                      - "label": "etcd_disk",
-                                                        "filesystem": "ext4",
-                                                        "device": "/dev/vda",
-                                                        "extraOpts": ["-F", "-E", "lazy_itable_init=1,lazy_journal_init=1"],
+                                                      - "label": "etcd_disk"
+                                                        "filesystem": "ext4"
+                                                        "device": "/dev/vda"
+                                                        "extraOpts": ["-F", "-E", "lazy_itable_init=1,lazy_journal_init=1"]
                                                     """
                                                 ),
                                             },
