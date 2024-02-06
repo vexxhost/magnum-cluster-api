@@ -1980,8 +1980,10 @@ class Cluster(ClusterBase):
         raise Exception("Cluster doesn't exists.")
 
     def get_object(self) -> objects.Cluster:
-        osc = clients.get_openstack_api(self.context)
-        default_volume_type = osc.cinder().volume_types.default()
+        default_volume_type = ""
+        if cinder.is_enabled(self.cluster):
+            osc = clients.get_openstack_api(self.context)
+            default_volume_type = osc.cinder().volume_types.default()
         return objects.Cluster(
             self.api,
             {
@@ -2225,10 +2227,11 @@ class Cluster(ClusterBase):
                                     "etcd_volume_size",
                                     0,
                                 )
-                                > 0,
+                                > 0
+                                and cinder.is_enabled(self.cluster),
                             },
                             {
-                                "name": "enableVolumeSize",
+                                "name": "etcdVolumeSize",
                                 "value": utils.get_cluster_label_as_int(
                                     self.cluster,
                                     "etcd_volume_size",
@@ -2236,7 +2239,7 @@ class Cluster(ClusterBase):
                                 ),
                             },
                             {
-                                "name": "enableVolumeType",
+                                "name": "etcdVolumeType",
                                 "value": utils.get_cluster_label(
                                     self.cluster,
                                     "etcd_volume_type",
