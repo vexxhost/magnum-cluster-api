@@ -60,7 +60,9 @@ class BaseDriver(driver.Driver):
             context, self.k8s_api, cluster
         ).apply()
 
-        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
+        resources.apply_cluster_from_magnum_cluster(
+            context, self.k8s_api, cluster, skip_auto_scaling_release=True
+        )
 
     def _get_cluster_status_reason(self, capi_cluster):
         capi_cluster_status_reason = ""
@@ -135,6 +137,10 @@ class BaseDriver(driver.Driver):
 
             if cluster.status == "CREATE_IN_PROGRESS":
                 cluster.status_reason = None
+                if utils.get_auto_scaling_enabled(cluster):
+                    resources.ClusterAutoscalerHelmRelease(
+                        self.k8s_api, cluster
+                    ).apply()
                 cluster.status = "CREATE_COMPLETE"
             if cluster.status == "UPDATE_IN_PROGRESS":
                 cluster.status_reason = None
