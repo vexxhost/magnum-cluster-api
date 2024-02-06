@@ -129,6 +129,14 @@ class BaseDriver(driver.Driver):
             )
             cluster.coe_version = capi_cluster.obj["spec"]["topology"]["version"]
 
+            # NOTE(oleks): To avoid autoscaler crashes, we deploy it after the
+            #              cluster api endpoint is reachable.
+            if (
+                cluster.status == "CREATE_IN_PROGRESS"
+                and utils.get_auto_scaling_enabled(cluster)
+            ):
+                resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).apply()
+
             for ng in node_groups:
                 if not ng.status.endswith("_COMPLETE"):
                     return
@@ -137,10 +145,6 @@ class BaseDriver(driver.Driver):
 
             if cluster.status == "CREATE_IN_PROGRESS":
                 cluster.status_reason = None
-                if utils.get_auto_scaling_enabled(cluster):
-                    resources.ClusterAutoscalerHelmRelease(
-                        self.k8s_api, cluster
-                    ).apply()
                 cluster.status = "CREATE_COMPLETE"
             if cluster.status == "UPDATE_IN_PROGRESS":
                 cluster.status_reason = None
