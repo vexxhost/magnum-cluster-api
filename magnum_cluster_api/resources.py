@@ -2248,7 +2248,8 @@ class Cluster(ClusterBase):
                                 "name": "availabilityZone",
                                 "value": utils.get_cluster_label(
                                     self.cluster, "availability_zone", ""
-                                ),
+                                )
+                                or "",
                             },
                         ],
                     },
