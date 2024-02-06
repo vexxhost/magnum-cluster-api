@@ -1672,7 +1672,7 @@ class ClusterClass(Base):
                                                     - name: etcd
                                                       sizeGiB: {{ .etcdVolumeSize }}
                                                       storage:
-                                                        type: volume
+                                                        type: Volume
                                                         volume:
                                                           type: "{{ .etcdVolumeType }}"
                                                           availabilityZone: "{{ .availabilityZone }}"
