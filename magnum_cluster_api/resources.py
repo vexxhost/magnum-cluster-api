@@ -33,6 +33,7 @@ from oslo_utils import encodeutils
 
 from magnum_cluster_api import clients, helm, image_utils, images, objects, utils
 from magnum_cluster_api.integrations import cinder, cloud_provider, manila
+from magnum_cluster_api.integrations import common
 
 CONF = cfg.CONF
 CALICO_TAG = "v3.24.2"
@@ -1980,10 +1981,8 @@ class Cluster(ClusterBase):
         raise Exception("Cluster doesn't exists.")
 
     def get_object(self) -> objects.Cluster:
-        default_volume_type = ""
-        if cinder.is_enabled(self.cluster):
-            osc = clients.get_openstack_api(self.context)
-            default_volume_type = osc.cinder().volume_types.default()
+        osc = clients.get_openstack_api(self.context)
+        default_volume_type = osc.cinder().volume_types.default()
         return objects.Cluster(
             self.api,
             {
@@ -2227,8 +2226,7 @@ class Cluster(ClusterBase):
                                     "etcd_volume_size",
                                     0,
                                 )
-                                > 0
-                                and cinder.is_enabled(self.cluster),
+                                > 0,
                             },
                             {
                                 "name": "etcdVolumeSize",
