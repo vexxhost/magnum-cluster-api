@@ -33,7 +33,6 @@ from oslo_utils import encodeutils
 
 from magnum_cluster_api import clients, helm, image_utils, images, objects, utils
 from magnum_cluster_api.integrations import cinder, cloud_provider, manila
-from magnum_cluster_api.integrations import common
 
 CONF = cfg.CONF
 CALICO_TAG = "v3.24.2"
@@ -1633,7 +1632,7 @@ class ClusterClass(Base):
                                                       - "label": "etcd_disk"
                                                         "filesystem": "ext4"
                                                         "device": "/dev/vdb"
-                                                        "extraOpts": ["-F", "-E", "lazy_itable_init=1,lazy_journal_init=1"]
+                                                        "extraOpts": ["-F", "-E", "lazy_itable_init=1,lazy_journal_init=1"] # noqa: E501
                                                     """
                                                 ),
                                             },
