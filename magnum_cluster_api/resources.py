@@ -601,6 +601,9 @@ class KubeadmControlPlaneTemplate(Base):
                                         },
                                     },
                                 },
+                                "preKubeadmCommands": [
+                                    "rm /var/lib/etcd/lost+found -rf"
+                                ],
                             },
                         },
                     },
@@ -1256,14 +1259,12 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands",
-                                            "value": [
-                                                textwrap.dedent(
-                                                    """\
-                                                bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
-                                                """  # noqa: E501
-                                                )
-                                            ],
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-",
+                                            "value": textwrap.dedent(
+                                                """\
+                                            bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                            """  # noqa: E501
+                                            ),
                                         },
                                         {
                                             "op": "replace",
@@ -1657,9 +1658,6 @@ class ClusterClass(Base):
                                         "kind": objects.OpenStackMachineTemplate.kind,
                                         "matchResources": {
                                             "controlPlane": True,
-                                            "machineDeploymentClass": {
-                                                "names": ["default-worker"],
-                                            },
                                         },
                                     },
                                     "jsonPatches": [
