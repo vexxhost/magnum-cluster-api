@@ -60,7 +60,9 @@ class BaseDriver(driver.Driver):
             context, self.k8s_api, cluster
         ).apply()
 
-        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
+        resources.apply_cluster_from_magnum_cluster(
+            context, self.k8s_api, cluster, skip_auto_scaling_release=True
+        )
 
     def _get_cluster_status_reason(self, capi_cluster):
         capi_cluster_status_reason = ""
@@ -126,6 +128,14 @@ class BaseDriver(driver.Driver):
                 f"https://{api_endpoint['host']}:{api_endpoint['port']}"
             )
             cluster.coe_version = capi_cluster.obj["spec"]["topology"]["version"]
+
+            # NOTE(oleks): To avoid autoscaler crashes, we deploy it after the
+            #              cluster api endpoint is reachable.
+            if (
+                cluster.status == "CREATE_IN_PROGRESS"
+                and utils.get_auto_scaling_enabled(cluster)
+            ):
+                resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).apply()
 
             for ng in node_groups:
                 if not ng.status.endswith("_COMPLETE"):

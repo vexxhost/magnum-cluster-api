@@ -133,9 +133,9 @@ class TestOpenStackCluster:
                 "application-credential-secret": mock_openstack_cluster.cloud_config[
                     "auth"
                 ]["application_credential_secret"],
-                "tls-insecure": "false"
-                if mock_openstack_cluster.cloud_config["verify"]
-                else "true",
+                "tls-insecure": (
+                    "false" if mock_openstack_cluster.cloud_config["verify"] else "true"
+                ),
             },
             "LoadBalancer": {
                 "floating-network-id": mock_openstack_cluster.floating_network_id,
