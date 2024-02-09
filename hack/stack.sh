@@ -15,8 +15,8 @@
 # under the License.
 
 # Versions to test
-CAPI_VERSION=${CAPI_VERSION:-v1.5.1}
-CAPO_VERSION=${CAPO_VERSION:-v0.8.0}
+CAPI_VERSION=${CAPI_VERSION:-v1.6.0}
+CAPO_VERSION=${CAPO_VERSION:-v0.9.0}
 
 # Setup folders for DevStack
 sudo mkdir -p /opt/stack
