@@ -2238,7 +2238,7 @@ class Cluster(ClusterBase):
                                 "value": utils.get_cluster_label(
                                     self.cluster,
                                     "etcd_volume_type",
-                                    default_volume_type,
+                                    default_volume_type.name,
                                 ),
                             },
                             {
