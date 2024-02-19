@@ -117,12 +117,14 @@ class TemplateReleaseCommand(ReleaseCommand):
 
     def __call__(self):
         try:
-            return super().__call__(
+            res, _ = super().__call__(
                 self.chart_ref,
                 "--values",
                 "-",
                 process_input=yaml.dump(self.values),
             )
+            return res
+
         except processutils.ProcessExecutionError as e:
             LOG.info("Helm template %s failed", self.release_name)
             raise
