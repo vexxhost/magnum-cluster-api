@@ -34,7 +34,6 @@ from oslo_utils import encodeutils
 from magnum_cluster_api import clients, helm, image_utils, images, objects, utils
 from magnum_cluster_api.integrations import cinder, cloud_provider, manila
 
-
 CONF = cfg.CONF
 CALICO_TAG = "v3.24.2"
 

@@ -18,8 +18,7 @@ import yaml
 from oslo_concurrency import processutils
 from oslo_log import log as logging
 
-from magnum_cluster_api import exceptions
-from magnum_cluster_api import image_utils
+from magnum_cluster_api import exceptions, image_utils
 
 LOG = logging.getLogger(__name__)
 
@@ -149,6 +148,6 @@ class TemplateReleaseCommand(ReleaseCommand):
                 docs.append(doc)
             return yaml.safe_dump_all(docs, default_flow_style=False)
 
-        except processutils.ProcessExecutionError as e:
+        except processutils.ProcessExecutionError:
             LOG.info("Helm template %s failed", self.release_name)
             raise
