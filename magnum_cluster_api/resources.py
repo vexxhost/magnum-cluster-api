@@ -2324,6 +2324,38 @@ class Cluster(ClusterBase):
                                 "value": utils.get_operating_system(self.cluster),
                             },
                             {
+                                "name": "enableEtcdVolume",
+                                "value": utils.get_cluster_label_as_int(
+                                    self.cluster,
+                                    "etcd_volume_size",
+                                    0,
+                                )
+                                > 0,
+                            },
+                            {
+                                "name": "etcdVolumeSize",
+                                "value": utils.get_cluster_label_as_int(
+                                    self.cluster,
+                                    "etcd_volume_size",
+                                    0,
+                                ),
+                            },
+                            {
+                                "name": "etcdVolumeType",
+                                "value": utils.get_cluster_label(
+                                    self.cluster,
+                                    "etcd_volume_type",
+                                    default_volume_type.name,
+                                ),
+                            },
+                            {
+                                "name": "availabilityZone",
+                                "value": utils.get_cluster_label(
+                                    self.cluster, "availability_zone", ""
+                                )
+                                or "",
+                            },
+                            {
                                 "name": "enableKeystoneAuth",
                                 "value": utils.get_cluster_label_as_bool(
                                     self.cluster, "keystone_auth_enabled", True

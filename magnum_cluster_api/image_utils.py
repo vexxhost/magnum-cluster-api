@@ -14,20 +14,15 @@
 
 import itertools
 
-import jinja2
 import yaml
 
-ENV = jinja2.Environment(loader=jinja2.FileSystemLoader(""))
 
-
-def update_manifest_images(
-    cluster_uuid: str, file, repository=None, replacements=[], **kwargs
-):
-    template = ENV.get_template(file)
-    yamldocs = template.render(**kwargs)
+def update_manifest_images(cluster_uuid: str, file, repository=None, replacements=[]):
+    with open(file) as fd:
+        data = fd.read()
 
     docs = []
-    for doc in yaml.safe_load_all(yamldocs):
+    for doc in yaml.safe_load_all(data):
         # Fix container image paths
         if doc["kind"] in ("DaemonSet", "Deployment", "StatefulSet"):
             for container in itertools.chain(
