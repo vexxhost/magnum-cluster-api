@@ -286,3 +286,9 @@ nodeSelector:
   # node.cluster.x-k8s.io/nodegroup: "NODEGROUP_NAME"
   node.cluster.x-k8s.io/nodegroup: "test-ng"
 ```
+
+## Reference
+
+Here reference awesome blog:
+
+- [`Kubernetes Cluster Autoscaler with Magnum CAPI Driver`](https://satishdotpatel.github.io/kubernetes-cluster-autoscaler-with-magnum-capi/) written by Satish Patel.
