@@ -144,9 +144,8 @@ class TemplateReleaseCommand(ReleaseCommand):
                                 container["image"], repository
                             )
 
-                if doc["kind"] in ("ClusterRole", "ClusterRoleBinding"):
-                    continue
-                doc["metadata"]["namespace"] = self.namespace
+                if doc["kind"] not in ("ClusterRole", "ClusterRoleBinding"):
+                    doc["metadata"]["namespace"] = self.namespace
                 docs.append(doc)
             return yaml.safe_dump_all(docs, default_flow_style=False)
 
