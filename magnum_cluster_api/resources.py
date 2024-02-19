@@ -339,15 +339,28 @@ class ClusterResourcesConfigMap(ClusterBase):
             data = {
                 **data,
                 **{
-                    "keystone-auth.yaml": image_utils.update_manifest_images(
-                        self.cluster.uuid,
-                        os.path.join(
-                            manifests_path, "keystone-auth/keystone-auth.yaml"
+                    "keystone-auth.yaml": helm.TemplateReleaseCommand(
+                        namespace="kube-system",
+                        release_name="k8s-keystone-auth",
+                        chart_ref=os.path.join(
+                            pkg_resources.resource_filename(
+                                "magnum_cluster_api", "charts"
+                            ),
+                            "k8s-keystone-auth/",
                         ),
-                        repository=repository,
-                        auth_url=auth_url + ("" if auth_url.endswith("/v3") else "/v3"),
-                        policy=utils.get_keystone_auth_default_policy(self.cluster),
-                        cloud_ca=True if utils.get_cloud_ca_cert() else False,
+                        values={
+                            "conf": {
+                                "auth_url": auth_url
+                                + ("" if auth_url.endswith("/v3") else "/v3"),
+                                "ca_file": "/etc/kubernetes/cloud_ca.crt",
+                                "policy": utils.get_keystone_auth_default_policy(
+                                    self.cluster
+                                ),
+                            },
+                            "image": {
+                                "repository": repository,
+                            },
+                        },
                     )
                 },
             }

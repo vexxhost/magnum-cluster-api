@@ -105,3 +105,24 @@ class DeleteReleaseCommand(ReleaseCommand):
                     raise exceptions.HelmReleaseNotFound(self.release_name)
             else:
                 raise
+
+
+class TemplateReleaseCommand(ReleaseCommand):
+    COMMAND = ["template"]
+
+    def __init__(self, namespace, release_name, chart_ref, values={}):
+        super().__init__(namespace, release_name)
+        self.chart_ref = chart_ref
+        self.values = values
+
+    def __call__(self):
+        try:
+            return super().__call__(
+                self.chart_ref,
+                "--values",
+                "-",
+                process_input=yaml.dump(self.values),
+            )
+        except processutils.ProcessExecutionError as e:
+            LOG.info("Helm template %s failed", self.release_name)
+            raise
