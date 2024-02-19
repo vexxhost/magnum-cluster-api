@@ -58,20 +58,20 @@ spec:
               protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          {{- with .Values.volumeMounts }}
           volumeMounts:
             - mountPath: /etc/kubernetes/pki
               name: k8s-certs
               readOnly: true
+          {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
       hostNetwork: true
-      {{- with .Values.volumes }}
       volumes:
         - hostPath:
             path: /etc/kubernetes/pki
             type: DirectoryOrCreate
           name: k8s-certs
+      {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.nodeSelector }}
