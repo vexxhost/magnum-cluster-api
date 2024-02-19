@@ -12,11 +12,14 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import itertools
+
 import yaml
 from oslo_concurrency import processutils
 from oslo_log import log as logging
 
 from magnum_cluster_api import exceptions
+from magnum_cluster_api import image_utils
 
 LOG = logging.getLogger(__name__)
 
@@ -115,15 +118,37 @@ class TemplateReleaseCommand(ReleaseCommand):
         self.chart_ref = chart_ref
         self.values = values
 
-    def __call__(self):
+    def __call__(self, repository=None, replacements=[]):
         try:
-            res, _ = super().__call__(
+            docs = []
+            data, _ = super().__call__(
                 self.chart_ref,
                 "--values",
                 "-",
                 process_input=yaml.dump(self.values),
             )
-            return res
+
+            # NOTE(oleks): ClusterResourceSet fails to be applied without namespace set in resources.
+            #              On the other hand, helm template doesn't output namespace. We set it manually
+            #              until  https://github.com/helm/helm/issues/10737 is fixed.
+            for doc in yaml.safe_load_all(data):
+                if doc["kind"] in ("DaemonSet", "Deployment", "StatefulSet"):
+                    for container in itertools.chain(
+                        doc["spec"]["template"]["spec"].get("initContainers", []),
+                        doc["spec"]["template"]["spec"]["containers"],
+                    ):
+                        for src, dst in replacements:
+                            container["image"] = container["image"].replace(src, dst)
+                        if repository:
+                            container["image"] = image_utils.get_image(
+                                container["image"], repository
+                            )
+
+                if doc["kind"] in ("ClusterRole", "ClusterRoleBinding"):
+                    continue
+                doc["metadata"]["namespace"] = self.namespace
+                docs.append(doc)
+            return yaml.safe_dump_all(docs, default_flow_style=False)
 
         except processutils.ProcessExecutionError as e:
             LOG.info("Helm template %s failed", self.release_name)

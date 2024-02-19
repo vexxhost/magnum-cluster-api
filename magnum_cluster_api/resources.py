@@ -358,11 +358,8 @@ class ClusterResourcesConfigMap(ClusterBase):
                                     self.cluster
                                 ),
                             },
-                            "image": {
-                                "repository": repository,
-                            },
                         },
-                    )()
+                    )(repository=repository)
                 },
             }
 
