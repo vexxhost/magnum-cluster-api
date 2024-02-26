@@ -5,5 +5,4 @@ metadata:
   labels:
     {{- include "k8s-keystone-auth.labels" . | nindent 4 }}
 data:
-  policies: |
-{{ .Values.conf.policy | indent 4 }}
+  policies: {{ toJson .Values.conf.policy | quote }}

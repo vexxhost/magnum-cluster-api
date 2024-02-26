@@ -352,37 +352,9 @@ class ClusterResourcesConfigMap(ClusterBase):
                             "conf": {
                                 "auth_url": auth_url
                                 + ("" if auth_url.endswith("/v3") else "/v3"),
-                                "ca_file": (
-                                    "/etc/kubernetes/cloud_ca.crt"
-                                    if utils.get_cloud_ca_cert()
-                                    else ""
-                                ),
+                                "ca_file": utils.get_cloud_ca_cert(),
                                 "policy": utils.get_keystone_auth_default_policy(
                                     self.cluster
-                                ),
-                                "volumeMounts": (
-                                    [
-                                        {
-                                            "mountPath": "/etc/kubernetes/cloud_ca.crt",
-                                            "name": "cloud-ca-cert-volume",
-                                            "readOnly": "true",
-                                        }
-                                    ]
-                                    if utils.get_cloud_ca_cert()
-                                    else []
-                                ),
-                                "volumes": (
-                                    [
-                                        {
-                                            "hostPath": {
-                                                "path": "/etc/kubernetes/cloud_ca.crt",
-                                                "type": "File",
-                                            },
-                                            "name": "cloud-ca-cert-volume",
-                                        }
-                                    ]
-                                    if utils.get_cloud_ca_cert()
-                                    else []
                                 ),
                             },
                         },

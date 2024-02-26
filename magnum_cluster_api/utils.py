@@ -399,16 +399,23 @@ def convert_to_rfc1123(input: str) -> str:
 
 
 def get_keystone_auth_default_policy(cluster: magnum_objects.Cluster):
-    default_policy = """[{"resource": {"verbs": ["list"],
-        "resources": ["pods", "services", "deployments", "pvc"],
-        "version": "*", "namespace": "default"},
-        "match": [{"type": "role","values": ["member"]},
-        {"type": "project", "values": ["$PROJECT_ID"]}]}]"""
+    default_policy = [
+        {
+            "resource": {
+                "verbs": ["list"],
+                "resources": ["pods", "services", "deployments", "pvc"],
+                "version": "*",
+                "namespace": "default",
+            },
+            "match": [
+                {"type": "role", "values": ["member"]},
+                {"type": "project", "values": [cluster.project_id]},
+            ],
+        }
+    ]
 
     try:
         with open(CONF.kubernetes.keystone_auth_default_policy) as f:
-            default_policy = json.dumps(json.loads(f.read()))
+            return json.loads(f.read())
     except Exception:
-        default_policy = json.dumps(json.loads(default_policy), sort_keys=True)
-
-    return default_policy.replace("$PROJECT_ID", cluster.project_id)
+        return default_policy

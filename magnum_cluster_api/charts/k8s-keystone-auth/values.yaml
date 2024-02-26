@@ -16,8 +16,8 @@ fullnameOverride: ""
 
 conf:
   auth_url: http://keystone:5000/v3
-  # Specify the ca file path if needed. For example, /etc/kubernetes/cloud_ca.crt
-  ca_file: ~
+  # Specify the ca certificate body if needed.
+  ca_cert: ~
   sync_config: |
     role-mappings:
       - keystone-role: member
