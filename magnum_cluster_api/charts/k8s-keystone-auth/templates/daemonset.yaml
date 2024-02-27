@@ -48,7 +48,7 @@ spec:
             {{- if not (empty .Values.conf.ca_cert) }}
             - --keystone-ca-file
             - /etc/kubernetes/cloud_ca.crt
-           {{- end }}
+            {{- end }}
             - --listen
             - 127.0.0.1:8443
           ports:
@@ -64,7 +64,7 @@ spec:
               subPath: cloud_ca.crt
               name: cloud-cert
               readOnly: true
-            {{- end -}}
+            {{- end }}
             - mountPath: /etc/kubernetes/pki
               name: k8s-certs
               readOnly: true
@@ -78,7 +78,7 @@ spec:
           secret:
             secretName: {{ include "k8s-keystone-auth.fullname" . }}-ca
             defaultMode: 0444
-        {{- end -}}
+        {{- end }}
         - hostPath:
             path: /etc/kubernetes/pki
             type: DirectoryOrCreate
