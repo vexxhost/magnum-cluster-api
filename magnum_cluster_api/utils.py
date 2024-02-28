@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import json
 import re
 import string
 import textwrap
@@ -395,3 +396,26 @@ def convert_to_rfc1123(input: str) -> str:
     :rtype: str
     """
     return re.sub(r"[^a-zA-Z0-9]+", "-", input).lower()
+
+
+def get_keystone_auth_default_policy(cluster: magnum_objects.Cluster):
+    default_policy = [
+        {
+            "resource": {
+                "verbs": ["list"],
+                "resources": ["pods", "services", "deployments", "pvc"],
+                "version": "*",
+                "namespace": "default",
+            },
+            "match": [
+                {"type": "role", "values": ["member"]},
+                {"type": "project", "values": [cluster.project_id]},
+            ],
+        }
+    ]
+
+    try:
+        with open(CONF.kubernetes.keystone_auth_default_policy) as f:
+            return json.loads(f.read())
+    except Exception:
+        return default_policy

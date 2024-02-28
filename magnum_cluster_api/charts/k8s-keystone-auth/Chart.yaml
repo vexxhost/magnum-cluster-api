@@ -1,0 +1,8 @@
+apiVersion: v2
+name: k8s-keystone-auth
+description: A Helm chart for k8s-keystone-auth
+type: application
+version: 0.1.0
+appVersion: v1.29.0
+sources:
+- https://github.com/kubernetes/cloud-provider-openstack/

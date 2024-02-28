@@ -331,6 +331,37 @@ class ClusterResourcesConfigMap(ClusterBase):
                     },
                 }
 
+        if utils.get_cluster_label_as_bool(self.cluster, "keystone_auth_enabled", True):
+            auth_url = osc.url_for(
+                service_type="identity",
+                interface=CONF.capi_client.endpoint_type.replace("URL", ""),
+            )
+            data = {
+                **data,
+                **{
+                    "keystone-auth.yaml": helm.TemplateReleaseCommand(
+                        namespace="kube-system",
+                        release_name="k8s-keystone-auth",
+                        chart_ref=os.path.join(
+                            pkg_resources.resource_filename(
+                                "magnum_cluster_api", "charts"
+                            ),
+                            "k8s-keystone-auth/",
+                        ),
+                        values={
+                            "conf": {
+                                "auth_url": auth_url
+                                + ("" if auth_url.endswith("/v3") else "/v3"),
+                                "ca_file": utils.get_cloud_ca_cert(),
+                                "policy": utils.get_keystone_auth_default_policy(
+                                    self.cluster
+                                ),
+                            },
+                        },
+                    )(repository=repository)
+                },
+            }
+
         return pykube.ConfigMap(
             self.api,
             {
@@ -540,9 +571,13 @@ class CloudConfigSecret(ClusterBase):
 class KubeadmControlPlaneTemplate(Base):
     def get_object(self) -> objects.KubeadmControlPlaneTemplate:
         manifests_path = pkg_resources.resource_filename(
-            "magnum_cluster_api.manifests", "audit"
+            "magnum_cluster_api", "manifests"
         )
-        audit_policy = open(os.path.join(manifests_path, "policy.yaml")).read()
+        audit_policy = open(os.path.join(manifests_path, "audit/policy.yaml")).read()
+        keystone_auth_webhook = open(
+            os.path.join(manifests_path, "keystone-auth/webhook.yaml")
+        ).read()
+
         return objects.KubeadmControlPlaneTemplate(
             self.api,
             {
@@ -562,7 +597,15 @@ class KubeadmControlPlaneTemplate(Base):
                                             "cloud-provider": "external",
                                             "profiling": "false",
                                         },
-                                        "extraVolumes": [],
+                                        "extraVolumes": [
+                                            # Note(oleks): Add this as default as a workaround of the json patch limitation # noqa: E501
+                                            # https://cluster-api.sigs.k8s.io/tasks/experimental-features/cluster-class/write-clusterclass#json-patches-tips--tricks
+                                            {
+                                                "name": "webhooks",
+                                                "hostPath": "/etc/kubernetes/webhooks",
+                                                "mountPath": "/etc/kubernetes/webhooks",
+                                            }
+                                        ],
                                     },
                                     "controllerManager": {
                                         "extraArgs": {
@@ -581,6 +624,15 @@ class KubeadmControlPlaneTemplate(Base):
                                         "path": "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml",
                                         "permissions": "0600",
                                         "content": base64.encode_as_text(audit_policy),
+                                        "encoding": "base64",
+                                    },
+                                    {
+                                        "path": "/etc/kubernetes/webhooks/webhookconfig.yaml",
+                                        "owner": "root:root",
+                                        "permissions": "0644",
+                                        "content": base64.encode_as_text(
+                                            keystone_auth_webhook
+                                        ),
                                         "encoding": "base64",
                                     },
                                 ],
@@ -1086,6 +1138,16 @@ class ClusterClass(Base):
                                 },
                             },
                         },
+                        {
+                            "name": "enableKeystoneAuth",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "boolean",
+                                    "default": False,
+                                },
+                            },
+                        },
                     ],
                     "patches": [
                         {
@@ -1134,16 +1196,26 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes",  # noqa: E501
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-",  # noqa: E501
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
                                                     """\
-                                                    - name: audit-policy
-                                                      hostPath: /etc/kubernetes/audit-policy
-                                                      mountPath: /etc/kubernetes/audit-policy
-                                                    - name: audit-logs
-                                                      hostPath: /var/log/kubernetes/audit
-                                                      mountPath: /var/log/audit
+                                                    name: audit-policy
+                                                    hostPath: /etc/kubernetes/audit-policy
+                                                    mountPath: /etc/kubernetes/audit-policy
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-",  # noqa: E501
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    name: audit-logs
+                                                    hostPath: /var/log/kubernetes/audit
+                                                    mountPath: /var/log/audit
                                                     """
                                                 ),
                                             },
@@ -1679,6 +1751,38 @@ class ClusterClass(Base):
                                         },
                                     ],
                                 },
+                            ],
+                        },
+                        {
+                            "name": "keystoneAuth",
+                            "enabledIf": "{{ if .enableKeystoneAuth }}true{{end}}",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                        "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authentication-token-webhook-config-file",  # noqa: E501
+                                            "value": "/etc/kubernetes/webhooks/webhookconfig.yaml",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authorization-webhook-config-file",  # noqa: E501
+                                            "value": "/etc/kubernetes/webhooks/webhookconfig.yaml",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authorization-mode",  # noqa: E501
+                                            "value": "Node,RBAC,Webhook",
+                                        },
+                                    ],
+                                }
                             ],
                         },
                         {
@@ -2247,6 +2351,12 @@ class Cluster(ClusterBase):
                                     self.cluster, "availability_zone", ""
                                 )
                                 or "",
+                            },
+                            {
+                                "name": "enableKeystoneAuth",
+                                "value": utils.get_cluster_label_as_bool(
+                                    self.cluster, "keystone_auth_enabled", True
+                                ),
                             },
                         ],
                     },
