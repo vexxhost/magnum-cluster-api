@@ -13,6 +13,7 @@
 # under the License.
 
 from magnum.objects import fields
+
 from magnum_cluster_api import resources
 
 
