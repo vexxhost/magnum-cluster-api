@@ -345,7 +345,6 @@ class BaseDriver(driver.Driver):
             context, self.k8s_api, cluster, skip_auto_scaling_release=True
         )
 
-    @cluster_lock_wrapper
     def update_nodegroup_status(
         self,
         context,
