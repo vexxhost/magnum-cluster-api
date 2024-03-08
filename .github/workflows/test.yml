@@ -110,10 +110,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runs-on: ubuntu-20.04
-            python-version: "3.6"
-          - runs-on: ubuntu-latest
-            python-version: "3.7"
           - runs-on: ubuntu-latest
             python-version: "3.8"
           - runs-on: ubuntu-latest
