@@ -24,22 +24,26 @@ pipeline {
                     label 'jammy-16c-64g'
                 }
 
-                steps {
-                    sh './hack/stack.sh'
+                stages {
+                    stage('sonobuoy') {
+                        steps {
+                            sh './hack/stack.sh'
 
-                    // TODO: Wait for built artifacts
-                    // TODO: Download built image
+                            // TODO: Wait for built artifacts
+                            // TODO: Download built image
 
-                    script {
-                        env.KUBE_TAG = "${KUBE_TAG}"
-                        env.NODE_COUNT = 2
-                        env.OS_DISTRO = "${OS_DISTRO}"
+                            script {
+                                env.KUBE_TAG = "${KUBE_TAG}"
+                                env.NODE_COUNT = 2
+                                env.OS_DISTRO = "${OS_DISTRO}"
 
-                        if (pullRequest.body.contains('/build-new-image')) {
-                            env.BUILD_NEW_IMAGE = 'true'
+                                if (pullRequest.body.contains('/build-new-image')) {
+                                    env.BUILD_NEW_IMAGE = 'true'
+                                }
+
+                                sh './hack/run-functional-tests.sh'
+                            }
                         }
-
-                        sh './hack/run-functional-tests.sh'
                     }
                 }
 
