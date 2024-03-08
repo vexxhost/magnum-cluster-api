@@ -998,23 +998,23 @@ zookeeper = ["kazoo (>=2.8.0)"]
 
 [[package]]
 name = "kubernetes"
-version = "24.2.0"
+version = "29.0.0"
 description = "Kubernetes python client"
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "kubernetes-24.2.0-py2.py3-none-any.whl", hash = "sha256:da19d58865cf903a8c7b9c3691a2e6315d583a98f0659964656dfdf645bf7e49"},
-    {file = "kubernetes-24.2.0.tar.gz", hash = "sha256:9900f12ae92007533247167d14cdee949cd8c7721f88b4a7da5f5351da3834cd"},
+    {file = "kubernetes-29.0.0-py2.py3-none-any.whl", hash = "sha256:ab8cb0e0576ccdfb71886366efb102c6a20f268d817be065ce7f9909c631e43e"},
+    {file = "kubernetes-29.0.0.tar.gz", hash = "sha256:c4812e227ae74d07d53c88293e564e54b850452715a59a927e7e1bc6b9a60459"},
 ]
 
 [package.dependencies]
 certifi = ">=14.05.14"
 google-auth = ">=1.0.1"
+oauthlib = ">=3.2.2"
 python-dateutil = ">=2.5.3"
 pyyaml = ">=5.4.1"
 requests = "*"
 requests-oauthlib = "*"
-setuptools = ">=21.0.0"
 six = ">=1.9.0"
 urllib3 = ">=1.24.2"
 websocket-client = ">=0.32.0,<0.40.0 || >0.40.0,<0.41.dev0 || >=0.43.dev0"
@@ -2891,9 +2891,6 @@ files = [
     {file = "sherlock-0.4.1.tar.gz", hash = "sha256:e620f498d5e2618005d3b5e08cc34106c1ab09e9c58d4310fc268b011700b6f5"},
 ]
 
-[package.dependencies]
-kubernetes = {version = ">=24.2.0,<25.0.0", optional = true, markers = "extra == \"all\" or extra == \"kubernetes\""}
-
 [package.extras]
 all = ["filelock (>=3.7.1,<4.0.0)", "kubernetes (>=24.2.0,<25.0.0)", "pylibmc (>=1.6.1,<2.0.0)", "redis (>=4.3.4,<5.0.0)"]
 etcd = ["python-etcd (>=0.4.5,<0.5.0)"]
@@ -3573,4 +3570,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "2f23b4ae6eaa94a253e1990a00b1fa7485194989b119ec57cbb641336b37827b"
+content-hash = "84f41da2489ca426729d6d355ee65ec12f3fa4f6c0bbe2acbf2436802d7661d8"

@@ -33,7 +33,7 @@ from magnum_cluster_api import (
 
 def cluster_lock_wrapper(func):
     def wrapper(*args, **kwargs):
-        cluster = args[1]  # Assuming cluster is the second argument
+        cluster = args[2]  # Assuming cluster is the second argument
         with sync.ClusterLock(cluster.uuid):
             return func(*args, **kwargs)
 

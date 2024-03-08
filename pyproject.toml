@@ -20,6 +20,7 @@ certifi = "*"
 click = ">=8.0.4"
 diskcache = ">=5.6.1"
 haproxyadmin = "^0.2.4"
+kubernetes = ">=24.2.0"
 magnum = ">=15.0.0"
 platformdirs = ">=2.4.0"
 pykube-ng = "*"
@@ -27,7 +28,7 @@ pyroute2 = ">=0.3.4"
 python = "^3.8"
 requests = ">=2.27.1"
 semver = "^2.0.0"
-sherlock = {version = "^0.4.1", extras = ["kubernetes"]}
+sherlock = "^0.4.1"
 shortuuid = "*"
 
 [tool.poetry.group.dev.dependencies]
