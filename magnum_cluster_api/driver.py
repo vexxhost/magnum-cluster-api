@@ -167,7 +167,7 @@ class BaseDriver(driver.Driver):
             for ng in node_groups:
                 if not ng.status.endswith("_COMPLETE"):
                     return
-                if ng.status == "DELETE_COMPLETE":
+                if ng.status == fields.ClusterStatus.DELETE_COMPLETE:
                     ng.destroy()
 
             if cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS:
@@ -395,7 +395,7 @@ class BaseDriver(driver.Driver):
 
     @cluster_lock_wrapper
     def delete_nodegroup(self, context, cluster, nodegroup):
-        nodegroup.status = "DELETE_IN_PROGRESS"
+        nodegroup.status = fields.ClusterStatus.DELETE_IN_PROGRESS
         nodegroup.save()
 
         resources.apply_cluster_from_magnum_cluster(

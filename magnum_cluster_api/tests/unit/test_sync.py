@@ -17,7 +17,7 @@ from unittest import mock
 from magnum.tests import base
 from oslo_utils import uuidutils
 
-from magnum_cluster_api.lock import ClusterLock
+from magnum_cluster_api.sync import ClusterLock
 
 
 @mock.patch("kubernetes.config.load_config")

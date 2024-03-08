@@ -12,6 +12,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from magnum.objects import fields
+
 
 def test_create_cluster(cluster):
-    assert cluster.status == "CREATE_COMPLETE"
+    assert cluster.status == fields.ClusterStatus.CREATE_COMPLETE

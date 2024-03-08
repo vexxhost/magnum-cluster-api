@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from magnum.objects import fields
 from magnum_cluster_api import resources
 
 
@@ -25,10 +26,10 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     cluster.cluster_template = cluster_template
     cluster.labels = {}
     cluster.nodegroups = [
-        mocker.Mock(name="creating-worker", status="CREATE_IN_PROGRESS", labels={}),
-        mocker.Mock(name="created-worker", status="CREATE_COMPLETE", labels={}),
-        mocker.Mock(name="deleting-worker", status="DELETE_IN_PROGRESS", labels={}),
-        mocker.Mock(name="deleted-worker", status="DELETE_COMPLETE", labels={}),
+        mocker.Mock(name="creating-worker", status=fields.ClusterStatus.CREATE_IN_PROGRESS, labels={}),
+        mocker.Mock(name="created-worker", status=fields.ClusterStatus.CREATE_COMPLETE, labels={}),
+        mocker.Mock(name="deleting-worker", status=fields.ClusterStatus.DELETE_IN_PROGRESS, labels={}),
+        mocker.Mock(name="deleted-worker", status=fields.ClusterStatus.DELETE_COMPLETE, labels={}),
     ]
 
     cluster_get_by_uuid = mocker.patch("magnum.objects.Cluster.get_by_uuid")
