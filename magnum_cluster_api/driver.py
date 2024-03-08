@@ -119,8 +119,8 @@ class BaseDriver(driver.Driver):
         self, context, cluster: magnum_objects.Cluster, use_admin_ctx: bool = False
     ):
         # NOTE(mnaser): We may be called with a stale cluster object, so we
-        #               need to reload it to make sure we have the latest data.
-        cluster.reload()
+        #               need to refresh it to make sure we have the latest data.
+        cluster.refresh()
 
         node_groups = [
             self.update_nodegroup_status(context, cluster, node_group)
