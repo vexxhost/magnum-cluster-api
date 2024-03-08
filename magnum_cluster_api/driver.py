@@ -52,15 +52,14 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
+        utils.validate_cluster(context, cluster)
+        resources.Namespace(self.k8s_api).apply()
+
         return self._create_cluster(context, cluster)
 
     @cluster_lock_wrapper
     def _create_cluster(self, context, cluster: magnum_objects.Cluster):
-        utils.validate_cluster(context, cluster)
-
         osc = clients.get_openstack_api(context)
-
-        resources.Namespace(self.k8s_api).apply()
 
         credential = osc.keystone().client.application_credentials.create(
             user=cluster.user_id,
