@@ -136,7 +136,7 @@ class Namespace(Base):
 
 
 class ClusterBase(Base):
-    def __init__(self, api: pykube.HTTPClient, cluster: any):
+    def __init__(self, api: pykube.HTTPClient, cluster: magnum_objects.Cluster):
         super().__init__(api)
         self.cluster = cluster
 
@@ -2405,7 +2405,7 @@ def apply_cluster_from_magnum_cluster(
     cluster: magnum_objects.Cluster,
     cluster_template: magnum_objects.ClusterTemplate = None,
     skip_auto_scaling_release: bool = False,
-) -> objects.Cluster:
+) -> None:
     """
     Create a ClusterAPI cluster given a Magnum Cluster object.
     """
@@ -2413,6 +2413,7 @@ def apply_cluster_from_magnum_cluster(
 
     if cluster_template is None:
         cluster_template = cluster.cluster_template
+        cluster.cluster_template_id = cluster_template.uuid
 
     # NOTE(mnaser): When using Cluster API, there is a 1:1 mapping between image
     #               and version of Kubernetes, therefore, we need to ignore the

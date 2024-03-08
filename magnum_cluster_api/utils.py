@@ -12,6 +12,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from __future__ import annotations
+
 import json
 import re
 import string
@@ -51,7 +53,7 @@ def get_or_generate_cluster_api_name(
     api: pykube.HTTPClient, cluster: magnum_objects.Cluster
 ) -> str:
     if cluster.stack_id is None:
-        cluster.stack_id = generate_cluster_api_name(api, cluster)
+        cluster.stack_id = generate_cluster_api_name(api)
         cluster.save()
     return cluster.stack_id
 
@@ -128,7 +130,7 @@ def generate_manila_csi_cloud_config(
     ctx: context.RequestContext,
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
-) -> str:
+) -> dict[str, str]:
     """
     Generate coniguration of Openstack authentication  for manila csi
     """
@@ -139,7 +141,7 @@ def generate_manila_csi_cloud_config(
     clouds_yaml = base64.decode_as_text(data.obj["data"]["clouds.yaml"])
     cloud_config = yaml.safe_load(clouds_yaml)
 
-    return {
+    config = {
         "os-authURL": osc.url_for(service_type="identity", interface="public"),
         "os-region": cloud_config["clouds"]["default"]["region_name"],
         "os-applicationCredentialID": cloud_config["clouds"]["default"]["auth"][
@@ -153,8 +155,12 @@ def generate_manila_csi_cloud_config(
             if cloud_config["clouds"]["default"]["verify"]
             else "true"
         ),
-        "os-certAuthorityPath": "/etc/config/ca.crt",
     }
+
+    if get_cloud_ca_cert():
+        config["os-certAuthorityPath"] = "/etc/config/ca.crt"
+
+    return config
 
 
 def get_kube_tag(cluster: magnum_objects.Cluster) -> str:

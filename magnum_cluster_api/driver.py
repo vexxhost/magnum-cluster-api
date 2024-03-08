@@ -15,27 +15,51 @@
 
 import keystoneauth1
 from magnum import objects as magnum_objects
+from magnum.conductor import scale_manager
 from magnum.drivers.common import driver
+from magnum.objects import fields
 from tenacity import retry, stop_after_delay, wait_fixed
 
-from magnum_cluster_api import clients, exceptions, monitor, objects, resources, utils
+from magnum_cluster_api import (
+    clients,
+    exceptions,
+    monitor,
+    objects,
+    resources,
+    sync,
+    utils,
+)
+
+
+def cluster_lock_wrapper(func):
+    def wrapper(*args, **kwargs):
+        cluster = args[2]  # Assuming cluster is the second argument
+        with sync.ClusterLock(cluster.uuid):
+            return func(*args, **kwargs)
+
+    return wrapper
 
 
 class BaseDriver(driver.Driver):
     def __init__(self):
         self.k8s_api = clients.get_pykube_api()
 
-    def create_cluster(self, context, cluster, cluster_create_timeout):
+    def create_cluster(
+        self, context, cluster: magnum_objects.Cluster, cluster_create_timeout: int
+    ):
         # NOTE(mnaser): We want to set the `stack_id` as early as possible to
         #               make sure we can use it in the cluster creation.
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
         utils.validate_cluster(context, cluster)
-
-        osc = clients.get_openstack_api(context)
-
         resources.Namespace(self.k8s_api).apply()
+
+        return self._create_cluster(context, cluster)
+
+    @cluster_lock_wrapper
+    def _create_cluster(self, context, cluster: magnum_objects.Cluster):
+        osc = clients.get_openstack_api(context)
 
         credential = osc.keystone().client.application_credentials.create(
             user=cluster.user_id,
@@ -90,7 +114,14 @@ class BaseDriver(driver.Driver):
             capi_ops_cluster_status_reason,
         )
 
-    def update_cluster_status(self, context, cluster, use_admin_ctx=False):
+    @cluster_lock_wrapper
+    def update_cluster_status(
+        self, context, cluster: magnum_objects.Cluster, use_admin_ctx: bool = False
+    ):
+        # NOTE(mnaser): We may be called with a stale cluster object, so we
+        #               need to refresh it to make sure we have the latest data.
+        cluster.refresh()
+
         node_groups = [
             self.update_nodegroup_status(context, cluster, node_group)
             for node_group in cluster.nodegroups
@@ -101,8 +132,8 @@ class BaseDriver(driver.Driver):
         capi_cluster = resources.Cluster(context, self.k8s_api, cluster).get_or_none()
 
         if cluster.status in (
-            "CREATE_IN_PROGRESS",
-            "UPDATE_IN_PROGRESS",
+            fields.ClusterStatus.CREATE_IN_PROGRESS,
+            fields.ClusterStatus.UPDATE_IN_PROGRESS,
         ):
             # NOTE(mnaser): It's possible we run a cluster status update before
             #               the cluster is created. In that case, we don't want
@@ -132,7 +163,7 @@ class BaseDriver(driver.Driver):
             # NOTE(oleks): To avoid autoscaler crashes, we deploy it after the
             #              cluster api endpoint is reachable.
             if (
-                cluster.status == "CREATE_IN_PROGRESS"
+                cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
                 and utils.get_auto_scaling_enabled(cluster)
             ):
                 resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).apply()
@@ -140,19 +171,19 @@ class BaseDriver(driver.Driver):
             for ng in node_groups:
                 if not ng.status.endswith("_COMPLETE"):
                     return
-                if ng.status == "DELETE_COMPLETE":
+                if ng.status == fields.ClusterStatus.DELETE_COMPLETE:
                     ng.destroy()
 
-            if cluster.status == "CREATE_IN_PROGRESS":
+            if cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS:
                 cluster.status_reason = None
-                cluster.status = "CREATE_COMPLETE"
-            if cluster.status == "UPDATE_IN_PROGRESS":
+                cluster.status = fields.ClusterStatus.CREATE_COMPLETE
+            if cluster.status == fields.ClusterStatus.UPDATE_IN_PROGRESS:
                 cluster.status_reason = None
-                cluster.status = "UPDATE_COMPLETE"
+                cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
 
             cluster.save()
 
-        if cluster.status == "DELETE_IN_PROGRESS":
+        if cluster.status == fields.ClusterStatus.DELETE_IN_PROGRESS:
             if capi_cluster and capi_cluster.exists():
                 cluster.status_reason = self._get_cluster_status_reason(capi_cluster)
                 cluster.save()
@@ -183,20 +214,28 @@ class BaseDriver(driver.Driver):
             ).delete()
 
             cluster.status_reason = None
-            cluster.status = "DELETE_COMPLETE"
+            cluster.status = fields.ClusterStatus.DELETE_COMPLETE
             cluster.save()
 
-    def update_cluster(self, context, cluster, scale_manager=None, rollback=False):
+    @cluster_lock_wrapper
+    def update_cluster(
+        self,
+        context,
+        cluster: magnum_objects.Cluster,
+        scale_manager=None,
+        rollback=False,
+    ):
         raise NotImplementedError()
 
+    @cluster_lock_wrapper
     def resize_cluster(
         self,
         context,
-        cluster,
-        resize_manager,
-        node_count,
-        nodes_to_remove,
-        nodegroup=None,
+        cluster: magnum_objects.Cluster,
+        resize_manager: scale_manager.ScaleManager,
+        node_count: int,
+        nodes_to_remove: list[str],
+        nodegroup: magnum_objects.NodeGroup = None,
     ):
         utils.validate_cluster(context, cluster)
 
@@ -228,6 +267,7 @@ class BaseDriver(driver.Driver):
             context, self.k8s_api, cluster, skip_auto_scaling_release=True
         )
 
+    @cluster_lock_wrapper
     def upgrade_cluster(
         self,
         context,
@@ -255,6 +295,11 @@ class BaseDriver(driver.Driver):
             context, cluster, current_generation
         )
 
+        # NOTE(mnaser): We need to save the cluster status here to make sure
+        #               it happens inside the lock.
+        cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        cluster.save()
+
     @retry(
         stop=stop_after_delay(10),
         wait=wait_fixed(1),
@@ -273,7 +318,8 @@ class BaseDriver(driver.Driver):
             return
         raise exceptions.ClusterAPIReconcileTimeout()
 
-    def delete_cluster(self, context, cluster):
+    @cluster_lock_wrapper
+    def delete_cluster(self, context, cluster: magnum_objects.Cluster):
         if cluster.stack_id is None:
             return
         # NOTE(mnaser): This should be removed when this is fixed:
@@ -287,13 +333,24 @@ class BaseDriver(driver.Driver):
         resources.Cluster(context, self.k8s_api, cluster).delete()
         resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).delete()
 
-    def create_nodegroup(self, context, cluster, nodegroup):
+    @cluster_lock_wrapper
+    def create_nodegroup(
+        self,
+        context,
+        cluster: magnum_objects.Cluster,
+        nodegroup: magnum_objects.NodeGroup,
+    ):
         utils.validate_nodegroup(nodegroup, context)
         resources.apply_cluster_from_magnum_cluster(
             context, self.k8s_api, cluster, skip_auto_scaling_release=True
         )
 
-    def update_nodegroup_status(self, context, cluster, nodegroup):
+    def update_nodegroup_status(
+        self,
+        context,
+        cluster: magnum_objects.Cluster,
+        nodegroup: magnum_objects.NodeGroup,
+    ):
         action = nodegroup.status.split("_")[0]
 
         if nodegroup.role == "master":
@@ -338,7 +395,13 @@ class BaseDriver(driver.Driver):
 
         return nodegroup
 
-    def update_nodegroup(self, context, cluster, nodegroup):
+    @cluster_lock_wrapper
+    def update_nodegroup(
+        self,
+        context,
+        cluster: magnum_objects.Cluster,
+        nodegroup: magnum_objects.NodeGroup,
+    ):
         # TODO
 
         # NOTE(okozachenko1203): First we save the nodegroup status because update_cluster_status()
@@ -351,11 +414,17 @@ class BaseDriver(driver.Driver):
         # NOTE(okozachenko1203): We set the cluster status as UPDATE_IN_PROGRESS again at the end because
         #                        update_cluster_status() could be finished and cluster status has been set as
         #                        UPDATE_COMPLETE before nodegroup_conductor.Handler.nodegroup_update finished.
-        cluster.status = "UPDATE_IN_PROGRESS"
+        cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
         cluster.save()
 
-    def delete_nodegroup(self, context, cluster, nodegroup):
-        nodegroup.status = "DELETE_IN_PROGRESS"
+    @cluster_lock_wrapper
+    def delete_nodegroup(
+        self,
+        context,
+        cluster: magnum_objects.Cluster,
+        nodegroup: magnum_objects.NodeGroup,
+    ):
+        nodegroup.status = fields.ClusterStatus.DELETE_IN_PROGRESS
         nodegroup.save()
 
         resources.apply_cluster_from_magnum_cluster(
@@ -365,7 +434,8 @@ class BaseDriver(driver.Driver):
             skip_auto_scaling_release=True,
         )
 
-    def get_monitor(self, context, cluster):
+    @cluster_lock_wrapper
+    def get_monitor(self, context, cluster: magnum_objects.Cluster):
         return monitor.Monitor(context, cluster)
 
     # def rotate_ca_certificate(self, context, cluster):

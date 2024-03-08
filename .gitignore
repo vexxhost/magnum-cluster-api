@@ -1,3 +1,4 @@
+.direnv
 __pycache__
 dist
 magnum_cluster_api/charts/*
