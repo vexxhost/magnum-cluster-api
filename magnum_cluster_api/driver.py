@@ -18,7 +18,24 @@ from magnum import objects as magnum_objects
 from magnum.drivers.common import driver
 from tenacity import retry, stop_after_delay, wait_fixed
 
-from magnum_cluster_api import clients, exceptions, monitor, objects, resources, utils
+from magnum_cluster_api import (
+    clients,
+    exceptions,
+    monitor,
+    objects,
+    resources,
+    utils,
+    sync,
+)
+
+
+def cluster_lock_wrapper(func):
+    def wrapper(*args, **kwargs):
+        cluster = args[1]  # Assuming cluster is the second argument
+        with sync.ClusterLock(cluster.uuid):
+            return func(*args, **kwargs)
+
+    return wrapper
 
 
 class BaseDriver(driver.Driver):
@@ -31,6 +48,10 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
+        return self._create_cluster(context, cluster)
+
+    @cluster_lock_wrapper
+    def _create_cluster(self, context, cluster):
         utils.validate_cluster(context, cluster)
 
         osc = clients.get_openstack_api(context)
@@ -90,6 +111,7 @@ class BaseDriver(driver.Driver):
             capi_ops_cluster_status_reason,
         )
 
+    @cluster_lock_wrapper
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
         node_groups = [
             self.update_nodegroup_status(context, cluster, node_group)
@@ -186,9 +208,11 @@ class BaseDriver(driver.Driver):
             cluster.status = "DELETE_COMPLETE"
             cluster.save()
 
+    @cluster_lock_wrapper
     def update_cluster(self, context, cluster, scale_manager=None, rollback=False):
         raise NotImplementedError()
 
+    @cluster_lock_wrapper
     def resize_cluster(
         self,
         context,
@@ -228,6 +252,7 @@ class BaseDriver(driver.Driver):
             context, self.k8s_api, cluster, skip_auto_scaling_release=True
         )
 
+    @cluster_lock_wrapper
     def upgrade_cluster(
         self,
         context,
@@ -273,6 +298,7 @@ class BaseDriver(driver.Driver):
             return
         raise exceptions.ClusterAPIReconcileTimeout()
 
+    @cluster_lock_wrapper
     def delete_cluster(self, context, cluster):
         if cluster.stack_id is None:
             return
@@ -287,12 +313,14 @@ class BaseDriver(driver.Driver):
         resources.Cluster(context, self.k8s_api, cluster).delete()
         resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).delete()
 
+    @cluster_lock_wrapper
     def create_nodegroup(self, context, cluster, nodegroup):
         utils.validate_nodegroup(nodegroup, context)
         resources.apply_cluster_from_magnum_cluster(
             context, self.k8s_api, cluster, skip_auto_scaling_release=True
         )
 
+    @cluster_lock_wrapper
     def update_nodegroup_status(self, context, cluster, nodegroup):
         action = nodegroup.status.split("_")[0]
 
@@ -338,6 +366,7 @@ class BaseDriver(driver.Driver):
 
         return nodegroup
 
+    @cluster_lock_wrapper
     def update_nodegroup(self, context, cluster, nodegroup):
         # TODO
 
@@ -354,6 +383,7 @@ class BaseDriver(driver.Driver):
         cluster.status = "UPDATE_IN_PROGRESS"
         cluster.save()
 
+    @cluster_lock_wrapper
     def delete_nodegroup(self, context, cluster, nodegroup):
         nodegroup.status = "DELETE_IN_PROGRESS"
         nodegroup.save()
@@ -365,6 +395,7 @@ class BaseDriver(driver.Driver):
             skip_auto_scaling_release=True,
         )
 
+    @cluster_lock_wrapper
     def get_monitor(self, context, cluster):
         return monitor.Monitor(context, cluster)
 
