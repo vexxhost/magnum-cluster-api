@@ -27,7 +27,7 @@ pipeline {
                 stages {
                     stage('sonobuoy') {
                         steps {
-                            sh './hack/stack.sh'
+                            sh 'sudo -u ubuntu ./hack/stack.sh'
 
                             // TODO: Wait for built artifacts
                             // TODO: Download built image
@@ -41,7 +41,7 @@ pipeline {
                                     env.BUILD_NEW_IMAGE = 'true'
                                 }
 
-                                sh './hack/run-functional-tests.sh'
+                                sh 'sudo -u ubuntu ./hack/run-functional-tests.sh'
                             }
                         }
                     }
