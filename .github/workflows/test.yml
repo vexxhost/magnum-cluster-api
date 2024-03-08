@@ -19,10 +19,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runs-on: ubuntu-20.04
-            python-version: "3.6"
-          - runs-on: ubuntu-latest
-            python-version: "3.7"
           - runs-on: ubuntu-latest
             python-version: "3.8"
           - runs-on: ubuntu-latest
@@ -51,15 +47,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runs-on: ubuntu-20.04
-            openstack-version: yoga
-            python-version: "3.6"
           - runs-on: ubuntu-latest
             python-version: "3.8"
             openstack-version: zed
           - runs-on: ubuntu-latest
             python-version: "3.8"
             openstack-version: "2023.1"
+          - runs-on: ubuntu-latest
+            python-version: "3.10"
+            openstack-version: "2023.2"
     steps:
       - name: Checkout project
         uses: actions/checkout@v3

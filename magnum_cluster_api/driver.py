@@ -13,12 +13,12 @@
 # under the License.
 
 
+import keystoneauth1
 from magnum import objects as magnum_objects
 from magnum.conductor import scale_manager
 from magnum.drivers.common import driver
 from magnum.objects import fields
 from tenacity import retry, stop_after_delay, wait_fixed
-import keystoneauth1
 
 from magnum_cluster_api import (
     clients,
@@ -26,8 +26,8 @@ from magnum_cluster_api import (
     monitor,
     objects,
     resources,
-    utils,
     sync,
+    utils,
 )
 
 
