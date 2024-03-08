@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.14.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.13.4...v0.14.0) (2024-03-08)
+
+
+### Features
+
+* support etcd volume ([#305](https://github.com/vexxhost/magnum-cluster-api/issues/305)) ([544cb77](https://github.com/vexxhost/magnum-cluster-api/commit/544cb77a4a2101dc2af6ee940ab05968f015fc1a))
+* support keystone-auth ([#297](https://github.com/vexxhost/magnum-cluster-api/issues/297)) ([50a2c27](https://github.com/vexxhost/magnum-cluster-api/commit/50a2c277be084fefcc7a53c9309716771c003ea8))
+* upgrade capi version ([#299](https://github.com/vexxhost/magnum-cluster-api/issues/299)) ([83535e7](https://github.com/vexxhost/magnum-cluster-api/commit/83535e7405e1a1ef1ce0251694eec78882873838))
+
+
+### Bug Fixes
+
+* deploy autoscaler right before the cluster creation completed ([#307](https://github.com/vexxhost/magnum-cluster-api/issues/307)) ([a48ddef](https://github.com/vexxhost/magnum-cluster-api/commit/a48ddef4bdd238c35ff967c2025898c0bec7c59f))
+* respect `availability_zone` for control plane ([#313](https://github.com/vexxhost/magnum-cluster-api/issues/313)) ([6803bd3](https://github.com/vexxhost/magnum-cluster-api/commit/6803bd3f705188b476df28f4ee2bb76bedbf3541))
+* use locking for status update ([#318](https://github.com/vexxhost/magnum-cluster-api/issues/318)) ([dcceec4](https://github.com/vexxhost/magnum-cluster-api/commit/dcceec4ed017914c94b8bbe011cde4654c503793))
+
 ## [0.13.4](https://github.com/vexxhost/magnum-cluster-api/compare/v0.13.3...v0.13.4) (2024-01-31)
 
 
