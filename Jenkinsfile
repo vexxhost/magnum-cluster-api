@@ -37,9 +37,9 @@ pipeline {
                                 env.NODE_COUNT = 2
                                 env.OS_DISTRO = "${OS_DISTRO}"
 
-                                if (pullRequest.body.contains('/build-new-image')) {
-                                    env.BUILD_NEW_IMAGE = 'true'
-                                }
+                                // if (pullRequest.body.contains('/build-new-image')) {
+                                //     env.BUILD_NEW_IMAGE = 'true'
+                                // }
 
                                 sh './hack/run-functional-tests.sh'
                             }
