@@ -9,27 +9,30 @@ packages = [{include = "magnum_cluster_api"}]
 include = ["magnum_cluster_api/charts/**/*"]
 
 [tool.poetry.dependencies]
-certifi = "*"
-click = ">=8.0.4"
-magnum = ">=14.0.0"
 "oslo.concurrency" = ">=4.5.0"
 "oslo.config" = ">=8.8.0"
 "oslo.context" = ">=4.1.0"
 "oslo.log" = ">=4.7.0"
 "oslo.privsep" = ">=2.7.0"
 "oslo.service" = ">=2.8.0"
+"python-manilaclient" = ">=3.3.2"
+certifi = "*"
+click = ">=8.0.4"
+diskcache = ">=5.6.1"
+haproxyadmin = "^0.2.4"
+magnum = ">=15.0.0"
+platformdirs = ">=2.4.0"
 pykube-ng = "*"
 pyroute2 = ">=0.3.4"
-python = "^3.6"
-"python-manilaclient" = ">=3.3.2"
+python = "^3.8"
 requests = ">=2.27.1"
 semver = "^2.0.0"
+sherlock = {version = "^0.4.1", extras = ["kubernetes"]}
 shortuuid = "*"
-diskcache = ">=5.6.1"
-platformdirs = ">=2.4.0"
-haproxyadmin = "^0.2.4"
 
 [tool.poetry.group.dev.dependencies]
+fixtures = "^4.1.0"
+oslotest = "^5.0.0"
 pytest = "<7"
 pytest-mock = "^3.6.1"
 
