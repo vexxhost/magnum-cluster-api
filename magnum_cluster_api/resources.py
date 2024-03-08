@@ -1561,6 +1561,34 @@ class ClusterClass(Base):
                             ],
                         },
                         {
+                            "name": "controlPlaneAvailabilityZone",
+                            "enabledIf": '{{ if ne .availabilityZone "" }}true{{end}}',
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackClusterTemplate.version,
+                                        "kind": objects.OpenStackClusterTemplate.kind,
+                                        "matchResources": {
+                                            "infrastructureCluster": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/controlPlaneAvailabilityZones",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - "{{ .availabilityZone }}"
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
                             "name": "newNetworkConfig",
                             "enabledIf": '{{ if eq .fixedNetworkName "" }}true{{end}}',
                             "definitions": [
@@ -1993,7 +2021,9 @@ def generate_machine_deployments_for_cluster(
                     "node.cluster.x-k8s.io/nodegroup": ng.name,
                 },
             },
-            "failureDomain": utils.get_cluster_label(cluster, "availability_zone", ""),
+            "failureDomain": utils.get_node_group_label(
+                context, ng, "availability_zone", ""
+            ),
             "machineHealthCheck": {
                 "enable": utils.get_cluster_label_as_bool(
                     cluster, "auto_healing_enabled", True
@@ -2349,8 +2379,7 @@ class Cluster(ClusterBase):
                                 "name": "availabilityZone",
                                 "value": utils.get_cluster_label(
                                     self.cluster, "availability_zone", ""
-                                )
-                                or "",
+                                ),
                             },
                             {
                                 "name": "enableKeystoneAuth",
