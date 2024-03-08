@@ -17,6 +17,7 @@ import os
 import openstack
 import pytest
 import shortuuid
+from magnum.objects import fields
 from tenacity import TryAgain, retry, stop_after_delay, wait_fixed
 
 openstack.enable_logging(debug=True)
@@ -77,7 +78,7 @@ def cluster(conn, cluster_template):
         try:
             cluster = conn.container_infra.get_cluster(cluster.id)
         except openstack.exceptions.ResourceNotFound:
-            if target_cluster_status == "DELETE_COMPLETE":
+            if target_cluster_status == fields.ClusterStatus.DELETE_COMPLETE:
                 return
             raise TryAgain()
 
@@ -94,10 +95,10 @@ def cluster(conn, cluster_template):
         master_count=1,
         node_count=1,
     )
-    wait_for_cluster_status(cluster, "CREATE_COMPLETE")
+    wait_for_cluster_status(cluster, fields.ClusterStatus.CREATE_COMPLETE)
     cluster = conn.container_infra.get_cluster(cluster.id)
 
     yield cluster
 
     conn.container_infra.delete_cluster(cluster.id)
-    wait_for_cluster_status(cluster, "DELETE_COMPLETE")
+    wait_for_cluster_status(cluster, fields.ClusterStatus.DELETE_COMPLETE)

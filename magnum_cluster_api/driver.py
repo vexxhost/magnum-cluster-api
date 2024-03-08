@@ -16,6 +16,7 @@
 import keystoneauth1
 from magnum import objects as magnum_objects
 from magnum.drivers.common import driver
+from magnum.objects import fields
 from tenacity import retry, stop_after_delay, wait_fixed
 
 from magnum_cluster_api import (
@@ -113,6 +114,10 @@ class BaseDriver(driver.Driver):
 
     @cluster_lock_wrapper
     def update_cluster_status(self, context, cluster, use_admin_ctx=False):
+        # NOTE(mnaser): We may be called with a stale cluster object, so we
+        #               need to reload it to make sure we have the latest data.
+        cluster.reload()
+
         node_groups = [
             self.update_nodegroup_status(context, cluster, node_group)
             for node_group in cluster.nodegroups
@@ -123,8 +128,8 @@ class BaseDriver(driver.Driver):
         capi_cluster = resources.Cluster(context, self.k8s_api, cluster).get_or_none()
 
         if cluster.status in (
-            "CREATE_IN_PROGRESS",
-            "UPDATE_IN_PROGRESS",
+            fields.ClusterStatus.CREATE_IN_PROGRESS,
+            fields.ClusterStatus.UPDATE_IN_PROGRESS,
         ):
             # NOTE(mnaser): It's possible we run a cluster status update before
             #               the cluster is created. In that case, we don't want
@@ -154,7 +159,7 @@ class BaseDriver(driver.Driver):
             # NOTE(oleks): To avoid autoscaler crashes, we deploy it after the
             #              cluster api endpoint is reachable.
             if (
-                cluster.status == "CREATE_IN_PROGRESS"
+                cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
                 and utils.get_auto_scaling_enabled(cluster)
             ):
                 resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).apply()
@@ -165,16 +170,16 @@ class BaseDriver(driver.Driver):
                 if ng.status == "DELETE_COMPLETE":
                     ng.destroy()
 
-            if cluster.status == "CREATE_IN_PROGRESS":
+            if cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS:
                 cluster.status_reason = None
-                cluster.status = "CREATE_COMPLETE"
-            if cluster.status == "UPDATE_IN_PROGRESS":
+                cluster.status = fields.ClusterStatus.CREATE_COMPLETE
+            if cluster.status == fields.ClusterStatus.UPDATE_IN_PROGRESS:
                 cluster.status_reason = None
-                cluster.status = "UPDATE_COMPLETE"
+                cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
 
             cluster.save()
 
-        if cluster.status == "DELETE_IN_PROGRESS":
+        if cluster.status == fields.ClusterStatus.DELETE_IN_PROGRESS:
             if capi_cluster and capi_cluster.exists():
                 cluster.status_reason = self._get_cluster_status_reason(capi_cluster)
                 cluster.save()
@@ -205,7 +210,7 @@ class BaseDriver(driver.Driver):
             ).delete()
 
             cluster.status_reason = None
-            cluster.status = "DELETE_COMPLETE"
+            cluster.status = fields.ClusterStatus.DELETE_COMPLETE
             cluster.save()
 
     @cluster_lock_wrapper
@@ -279,6 +284,11 @@ class BaseDriver(driver.Driver):
         self.wait_capi_cluster_reconciliation_start(
             context, cluster, current_generation
         )
+
+        # NOTE(mnaser): We need to save the cluster status here to make sure
+        #               it happens inside the lock.
+        cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        cluster.save()
 
     @retry(
         stop=stop_after_delay(10),
@@ -380,7 +390,7 @@ class BaseDriver(driver.Driver):
         # NOTE(okozachenko1203): We set the cluster status as UPDATE_IN_PROGRESS again at the end because
         #                        update_cluster_status() could be finished and cluster status has been set as
         #                        UPDATE_COMPLETE before nodegroup_conductor.Handler.nodegroup_update finished.
-        cluster.status = "UPDATE_IN_PROGRESS"
+        cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
         cluster.save()
 
     @cluster_lock_wrapper
