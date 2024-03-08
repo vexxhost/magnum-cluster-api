@@ -136,7 +136,7 @@ class Namespace(Base):
 
 
 class ClusterBase(Base):
-    def __init__(self, api: pykube.HTTPClient, cluster: any):
+    def __init__(self, api: pykube.HTTPClient, cluster: magnum_objects.Cluster):
         super().__init__(api)
         self.cluster = cluster
 

@@ -53,7 +53,7 @@ def get_or_generate_cluster_api_name(
     api: pykube.HTTPClient, cluster: magnum_objects.Cluster
 ) -> str:
     if cluster.stack_id is None:
-        cluster.stack_id = generate_cluster_api_name(api, cluster)
+        cluster.stack_id = generate_cluster_api_name(api)
         cluster.save()
     return cluster.stack_id
 
