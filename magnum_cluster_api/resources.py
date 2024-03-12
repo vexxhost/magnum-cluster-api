@@ -2393,7 +2393,7 @@ class Cluster(ClusterBase):
                                     self.cluster, "keystone_auth_enabled", True
                                 ),
                             },
-		                    {
+                            {
                                 "name": "controlPlaneAvailabilityZones",
                                 "value": utils.get_cluster_label(
                                     self.cluster, "control_plane_availability_zones", ""
