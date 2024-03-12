@@ -1148,6 +1148,18 @@ class ClusterClass(Base):
                                 },
                             },
                         },
+		                {
+                            "name": "controlPlaneAvailabilityZones",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string",
+                                    },
+                                },
+                            },
+                        },
                     ],
                     "patches": [
                         {
@@ -1561,8 +1573,8 @@ class ClusterClass(Base):
                             ],
                         },
                         {
-                            "name": "controlPlaneAvailabilityZone",
-                            "enabledIf": '{{ if ne .availabilityZone "" }}true{{end}}',
+                            "name": "controlPlaneAvailabilityZones",
+                            "enabledIf": '{{ if ne (index .controlPlaneAvailabilityZones 0) "" }}true{{end}}',
                             "definitions": [
                                 {
                                     "selector": {
@@ -1576,13 +1588,7 @@ class ClusterClass(Base):
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/controlPlaneAvailabilityZones",
-                                            "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    - "{{ .availabilityZone }}"
-                                                    """
-                                                ),
-                                            },
+                                            "valueFrom": {"variable": "controlPlaneAvailabilityZones"},
                                         },
                                     ],
                                 },
@@ -2385,6 +2391,14 @@ class Cluster(ClusterBase):
                                 "name": "enableKeystoneAuth",
                                 "value": utils.get_cluster_label_as_bool(
                                     self.cluster, "keystone_auth_enabled", True
+                                ),
+                            },
+		                    {
+                                "name": "controlPlaneAvailabilityZones",
+                                "value": utils.get_cluster_label(
+                                    self.cluster, "control_plane_availability_zones", ""
+                                    ).split(
+                                        ","
                                 ),
                             },
                         ],
