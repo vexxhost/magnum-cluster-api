@@ -1148,7 +1148,7 @@ class ClusterClass(Base):
                                 },
                             },
                         },
-		                {
+                        {
                             "name": "controlPlaneAvailabilityZones",
                             "required": True,
                             "schema": {
