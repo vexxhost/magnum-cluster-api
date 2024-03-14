@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.14.0...v0.14.1) (2024-03-14)
+
+
+### Bug Fixes
+
+* fix cluster status when update done ([#322](https://github.com/vexxhost/magnum-cluster-api/issues/322)) ([9c237d1](https://github.com/vexxhost/magnum-cluster-api/commit/9c237d1f37f94ac922efe22fe65e6aac74a1234c))
+
 ## [0.14.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.13.4...v0.14.0) (2024-03-08)
 
 
