@@ -179,7 +179,7 @@ class BaseDriver(driver.Driver):
                 cluster.status = fields.ClusterStatus.CREATE_COMPLETE
             if cluster.status == fields.ClusterStatus.UPDATE_IN_PROGRESS:
                 cluster.status_reason = None
-                cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+                cluster.status = fields.ClusterStatus.UPDATE_COMPLETE
 
             cluster.save()
 
