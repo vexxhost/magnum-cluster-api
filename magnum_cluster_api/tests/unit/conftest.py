@@ -15,6 +15,8 @@
 import pytest
 from magnum.common import context as magnum_context
 
+from magnum_cluster_api import driver
+
 
 @pytest.fixture
 def context():
@@ -26,3 +28,26 @@ def context():
         user_id="fake_user",
         is_admin=False,
     )
+
+
+@pytest.fixture(scope="session")
+def mock_pykube(session_mocker):
+    session_mocker.patch("pykube.KubeConfig")
+    session_mocker.patch("pykube.HTTPClient")
+
+
+@pytest.fixture(scope="session")
+def mock_cluster_lock(session_mocker):
+    session_mocker.patch("kubernetes.config.load_config")
+    session_mocker.patch("magnum_cluster_api.sync.ClusterLock.acquire")
+    session_mocker.patch("magnum_cluster_api.sync.ClusterLock.release")
+
+
+@pytest.fixture(scope="session")
+def mock_validate_nodegroup(session_mocker):
+    session_mocker.patch("magnum_cluster_api.utils.validate_nodegroup")
+
+
+@pytest.fixture()
+def ubuntu_driver(mock_cluster_lock, mock_pykube):
+    yield driver.UbuntuDriver()

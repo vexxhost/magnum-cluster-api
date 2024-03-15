@@ -1993,36 +1993,68 @@ def create_cluster_class(
     ClusterClass(api).apply()
 
 
-def generate_machine_deployments_for_cluster(
-    context: context.RequestContext, cluster: objects.Cluster
-) -> list:
+def mutate_machine_deployment(
+    context: context.RequestContext,
+    cluster: objects.Cluster,
+    node_group: magnum_objects.NodeGroup,
+    machine_deployment: dict = {},
+):
+    """
+    This function will either makes updates to machine deployment fields which
+    will not cause a rolling update or will return a new machine deployment
+    if none is provided.
+    """
+
     auto_scaling_enabled = utils.get_auto_scaling_enabled(cluster)
 
-    machine_deployments = []
-    for ng in cluster.nodegroups:
-        if ng.role == "master" or ng.status.startswith("DELETE"):
-            continue
+    machine_deployment.setdefault(
+        "metadata",
+        {
+            "annotations": {},
+            "labels": {},
+        },
+    )
 
-        machine_deployment = {
+    # Node labels
+    machine_deployment["metadata"]["labels"] = {
+        f"node-role.kubernetes.io/{node_group.role}": "",
+        "node.cluster.x-k8s.io/nodegroup": node_group.name,
+    }
+
+    # Replicas (or min/max if auto-scaling is enabled)
+    if auto_scaling_enabled:
+        machine_deployment["replicas"] = None
+        machine_deployment["metadata"]["annotations"] = {
+            AUTOSCALE_ANNOTATION_MIN: str(
+                utils.get_node_group_min_node_count(node_group)
+            ),
+            AUTOSCALE_ANNOTATION_MAX: str(
+                utils.get_node_group_max_node_count(context, node_group)
+            ),
+        }
+    else:
+        machine_deployment["replicas"] = node_group.node_count
+        machine_deployment["metadata"]["annotations"] = {}
+
+    # Fixes
+    machine_deployment["nodeVolumeDetachTimeout"] = (
+        CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT
+    )
+
+    # Anything beyond this point will *NOT* be changed in the machine deployment
+    # for update operations (i.e. if the machine deployment already exists).
+    if machine_deployment.get("name") == node_group.name:
+        return machine_deployment
+
+    # At this point, this is all code that will be added for brand new machine
+    # deployments.  We can bring any of this code into the above block if we
+    # want to change it for existing machine deployments.
+    machine_deployment.update(
+        {
             "class": "default-worker",
-            "nodeVolumeDetachTimeout": CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT,
-            "name": ng.name,
-            "metadata": {
-                "annotations": (
-                    {
-                        AUTOSCALE_ANNOTATION_MIN: f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
-                        AUTOSCALE_ANNOTATION_MAX: f"{utils.get_node_group_max_node_count(context, ng)}",  # noqa: E501
-                    }
-                    if auto_scaling_enabled
-                    else {}
-                ),
-                "labels": {
-                    f"node-role.kubernetes.io/{ng.role}": "",
-                    "node.cluster.x-k8s.io/nodegroup": ng.name,
-                },
-            },
+            "name": node_group.name,
             "failureDomain": utils.get_node_group_label(
-                context, ng, "availability_zone", ""
+                context, node_group, "availability_zone", ""
             ),
             "machineHealthCheck": {
                 "enable": utils.get_cluster_label_as_bool(
@@ -2036,13 +2068,13 @@ def generate_machine_deployments_for_cluster(
                         "value": {
                             "size": utils.get_node_group_label_as_int(
                                 context,
-                                ng,
+                                node_group,
                                 "boot_volume_size",
                                 CONF.cinder.default_boot_volume_size,
                             ),
                             "type": utils.get_node_group_label(
                                 context,
-                                ng,
+                                node_group,
                                 "boot_volume_type",
                                 cinder.get_default_boot_volume_type(context),
                             ),
@@ -2050,31 +2082,38 @@ def generate_machine_deployments_for_cluster(
                     },
                     {
                         "name": "flavor",
-                        "value": ng.flavor_id,
+                        "value": node_group.flavor_id,
                     },
                     {
                         "name": "imageRepository",
                         "value": utils.get_node_group_label(
                             context,
-                            ng,
+                            node_group,
                             "container_infra_prefix",
                             "",
                         ),
                     },
                     {
                         "name": "imageUUID",
-                        "value": utils.get_image_uuid(ng.image_id, context),
+                        "value": utils.get_image_uuid(node_group.image_id, context),
                     },
                 ],
             },
         }
+    )
 
-        # NOTE(mnaser): In order for auto-scaler and cluster class reconcilers
-        #               to not fight each other, we only set replicas if the
-        #               auto-scaler is disabled.
-        if not auto_scaling_enabled:
-            machine_deployment["replicas"] = ng.node_count
+    return machine_deployment
 
+
+def generate_machine_deployments_for_cluster(
+    context: context.RequestContext, cluster: objects.Cluster
+) -> list:
+    machine_deployments = []
+    for ng in cluster.nodegroups:
+        if ng.role == "master" or ng.status.startswith("DELETE"):
+            continue
+
+        machine_deployment = mutate_machine_deployment(context, cluster, ng)
         machine_deployments.append(machine_deployment)
 
     return machine_deployments
