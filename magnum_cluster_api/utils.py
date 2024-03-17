@@ -35,7 +35,7 @@ from magnum_cluster_api import clients
 from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import image_utils, images, objects
 
-AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar"]
+AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar", "rockylinux"]
 CONF = cfg.CONF
 
 

@@ -43,7 +43,7 @@ def validate_version(_, __, value):
     "--operating-system",
     show_default=True,
     default="ubuntu-2204",
-    type=click.Choice(["ubuntu-2004", "ubuntu-2204", "flatcar"]),
+    type=click.Choice(["ubuntu-2004", "ubuntu-2204", "flatcar", "rockylinux-8", "rockylinux-9"]),
     help="Operating system to build image for",
     prompt="Operating system to build image for",
 )
@@ -128,6 +128,7 @@ def main(ctx: click.Context, operating_system, version, image_builder_version):
     kubernetes_series = ".".join(version.split(".")[0:2])
     customization = {
         "kubernetes_deb_version": f"{version.replace('v', '')}-1.1",
+        "kubernetes_rpm_version": f"{version.replace('v', '')}",
         "kubernetes_semver": f"{version}",
         "kubernetes_series": f"{kubernetes_series}",
         # https://github.com/flatcar/Flatcar/issues/823
@@ -151,6 +152,46 @@ def main(ctx: click.Context, operating_system, version, image_builder_version):
         for line in r.text.splitlines():
             if iso in line:
                 customization["iso_checksum"] = line.split()[0]
+                break
+
+        # Assert that we have the checksum
+        assert "iso_checksum" in customization
+
+    if operating_system == "rockylinux-8":
+        iso = "Rocky-x86_64-minimal.iso"
+
+        customization["iso_url"] = (
+            f"https://download.rockylinux.org/pub/rocky/8/isos/x86_64/{iso}"
+        )
+
+        # Get the SHA256 sum for the ISO
+        r = requests.get(
+            "https://download.rockylinux.org/pub/rocky/8/isos/x86_64/Rocky-x86_64-minimal.iso.CHECKSUM"
+        )
+        r.raise_for_status()
+        for line in r.text.splitlines():
+            if iso in line and "SHA256" in line:
+                customization["iso_checksum"] = line.split()[3]
+                break
+
+        # Assert that we have the checksum
+        assert "iso_checksum" in customization
+
+    if operating_system == "rockylinux-9":
+        iso = "Rocky-x86_64-minimal.iso"
+
+        customization["iso_url"] = (
+            f"https://download.rockylinux.org/pub/rocky/9/isos/x86_64/{iso}"
+        )
+
+        # Get the SHA256 sum for the ISO
+        r = requests.get(
+            "https://download.rockylinux.org/pub/rocky/9/isos/x86_64/Rocky-x86_64-minimal.iso.CHECKSUM"
+        )
+        r.raise_for_status()
+        for line in r.text.splitlines():
+            if iso in line and "SHA256" in line:
+                customization["iso_checksum"] = line.split()[3]
                 break
 
         # Assert that we have the checksum
