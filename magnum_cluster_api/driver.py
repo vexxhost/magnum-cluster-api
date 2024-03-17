@@ -13,6 +13,8 @@
 # under the License.
 
 
+from __future__ import annotations
+
 import keystoneauth1
 from magnum import objects as magnum_objects
 from magnum.conductor import scale_manager
@@ -239,9 +241,6 @@ class BaseDriver(driver.Driver):
     ):
         utils.validate_cluster(context, cluster)
 
-        if nodegroup is None:
-            nodegroup = cluster.default_ng_worker
-
         if nodes_to_remove:
             machines = objects.Machine.objects(self.k8s_api).filter(
                 namespace="magnum-system",
@@ -260,12 +259,7 @@ class BaseDriver(driver.Driver):
                     ] = "yes"
                     machine.update()
 
-        nodegroup.node_count = node_count
-        nodegroup.save()
-
-        resources.apply_cluster_from_magnum_cluster(
-            context, self.k8s_api, cluster, skip_auto_scaling_release=True
-        )
+        self._update_nodegroup(context, cluster, nodegroup)
 
     @cluster_lock_wrapper
     def upgrade_cluster(
@@ -341,9 +335,28 @@ class BaseDriver(driver.Driver):
         nodegroup: magnum_objects.NodeGroup,
     ):
         utils.validate_nodegroup(nodegroup, context)
-        resources.apply_cluster_from_magnum_cluster(
-            context, self.k8s_api, cluster, skip_auto_scaling_release=True
+
+        cluster_resource: objects.Cluster = objects.Cluster.objects(
+            self.k8s_api, namespace="magnum-system"
+        ).get(name=cluster.stack_id)
+
+        cluster_resource.obj["spec"]["topology"]["workers"][
+            "machineDeployments"
+        ].append(resources.mutate_machine_deployment(context, cluster, nodegroup))
+
+        current_generation = resources.Cluster(
+            context, self.k8s_api, cluster
+        ).get_observed_generation()
+        cluster_resource.update()
+        self.wait_capi_cluster_reconciliation_start(
+            context, cluster, current_generation
         )
+
+        nodegroup.status = fields.ClusterStatus.CREATE_IN_PROGRESS
+        nodegroup.save()
+
+        cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        cluster.save()
 
     def update_nodegroup_status(
         self,
@@ -402,18 +415,53 @@ class BaseDriver(driver.Driver):
         cluster: magnum_objects.Cluster,
         nodegroup: magnum_objects.NodeGroup,
     ):
-        # TODO
+        self._update_nodegroup(context, cluster, nodegroup)
 
-        # NOTE(okozachenko1203): First we save the nodegroup status because update_cluster_status()
-        #                        could be finished before update_nodegroup().
-        nodegroup.save()
+    def _update_nodegroup(
+        self,
+        context,
+        cluster: magnum_objects.Cluster,
+        nodegroup: magnum_objects.NodeGroup,
+    ):
         utils.validate_nodegroup(nodegroup, context)
-        resources.apply_cluster_from_magnum_cluster(
-            context, self.k8s_api, cluster, skip_auto_scaling_release=True
+
+        cluster_resource: objects.Cluster = objects.Cluster.objects(
+            self.k8s_api, namespace="magnum-system"
+        ).get(name=cluster.stack_id)
+
+        machine_deployment_index = None
+        for i, machine_deployment in enumerate(
+            cluster_resource.obj["spec"]["topology"]["workers"]["machineDeployments"]
+        ):
+            if machine_deployment["name"] == nodegroup.name:
+                machine_deployment_index = i
+                break
+
+        if machine_deployment_index is not None:
+            machine_deployment = cluster_resource.obj["spec"]["topology"]["workers"][
+                "machineDeployments"
+            ][machine_deployment_index]
+
+            cluster_resource.obj["spec"]["topology"]["workers"]["machineDeployments"][
+                machine_deployment_index
+            ] = resources.mutate_machine_deployment(
+                context,
+                cluster,
+                nodegroup,
+                machine_deployment,
+            )
+
+        current_generation = resources.Cluster(
+            context, self.k8s_api, cluster
+        ).get_observed_generation()
+        cluster_resource.update()
+        self.wait_capi_cluster_reconciliation_start(
+            context, cluster, current_generation
         )
-        # NOTE(okozachenko1203): We set the cluster status as UPDATE_IN_PROGRESS again at the end because
-        #                        update_cluster_status() could be finished and cluster status has been set as
-        #                        UPDATE_COMPLETE before nodegroup_conductor.Handler.nodegroup_update finished.
+
+        nodegroup.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        nodegroup.save()
+
         cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
         cluster.save()
 
@@ -424,15 +472,36 @@ class BaseDriver(driver.Driver):
         cluster: magnum_objects.Cluster,
         nodegroup: magnum_objects.NodeGroup,
     ):
+        cluster_resource: objects.Cluster = objects.Cluster.objects(
+            self.k8s_api, namespace="magnum-system"
+        ).get(name=cluster.stack_id)
+
+        machine_deployment_index = None
+        for i, machine_deployment in enumerate(
+            cluster_resource.obj["spec"]["topology"]["workers"]["machineDeployments"]
+        ):
+            if machine_deployment["name"] == nodegroup.name:
+                machine_deployment_index = i
+                break
+
+        if machine_deployment_index is not None:
+            del cluster_resource.obj["spec"]["topology"]["workers"][
+                "machineDeployments"
+            ][machine_deployment_index]
+
+        current_generation = resources.Cluster(
+            context, self.k8s_api, cluster
+        ).get_observed_generation()
+        cluster_resource.update()
+        self.wait_capi_cluster_reconciliation_start(
+            context, cluster, current_generation
+        )
+
         nodegroup.status = fields.ClusterStatus.DELETE_IN_PROGRESS
         nodegroup.save()
 
-        resources.apply_cluster_from_magnum_cluster(
-            context,
-            self.k8s_api,
-            cluster,
-            skip_auto_scaling_release=True,
-        )
+        cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        cluster.save()
 
     @cluster_lock_wrapper
     def get_monitor(self, context, cluster: magnum_objects.Cluster):
