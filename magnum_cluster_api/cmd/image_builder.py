@@ -58,7 +58,7 @@ def validate_version(_, __, value):
 @click.option(
     "--image-builder-version",
     show_default=True,
-    default="v0.1.19",
+    default="v0.1.25",
     help="Image builder tag (or commit) to use for building image",
 )
 def main(ctx: click.Context, operating_system, version, image_builder_version):
