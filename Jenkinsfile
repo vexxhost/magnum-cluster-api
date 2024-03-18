@@ -1,58 +1,56 @@
-pipeline {
-    agent none
+def operatingSystems = ['flatcar', 'ubuntu-2204']
+def kubernetesVersions = ['v1.26.11', 'v1.27.8']
 
-    options {
-        disableConcurrentBuilds(abortPrevious: true);
-    }
+def buildNewImage = (env.CHANGE_ID && pullRequest.body.contains('/build-new-images'))
 
-    stages {
-        stage('functional') {
-            matrix {
-                axes {
-                    axis {
-                        name 'OS_DISTRO'
-                        values 'flatcar', 'ubuntu-2204'
+def integrationJobs = [:]
+operatingSystems.each { operatingSystem ->
+    kubernetesVersions.each { kubernetesVersion ->
+        if (buildNewImage) {
+            integrationJobs["${operatingSystem}-${kubernetesVersion}-build-image"] = {
+                node('jammy-16c-64g') {
+                    checkout scm
+
+                    sh 'sudo apt-get install -y jq python3-pip unzip'
+                    sh 'pip install -U setuptools pip'
+                    sh '$HOME/.local/bin/pip3 install -e .'
+
+                    timeout(time: 30, unit: 'MINUTES') {
+                        sh "$HOME/.local/bin/magnum-cluster-api-image-builder --operating-system ${operatingSystem} --version ${kubernetesVersion}"
                     }
 
-                    axis {
-                        name 'KUBE_TAG'
-                        values 'v1.26.11', 'v1.27.8'
-                    }
+                    stash name: "${operatingSystem}-kube-${kubernetesVersion}.qcow2", includes: "${operatingSystem}-kube-${kubernetesVersion}.qcow2"
                 }
+            }
+        }
 
-                agent {
-                    label 'jammy-16c-64g'
-                }
+        integrationJobs["${operatingSystem}-${kubernetesVersion}-run-sonobuoy"] = {
+            node('jammy-16c-64g') {
+                checkout scm
 
-                stages {
-                    stage('sonobuoy') {
-                        steps {
-                            sh './hack/stack.sh'
+                sh './hack/stack.sh'
 
-                            // TODO: Wait for built artifacts
-                            // TODO: Download built image
-
-                            script {
-                                env.KUBE_TAG = "${KUBE_TAG}"
-                                env.NODE_COUNT = 2
-                                env.OS_DISTRO = "${OS_DISTRO}"
-
-                                // if (pullRequest.body.contains('/build-new-image')) {
-                                //     env.BUILD_NEW_IMAGE = 'true'
-                                // }
-
-                                sh './hack/run-functional-tests.sh'
-                            }
-                        }
+                // TODO(mnaser): Change this logic to wait for the actual job properly
+                if (buildNewImage) {
+                    retry(count: 30) {
+                        sleep 60
+                        unstash "${operatingSystem}-kube-${kubernetesVersion}.qcow2"
                     }
                 }
 
-                post {
-                    always {
-                        archiveArtifacts artifacts: 'sonobuoy-results.tar.gz', allowEmptyArchive: true
-                    }
+                withEnv([
+                    "KUBE_TAG=${kubernetesVersion}",
+                    "OS_DISTRO=${operatingSystem}",
+                    "NODE_COUNT=2",
+                    "BUILD_NEW_IMAGE=${buildNewImage}"
+                ]) {
+                    sh './hack/run-functional-tests.sh'
                 }
+
+                archiveArtifacts artifacts: 'sonobuoy-results.tar.gz'
             }
         }
     }
 }
+
+parallel integrationJobs

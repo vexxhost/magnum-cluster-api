@@ -20,6 +20,7 @@ import tarfile
 import tempfile
 import textwrap
 import zlib
+from os.path import expanduser
 from pathlib import Path
 
 import click
@@ -232,6 +233,7 @@ def main(ctx: click.Context, operating_system, version, image_builder_version):
             env={
                 **os.environ,
                 **{
+                    "PATH": f"{expanduser('~/.local/bin')}:{os.environ['PATH']}",
                     "PACKER_VAR_FILES": fp.name,
                 },
             },
