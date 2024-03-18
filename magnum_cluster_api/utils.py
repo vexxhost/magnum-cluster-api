@@ -208,6 +208,48 @@ def generate_containerd_config(
     ).format(sandbox_image=sandbox_image)
 
 
+def generate_systemd_proxy_config(cluster: magnum_objects.Cluster):
+    if (
+        cluster.cluster_template.http_proxy is not None
+        or cluster.cluster_template.https_proxy is not None
+    ):
+        return textwrap.dedent(
+            """\
+            [Service]
+            Environment="http_proxy={http_proxy}"
+            Environment="HTTP_PROXY={http_proxy}"
+            Environment="https_proxy={https_proxy}"
+            Environment="HTTPS_PROXY={https_proxy}"
+            Environment="no_proxy={no_proxy}"
+            Environment="NO_PROXY={no_proxy}"
+            """
+        ).format(
+            http_proxy=cluster.cluster_template.http_proxy,
+            https_proxy=cluster.cluster_template.https_proxy,
+            no_proxy=cluster.cluster_template.no_proxy,
+        )
+    else:
+        return ""
+
+
+def generate_apt_proxy_config(cluster: magnum_objects.Cluster):
+    if (
+        cluster.cluster_template.http_proxy is not None
+        or cluster.cluster_template.https_proxy is not None
+    ):
+        return textwrap.dedent(
+            """\
+            Acquire::http::Proxy "{http_proxy}";
+            Acquire::https::Proxy "{https_proxy}";
+            """
+        ).format(
+            http_proxy=cluster.cluster_template.http_proxy,
+            https_proxy=cluster.cluster_template.https_proxy,
+        )
+    else:
+        return ""
+
+
 def get_node_group_label(
     context: context.RequestContext,
     node_group: magnum_objects.NodeGroup,
