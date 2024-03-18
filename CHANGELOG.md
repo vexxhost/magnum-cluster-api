@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.14.1...v0.14.2) (2024-03-17)
+
+
+### Bug Fixes
+
+* stop unexpected rollouts ([#324](https://github.com/vexxhost/magnum-cluster-api/issues/324)) ([78f8a02](https://github.com/vexxhost/magnum-cluster-api/commit/78f8a02691b5dc25dd82d0747d8050bf85b9ede4))
+
 ## [0.14.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.14.0...v0.14.1) (2024-03-14)
 
 
