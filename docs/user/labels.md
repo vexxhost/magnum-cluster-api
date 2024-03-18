@@ -23,6 +23,22 @@ specify the volume size and type using the following labels:
 :   The volume type of the boot volume.
     **Default value**: `[cinder]/default_boot_volume_type` from Magnum configuration.
 
+`enableEtcdVolume`
+
+:   Enable the use of a separate volume for the etcd data.
+    **Default value**: `false`
+
+`etcdVolumeSize`
+
+:   The size in gigabytes of the etcd volume.
+    **Default value**: `0`
+
+`etcdVolumeType`
+
+:   The volume type of the etcd volume.
+    **Default value**: `[cinder]/default_volume_type` from Magnum configuration.
+
+
 !!! note
 
     Volume labels cannot be changed once the cluster is deployed.  However, you
