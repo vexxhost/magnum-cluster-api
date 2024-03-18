@@ -50,6 +50,7 @@ magnum-cluster-api-proxy = "magnum_cluster_api.cmd.proxy:main"
 "k8s_cluster_api_ubuntu" = "magnum_cluster_api.driver:UbuntuDriver"
 "k8s_cluster_api_ubuntu_focal" = "magnum_cluster_api.driver:UbuntuFocalDriver"
 "k8s_cluster_api_flatcar" = "magnum_cluster_api.driver:FlatcarDriver"
+"k8s_cluster_api_rockylinux" = "magnum_cluster_api.driver:RockyLinuxDriver"
 
 [tool.isort]
 profile = "black"

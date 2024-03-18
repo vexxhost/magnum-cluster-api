@@ -543,3 +543,11 @@ class FlatcarDriver(BaseDriver):
         return [
             {"server_type": "vm", "os": "flatcar", "coe": "kubernetes"},
         ]
+
+
+class RockyLinuxDriver(BaseDriver):
+    @property
+    def provides(self):
+        return [
+            {"server_type": "vm", "os": "rockylinux", "coe": "kubernetes"},
+        ]
