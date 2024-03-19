@@ -226,9 +226,9 @@ class ProxyManager(periodic_task.PeriodicTasks):
 
             # NOTE(mnaser): We always update the annotations since it contains the timestamp
             #               which we need for liveness.
-            endpoint_slice.metadata["annotations"] = (
-                proxied_cluster.endpoint_slice_annotations
-            )
+            endpoint_slice.metadata[
+                "annotations"
+            ] = proxied_cluster.endpoint_slice_annotations
             endpoint_slice.update()
 
             if (
@@ -247,9 +247,9 @@ class ProxyManager(periodic_task.PeriodicTasks):
                         endpoint_slice.labels,
                         proxied_cluster.endpoint_slice_labels,
                     )
-                    endpoint_slice.metadata["labels"] = (
-                        proxied_cluster.endpoint_slice_labels
-                    )
+                    endpoint_slice.metadata[
+                        "labels"
+                    ] = proxied_cluster.endpoint_slice_labels
 
                 if (
                     endpoint_slice.obj["endpoints"]
@@ -260,9 +260,9 @@ class ProxyManager(periodic_task.PeriodicTasks):
                         endpoint_slice.obj["endpoints"],
                         proxied_cluster.endpoint_slice_endpoints,
                     )
-                    endpoint_slice.obj["endpoints"] = (
-                        proxied_cluster.endpoint_slice_endpoints
-                    )
+                    endpoint_slice.obj[
+                        "endpoints"
+                    ] = proxied_cluster.endpoint_slice_endpoints
 
                 if endpoint_slice.obj["ports"] != endpoint_slice_ports:
                     LOG.info(
