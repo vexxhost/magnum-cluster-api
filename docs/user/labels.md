@@ -15,13 +15,26 @@ specify the volume size and type using the following labels:
 
 `boot_volume_size`
 
-:   The size in gigabytes of the boot volume.
-    **Default value**: `[cinder]/default_boot_volume_size` from Magnum configuration.
+:   The size in gigabytes of the boot volume.  If you set this value, it will
+    enable boot from volume.
+    **Default value**: Unset
 
 `boot_volume_type`
 
 :   The volume type of the boot volume.
-    **Default value**: `[cinder]/default_boot_volume_type` from Magnum configuration.
+    **Default value**: Default volume 
+
+`etcd_volume_size`
+
+:   The size in gigabytes of the `etcd` volume.  If you set this value, it will
+    create a volume for `etcd` specifically and mount it on the system.
+    **Default value**: Unset
+
+`etcd_volume_type`
+
+:   The volume type of the `etcd` volume, this can be useful if you want to use an
+    encrypted or high performance volume type.
+    **Default value**: None
 
 !!! note
 

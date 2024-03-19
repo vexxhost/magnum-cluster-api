@@ -1,5 +1,5 @@
-def operatingSystems = ['flatcar', 'ubuntu-2204']
-def kubernetesVersions = ['v1.26.11', 'v1.27.8']
+def operatingSystems = ['flatcar', 'ubuntu-2204', 'rockylinux-8', 'rockylinux-9']
+def kubernetesVersions = ['v1.27.8']
 
 def buildNewImage = (env.CHANGE_ID && pullRequest.body.contains('/build-new-images'))
 
