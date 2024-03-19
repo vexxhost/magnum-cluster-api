@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.15.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.14.2...v0.15.0) (2024-03-19)
+
+
+### Features
+
+* RockyLinux 8/9 support ([#326](https://github.com/vexxhost/magnum-cluster-api/issues/326)) ([2a53f3e](https://github.com/vexxhost/magnum-cluster-api/commit/2a53f3e340524deee3ddbf08b41071fba070d7d3))
+
+
+### Bug Fixes
+
+* add k8s-keystone-auth to image ([0c6ca67](https://github.com/vexxhost/magnum-cluster-api/commit/0c6ca67d5a98f0d404d9dd28b3bfb9e443c937be))
+* fix jsonpatch for preKubeadmCommands ([#331](https://github.com/vexxhost/magnum-cluster-api/issues/331)) ([6fcf823](https://github.com/vexxhost/magnum-cluster-api/commit/6fcf823e8e71a807d90f91db5b59dd2a748daad0))
+
+
+### Documentation
+
+* add etcd_volume_{size,type} docs ([3f1a636](https://github.com/vexxhost/magnum-cluster-api/commit/3f1a636cb70f5a6aa41178945b71cb18e2729661))
+
 ## [0.14.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.14.1...v0.14.2) (2024-03-17)
 
 
