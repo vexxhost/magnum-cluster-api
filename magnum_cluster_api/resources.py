@@ -1691,7 +1691,9 @@ class ClusterClass(Base):
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/controlPlaneAvailabilityZones",
-                                            "valueFrom": {"variable": "controlPlaneAvailabilityZones"},
+                                            "valueFrom": {
+                                                "variable": "controlPlaneAvailabilityZones"
+                                            },
                                         },
                                     ],
                                 },
@@ -2601,9 +2603,7 @@ class Cluster(ClusterBase):
                                 "name": "controlPlaneAvailabilityZones",
                                 "value": utils.get_cluster_label(
                                     self.cluster, "control_plane_availability_zones", ""
-                                    ).split(
-                                        ","
-                                ),
+                                ).split(","),
                             },
                         ],
                     },
