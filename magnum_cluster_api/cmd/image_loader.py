@@ -44,6 +44,9 @@ VERSIONS = [
     "v1.26.11",
     "v1.27.3",
     "v1.27.8",
+    "v1.27.11",
+    "v1.28.7",
+    "v1.29.2",
 ]
 
 
@@ -206,6 +209,7 @@ def _get_cloud_provider_images():
         "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.28.0",
         # v1.29.0
         "registry.k8s.io/provider-os/k8s-keystone-auth:v1.29.0",
+        "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.29.0",
     ]
 
 
