@@ -257,7 +257,7 @@ class BaseDriver(driver.Driver):
                     machine.obj["metadata"]["annotations"][
                         "cluster.x-k8s.io/delete-machine"
                     ] = "yes"
-                    machine.update()
+                    utils.kube_apply_patch(machine)
 
         self._update_nodegroup(context, cluster, nodegroup)
 
@@ -347,7 +347,8 @@ class BaseDriver(driver.Driver):
         current_generation = resources.Cluster(
             context, self.k8s_api, cluster
         ).get_observed_generation()
-        cluster_resource.update()
+        utils.kube_apply_patch(cluster_resource)
+
         self.wait_capi_cluster_reconciliation_start(
             context, cluster, current_generation
         )
@@ -454,7 +455,7 @@ class BaseDriver(driver.Driver):
         current_generation = resources.Cluster(
             context, self.k8s_api, cluster
         ).get_observed_generation()
-        cluster_resource.update()
+        utils.kube_apply_patch(cluster_resource)
         self.wait_capi_cluster_reconciliation_start(
             context, cluster, current_generation
         )
@@ -492,7 +493,7 @@ class BaseDriver(driver.Driver):
         current_generation = resources.Cluster(
             context, self.k8s_api, cluster
         ).get_observed_generation()
-        cluster_resource.update()
+        utils.kube_apply_patch(cluster_resource)
         self.wait_capi_cluster_reconciliation_start(
             context, cluster, current_generation
         )

@@ -467,3 +467,20 @@ def get_keystone_auth_default_policy(cluster: magnum_objects.Cluster):
             return json.loads(f.read())
     except Exception:
         return default_policy
+
+def kube_apply_patch(resource):
+    resp = resource.api.patch(
+        **resource.api_kwargs(
+            headers={
+                "Content-Type": "application/apply-patch+yaml",
+            },
+            params={
+                "fieldManager": "atmosphere-operator",
+                "force": True,
+            },
+            data=json.dumps(resource.obj),
+        )
+    )
+
+    resource.api.raise_for_status(resp)
+    resource.set_obj(resp.json())
