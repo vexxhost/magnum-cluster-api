@@ -42,7 +42,7 @@ class TestDriver:
         self.mock_cluster_objects.return_value.get.assert_called_once_with(
             name=self.cluster.stack_id
         )
-        self.mock_cluster_resource.update.assert_called_once()
+        self.mock_cluster_resource.api.patch.assert_called_once()
         self.mock_wait_capi_cluster_reconciliation_start.assert_called_once()
 
     def _assert_node_group_status(self, expected_status):
