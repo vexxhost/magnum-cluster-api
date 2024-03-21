@@ -67,6 +67,9 @@ class TestDriver:
             "magnum_cluster_api.resources.mutate_machine_deployment"
         )
 
+        # NOTE(okozachenko1203): We need to mock `json.dumps` because MagicMock is not JSON serializable
+        mocker.patch("json.dumps", return_value="mocked_json_string")
+
         ubuntu_driver.create_nodegroup(context, self.cluster, self.node_group)
 
         mock_mutate_machine_deployment.assert_called_once_with(
@@ -98,6 +101,9 @@ class TestDriver:
         mock_mutate_machine_deployment = mocker.patch(
             "magnum_cluster_api.resources.mutate_machine_deployment"
         )
+
+        # NOTE(okozachenko1203): We need to mock `json.dumps` because MagicMock is not JSON serializable
+        mocker.patch("json.dumps", return_value="mocked_json_string")
 
         ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
 
@@ -141,6 +147,9 @@ class TestDriver:
             "magnum_cluster_api.resources.mutate_machine_deployment"
         )
 
+        # NOTE(okozachenko1203): We need to mock `json.dumps` because MagicMock is not JSON serializable
+        mocker.patch("json.dumps", return_value="mocked_json_string")
+
         ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
 
         assert not mock_machine_deployment.called
@@ -183,6 +192,9 @@ class TestDriver:
                 }
             },
         }
+
+        # NOTE(okozachenko1203): We need to mock `json.dumps` because MagicMock is not JSON serializable
+        mocker.patch("json.dumps", return_value="mocked_json_string")
 
         ubuntu_driver.delete_nodegroup(context, self.cluster, self.node_group)
 
