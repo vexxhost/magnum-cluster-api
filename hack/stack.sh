@@ -92,9 +92,8 @@ EOF
 # Start DevStack deployment
 /opt/stack/stack.sh
 
-# Install `kubectl` CLI
-curl -Lo /tmp/kubectl "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
+# Install "kubectl"
+./hack/setup-kubectl.sh
 
 # Install Helm
 ./hack/setup-helm.sh

@@ -13,7 +13,12 @@ jobs['unit'] = {
         sh 'sudo pip install poetry'
         
         sh 'poetry install'
-        sh 'poetry run pytest magnum_cluster_api/tests/unit'
+
+        try {
+            sh 'poetry run pytest --junitxml=junit.xml magnum_cluster_api/tests/unit'
+        } finally {
+            junit 'junit.xml', allowEmptyResults: true
+        }
     }
 }
 
@@ -26,12 +31,17 @@ jobs['functional'] = {
         
         sh 'poetry install'
 
+        sh './hack/setup-kubectl.sh'
         sh './hack/setup-helm.sh'
         sh './hack/setup-docker.sh'
         sh './hack/setup-kind.sh'
         sh './hack/setup-capo.sh'
 
-        sh 'poetry run pytest magnum_cluster_api/tests/functional'
+        try {
+            sh 'poetry run pytest --junitxml=junit.xml magnum_cluster_api/tests/functional'
+        } finally {
+            junit 'junit.xml', allowEmptyResults: true
+        }
     }
 }
 
