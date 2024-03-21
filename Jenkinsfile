@@ -10,11 +10,10 @@ jobs['unit'] = {
         checkout scm
 
         sh 'sudo apt-get install -y pipx'
-        sh 'pipx ensurepath'
         sh 'pipx install poetry'
         
-        sh 'poetry install'
-        sh 'poetry run pytest magnum_cluster_api/tests/unit'
+        sh '$HOME/.local/bin/poetry install'
+        sh '$HOME/.local/bin/poetry run pytest magnum_cluster_api/tests/unit'
     }
 }
 
@@ -26,14 +25,14 @@ jobs['functional'] = {
         sh 'pipx ensurepath'
         sh 'pipx install poetry'
         
-        sh 'poetry install'
+        sh '$HOME/.local/bin/poetry install'
 
         sh './hack/setup-helm.sh'
         sh './hack/setup-docker.sh'
         sh './hack/setup-kind.sh'
         sh './hack/setup-capo.sh'
 
-        sh 'poetry run pytest magnum_cluster_api/tests/functional'
+        sh '$HOME/.local/bin/poetry run pytest magnum_cluster_api/tests/functional'
     }
 }
 
@@ -85,5 +84,9 @@ operatingSystems.each { operatingSystem ->
         }
     }
 }
+
+properties([
+    disableConcurrentBuilds(abortPrevious: true)
+])
 
 parallel jobs
