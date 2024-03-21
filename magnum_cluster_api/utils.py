@@ -468,6 +468,7 @@ def get_keystone_auth_default_policy(cluster: magnum_objects.Cluster):
     except Exception:
         return default_policy
 
+
 def kube_apply_patch(resource):
     resp = resource.api.patch(
         **resource.api_kwargs(
