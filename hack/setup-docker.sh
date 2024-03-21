@@ -1,4 +1,6 @@
-# Copyright (c) 2023 VEXXHOST, Inc.
+#!/bin/bash -xe
+
+# Copyright (c) 2024 VEXXHOST, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -12,8 +14,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from magnum.objects import fields
+# Install Docker
+curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+sudo sh /tmp/get-docker.sh
+sudo usermod -aG docker $USER
 
-
-# def test_create_cluster(cluster):
-#     assert cluster.status == fields.ClusterStatus.CREATE_COMPLETE
+# Docker tinks with firewalls
+sudo iptables -I DOCKER-USER -j ACCEPT

@@ -251,12 +251,11 @@ def generate_apt_proxy_config(cluster: magnum_objects.Cluster):
 
 
 def get_node_group_label(
-    context: context.RequestContext,
+    cluster: magnum_objects.Cluster,
     node_group: magnum_objects.NodeGroup,
     key: str,
     default: str,
 ) -> str:
-    cluster = magnum_objects.Cluster.get_by_uuid(context, node_group.cluster_id)
     return node_group.labels.get(key, get_cluster_label(cluster, key, default))
 
 
@@ -270,12 +269,12 @@ def get_node_group_min_node_count(
 
 
 def get_node_group_max_node_count(
-    context: context.RequestContext,
+    cluster: magnum_objects.Cluster,
     node_group: magnum_objects.NodeGroup,
 ) -> int:
     if node_group.max_node_count is None:
         return get_node_group_label_as_int(
-            context,
+            cluster,
             node_group,
             "max_node_count",
             get_node_group_min_node_count(node_group) + 1,
@@ -296,12 +295,12 @@ def get_cluster_template_label(
 
 
 def get_node_group_label_as_int(
-    context: context.RequestContext,
+    cluster: magnum_objects.Cluster,
     node_group: magnum_objects.NodeGroup,
     key: str,
     default: int,
 ) -> int:
-    value = get_node_group_label(context, node_group, key, default)
+    value = get_node_group_label(cluster, node_group, key, str(default))
     return strutils.validate_integer(value, key)
 
 
@@ -472,6 +471,8 @@ def get_keystone_auth_default_policy(cluster: magnum_objects.Cluster):
 def kube_apply_patch(resource):
     if "metadata" in resource.obj:
         resource.obj["metadata"]["managedFields"] = None
+
+    print(resource.obj)
 
     resp = resource.api.patch(
         **resource.api_kwargs(

@@ -13,14 +13,27 @@
 # under the License.
 
 import os
+from datetime import datetime, timedelta
+from unittest import mock
 
 import openstack
 import pytest
-import shortuuid
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from magnum.objects import fields
-from tenacity import TryAgain, retry, stop_after_delay, wait_fixed
+from oslo_utils import uuidutils  # type: ignore
 
 openstack.enable_logging(debug=True)
+
+
+@pytest.fixture(scope="session")
+def image():
+    return {
+        "id": uuidutils.generate_uuid(),
+        "os_distro": "ubuntu",
+    }
 
 
 @pytest.fixture(scope="session")
@@ -28,77 +41,172 @@ def kube_tag():
     return os.getenv("KUBE_TAG", "v1.25.3")
 
 
-@pytest.fixture(scope="session")
-def conn():
-    return openstack.connect(cloud="envvars")
+@pytest.fixture()
+def cluster_template(mocker, kube_tag, image):
+    cluster_template = mocker.MagicMock()
 
+    cluster_template.image_id = image["id"]
 
-@pytest.fixture(scope="session")
-def image(conn, kube_tag):
-    image_name = os.getenv("CAPI_IMAGE_NAME", f"ubuntu-2204-kube-{kube_tag}")
-    return conn.image.find_image(image_name)
+    cluster_template.master_lb_enabled = True
+    cluster_template.external_network_id = uuidutils.generate_uuid()
+    cluster_template.dns_nameserver = "8.8.8.8"
 
+    cluster_template.master_flavor_id = uuidutils.generate_uuid()
+    cluster_template.flavor_id = uuidutils.generate_uuid()
 
-@pytest.fixture(scope="session")
-def cluster_template(conn, image, kube_tag):
-    cluster_template = conn.container_infra.create_cluster_template(
-        name="k8s-%s" % shortuuid.uuid(),
-        image_id=image.id,
-        external_network_id="public",
-        dns_nameserver="8.8.8.8",
-        master_lb_enabled=True,
-        master_flavor_id="m1.medium",
-        flavor_id="m1.medium",
-        network_driver="calico",
-        docker_storage_driver="overlay2",
-        coe="kubernetes",
-        labels={
-            "kube_tag": kube_tag,
-            # NOTE(mnaser): GitHub actions uses 10.0.0.0/22 for it's network
-            #               and we need to make sure we don't overlap with it.
-            "fixed_subnet_cidr": "192.168.24.0/24",
-        },
-    )
+    cluster_template.labels = {
+        "kube_tag": kube_tag,
+    }
 
-    yield cluster_template
-
-    conn.container_infra.delete_cluster_template(cluster_template)
+    return cluster_template
 
 
 @pytest.fixture()
-def cluster(conn, cluster_template):
-    def is_none_p(value):
-        return value is None
+def node_group_obj(mocker, cluster_template):
+    node_group = mocker.MagicMock()
+    node_group.name = "default-worker"
+    node_group.role = "worker"
+    node_group.node_count = 1
+    node_group.flavor_id = cluster_template.flavor_id
+    node_group.image_id = cluster_template.image_id
+    node_group.labels = {}
+    node_group.status = fields.ClusterStatus.CREATE_IN_PROGRESS
 
-    @retry(
-        stop=stop_after_delay(600),
-        wait=wait_fixed(1),
+    return node_group
+
+
+@pytest.fixture()
+def cluster_obj(mocker, cluster_template, node_group_obj):
+    cluster = mocker.MagicMock()
+    cluster.project_id = uuidutils.generate_uuid()
+    cluster.uuid = uuidutils.generate_uuid()
+    cluster.fixed_network = None
+    cluster.fixed_subnet = None
+    cluster.keypair = None
+    cluster.labels = {}
+
+    cluster.cluster_template = cluster_template
+    cluster.master_lb_enabled = cluster_template.master_lb_enabled
+    cluster.master_flavor_id = cluster_template.master_flavor_id
+    cluster.flavor_id = cluster_template.flavor_id
+
+    cluster.master_count = 1
+
+    cluster.default_ng_master.image_id = cluster_template.image_id
+    cluster.nodegroups = [node_group_obj]
+
+    return cluster
+
+
+@pytest.fixture(scope="session")
+def mock_osc(session_mocker, image):
+    mock_clients = session_mocker.patch(
+        "magnum_cluster_api.clients.OpenStackClients"
+    ).return_value
+
+    # NOTE(mnaser): Since there are reference in the Magnum code to the
+    #               OpenStackClients, we need to make sure we mock it
+    #               in the Magnum code as well.
+    session_mocker.patch(
+        "magnum.common.clients.OpenStackClients",
+        return_value=mock_clients,
     )
-    def wait_for_cluster_status(cluster, target_cluster_status):
-        try:
-            cluster = conn.container_infra.get_cluster(cluster.id)
-        except openstack.exceptions.ResourceNotFound:
-            if target_cluster_status == fields.ClusterStatus.DELETE_COMPLETE:
-                return
-            raise TryAgain()
 
-        if "FAILED" in cluster.status:
-            raise Exception(cluster.status_reason)
-        if target_cluster_status == cluster.status:
-            return cluster
-
-        raise TryAgain()
-
-    cluster = conn.container_infra.create_cluster(
-        name="k8s-%s" % shortuuid.uuid(),
-        cluster_template_id=cluster_template.id,
-        master_count=1,
-        node_count=1,
+    # Keystone
+    mock_keystone_client = mock_clients.keystone.return_value.client
+    mock_keystone_client.application_credentials.create.return_value = (
+        openstack.identity.v3.application_credential.ApplicationCredential(
+            id="fake_id", secret="fake_secret"
+        )
     )
-    wait_for_cluster_status(cluster, fields.ClusterStatus.CREATE_COMPLETE)
-    cluster = conn.container_infra.get_cluster(cluster.id)
 
-    yield cluster
+    # Glance
+    mock_glance_client = mock_clients.glance.return_value
+    mock_glance_client.images.get.return_value = image
 
-    conn.container_infra.delete_cluster(cluster.id)
-    wait_for_cluster_status(cluster, fields.ClusterStatus.DELETE_COMPLETE)
+    # Cinder
+    mock_cinder_client = mock_clients.cinder.return_value
+    mock_cinder_client.volume_types.default.return_value.name = "__DEFAULT__"
+    mock_clients.cinder_region_name.return_value = "RegionOne"
+
+    # Others
+    mock_clients.url_for.return_value = "http://fake_url"
+
+    return mock_clients
+
+
+@pytest.fixture(scope="session")
+def mock_certificate() -> mock.MagicMock:
+    key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+    )
+
+    cert: x509.Certificate = (
+        x509.CertificateBuilder()
+        .subject_name(x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, "test")]))
+        .issuer_name(x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, "test")]))
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.now())
+        .not_valid_after(datetime.now() + timedelta(days=365))
+        .sign(key, hashes.SHA256(), default_backend())
+    )
+
+    fake_certificate = mock.MagicMock()
+    fake_certificate.get_certificate.return_value = cert.public_bytes(
+        serialization.Encoding.PEM
+    )
+    fake_certificate.get_private_key_passphrase.return_value = "fake_passphrase"
+    fake_certificate.get_private_key.return_value = key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.BestAvailableEncryption(
+            fake_certificate.get_private_key_passphrase.return_value.encode("utf-8")
+        ),
+    )
+
+    return fake_certificate
+
+
+@pytest.fixture(scope="session")
+def mock_get_cluster_ca_certificate(session_mocker, mock_certificate) -> mock.MagicMock:
+    mock_get_cluster_ca_certificate = session_mocker.patch(
+        "magnum.conductor.handlers.common.cert_manager.get_cluster_ca_certificate"
+    )
+    mock_get_cluster_ca_certificate.return_value = mock_certificate
+
+    return mock_get_cluster_ca_certificate
+
+
+@pytest.fixture(scope="session")
+def mock_get_cluster_magnum_cert(session_mocker, mock_certificate) -> mock.MagicMock:
+    mock_get_cluster_ca_certificate = session_mocker.patch(
+        "magnum.conductor.handlers.common.cert_manager.get_cluster_magnum_cert"
+    )
+    mock_get_cluster_ca_certificate.return_value = mock_certificate
+
+    return mock_get_cluster_ca_certificate
+
+
+@pytest.fixture(scope="session")
+def mock_certificates(mock_get_cluster_ca_certificate, mock_get_cluster_magnum_cert):
+    pass
+
+
+@pytest.fixture
+def cluster(
+    context,
+    cluster_obj,
+    ubuntu_driver,
+    mock_validate_cluster,
+    mock_osc,
+    mock_certificates,
+):
+    try:
+        ubuntu_driver.create_cluster(context, cluster_obj, 60)
+        ubuntu_driver.wait_capi_cluster_reconciliation_start(context, cluster_obj, 1)
+
+        yield cluster_obj
+    finally:
+        ubuntu_driver.delete_cluster(context, cluster_obj)

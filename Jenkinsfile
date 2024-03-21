@@ -3,11 +3,42 @@ def kubernetesVersions = ['v1.27.8']
 
 def buildNewImage = (env.CHANGE_ID && pullRequest.body.contains('/build-new-images'))
 
-def integrationJobs = [:]
+def jobs = [:]
+
+jobs['unit'] = {
+    node('jammy-2c-8g') {
+        checkout scm
+
+        sh 'sudo apt-get install -y pipx'
+        sh 'pipx install poetry'
+        
+        sh 'poetry install'
+        sh 'poetry run pytest magnum_cluster_api/tests/unit'
+    }
+}
+
+jobs['functional'] = {
+    node('jammy-2c-8g') {
+        checkout scm
+
+        sh 'sudo apt-get install -y pipx'
+        sh 'pipx install poetry'
+        
+        sh 'poetry install'
+
+        sh './hack/setup-helm.sh'
+        sh './hack/setup-docker.sh'
+        sh './hack/setup-kind.sh'
+        sh './hack/setup-capo.sh'
+
+        sh 'poetry run pytest magnum_cluster_api/tests/functional'
+    }
+}
+
 operatingSystems.each { operatingSystem ->
     kubernetesVersions.each { kubernetesVersion ->
         if (buildNewImage) {
-            integrationJobs["${operatingSystem}-${kubernetesVersion}-build-image"] = {
+            jobs["${operatingSystem}-${kubernetesVersion}-build-image"] = {
                 node('jammy-16c-64g') {
                     checkout scm
 
@@ -24,7 +55,7 @@ operatingSystems.each { operatingSystem ->
             }
         }
 
-        integrationJobs["${operatingSystem}-${kubernetesVersion}-run-sonobuoy"] = {
+        jobs["${operatingSystem}-${kubernetesVersion}-run-sonobuoy"] = {
             node('jammy-16c-64g') {
                 checkout scm
 
@@ -53,4 +84,4 @@ operatingSystems.each { operatingSystem ->
     }
 }
 
-parallel integrationJobs
+parallel jobs
