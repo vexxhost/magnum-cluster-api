@@ -472,8 +472,6 @@ def kube_apply_patch(resource):
     if "metadata" in resource.obj:
         resource.obj["metadata"]["managedFields"] = None
 
-    print(resource.obj)
-
     resp = resource.api.patch(
         **resource.api_kwargs(
             headers={

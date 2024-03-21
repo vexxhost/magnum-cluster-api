@@ -10,6 +10,7 @@ jobs['unit'] = {
         checkout scm
 
         sh 'sudo apt-get install -y pipx'
+        sh 'pipx ensurepath'
         sh 'pipx install poetry'
         
         sh 'poetry install'
@@ -22,6 +23,7 @@ jobs['functional'] = {
         checkout scm
 
         sh 'sudo apt-get install -y pipx'
+        sh 'pipx ensurepath'
         sh 'pipx install poetry'
         
         sh 'poetry install'
