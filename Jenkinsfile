@@ -9,11 +9,11 @@ jobs['unit'] = {
     node('jammy-2c-8g') {
         checkout scm
 
-        sh 'sudo apt-get install -y pipx'
-        sh 'pipx install poetry'
+        sh 'sudo apt-get install -y python3-pip'
+        sh 'sudo pip install poetry'
         
-        sh '$HOME/.local/bin/poetry install'
-        sh '$HOME/.local/bin/poetry run pytest magnum_cluster_api/tests/unit'
+        sh 'poetry install'
+        sh 'poetry run pytest magnum_cluster_api/tests/unit'
     }
 }
 
@@ -21,18 +21,17 @@ jobs['functional'] = {
     node('jammy-2c-8g') {
         checkout scm
 
-        sh 'sudo apt-get install -y pipx'
-        sh 'pipx ensurepath'
-        sh 'pipx install poetry'
+        sh 'sudo apt-get install -y python3-pip'
+        sh 'sudo pip install poetry'
         
-        sh '$HOME/.local/bin/poetry install'
+        sh 'poetry install'
 
         sh './hack/setup-helm.sh'
         sh './hack/setup-docker.sh'
         sh './hack/setup-kind.sh'
         sh './hack/setup-capo.sh'
 
-        sh '$HOME/.local/bin/poetry run pytest magnum_cluster_api/tests/functional'
+        sh 'poetry run pytest magnum_cluster_api/tests/functional'
     }
 }
 
