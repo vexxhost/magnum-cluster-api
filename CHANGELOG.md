@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.15.0...v0.15.1) (2024-03-22)
+
+
+### Bug Fixes
+
+* use apply patch strategy for kube api resource update ([904abff](https://github.com/vexxhost/magnum-cluster-api/commit/904abff90ec5c0b89c25f1f8f3912abd3e7a049e))
+
 ## [0.15.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.14.2...v0.15.0) (2024-03-19)
 
 
