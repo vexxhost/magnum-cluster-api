@@ -178,6 +178,15 @@ class Cluster(NamespacedAPIObject):
     ) -> "Cluster":
         return cls.objects(api, namespace="magnum-system").get(name=cluster.stack_id)
 
+    def get_machine_deployment_index(self, name: str) -> int:
+        for i, machine_deployment in enumerate(
+            self.obj["spec"]["topology"]["workers"]["machineDeployments"]
+        ):
+            if machine_deployment["name"] == name:
+                return i
+
+        raise exceptions.MachineDeploymentNotFound(name=name)
+
     @property
     def openstack_cluster(self):
         filtered_clusters = (

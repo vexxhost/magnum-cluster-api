@@ -425,27 +425,21 @@ class BaseDriver(driver.Driver):
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 
-        machine_deployment_index = None
-        for i, machine_deployment in enumerate(
-            cluster_resource.obj["spec"]["topology"]["workers"]["machineDeployments"]
-        ):
-            if machine_deployment["name"] == nodegroup.name:
-                machine_deployment_index = i
-                break
+        machine_deployment_index = cluster_resource.get_machine_deployment_index(
+            nodegroup.name
+        )
+        machine_deployment = cluster_resource.obj["spec"]["topology"]["workers"][
+            "machineDeployments"
+        ][machine_deployment_index]
 
-        if machine_deployment_index is not None:
-            machine_deployment = cluster_resource.obj["spec"]["topology"]["workers"][
-                "machineDeployments"
-            ][machine_deployment_index]
-
-            cluster_resource.obj["spec"]["topology"]["workers"]["machineDeployments"][
-                machine_deployment_index
-            ] = resources.mutate_machine_deployment(
-                context,
-                cluster,
-                nodegroup,
-                machine_deployment,
-            )
+        cluster_resource.obj["spec"]["topology"]["workers"]["machineDeployments"][
+            machine_deployment_index
+        ] = resources.mutate_machine_deployment(
+            context,
+            cluster,
+            nodegroup,
+            machine_deployment,
+        )
 
         current_generation = resources.Cluster(
             context, self.k8s_api, cluster
@@ -470,18 +464,18 @@ class BaseDriver(driver.Driver):
     ):
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 
-        machine_deployment_index = None
-        for i, machine_deployment in enumerate(
-            cluster_resource.obj["spec"]["topology"]["workers"]["machineDeployments"]
-        ):
-            if machine_deployment["name"] == nodegroup.name:
-                machine_deployment_index = i
-                break
+        try:
+            machine_deployment_index = cluster_resource.get_machine_deployment_index(
+                nodegroup.name
+            )
+        except exceptions.MachineDeploymentNotFound:
+            nodegroup.status = fields.ClusterStatus.DELETE_COMPLETE
+            nodegroup.save()
+            return
 
-        if machine_deployment_index is not None:
-            del cluster_resource.obj["spec"]["topology"]["workers"][
-                "machineDeployments"
-            ][machine_deployment_index]
+        del cluster_resource.obj["spec"]["topology"]["workers"]["machineDeployments"][
+            machine_deployment_index
+        ]
 
         utils.kube_apply_patch(cluster_resource)
 
