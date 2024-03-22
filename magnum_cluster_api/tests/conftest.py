@@ -13,10 +13,9 @@
 # under the License.
 
 import pytest
-import openstack
 from magnum.common import context as magnum_context  # type: ignore
 
-from magnum_cluster_api import clients, driver
+from magnum_cluster_api import driver
 
 
 @pytest.fixture
