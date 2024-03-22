@@ -1,4 +1,6 @@
-# Copyright (c) 2023 VEXXHOST, Inc.
+#!/bin/bash -xe
+
+# Copyright (c) 2024 VEXXHOST, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -12,10 +14,17 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import pytest
+# Versions to test
+KIND_VERSION=${KIND_VERSION:-v0.16.0}
 
+# Install `kind` CLI
+sudo curl -Lo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64
+sudo chmod +x /usr/local/bin/kind
 
-@pytest.fixture(scope="session")
-def mock_pykube(session_mocker):
-    session_mocker.patch("pykube.KubeConfig")
-    session_mocker.patch("pykube.HTTPClient")
+# Create a `kind` cluster inside "docker" group
+newgrp docker <<EOF
+kind create cluster
+EOF
+
+# Label a control plane node
+kubectl label node kind-control-plane openstack-control-plane=enabled

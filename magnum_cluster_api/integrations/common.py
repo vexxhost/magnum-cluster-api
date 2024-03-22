@@ -15,10 +15,9 @@
 import semver
 from magnum import objects
 from magnum.common import context, exception
-from magnum.common.keystone import KeystoneClientV3
 from oslo_log import log as logging
 
-from magnum_cluster_api import utils
+from magnum_cluster_api import clients, utils
 
 LOG = logging.getLogger(__name__)
 
@@ -37,7 +36,8 @@ def is_service_enabled(service_type: str) -> bool:
     """Check if service is deployed in the cloud."""
 
     admin_context = context.make_admin_context()
-    keystone = KeystoneClientV3(admin_context)
+    osc = clients.get_openstack_api(admin_context)
+    keystone = osc.keystone()
 
     try:
         service = keystone.client.services.list(type=service_type)

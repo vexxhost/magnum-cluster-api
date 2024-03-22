@@ -37,13 +37,15 @@ class TestDriver:
         self.mock_wait_capi_cluster_reconciliation_start = mocker.patch(
             "magnum_cluster_api.driver.BaseDriver.wait_capi_cluster_reconciliation_start"
         )
+        self.mock_get_machine_deployment = mocker.patch(
+            "magnum_cluster_api.resources.get_machine_deployment"
+        )
 
     def _assert_node_group_crud_calls(self):
         self.mock_cluster_objects.return_value.get.assert_called_once_with(
             name=self.cluster.stack_id
         )
-        self.mock_cluster_resource.update.assert_called_once()
-        self.mock_wait_capi_cluster_reconciliation_start.assert_called_once()
+        self.mock_cluster_resource.api.patch.assert_called_once()
 
     def _assert_node_group_status(self, expected_status):
         assert self.node_group.status == expected_status
@@ -67,6 +69,9 @@ class TestDriver:
             "magnum_cluster_api.resources.mutate_machine_deployment"
         )
 
+        # NOTE(okozachenko1203): We need to mock `json.dumps` because MagicMock is not JSON serializable
+        mocker.patch("json.dumps", return_value="mocked_json_string")
+
         ubuntu_driver.create_nodegroup(context, self.cluster, self.node_group)
 
         mock_mutate_machine_deployment.assert_called_once_with(
@@ -78,6 +83,7 @@ class TestDriver:
         ] == [mock_mutate_machine_deployment.return_value]
 
         self._assert_node_group_crud_calls()
+        self.mock_get_machine_deployment.assert_called_once()
         self._assert_node_group_status(fields.ClusterStatus.CREATE_IN_PROGRESS)
 
     def test_update_nodegroup(self, mocker, context, ubuntu_driver):
@@ -99,6 +105,9 @@ class TestDriver:
             "magnum_cluster_api.resources.mutate_machine_deployment"
         )
 
+        # NOTE(okozachenko1203): We need to mock `json.dumps` because MagicMock is not JSON serializable
+        mocker.patch("json.dumps", return_value="mocked_json_string")
+
         ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
 
         mock_mutate_machine_deployment.assert_called_once_with(
@@ -115,6 +124,7 @@ class TestDriver:
         ] == [mock_mutate_machine_deployment.return_value]
 
         self._assert_node_group_crud_calls()
+        self.mock_wait_capi_cluster_reconciliation_start.assert_called_once()
         self._assert_node_group_status(fields.ClusterStatus.UPDATE_IN_PROGRESS)
 
     def test_update_nodegroup_with_multiple_node_groups(
@@ -141,6 +151,9 @@ class TestDriver:
             "magnum_cluster_api.resources.mutate_machine_deployment"
         )
 
+        # NOTE(okozachenko1203): We need to mock `json.dumps` because MagicMock is not JSON serializable
+        mocker.patch("json.dumps", return_value="mocked_json_string")
+
         ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
 
         assert not mock_machine_deployment.called
@@ -162,6 +175,7 @@ class TestDriver:
         ]
 
         self._assert_node_group_crud_calls()
+        self.mock_wait_capi_cluster_reconciliation_start.assert_called_once()
         self._assert_node_group_status(fields.ClusterStatus.UPDATE_IN_PROGRESS)
 
     def test_delete_nodegroup_with_multiple_node_groups(
@@ -184,6 +198,11 @@ class TestDriver:
             },
         }
 
+        self.mock_get_machine_deployment.return_value = None
+
+        # NOTE(okozachenko1203): We need to mock `json.dumps` because MagicMock is not JSON serializable
+        mocker.patch("json.dumps", return_value="mocked_json_string")
+
         ubuntu_driver.delete_nodegroup(context, self.cluster, self.node_group)
 
         assert not mock_machine_deployment.called
@@ -195,4 +214,5 @@ class TestDriver:
         ]
 
         self._assert_node_group_crud_calls()
+        self.mock_get_machine_deployment.assert_called_once()
         self._assert_node_group_status(fields.ClusterStatus.DELETE_IN_PROGRESS)

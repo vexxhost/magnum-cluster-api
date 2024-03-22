@@ -1,4 +1,6 @@
-# Copyright (c) 2023 VEXXHOST, Inc.
+#!/bin/bash -xe
+
+# Copyright (c) 2024 VEXXHOST, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -12,10 +14,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import pytest
+# Versions to test
+HELM_VERSION=${HELM_VERSION:-v3.10.3}
 
-
-@pytest.fixture(scope="session")
-def mock_pykube(session_mocker):
-    session_mocker.patch("pykube.KubeConfig")
-    session_mocker.patch("pykube.HTTPClient")
+# Install `helm` CLI
+curl -Lo /tmp/helm.tar.gz "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+tar -zxvf /tmp/helm.tar.gz -C /tmp
+sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm
+rm -rf /tmp/helm.tar.gz /tmp/linux-amd64/
