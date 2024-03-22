@@ -2144,13 +2144,17 @@ def mutate_machine_deployment(
     context: context.RequestContext,
     cluster: objects.Cluster,
     node_group: magnum_objects.NodeGroup,
-    machine_deployment: dict = {},
+    machine_deployment: dict = None,
 ):
     """
     This function will either makes updates to machine deployment fields which
     will not cause a rolling update or will return a new machine deployment
     if none is provided.
     """
+    # NOTE(okozachenko1203): Initialize as an empty dict if not provided
+    #                        instead of using mutable default argument.
+    if machine_deployment is None:
+        machine_deployment = {}
 
     auto_scaling_enabled = utils.get_auto_scaling_enabled(cluster)
 
@@ -2260,8 +2264,7 @@ def generate_machine_deployments_for_cluster(
         if ng.role == "master" or ng.status.startswith("DELETE"):
             continue
 
-        machine_deployment = mutate_machine_deployment(context, cluster, ng)
-        machine_deployments.append(machine_deployment)
+        machine_deployments.append(mutate_machine_deployment(context, cluster, ng))
 
     return machine_deployments
 
