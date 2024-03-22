@@ -17,6 +17,7 @@ import io
 
 import pykube
 import yaml
+from magnum import objects as magnum_objects
 from oslo_serialization import base64
 
 from magnum_cluster_api import exceptions
@@ -170,6 +171,12 @@ class Cluster(NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
     endpoint = "clusters"
     kind = "Cluster"
+
+    @classmethod
+    def for_magnum_cluster(
+        cls, api: pykube.HTTPClient, cluster: magnum_objects.Cluster
+    ) -> "Cluster":
+        return cls.objects(api, namespace="magnum-system").get(name=cluster.stack_id)
 
     @property
     def openstack_cluster(self):

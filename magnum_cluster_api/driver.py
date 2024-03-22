@@ -336,9 +336,7 @@ class BaseDriver(driver.Driver):
     ):
         utils.validate_nodegroup(nodegroup, context)
 
-        cluster_resource: objects.Cluster = objects.Cluster.objects(
-            self.k8s_api, namespace="magnum-system"
-        ).get(name=cluster.stack_id)
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 
         cluster_resource.obj["spec"]["topology"]["workers"][
             "machineDeployments"
@@ -425,9 +423,7 @@ class BaseDriver(driver.Driver):
     ):
         utils.validate_nodegroup(nodegroup, context)
 
-        cluster_resource: objects.Cluster = objects.Cluster.objects(
-            self.k8s_api, namespace="magnum-system"
-        ).get(name=cluster.stack_id)
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 
         machine_deployment_index = None
         for i, machine_deployment in enumerate(
@@ -472,9 +468,7 @@ class BaseDriver(driver.Driver):
         cluster: magnum_objects.Cluster,
         nodegroup: magnum_objects.NodeGroup,
     ):
-        cluster_resource: objects.Cluster = objects.Cluster.objects(
-            self.k8s_api, namespace="magnum-system"
-        ).get(name=cluster.stack_id)
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 
         machine_deployment_index = None
         for i, machine_deployment in enumerate(
