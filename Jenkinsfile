@@ -87,7 +87,7 @@ operatingSystems.each { operatingSystem ->
                     "NODE_COUNT=2",
                     "BUILD_NEW_IMAGE=${buildNewImage}"
                 ]) {
-                    sh './hack/run-functional-tests.sh'
+                    sh './hack/run-integration-tests.sh'
                 }
 
                 archiveArtifacts artifacts: 'sonobuoy-results.tar.gz'
