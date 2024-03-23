@@ -37,8 +37,6 @@ jobs['functional'] = {
         sh './hack/setup-kind.sh'
         sh './hack/setup-capo.sh'
 
-        sh 'kubectl -n capo-system rollout status deploy/capo-controller-manager'
-
         try {
             sh 'poetry run pytest --junitxml=junit.xml magnum_cluster_api/tests/functional'
         } finally {
