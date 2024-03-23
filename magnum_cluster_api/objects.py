@@ -46,7 +46,9 @@ class NamespacedAPIObject(pykube.objects.NamespacedAPIObject):
             existing_observed_generation = self.obj["status"]["observedGeneration"]
 
         for attempt in Retrying(
-            retry=retry_if_result(lambda g: g == existing_observed_generation),
+            retry=(
+                retry_if_result(lambda g: g == existing_observed_generation) | retry_if_result(lambda g: g is None)
+            ),
             stop=stop_after_delay(timeout),
             wait=wait_fixed(interval),
         ):
@@ -54,7 +56,7 @@ class NamespacedAPIObject(pykube.objects.NamespacedAPIObject):
                 self.reload()
             if not attempt.retry_state.outcome.failed:
                 attempt.retry_state.set_result(
-                    self.obj["status"]["observedGeneration"]
+                    self.obj.get("status", {}).get("observedGeneration")
                 )
 
 
