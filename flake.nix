@@ -15,12 +15,12 @@
         {
           devShell = pkgs.mkShell
             {
-              LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
-
               buildInputs = with pkgs; [
-                bashInteractive
-                glibcLocales
-                poetry
+                cargo
+                maturin
+                rust-analyzer
+                rustc
+                rustfmt
               ];
             };
         }

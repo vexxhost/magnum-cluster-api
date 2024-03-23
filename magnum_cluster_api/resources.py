@@ -31,7 +31,15 @@ from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import encodeutils
 
-from magnum_cluster_api import clients, helm, image_utils, images, objects, utils
+from magnum_cluster_api import (
+    _internal,
+    clients,
+    helm,
+    image_utils,
+    images,
+    objects,
+    utils,
+)
 from magnum_cluster_api.integrations import cinder, cloud_provider, manila
 
 CONF = cfg.CONF
@@ -227,11 +235,11 @@ class ClusterResourcesConfigMap(ClusterBase):
                                     if default_volume_type.name == vt.name
                                     else {}
                                 ),
-                                "name": "block-%s" % utils.convert_to_rfc1123(vt.name),
+                                "name": "block-%s" % _internal.convert_to_rfc1123(vt.name),
                             },
                             "provisioner": "cinder.csi.openstack.org",
                             "parameters": {
-                                "type": utils.convert_to_rfc1123(vt.name),
+                                "type": _internal.convert_to_rfc1123(vt.name),
                             },
                             "reclaimPolicy": "Delete",
                             "volumeBindingMode": "Immediate",
@@ -305,7 +313,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                                 "kind": objects.StorageClass.kind,
                                 "metadata": {
                                     "name": "share-%s"
-                                    % utils.convert_to_rfc1123(st.name),
+                                    % _internal.convert_to_rfc1123(st.name),
                                 },
                                 "provisioner": "manila.csi.openstack.org",
                                 "parameters": {

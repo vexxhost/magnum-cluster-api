@@ -19,14 +19,13 @@ import subprocess
 import tempfile
 
 import click
-import platformdirs
 import requests
 from diskcache import FanoutCache
 
-from magnum_cluster_api import image_utils
+from magnum_cluster_api import _internal, image_utils
 
 CACHE = FanoutCache(
-    directory=platformdirs.user_cache_dir("magnum_cluster_api", "vexxhost"),
+    directory=_internal.user_cache_dir(),
 )
 
 # NOTE(mnaser): This is a list of all the Kubernetes versions which we've

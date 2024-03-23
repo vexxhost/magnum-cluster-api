@@ -1,0 +1,17 @@
+[package]
+name = "magnum-cluster-api"
+version = "0.15.1"
+edition = "2021"
+
+[lib]
+name = "magnum_cluster_api"
+crate-type = ["cdylib"]
+
+[dependencies]
+platform-dirs = "0.3.0"
+rand = "0.8.5"
+slug = "0.1.5"
+
+[dependencies.pyo3]
+version = "0.20.0"
+features = ["abi3-py38"]
