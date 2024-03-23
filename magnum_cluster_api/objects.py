@@ -43,7 +43,7 @@ class NamespacedAPIObject(pykube.objects.NamespacedAPIObject):
         interval: int = 1,
     ):
         if existing_observed_generation == 0:
-            existing_observed_generation = self.obj["metadata"]["observedGeneration"]
+            existing_observed_generation = self.obj["status"]["observedGeneration"]
 
         for attempt in Retrying(
             retry=retry_if_result(lambda g: g == existing_observed_generation),
@@ -54,7 +54,7 @@ class NamespacedAPIObject(pykube.objects.NamespacedAPIObject):
                 self.reload()
             if not attempt.retry_state.outcome.failed:
                 attempt.retry_state.set_result(
-                    self.obj["metadata"]["observedGeneration"]
+                    self.obj["status"]["observedGeneration"]
                 )
 
 

@@ -2287,12 +2287,6 @@ class Cluster(ClusterBase):
             name=self.cluster.stack_id
         )
 
-    def get_observed_generation(self) -> int:
-        capi_cluster = self.get_or_none()
-        if capi_cluster:
-            return capi_cluster.obj["status"]["observedGeneration"]
-        raise Exception("Cluster doesn't exists.")
-
     def get_object(self) -> objects.Cluster:
         osc = clients.get_openstack_api(self.context)
         default_volume_type = osc.cinder().volume_types.default()
