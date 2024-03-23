@@ -12,10 +12,55 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import textwrap
+
+import pykube  # type: ignore
 import pytest
+import responses
 
 
 @pytest.fixture(scope="session")
-def mock_pykube(session_mocker):
-    session_mocker.patch("pykube.KubeConfig")
-    session_mocker.patch("pykube.HTTPClient")
+def kubeconfig(tmp_path_factory):
+    kubeconfig = tmp_path_factory.mktemp("pykube") / "kubeconfig"
+    kubeconfig.write_text(
+        textwrap.dedent(
+            """
+            # TODO: Replace with a more realistic example
+            current-context: thecluster
+            clusters:
+                - name: thecluster
+                  cluster: {}
+            users:
+                - name: admin
+                  user:
+                    username: adm
+                    password: somepassword
+            contexts:
+                - name: thecluster
+                  context:
+                    cluster: thecluster
+                    user: admin
+                - name: second
+                  context: secondcontext
+            """
+        )
+    )
+
+    return pykube.KubeConfig.from_file(str(kubeconfig))
+
+
+@pytest.fixture(scope="session")
+def pykube_api(kubeconfig):
+    return pykube.HTTPClient(kubeconfig)
+
+
+@pytest.fixture(scope="session")
+def requests_mock(session_mocker, kubeconfig):
+    session_mocker.patch(
+        "pykube.KubeConfig.from_env",
+        return_value=kubeconfig,
+    )
+
+    return responses.RequestsMock(
+        target="pykube.http.KubernetesHTTPAdapter._do_send",
+    )

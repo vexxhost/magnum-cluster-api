@@ -17,7 +17,7 @@ from magnum.objects import fields
 from oslo_log import log as logging
 from oslo_utils import strutils
 
-from magnum_cluster_api import clients, objects, resources, utils
+from magnum_cluster_api import clients, objects, utils
 
 LOG = logging.getLogger(__name__)
 
@@ -37,7 +37,9 @@ class Monitor(monitors.MonitorBase):
         if not utils.get_auto_scaling_enabled(self.cluster):
             return
         for node_group in self.cluster.nodegroups:
-            md = resources.get_machine_deployment(k8s_api, self.cluster, node_group)
+            md = objects.MachineDeployment.for_node_group_or_none(
+                k8s_api, self.cluster, node_group
+            )
             if md is None:
                 continue
             node_group.node_count = md.obj["spec"]["replicas"]

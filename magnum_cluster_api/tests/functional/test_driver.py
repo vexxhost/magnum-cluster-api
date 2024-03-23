@@ -18,7 +18,7 @@ import pytest
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.objects import fields  # type: ignore
 
-from magnum_cluster_api import clients, objects, resources
+from magnum_cluster_api import clients, objects
 
 
 class TestNodeGroupDriver:
@@ -52,7 +52,7 @@ class TestNodeGroupDriver:
         # NOTE(mnaser): We need to loop over all the node groups and make sure
         #               that the machine deployments are created for them.
         for ng in node_groups:
-            md = resources.get_machine_deployment(self.api, self.cluster, ng)
+            md = objects.MachineDeployment.for_node_group(self.api, self.cluster, ng)
             self._assert_machine_deployment_config_matches_node_group(md, ng)
 
         # NOTE(mnaser): We also need to make sure there are no extra machine
