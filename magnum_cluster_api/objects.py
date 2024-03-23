@@ -47,7 +47,8 @@ class NamespacedAPIObject(pykube.objects.NamespacedAPIObject):
 
         for attempt in Retrying(
             retry=(
-                retry_if_result(lambda g: g == existing_observed_generation) | retry_if_result(lambda g: g is None)
+                retry_if_result(lambda g: g == existing_observed_generation)
+                | retry_if_result(lambda g: g is None)
             ),
             stop=stop_after_delay(timeout),
             wait=wait_fixed(interval),

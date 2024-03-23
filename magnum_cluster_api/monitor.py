@@ -17,7 +17,7 @@ from magnum.objects import fields
 from oslo_log import log as logging
 from oslo_utils import strutils
 
-from magnum_cluster_api import clients, objects, resources, utils
+from magnum_cluster_api import clients, objects, utils
 
 LOG = logging.getLogger(__name__)
 

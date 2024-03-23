@@ -206,8 +206,12 @@ def cluster(
     try:
         ubuntu_driver.create_cluster(context, cluster_obj, 60)
 
-        cluster_resource = objects.Cluster.for_magnum_cluster(ubuntu_driver.k8s_api, cluster_obj)
-        cluster_resource.wait_for_observed_generation_changed(existing_observed_generation=1)
+        cluster_resource = objects.Cluster.for_magnum_cluster(
+            ubuntu_driver.k8s_api, cluster_obj
+        )
+        cluster_resource.wait_for_observed_generation_changed(
+            existing_observed_generation=1
+        )
 
         yield cluster_obj
     finally:
