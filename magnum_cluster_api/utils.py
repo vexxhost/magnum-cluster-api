@@ -171,6 +171,10 @@ def get_auto_scaling_enabled(cluster: magnum_objects.Cluster) -> bool:
     return get_cluster_label_as_bool(cluster, "auto_scaling_enabled", False)
 
 
+def get_auto_healing_enabled(cluster: magnum_objects.Cluster) -> bool:
+    return get_cluster_label_as_bool(cluster, "auto_healing_enabled", True)
+
+
 def get_cluster_container_infra_prefix(cluster: magnum_objects.Cluster) -> str:
     return get_cluster_label(
         cluster,
@@ -256,7 +260,9 @@ def get_node_group_label(
     key: str,
     default: str,
 ) -> str:
-    return node_group.labels.get(key, get_cluster_label(cluster, key, default))
+    if key in node_group.labels:
+        return node_group.labels[key]
+    return get_cluster_label(cluster, key, default)
 
 
 def get_node_group_min_node_count(

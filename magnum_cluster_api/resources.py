@@ -2203,11 +2203,7 @@ def mutate_machine_deployment(
             "failureDomain": utils.get_node_group_label(
                 cluster, node_group, "availability_zone", ""
             ),
-            "machineHealthCheck": {
-                "enable": utils.get_cluster_label_as_bool(
-                    cluster, "auto_healing_enabled", True
-                )
-            },
+            "machineHealthCheck": {"enable": utils.get_auto_healing_enabled(cluster)},
             "variables": {
                 "overrides": [
                     {
@@ -2347,9 +2343,7 @@ class Cluster(ClusterBase):
                             },
                             "replicas": self.cluster.master_count,
                             "machineHealthCheck": {
-                                "enable": utils.get_cluster_label_as_bool(
-                                    self.cluster, "auto_healing_enabled", True
-                                )
+                                "enable": utils.get_auto_healing_enabled(self.cluster)
                             },
                         },
                         "workers": {

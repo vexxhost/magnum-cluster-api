@@ -20,7 +20,15 @@ from magnum import objects as magnum_objects
 from magnum.conductor import scale_manager
 from magnum.drivers.common import driver
 from magnum.objects import fields
-from tenacity import Retrying, retry, stop_after_delay, wait_fixed
+from tenacity import (
+    Retrying,
+    retry_if_exception,
+    retry_if_not_result,
+    retry_if_result,
+    retry_unless_exception_type,
+    stop_after_delay,
+    wait_fixed,
+)
 
 from magnum_cluster_api import (
     clients,
@@ -278,39 +286,30 @@ class BaseDriver(driver.Driver):
         # TODO: nodegroup?
 
         # Get current generation
-        current_generation = resources.Cluster(
+        old_generation = resources.Cluster(
             context, self.k8s_api, cluster
         ).get_observed_generation()
         resources.apply_cluster_from_magnum_cluster(
             context, self.k8s_api, cluster, cluster_template=cluster_template
         )
+
         # Wait till the generation has been increased
-        self.wait_capi_cluster_reconciliation_start(
-            context, cluster, current_generation
-        )
+        for attempt in Retrying(
+            retry=retry_if_result(lambda g: g == old_generation),
+            stop=stop_after_delay(10),
+            wait=wait_fixed(1),
+        ):
+            with attempt:
+                current_generation = resources.Cluster(
+                    context, self.k8s_api, cluster
+                ).get_observed_generation()
+            if not attempt.retry_state.outcome.failed:
+                attempt.retry_state.set_result(current_generation)
 
         # NOTE(mnaser): We need to save the cluster status here to make sure
         #               it happens inside the lock.
         cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
         cluster.save()
-
-    @retry(
-        stop=stop_after_delay(10),
-        wait=wait_fixed(1),
-    )
-    def wait_capi_cluster_reconciliation_start(
-        self, context, cluster: magnum_objects.Cluster, old_generation: int
-    ):
-        """Wait until the cluster's new generation is observed by capi-controller
-
-        This means the cluster reconciliation has been started and the conditions has been updated.
-        """
-        current_generation = resources.Cluster(
-            context, self.k8s_api, cluster
-        ).get_observed_generation()
-        if old_generation != current_generation:
-            return
-        raise exceptions.ClusterAPIReconcileTimeout()
 
     @cluster_lock_wrapper
     def delete_cluster(self, context, cluster: magnum_objects.Cluster):
@@ -344,11 +343,15 @@ class BaseDriver(driver.Driver):
 
         utils.kube_apply_patch(cluster_resource)
 
-        for attempt in Retrying(stop=stop_after_delay(10), wait=wait_fixed(1)):
+        for attempt in Retrying(
+            retry=retry_if_exception(exceptions.MachineDeploymentNotFound),
+            stop=stop_after_delay(10),
+            wait=wait_fixed(1),
+        ):
             with attempt:
-                md = resources.get_machine_deployment(self.k8s_api, cluster, nodegroup)
-                if md is None:
-                    raise exceptions.ClusterAPIReconcileTimeout()
+                objects.MachineDeployment.for_node_group(
+                    self.k8s_api, cluster, nodegroup
+                )
 
         nodegroup.status = fields.ClusterStatus.CREATE_IN_PROGRESS
         nodegroup.save()
@@ -385,7 +388,9 @@ class BaseDriver(driver.Driver):
                 nodegroup.status = f"{action}_COMPLETE"
             nodegroup.status_reason = failure_message
         else:
-            md = resources.get_machine_deployment(self.k8s_api, cluster, nodegroup)
+            md = objects.MachineDeployment.for_node_group_or_none(
+                self.k8s_api, cluster, nodegroup
+            )
             if md is None:
                 if action == "DELETE":
                     nodegroup.status = f"{action}_COMPLETE"
@@ -425,29 +430,31 @@ class BaseDriver(driver.Driver):
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 
-        machine_deployment_index = cluster_resource.get_machine_deployment_index(
-            nodegroup.name
-        )
-        machine_deployment = cluster_resource.obj["spec"]["topology"]["workers"][
-            "machineDeployments"
-        ][machine_deployment_index]
-
-        cluster_resource.obj["spec"]["topology"]["workers"]["machineDeployments"][
-            machine_deployment_index
-        ] = resources.mutate_machine_deployment(
+        current_md_spec = cluster_resource.get_machine_deployment_spec(nodegroup.name)
+        target_md_spec = resources.mutate_machine_deployment(
             context,
             cluster,
             nodegroup,
-            machine_deployment,
+            cluster_resource.get_machine_deployment_spec(nodegroup.name),
         )
 
-        current_generation = resources.Cluster(
-            context, self.k8s_api, cluster
-        ).get_observed_generation()
+        if current_md_spec == target_md_spec:
+            return
+
+        cluster_resource.set_machine_deployment_spec(nodegroup.name, target_md_spec)
         utils.kube_apply_patch(cluster_resource)
-        self.wait_capi_cluster_reconciliation_start(
-            context, cluster, current_generation
-        )
+
+        for attempt in Retrying(
+            retry=retry_if_not_result(lambda md: md.equals_spec(target_md_spec)),
+            stop=stop_after_delay(10),
+            wait=wait_fixed(1),
+        ):
+            with attempt:
+                md = objects.MachineDeployment.for_node_group(
+                    self.k8s_api, cluster, nodegroup
+                )
+            if not attempt.retry_state.outcome.failed:
+                attempt.retry_state.set_result(md)
 
         nodegroup.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
         nodegroup.save()
@@ -465,25 +472,30 @@ class BaseDriver(driver.Driver):
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 
         try:
-            machine_deployment_index = cluster_resource.get_machine_deployment_index(
-                nodegroup.name
-            )
+            md_index = cluster_resource.get_machine_deployment_index(nodegroup.name)
         except exceptions.MachineDeploymentNotFound:
             nodegroup.status = fields.ClusterStatus.DELETE_COMPLETE
             nodegroup.save()
             return
 
         del cluster_resource.obj["spec"]["topology"]["workers"]["machineDeployments"][
-            machine_deployment_index
+            md_index
         ]
 
         utils.kube_apply_patch(cluster_resource)
 
-        for attempt in Retrying(stop=stop_after_delay(10), wait=wait_fixed(1)):
-            with attempt:
-                md = resources.get_machine_deployment(self.k8s_api, cluster, nodegroup)
-                if md is not None:
-                    raise exceptions.ClusterAPIReconcileTimeout()
+        try:
+            for attempt in Retrying(
+                retry=retry_unless_exception_type(exceptions.MachineDeploymentNotFound),
+                stop=stop_after_delay(10),
+                wait=wait_fixed(1),
+            ):
+                with attempt:
+                    objects.MachineDeployment.for_node_group(
+                        self.k8s_api, cluster, nodegroup
+                    )
+        except exceptions.MachineDeploymentNotFound:
+            pass
 
         nodegroup.status = fields.ClusterStatus.DELETE_IN_PROGRESS
         nodegroup.save()

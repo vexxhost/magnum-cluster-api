@@ -13,6 +13,7 @@
 # under the License.
 
 import configparser
+import copy
 import io
 
 import pykube
@@ -75,6 +76,44 @@ class MachineDeployment(NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
     endpoint = "machinedeployments"
     kind = "MachineDeployment"
+
+    @classmethod
+    def for_node_group(
+        cls,
+        api: pykube.HTTPClient,
+        cluster: magnum_objects.Cluster,
+        node_group: magnum_objects.NodeGroup,
+    ):
+        mds = cls.objects(api, namespace="magnum-system").filter(
+            selector={
+                "cluster.x-k8s.io/cluster-name": cluster.stack_id,
+                "topology.cluster.x-k8s.io/deployment-name": node_group.name,
+            },
+        )
+        if len(mds) != 1:
+            raise exceptions.MachineDeploymentNotFound(name=node_group.name)
+        return list(mds)[0]
+
+    @classmethod
+    def for_node_group_or_none(
+        cls,
+        api: pykube.HTTPClient,
+        cluster: magnum_objects.Cluster,
+        node_group: magnum_objects.NodeGroup,
+    ):
+        try:
+            return cls.for_node_group(api, cluster, node_group)
+        except exceptions.MachineDeploymentNotFound:
+            return None
+
+    def equals_spec(self, spec: dict) -> bool:
+        annotations_match = (
+            self.obj["spec"]["template"]["metadata"]["annotations"]
+            == spec["metadata"]["annotations"]
+        )
+        replicas_match = self.obj["spec"].get("replicas") == spec.get("replicas")
+
+        return annotations_match and replicas_match
 
 
 class Machine(NamespacedAPIObject):
@@ -187,6 +226,18 @@ class Cluster(NamespacedAPIObject):
 
         raise exceptions.MachineDeploymentNotFound(name=name)
 
+    def get_machine_deployment_spec(self, name: str) -> dict:
+        return copy.deepcopy(
+            self.obj["spec"]["topology"]["workers"]["machineDeployments"][
+                self.get_machine_deployment_index(name)
+            ]
+        )
+
+    def set_machine_deployment_spec(self, name: str, spec: dict):
+        self.obj["spec"]["topology"]["workers"]["machineDeployments"][
+            self.get_machine_deployment_index(name)
+        ] = spec
+
     @property
     def openstack_cluster(self):
         filtered_clusters = (
@@ -202,6 +253,7 @@ class Cluster(NamespacedAPIObject):
 
 
 class StorageClass(pykube.objects.APIObject):
+
     version = "storage.k8s.io/v1"
     endpoint = "storageclasses"
     kind = "StorageClass"
