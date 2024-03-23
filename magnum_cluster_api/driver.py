@@ -24,7 +24,6 @@ from tenacity import (
     Retrying,
     retry_if_exception,
     retry_if_not_result,
-    retry_if_result,
     retry_unless_exception_type,
     stop_after_delay,
     wait_fixed,
@@ -285,26 +284,14 @@ class BaseDriver(driver.Driver):
         """
         # TODO: nodegroup?
 
-        # Get current generation
-        old_generation = resources.Cluster(
-            context, self.k8s_api, cluster
-        ).get_observed_generation()
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
+
         resources.apply_cluster_from_magnum_cluster(
             context, self.k8s_api, cluster, cluster_template=cluster_template
         )
 
         # Wait till the generation has been increased
-        for attempt in Retrying(
-            retry=retry_if_result(lambda g: g == old_generation),
-            stop=stop_after_delay(10),
-            wait=wait_fixed(1),
-        ):
-            with attempt:
-                current_generation = resources.Cluster(
-                    context, self.k8s_api, cluster
-                ).get_observed_generation()
-            if not attempt.retry_state.outcome.failed:
-                attempt.retry_state.set_result(current_generation)
+        cluster_resource.wait_for_observed_generation_changed()
 
         # NOTE(mnaser): We need to save the cluster status here to make sure
         #               it happens inside the lock.
