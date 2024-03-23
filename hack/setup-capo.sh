@@ -33,5 +33,7 @@ clusterctl init \
   --infrastructure openstack:${CAPO_VERSION}
 
 # Wait for components to go up
+kubectl -n capi-kubeadm-bootstrap-system rollout status deploy/capi-kubeadm-bootstrap-controller-manager
+kubectl -n capi-kubeadm-control-plane-system rollout status deploy/capi-kubeadm-control-plane-controller-manager
 kubectl -n capi-system rollout status deploy/capi-controller-manager
 kubectl -n capo-system rollout status deploy/capo-controller-manager
