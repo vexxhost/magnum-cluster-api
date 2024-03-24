@@ -9,6 +9,8 @@ jobs['unit'] = {
     node('jammy-2c-8g') {
         checkout scm
 
+        sh "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+
         sh 'sudo apt-get install -y python3-pip'
         sh 'sudo pip install hatch'
         
@@ -23,6 +25,8 @@ jobs['unit'] = {
 jobs['functional'] = {
     node('jammy-2c-8g') {
         checkout scm
+
+        sh "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
 
         sh 'sudo apt-get install -y python3-pip'
         sh 'sudo pip install hatch'
