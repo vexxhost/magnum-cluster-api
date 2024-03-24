@@ -10,12 +10,10 @@ jobs['unit'] = {
         checkout scm
 
         sh 'sudo apt-get install -y python3-pip'
-        sh 'sudo pip install poetry'
+        sh 'sudo pip install hatch'
         
-        sh 'poetry install'
-
         try {
-            sh 'poetry run pytest --junitxml=junit.xml magnum_cluster_api/tests/unit'
+            sh 'hatch run test:unit --junit-xml=junit.xml'
         } finally {
             step([$class: 'JUnitResultArchiver', testResults: 'junit.xml'])
         }
@@ -27,9 +25,7 @@ jobs['functional'] = {
         checkout scm
 
         sh 'sudo apt-get install -y python3-pip'
-        sh 'sudo pip install poetry'
-        
-        sh 'poetry install'
+        sh 'sudo pip install hatch'
 
         sh './hack/setup-kubectl.sh'
         sh './hack/setup-helm.sh'
@@ -38,7 +34,7 @@ jobs['functional'] = {
         sh './hack/setup-capo.sh'
 
         try {
-            sh 'poetry run pytest --junitxml=junit.xml magnum_cluster_api/tests/functional'
+            sh 'hatch run test:functional --junit-xml=junit.xml'
         } finally {
             step([$class: 'JUnitResultArchiver', testResults: 'junit.xml'])
         }

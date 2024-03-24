@@ -1,57 +1,65 @@
-[tool.poetry]
-name = "magnum-cluster-api"  
+[project]
+name = "magnum-cluster-api"
 version = "0.15.1"
 description = "Cluster API driver for Magnum"
-authors = ["Mohammed Naser <mnaser@vexxhost.com>"]
-license = "Apache-2.0"
 readme = "README.md"
-packages = [{include = "magnum_cluster_api"}]
-include = ["magnum_cluster_api/charts/**/*"]
+requires-python = ">=3.8"
+license = "Apache-2.0"
+authors = [
+    {name = "Mohammed Naser", email = "mnaser@vexxhost.com"}
+]
+# keywords
+# classifiers
+dependencies = [
+    "oslo.concurrency>=4.5.0",
+    "oslo.config>=8.8.0",
+    "oslo.context>=4.1.0",
+    "oslo.log>=4.7.0",
+    "oslo.privsep>=2.7.0",
+    "oslo.service>=2.8.0",
+    "python-manilaclient>=3.3.2",
+    "certifi",
+    "click>=8.0.4",
+    "diskcache>=5.6.1",
+    "haproxyadmin~=0.2.4",
+    "kubernetes>=24.2.0",
+    "magnum>=15.0.0",
+    "platformdirs>=2.4.0",
+    "pykube-ng",
+    "pyroute2>=0.3.4",
+    "requests>=2.27.1",
+    "semver<3",
+    "sherlock~=0.4.1",
+    "shortuuid"
+]
 
-[tool.poetry.dependencies]
-"oslo.concurrency" = ">=4.5.0"
-"oslo.config" = ">=8.8.0"
-"oslo.context" = ">=4.1.0"
-"oslo.log" = ">=4.7.0"
-"oslo.privsep" = ">=2.7.0"
-"oslo.service" = ">=2.8.0"
-"python-manilaclient" = ">=3.3.2"
-certifi = "*"
-click = ">=8.0.4"
-diskcache = ">=5.6.1"
-haproxyadmin = "^0.2.4"
-kubernetes = ">=24.2.0"
-magnum = ">=15.0.0"
-platformdirs = ">=2.4.0"
-pykube-ng = "*"
-pyroute2 = ">=0.3.4"
-python = "^3.8"
-requests = ">=2.27.1"
-semver = "^2.0.0"
-sherlock = "^0.4.1"
-shortuuid = "*"
-
-[tool.poetry.group.dev.dependencies]
-fixtures = "^4.1.0"
-oslotest = "^5.0.0"
-pytest = "<7"
-pytest-mock = "^3.6.1"
-responses = "^0.25.0"
-
-[build-system]
-requires = ["setuptools", "poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
+[project.scripts]
 magnum-cluster-api-image-builder = "magnum_cluster_api.cmd.image_builder:main"
 magnum-cluster-api-image-loader = "magnum_cluster_api.cmd.image_loader:main"
 magnum-cluster-api-proxy = "magnum_cluster_api.cmd.proxy:main"
 
-[tool.poetry.plugins."magnum.drivers"]
-"k8s_cluster_api_ubuntu" = "magnum_cluster_api.driver:UbuntuDriver"
-"k8s_cluster_api_ubuntu_focal" = "magnum_cluster_api.driver:UbuntuFocalDriver"
+[project.entry-points."magnum.drivers"]
 "k8s_cluster_api_flatcar" = "magnum_cluster_api.driver:FlatcarDriver"
 "k8s_cluster_api_rockylinux" = "magnum_cluster_api.driver:RockyLinuxDriver"
+"k8s_cluster_api_ubuntu_focal" = "magnum_cluster_api.driver:UbuntuFocalDriver"
+"k8s_cluster_api_ubuntu" = "magnum_cluster_api.driver:UbuntuDriver"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.envs.test]
+dependencies = [
+    "fixtures",
+    "oslotest",
+    "pytest-mock~=3.6.1",
+    "pytest<7",
+    "responses~=0.25.0"
+]
+
+[tool.hatch.envs.test.scripts]
+unit = "python3 -m pytest {args} magnum_cluster_api/tests/unit/"
+functional = "python3 -m pytest {args} magnum_cluster_api/tests/functional/"
 
 [tool.isort]
 profile = "black"
