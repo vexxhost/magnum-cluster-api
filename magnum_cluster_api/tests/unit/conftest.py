@@ -12,42 +12,55 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import textwrap
+
+import pykube  # type: ignore
 import pytest
-from magnum.common import context as magnum_context
-
-from magnum_cluster_api import driver
+import responses
 
 
-@pytest.fixture
-def context():
-    return magnum_context.RequestContext(
-        auth_token_info={
-            "token": {"project": {"id": "fake_project"}, "user": {"id": "fake_user"}}
-        },
-        project_id="fake_project",
-        user_id="fake_user",
-        is_admin=False,
+@pytest.fixture(scope="session")
+def kubeconfig(tmp_path_factory):
+    kubeconfig = tmp_path_factory.mktemp("pykube") / "kubeconfig"
+    kubeconfig.write_text(
+        textwrap.dedent(
+            """
+            # TODO: Replace with a more realistic example
+            current-context: thecluster
+            clusters:
+                - name: thecluster
+                  cluster: {}
+            users:
+                - name: admin
+                  user:
+                    username: adm
+                    password: somepassword
+            contexts:
+                - name: thecluster
+                  context:
+                    cluster: thecluster
+                    user: admin
+                - name: second
+                  context: secondcontext
+            """
+        )
     )
 
-
-@pytest.fixture(scope="session")
-def mock_pykube(session_mocker):
-    session_mocker.patch("pykube.KubeConfig")
-    session_mocker.patch("pykube.HTTPClient")
+    return pykube.KubeConfig.from_file(str(kubeconfig))
 
 
 @pytest.fixture(scope="session")
-def mock_cluster_lock(session_mocker):
-    session_mocker.patch("kubernetes.config.load_config")
-    session_mocker.patch("magnum_cluster_api.sync.ClusterLock.acquire")
-    session_mocker.patch("magnum_cluster_api.sync.ClusterLock.release")
+def pykube_api(kubeconfig):
+    return pykube.HTTPClient(kubeconfig)
 
 
 @pytest.fixture(scope="session")
-def mock_validate_nodegroup(session_mocker):
-    session_mocker.patch("magnum_cluster_api.utils.validate_nodegroup")
+def requests_mock(session_mocker, kubeconfig):
+    session_mocker.patch(
+        "pykube.KubeConfig.from_env",
+        return_value=kubeconfig,
+    )
 
-
-@pytest.fixture()
-def ubuntu_driver(mock_cluster_lock, mock_pykube):
-    yield driver.UbuntuDriver()
+    return responses.RequestsMock(
+        target="pykube.http.KubernetesHTTPAdapter._do_send",
+    )

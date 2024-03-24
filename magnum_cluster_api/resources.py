@@ -159,9 +159,6 @@ class ClusterResourcesConfigMap(ClusterBase):
         self.cluster = cluster
 
     def get_object(self) -> pykube.ConfigMap:
-        # NOTE(mnaser): We have to assert that the only CNI we support is Calico.
-        assert CONF.cluster_template.kubernetes_allowed_network_drivers == ["calico"]
-
         manifests_path = pkg_resources.resource_filename(
             "magnum_cluster_api", "manifests"
         )
@@ -2187,7 +2184,7 @@ def mutate_machine_deployment(
                 utils.get_node_group_min_node_count(node_group)
             ),
             AUTOSCALE_ANNOTATION_MAX: str(
-                utils.get_node_group_max_node_count(context, node_group)
+                utils.get_node_group_max_node_count(cluster, node_group)
             ),
         }
     else:
@@ -2212,26 +2209,22 @@ def mutate_machine_deployment(
             "class": "default-worker",
             "name": node_group.name,
             "failureDomain": utils.get_node_group_label(
-                context, node_group, "availability_zone", ""
+                cluster, node_group, "availability_zone", ""
             ),
-            "machineHealthCheck": {
-                "enable": utils.get_cluster_label_as_bool(
-                    cluster, "auto_healing_enabled", True
-                )
-            },
+            "machineHealthCheck": {"enable": utils.get_auto_healing_enabled(cluster)},
             "variables": {
                 "overrides": [
                     {
                         "name": "bootVolume",
                         "value": {
                             "size": utils.get_node_group_label_as_int(
-                                context,
+                                cluster,
                                 node_group,
                                 "boot_volume_size",
                                 CONF.cinder.default_boot_volume_size,
                             ),
                             "type": utils.get_node_group_label(
-                                context,
+                                cluster,
                                 node_group,
                                 "boot_volume_type",
                                 cinder.get_default_boot_volume_type(context),
@@ -2245,7 +2238,7 @@ def mutate_machine_deployment(
                     {
                         "name": "imageRepository",
                         "value": utils.get_node_group_label(
-                            context,
+                            cluster,
                             node_group,
                             "container_infra_prefix",
                             "",
@@ -2302,12 +2295,6 @@ class Cluster(ClusterBase):
             name=self.cluster.stack_id
         )
 
-    def get_observed_generation(self) -> int:
-        capi_cluster = self.get_or_none()
-        if capi_cluster:
-            return capi_cluster.obj["status"]["observedGeneration"]
-        raise Exception("Cluster doesn't exists.")
-
     def get_object(self) -> objects.Cluster:
         osc = clients.get_openstack_api(self.context)
         default_volume_type = osc.cinder().volume_types.default()
@@ -2358,9 +2345,7 @@ class Cluster(ClusterBase):
                             },
                             "replicas": self.cluster.master_count,
                             "machineHealthCheck": {
-                                "enable": utils.get_cluster_label_as_bool(
-                                    self.cluster, "auto_healing_enabled", True
-                                )
+                                "enable": utils.get_auto_healing_enabled(self.cluster)
                             },
                         },
                         "workers": {
