@@ -235,7 +235,8 @@ class ClusterResourcesConfigMap(ClusterBase):
                                     if default_volume_type.name == vt.name
                                     else {}
                                 ),
-                                "name": "block-%s" % _internal.convert_to_rfc1123(vt.name),
+                                "name": "block-%s"
+                                % _internal.convert_to_rfc1123(vt.name),
                             },
                             "provisioner": "cinder.csi.openstack.org",
                             "parameters": {
