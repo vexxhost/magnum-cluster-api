@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "magnum-cluster-api"  
-version = "0.15.0"
+version = "0.15.1"
 description = "Cluster API driver for Magnum"
 authors = ["Mohammed Naser <mnaser@vexxhost.com>"]
 license = "Apache-2.0"
@@ -36,6 +36,7 @@ fixtures = "^4.1.0"
 oslotest = "^5.0.0"
 pytest = "<7"
 pytest-mock = "^3.6.1"
+responses = "^0.25.0"
 
 [build-system]
 requires = ["setuptools", "poetry-core"]

@@ -6,6 +6,7 @@ on:
       - main
 
 permissions:
+  id-token: write
   contents: write
   pull-requests: write
 
@@ -18,5 +19,29 @@ jobs:
 
       - name: Run "release-please"
         uses: google-github-actions/release-please-action@v3
+        id: release
         with:
-          command: manifest
+          release-type: python
+          package-name: magnum-cluster-api
+
+      - name: Checkout project
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/checkout@v3
+
+      - name: Install Poetry
+        if: ${{ steps.release.outputs.release_created }}
+        run: pipx install poetry
+
+      - name: Setup Python
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/setup-python@v4
+        with:
+          cache: poetry
+
+      - name: Build package
+        if: ${{ steps.release.outputs.release_created }}
+        run: make build
+
+      - name: Publish package distributions to PyPI
+        if: ${{ steps.release.outputs.release_created }}
+        uses: pypa/gh-action-pypi-publish@release/v1

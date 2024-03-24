@@ -14,10 +14,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-# Versions to test
-CAPI_VERSION=${CAPI_VERSION:-v1.6.0}
-CAPO_VERSION=${CAPO_VERSION:-v0.9.0}
-
 # Setup folders for DevStack
 sudo mkdir -p /opt/stack
 sudo chown -R ${USER}. /opt/stack
@@ -96,49 +92,20 @@ EOF
 # Start DevStack deployment
 /opt/stack/stack.sh
 
-# Install `kubectl` CLI
-curl -Lo /tmp/kubectl "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
+# Install "kubectl"
+./hack/setup-kubectl.sh
 
-# Install `helm` CLI
-curl -Lo /tmp/helm.tar.gz "https://get.helm.sh/helm-v3.10.3-linux-amd64.tar.gz"
-tar -zxvf /tmp/helm.tar.gz -C /tmp
-sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm
-rm -rf /tmp/helm.tar.gz /tmp/linux-amd64/
+# Install Helm
+./hack/setup-helm.sh
 
 # Install Docker
-curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
-sudo sh /tmp/get-docker.sh
-sudo usermod -aG docker $USER
+./hack/setup-docker.sh
 
-# Docker tinks with firewalls
-sudo iptables -I DOCKER-USER -j ACCEPT
+# Install KinD
+./hack/setup-kind.sh
 
-# Install `kind` CLI
-sudo curl -Lo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.16.0/kind-linux-amd64
-sudo chmod +x /usr/local/bin/kind
-
-# Create a `kind` cluster inside "docker" group
-newgrp docker <<EOF
-kind create cluster
-EOF
-
-# Label a control plane node
-kubectl label node kind-control-plane openstack-control-plane=enabled
-
-# Install the `clusterctl` CLI
-sudo curl -Lo /usr/local/bin/clusterctl https://github.com/kubernetes-sigs/cluster-api/releases/download/${CAPI_VERSION}/clusterctl-linux-amd64
-sudo chmod +x /usr/local/bin/clusterctl
-
-# Initialize the `clusterctl` CLI
-export EXP_CLUSTER_RESOURCE_SET=true
-export EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true #Used by the kubeadm bootstrap provider
-export CLUSTER_TOPOLOGY=true
-clusterctl init \
-  --core cluster-api:${CAPI_VERSION} \
-  --bootstrap kubeadm:${CAPI_VERSION} \
-  --control-plane kubeadm:${CAPI_VERSION} \
-  --infrastructure openstack:${CAPO_VERSION}
+# Install CAPI/CAPO
+./hack/setup-capo.sh
 
 # Vendor the chart
 make vendor

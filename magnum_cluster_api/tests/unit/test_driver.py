@@ -13,37 +13,73 @@
 # under the License.
 
 import pytest
-from magnum.objects import fields
-from magnum.tests.unit.objects import utils
+import responses
+from magnum.objects import fields  # type: ignore
+from magnum.tests.unit.objects import utils  # type: ignore
+from oslo_utils import uuidutils  # type: ignore
+from responses import matchers
+
+from magnum_cluster_api import objects, resources
 
 
+@pytest.mark.parametrize("auto_scaling_enabled", [True, False])
+@pytest.mark.parametrize("auto_healing_enabled", [True, False])
 class TestDriver:
     @pytest.fixture(autouse=True)
-    def setup(self, mocker, context, mock_pykube, mock_validate_nodegroup):
+    def setup(
+        self,
+        auto_scaling_enabled,
+        auto_healing_enabled,
+        mocker,
+        context,
+    ):
         self.cluster = utils.get_test_cluster(context, labels={})
         self.cluster.save = mocker.MagicMock()
 
-        self.node_group = utils.get_test_nodegroup(context)
+        self.node_group = utils.get_test_nodegroup(
+            context,
+            labels={
+                "availability_zone": "az1",
+                "boot_volume_size": 10,
+                "boot_volume_type": "nvme",
+                "container_infra_prefix": "",
+            },
+        )
         self.node_group.save = mocker.MagicMock()
 
-        self.mock_cluster_resource = mocker.MagicMock()
-        self.mock_cluster_objects = mocker.patch(
-            "magnum_cluster_api.objects.Cluster.objects"
-        )
-        self.mock_cluster_objects.return_value.get.return_value = (
-            self.mock_cluster_resource
+        mocker.patch(
+            "magnum_cluster_api.utils.validate_flavor_name",
+            return_value=True,
         )
 
-        self.mock_wait_capi_cluster_reconciliation_start = mocker.patch(
-            "magnum_cluster_api.driver.BaseDriver.wait_capi_cluster_reconciliation_start"
+        mocker.patch(
+            "magnum_cluster_api.integrations.cinder.get_default_boot_volume_type",
+            return_value="nvme",
         )
 
-    def _assert_node_group_crud_calls(self):
-        self.mock_cluster_objects.return_value.get.assert_called_once_with(
-            name=self.cluster.stack_id
+        mocker.patch(
+            "magnum_cluster_api.utils.get_image_uuid",
+            return_value=uuidutils.generate_uuid(),
         )
-        self.mock_cluster_resource.update.assert_called_once()
-        self.mock_wait_capi_cluster_reconciliation_start.assert_called_once()
+
+        mocker.patch(
+            "magnum_cluster_api.utils.get_auto_scaling_enabled",
+            return_value=auto_scaling_enabled,
+        )
+        if auto_scaling_enabled:
+            mocker.patch(
+                "magnum_cluster_api.utils.get_node_group_min_node_count",
+                return_value=1,
+            )
+            mocker.patch(
+                "magnum_cluster_api.utils.get_node_group_max_node_count",
+                return_value=3,
+            )
+
+        mocker.patch(
+            "magnum_cluster_api.utils.get_auto_healing_enabled",
+            return_value=auto_healing_enabled,
+        )
 
     def _assert_node_group_status(self, expected_status):
         assert self.node_group.status == expected_status
@@ -52,147 +88,231 @@ class TestDriver:
         assert self.cluster.status == fields.ClusterStatus.UPDATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
 
-    def test_create_nodegroup(self, mocker, context, ubuntu_driver):
-        self.mock_cluster_resource.obj = {
+    def _response_for_cluster_with_machine_deployments(
+        self, *machine_deployments, method: str = responses.GET
+    ):
+        obj = {
+            "metadata": {
+                "name": self.cluster.stack_id,
+                "namespace": "magnum-system",
+                "managedFields": None,
+            },
             "spec": {
                 "topology": {
                     "workers": {
-                        "machineDeployments": [],
+                        "machineDeployments": list(machine_deployments),
                     }
                 }
             },
         }
 
-        mock_mutate_machine_deployment = mocker.patch(
-            "magnum_cluster_api.resources.mutate_machine_deployment"
+        url = "http://localhost/apis/%s/namespaces/%s/%s/%s" % (
+            objects.Cluster.version,
+            "magnum-system",
+            objects.Cluster.endpoint,
+            self.cluster.stack_id,
+        )
+        match = []
+        if method == responses.PATCH:
+            url += "?fieldManager=atmosphere-operator&force=True"
+            match.append(matchers.json_params_matcher(obj))
+
+        return responses.Response(
+            method,
+            url,
+            json=obj,
+            match=match,
         )
 
-        ubuntu_driver.create_nodegroup(context, self.cluster, self.node_group)
+    def _response_for_machine_deployment_spec(
+        self, machine_deployment_spec=None, deleted=False
+    ):
+        json = {"items": []}
 
-        mock_mutate_machine_deployment.assert_called_once_with(
-            context, self.cluster, self.node_group
+        if machine_deployment_spec and not deleted:
+            json["items"].append(
+                {
+                    "metadata": {
+                        "name": machine_deployment_spec["name"],
+                        "namespace": "magnum-system",
+                    },
+                    "spec": {
+                        "replicas": machine_deployment_spec["replicas"],
+                        "template": {
+                            "metadata": machine_deployment_spec["metadata"],
+                        },
+                    },
+                }
+            )
+
+        return responses.Response(
+            responses.GET,
+            "http://localhost/apis/%s/namespaces/%s/%s"
+            % (
+                objects.MachineDeployment.version,
+                "magnum-system",
+                objects.MachineDeployment.endpoint,
+            ),
+            match=[
+                matchers.query_param_matcher(
+                    {
+                        "labelSelector": "cluster.x-k8s.io/cluster-name=%s,topology.cluster.x-k8s.io/deployment-name=%s"
+                        % (self.cluster.stack_id, machine_deployment_spec["name"])
+                    }
+                ),
+            ],
+            json=json,
         )
 
-        assert self.mock_cluster_resource.obj["spec"]["topology"]["workers"][
-            "machineDeployments"
-        ] == [mock_mutate_machine_deployment.return_value]
+    def setup_node_group_tests(self, rsps, before, after):
+        rsps.add(
+            self._response_for_cluster_with_machine_deployments(*before),
+        )
+        rsps.add(
+            self._response_for_cluster_with_machine_deployments(
+                *after,
+                method=responses.PATCH,
+            )
+        )
 
-        self._assert_node_group_crud_calls()
+        md_found = False
+        for md in after:
+            if md["name"] == self.node_group.name:
+                md_found = True
+                rsps.add(
+                    self._response_for_machine_deployment_spec(md),
+                )
+                break
+
+        if not md_found:
+            for md in before:
+                if md["name"] == self.node_group.name:
+                    rsps.add(
+                        self._response_for_machine_deployment_spec(md, deleted=True),
+                    )
+                    break
+
+    def test_create_nodegroup(self, context, ubuntu_driver, requests_mock):
+        with requests_mock as rsps:
+            self.setup_node_group_tests(
+                rsps,
+                before=[],
+                after=[
+                    resources.mutate_machine_deployment(
+                        context,
+                        self.cluster,
+                        self.node_group,
+                    ),
+                ],
+            )
+
+            ubuntu_driver.create_nodegroup(context, self.cluster, self.node_group)
+
         self._assert_node_group_status(fields.ClusterStatus.CREATE_IN_PROGRESS)
 
-    def test_update_nodegroup(self, mocker, context, ubuntu_driver):
-        self.mock_cluster_resource.obj = {
-            "spec": {
-                "topology": {
-                    "workers": {
-                        "machineDeployments": [
-                            {
-                                "name": self.node_group.name,
-                            }
-                        ],
+    def test_update_nodegroup(self, context, ubuntu_driver, requests_mock):
+        with requests_mock as rsps:
+            self.setup_node_group_tests(
+                rsps,
+                before=[
+                    {
+                        "name": self.node_group.name,
                     }
-                }
-            },
-        }
+                ],
+                after=[
+                    resources.mutate_machine_deployment(
+                        context,
+                        self.cluster,
+                        self.node_group,
+                        {
+                            "name": self.node_group.name,
+                        },
+                    ),
+                ],
+            )
 
-        mock_mutate_machine_deployment = mocker.patch(
-            "magnum_cluster_api.resources.mutate_machine_deployment"
-        )
+            ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
 
-        ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
-
-        mock_mutate_machine_deployment.assert_called_once_with(
-            context,
-            self.cluster,
-            self.node_group,
-            {
-                "name": self.node_group.name,
-            },
-        )
-
-        assert self.mock_cluster_resource.obj["spec"]["topology"]["workers"][
-            "machineDeployments"
-        ] == [mock_mutate_machine_deployment.return_value]
-
-        self._assert_node_group_crud_calls()
         self._assert_node_group_status(fields.ClusterStatus.UPDATE_IN_PROGRESS)
 
     def test_update_nodegroup_with_multiple_node_groups(
-        self, mocker, context, ubuntu_driver
+        self, context, ubuntu_driver, requests_mock
     ):
-        mock_machine_deployment = mocker.MagicMock()
+        with requests_mock as rsps:
+            self.setup_node_group_tests(
+                rsps,
+                before=[
+                    {
+                        "name": "unrelated-machine-deployment",
+                        "replicas": 1,
+                        "metadata": {
+                            "annotations": {},
+                        },
+                    },
+                    {
+                        "name": self.node_group.name,
+                        "replicas": 1,
+                        "metadata": {
+                            "annotations": {},
+                        },
+                    },
+                ],
+                after=[
+                    {
+                        "name": "unrelated-machine-deployment",
+                        "replicas": 1,
+                        "metadata": {
+                            "annotations": {},
+                        },
+                    },
+                    resources.mutate_machine_deployment(
+                        context,
+                        self.cluster,
+                        self.node_group,
+                        {
+                            "name": self.node_group.name,
+                        },
+                    ),
+                ],
+            )
 
-        self.mock_cluster_resource.obj = {
-            "spec": {
-                "topology": {
-                    "workers": {
-                        "machineDeployments": [
-                            mock_machine_deployment,
-                            {
-                                "name": self.node_group.name,
-                            },
-                        ],
-                    }
-                }
-            },
-        }
+            ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
 
-        mock_mutate_machine_deployment = mocker.patch(
-            "magnum_cluster_api.resources.mutate_machine_deployment"
-        )
-
-        ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
-
-        assert not mock_machine_deployment.called
-
-        mock_mutate_machine_deployment.assert_called_once_with(
-            context,
-            self.cluster,
-            self.node_group,
-            {
-                "name": self.node_group.name,
-            },
-        )
-
-        assert self.mock_cluster_resource.obj["spec"]["topology"]["workers"][
-            "machineDeployments"
-        ] == [
-            mock_machine_deployment,
-            mock_mutate_machine_deployment.return_value,
-        ]
-
-        self._assert_node_group_crud_calls()
         self._assert_node_group_status(fields.ClusterStatus.UPDATE_IN_PROGRESS)
 
     def test_delete_nodegroup_with_multiple_node_groups(
-        self, mocker, context, ubuntu_driver
+        self, context, ubuntu_driver, requests_mock
     ):
-        mock_machine_deployment = mocker.MagicMock()
+        with requests_mock as rsps:
+            self.setup_node_group_tests(
+                rsps,
+                before=[
+                    {
+                        "name": "unrelated-machine-deployment",
+                        "replicas": 1,
+                        "metadata": {
+                            "annotations": {},
+                        },
+                    },
+                    {
+                        "name": self.node_group.name,
+                        "replicas": 1,
+                        "metadata": {
+                            "annotations": {},
+                        },
+                    },
+                ],
+                after=[
+                    {
+                        "name": "unrelated-machine-deployment",
+                        "replicas": 1,
+                        "metadata": {
+                            "annotations": {},
+                        },
+                    },
+                ],
+            )
 
-        self.mock_cluster_resource.obj = {
-            "spec": {
-                "topology": {
-                    "workers": {
-                        "machineDeployments": [
-                            mock_machine_deployment,
-                            {
-                                "name": self.node_group.name,
-                            },
-                        ],
-                    }
-                }
-            },
-        }
+            ubuntu_driver.delete_nodegroup(context, self.cluster, self.node_group)
 
-        ubuntu_driver.delete_nodegroup(context, self.cluster, self.node_group)
-
-        assert not mock_machine_deployment.called
-
-        assert self.mock_cluster_resource.obj["spec"]["topology"]["workers"][
-            "machineDeployments"
-        ] == [
-            mock_machine_deployment,
-        ]
-
-        self._assert_node_group_crud_calls()
         self._assert_node_group_status(fields.ClusterStatus.DELETE_IN_PROGRESS)
