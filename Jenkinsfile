@@ -15,7 +15,7 @@ jobs['unit'] = {
         sh 'sudo pip install hatch'
         
         try {
-            sh 'hatch run test:unit --junit-xml=junit.xml'
+            sh '. "$HOME/.cargo/env" && hatch run test:unit --junit-xml=junit.xml'
         } finally {
             step([$class: 'JUnitResultArchiver', testResults: 'junit.xml'])
         }
@@ -38,7 +38,7 @@ jobs['functional'] = {
         sh './hack/setup-capo.sh'
 
         try {
-            sh 'hatch run test:functional --junit-xml=junit.xml'
+            sh '. "$HOME/.cargo/env" && hatch run test:functional --junit-xml=junit.xml'
         } finally {
             step([$class: 'JUnitResultArchiver', testResults: 'junit.xml'])
         }
