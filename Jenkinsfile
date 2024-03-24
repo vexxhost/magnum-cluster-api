@@ -9,13 +9,10 @@ jobs['unit'] = {
     node('jammy-2c-8g') {
         checkout scm
 
-        sh "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
-
-        sh 'sudo apt-get install -y python3-pip'
-        sh 'sudo pip install hatch'
+        sh './hack/install-nix.sh'
         
         try {
-            sh '. "$HOME/.cargo/env" && hatch run test:unit --junit-xml=junit.xml'
+            sh 'nix develop --command hatch run test:unit --junit-xml=junit.xml'
         } finally {
             step([$class: 'JUnitResultArchiver', testResults: 'junit.xml'])
         }
@@ -26,11 +23,9 @@ jobs['functional'] = {
     node('jammy-2c-8g') {
         checkout scm
 
-        sh "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+        sh './hack/install-nix.sh'
 
-        sh 'sudo apt-get install -y python3-pip'
-        sh 'sudo pip install hatch'
-
+        // TODO: move this to nix
         sh './hack/setup-kubectl.sh'
         sh './hack/setup-helm.sh'
         sh './hack/setup-docker.sh'
@@ -38,7 +33,7 @@ jobs['functional'] = {
         sh './hack/setup-capo.sh'
 
         try {
-            sh '. "$HOME/.cargo/env" && hatch run test:functional --junit-xml=junit.xml'
+            sh 'nix develop --command hatch run test:functional --junit-xml=junit.xml'
         } finally {
             step([$class: 'JUnitResultArchiver', testResults: 'junit.xml'])
         }
