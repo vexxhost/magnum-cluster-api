@@ -20,17 +20,14 @@ dependencies = [
     "python-manilaclient>=3.3.2",
     "certifi",
     "click>=8.0.4",
-    "diskcache>=5.6.1",
     "haproxyadmin~=0.2.4",
     "kubernetes>=24.2.0",
     "magnum>=15.0.0",
-    "platformdirs>=2.4.0",
     "pykube-ng",
     "pyroute2>=0.3.4",
     "requests>=2.27.1",
     "semver<3",
     "sherlock~=0.4.1",
-    "shortuuid"
 ]
 
 [project.scripts]
@@ -45,11 +42,16 @@ magnum-cluster-api-proxy = "magnum_cluster_api.cmd.proxy:main"
 "k8s_cluster_api_ubuntu" = "magnum_cluster_api.driver:UbuntuDriver"
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.hatch.envs.default]
+dependencies = [
+    "maturin",
+]
 
 [tool.hatch.envs.test]
-dependencies = [
+extra-dependencies = [
     "fixtures",
     "oslotest",
     "pytest-mock~=3.6.1",
@@ -60,6 +62,11 @@ dependencies = [
 [tool.hatch.envs.test.scripts]
 unit = "python3 -m pytest {args} magnum_cluster_api/tests/unit/"
 functional = "python3 -m pytest {args} magnum_cluster_api/tests/functional/"
+
+[tool.maturin]
+module-name = "magnum_cluster_api._internal"
+features = ["pyo3/extension-module"]
+include = ["magnum_cluster_api/charts/**/*"]
 
 [tool.isort]
 profile = "black"

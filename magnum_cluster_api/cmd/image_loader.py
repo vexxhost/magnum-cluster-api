@@ -13,21 +13,12 @@
 # under the License.
 
 import concurrent.futures
-import os
 import shutil
 import subprocess
-import tempfile
 
 import click
-import platformdirs
-import requests
-from diskcache import FanoutCache
 
-from magnum_cluster_api import image_utils
-
-CACHE = FanoutCache(
-    directory=platformdirs.user_cache_dir("magnum_cluster_api", "vexxhost"),
-)
+from magnum_cluster_api import _internal, image_utils
 
 # NOTE(mnaser): This is a list of all the Kubernetes versions which we've
 #               released images for.  This list is used to determine which
@@ -81,7 +72,7 @@ def main(repository, parallel, insecure):
     #               clusters running different versions of Kubernetes at the
     #               same time.
     images = set(
-        _get_all_kubeadm_images()
+        _internal.get_kubeadm_images(VERSIONS)
         + _get_calico_images()
         + _get_cloud_provider_images()
         + _get_infra_images()
@@ -123,50 +114,6 @@ def _mirror_image(image: str, repository: str, insecure: bool, crane_path: str):
             err=True,
         )
         return
-
-
-def _get_all_kubeadm_images():
-    """
-    Get the list of images that are used by Kubernetes by downloading "kubeadm"
-    and running the "kubeadm config images list" command.
-    """
-
-    images = []
-    for version in VERSIONS:
-        images += _get_kubeadm_images(version)
-
-    return images
-
-
-@CACHE.memoize()
-def _get_kubeadm_images(version: str):
-    """
-    Get the list of images that are used by Kubernetes by downloading "kubeadm"
-    and running the "kubeadm config images list" command.
-    """
-
-    # Download kubeadm
-    r = requests.get(f"https://dl.k8s.io/release/{version}/bin/linux/amd64/kubeadm")
-    r.raise_for_status()
-
-    # Write it to a temporary file
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-        f.write(r.content)
-        f.close()
-
-        # Make it executable
-        os.chmod(f.name, 0o755)
-
-        # Run the command
-        output = subprocess.check_output(
-            [f.name, "config", "images", "list", "--kubernetes-version", version]
-        )
-
-        # Remove the temporary file
-        os.unlink(f.name)
-
-    # Parse the output
-    return output.decode().replace("k8s.gcr.io", "registry.k8s.io").splitlines()
 
 
 def _get_calico_images():

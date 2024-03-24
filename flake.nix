@@ -18,7 +18,13 @@
               LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
 
               buildInputs = with pkgs; [
+                cargo
                 hatch
+                openssl.dev
+                pkg-config
+                rust-analyzer
+                rustc
+                rustfmt
               ];
             };
         }
