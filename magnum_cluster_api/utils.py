@@ -123,7 +123,7 @@ def generate_cloud_controller_manager_config(
         tls-insecure={"false" if CONF.drivers.verify_ca else "true"}
         {"ca-file=/etc/config/ca.crt" if get_cloud_ca_cert() else ""}
         [LoadBalancer]
-        lb-provider={get_cluster_label(cluster, "octavia_provider", "amphora")}
+        lb-provider={cluster.labels.get("octavia_provider", "amphora")}
         """
     )
 
