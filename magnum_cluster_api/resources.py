@@ -41,8 +41,6 @@ CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
 CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT = "300s"  # seconds
 
-CLUSTER_UPGRADE_LABELS = {"kube_tag"}
-
 PLACEHOLDER = "PLACEHOLDER"
 
 AUTOSCALE_ANNOTATION_MIN = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size"
@@ -2569,31 +2567,12 @@ def apply_cluster_from_magnum_cluster(
     context: context.RequestContext,
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
-    cluster_template: magnum_objects.ClusterTemplate = None,
     skip_auto_scaling_release: bool = False,
 ) -> None:
     """
     Create a ClusterAPI cluster given a Magnum Cluster object.
     """
     create_cluster_class(api)
-
-    if cluster_template is None:
-        cluster_template = cluster.cluster_template
-        cluster.cluster_template_id = cluster_template.uuid
-
-    # NOTE(mnaser): When using Cluster API, there is a 1:1 mapping between image
-    #               and version of Kubernetes, therefore, we need to ignore the
-    #               `image_id` field, as well as copy over any tags relating to
-    #               the Kubernetes version.
-    #
-    #               I hate this.
-    for label in CLUSTER_UPGRADE_LABELS:
-        cluster.labels[label] = cluster_template.labels[label]
-        for ng in cluster.nodegroups:
-            ng.image_id = cluster_template.image_id
-            ng.labels[label] = cluster_template.labels[label]
-            ng.save()
-    cluster.save()
 
     ClusterResourcesConfigMap(context, api, cluster).apply()
     ClusterResourceSet(api, cluster).apply()

@@ -282,21 +282,46 @@ class BaseDriver(driver.Driver):
         """
         Upgrade a cluster to a new version of Kubernetes.
         """
-        # TODO: nodegroup?
+        # NOTE(mnaser): We have a list of labels which are "approved" to be overwritten
+        #               by the cluster template to complete the upgrade.
+        #
+        #               Historically, the upgrade cluster has been a "hammer" that was
+        #               used to sync the Kubernetes Cluster API objects with the Magnum
+        #               objects.  However, by doing this, we're losing the ability to
+        #               maintain the existing labels of the cluster.
+        #
+        #               For now, upgrade cluster simply modifies the labels that are
+        #               necessary for the upgrade, nothing else.  For the future, we
+        #               can perhaps use the `update_cluster` API.
+        upgrade_labels = {
+            "kube_tag",
+        }
+
+        # XXX(mnaser): The Magnum API historically only did upgrade one node group at a
+        #              time.  This is a limitation of the Magnum API and not the Magnum
+        #              Cluster API since doing multiple rolling upgrades was not very
+        #              well supported in the past.
+        #
+        #              The Magnum Cluster API does not have this limitation in this case
+        #              we ignore the `nodegroup` parameter and upgrade the entire cluster
+        #              at once.
+        cluster.cluster_template_id = cluster_template.uuid
+
+        for label in upgrade_labels:
+            cluster.labels[label] = cluster_template.labels[label]
+
+            for ng in cluster.nodegroups:
+                ng.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+                ng.image_id = cluster_template.image_id
+                ng.labels[label] = cluster_template.labels[label]
+                ng.save()
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
-
-        resources.apply_cluster_from_magnum_cluster(
-            context, self.k8s_api, cluster, cluster_template=cluster_template
-        )
-
-        # Wait till the generation has been increased
+        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
         cluster_resource.wait_for_observed_generation_changed()
 
-        # NOTE(mnaser): We need to save the cluster status here to make sure
-        #               it happens inside the lock.
-        cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
-        cluster.save()
+        # NOTE(mnaser): We do not save the cluster object here because the Magnum driver
+        #               will save the object that it passed to us here.
 
     @cluster_lock_wrapper
     def delete_cluster(self, context, cluster: magnum_objects.Cluster):
