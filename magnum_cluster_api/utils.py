@@ -252,17 +252,6 @@ def generate_apt_proxy_config(cluster: magnum_objects.Cluster):
         return ""
 
 
-def get_node_group_label(
-    cluster: magnum_objects.Cluster,
-    node_group: magnum_objects.NodeGroup,
-    key: str,
-    default: str,
-) -> str:
-    if key in node_group.labels:
-        return node_group.labels[key]
-    return cluster.labels.get(key, default)
-
-
 def get_node_group_min_node_count(
     node_group: magnum_objects.NodeGroup,
     default=1,
@@ -273,12 +262,10 @@ def get_node_group_min_node_count(
 
 
 def get_node_group_max_node_count(
-    cluster: magnum_objects.Cluster,
     node_group: magnum_objects.NodeGroup,
 ) -> int:
     if node_group.max_node_count is None:
         return get_node_group_label_as_int(
-            cluster,
             node_group,
             "max_node_count",
             get_node_group_min_node_count(node_group) + 1,
@@ -287,12 +274,11 @@ def get_node_group_max_node_count(
 
 
 def get_node_group_label_as_int(
-    cluster: magnum_objects.Cluster,
     node_group: magnum_objects.NodeGroup,
     key: str,
     default: int,
 ) -> int:
-    value = get_node_group_label(cluster, node_group, key, str(default))
+    value = node_group.labels.get(key, str(default))
     return strutils.validate_integer(value, key)
 
 

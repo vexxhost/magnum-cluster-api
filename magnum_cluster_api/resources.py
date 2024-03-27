@@ -2174,7 +2174,7 @@ def mutate_machine_deployment(
                 utils.get_node_group_min_node_count(node_group)
             ),
             AUTOSCALE_ANNOTATION_MAX: str(
-                utils.get_node_group_max_node_count(cluster, node_group)
+                utils.get_node_group_max_node_count(node_group)
             ),
         }
     else:
@@ -2198,9 +2198,7 @@ def mutate_machine_deployment(
         {
             "class": "default-worker",
             "name": node_group.name,
-            "failureDomain": utils.get_node_group_label(
-                cluster, node_group, "availability_zone", ""
-            ),
+            "failureDomain": node_group.labels.get("availability_zone", ""),
             "machineHealthCheck": {"enable": utils.get_auto_healing_enabled(cluster)},
             "variables": {
                 "overrides": [
@@ -2208,14 +2206,11 @@ def mutate_machine_deployment(
                         "name": "bootVolume",
                         "value": {
                             "size": utils.get_node_group_label_as_int(
-                                cluster,
                                 node_group,
                                 "boot_volume_size",
                                 CONF.cinder.default_boot_volume_size,
                             ),
-                            "type": utils.get_node_group_label(
-                                cluster,
-                                node_group,
+                            "type": node_group.labels.get(
                                 "boot_volume_type",
                                 cinder.get_default_boot_volume_type(context),
                             ),
@@ -2227,9 +2222,7 @@ def mutate_machine_deployment(
                     },
                     {
                         "name": "imageRepository",
-                        "value": utils.get_node_group_label(
-                            cluster,
-                            node_group,
+                        "value": node_group.labels.get(
                             "container_infra_prefix",
                             "",
                         ),

@@ -22,8 +22,8 @@ from responses import matchers
 from magnum_cluster_api import objects, resources
 
 
-@pytest.mark.parametrize("auto_scaling_enabled", [True, False])
-@pytest.mark.parametrize("auto_healing_enabled", [True, False])
+@pytest.mark.parametrize("auto_scaling_enabled", [True, False], ids=lambda x: f"auto_scaling_enabled={x}")
+@pytest.mark.parametrize("auto_healing_enabled", [True, False], ids=lambda x: f"auto_healing_enabled={x}")
 class TestDriver:
     @pytest.fixture(autouse=True)
     def setup(
