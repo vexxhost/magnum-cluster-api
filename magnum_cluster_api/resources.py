@@ -37,7 +37,7 @@ from magnum_cluster_api.integrations import cinder, cloud_provider, manila
 
 CONF = cfg.CONF
 CALICO_TAG = "v3.24.2"
-CILIUM_TAG = "v1.13.10"
+CILIUM_TAG = "v1.15.3"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
@@ -207,11 +207,21 @@ class ClusterResourcesConfigMap(ClusterBase):
                             "vendor/cilium/",
                         ),
                         values={
+                            "image": {
+                                "tag": cilium_version,
+                            },
+                            "operator": {
+                                "image": {
+                                    "tag": cilium_version,
+                                },
+                            },
                             "ipam": {
                                 "operator": {
                                     "clusterPoolIPv4PodCIDRList": [
                                         utils.get_cluster_label(
-                                            self.cluster, "cilium_ipv4pool", "10.100.0.0/16",
+                                            self.cluster,
+                                            "cilium_ipv4pool",
+                                            "10.100.0.0/16",
                                         ),
                                     ],
                                 },
