@@ -107,6 +107,9 @@ EOF
 # Install CAPI/CAPO
 ./hack/setup-capo.sh
 
+# Install vendir
+./hack/setup-vendir.sh
+
 # Vendor the chart
 make vendor
 
