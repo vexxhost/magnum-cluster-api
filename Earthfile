@@ -12,7 +12,8 @@ vendir:
 build:
   FROM github.com/vexxhost/atmosphere/images/magnum+build
   COPY +vendir/vendir /usr/local/bin/vendir
-  COPY --dir magnum_cluster_api/ pyproject.toml README.md /src
+  COPY github.com/vexxhost/atmosphere/images/helm+binary/helm /usr/local/bin/helm
+  COPY --dir magnum_cluster_api/ pyproject.toml README.md vendir.yml /src
   WORKDIR /src
 	RUN vendir sync
   COPY hack/add-omt-to-clusterrole.patch /hack/
