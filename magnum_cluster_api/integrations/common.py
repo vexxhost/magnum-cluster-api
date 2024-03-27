@@ -66,7 +66,7 @@ def get_cloud_provider_image(
 
 
 def get_cloud_provider_tag(cluster: objects.Cluster, label: str) -> str:
-    tag_label = utils.get_cluster_label(cluster, label, None)
+    tag_label = cluster.labels.get(label, None)
     if tag_label:
         return tag_label
 

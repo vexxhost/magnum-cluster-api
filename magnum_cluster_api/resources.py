@@ -162,7 +162,7 @@ class ClusterResourcesConfigMap(ClusterBase):
         manifests_path = pkg_resources.resource_filename(
             "magnum_cluster_api", "manifests"
         )
-        calico_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
+        calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
 
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
 
@@ -244,9 +244,7 @@ class ClusterResourcesConfigMap(ClusterBase):
 
         if manila.is_enabled(self.cluster):
             share_types = osc.manila().share_types.list()
-            share_network_id = utils.get_cluster_label(
-                self.cluster, "manila_csi_share_network_id", None
-            )
+            share_network_id = self.cluster.labels.get("manila_csi_share_network_id")
             data = {
                 **data,
                 **{
@@ -2275,7 +2273,7 @@ class Cluster(ClusterBase):
 
     @property
     def labels(self) -> dict:
-        cni_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
+        cni_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
         labels = {
             "cni": f"calico-{cni_version}",
         }
@@ -2302,26 +2300,20 @@ class Cluster(ClusterBase):
                 },
                 "spec": {
                     "clusterNetwork": {
-                        "serviceDomain": utils.get_cluster_label(
-                            self.cluster,
-                            "dns_cluster_domain",
-                            "cluster.local",
+                        "serviceDomain": self.cluster.labels.get(
+                            "dns_cluster_domain", "cluster.local"
                         ),
                         "pods": {
                             "cidrBlocks": [
-                                utils.get_cluster_label(
-                                    self.cluster,
-                                    "calico_ipv4pool",
-                                    "10.100.0.0/16",
+                                self.cluster.labels.get(
+                                    "calico_ipv4pool", "10.100.0.0/16"
                                 )
                             ],
                         },
                         "services": {
                             "cidrBlocks": [
-                                utils.get_cluster_label(
-                                    self.cluster,
-                                    "service_cluster_ip_range",
-                                    "10.254.0.0/16",
+                                self.cluster.labels.get(
+                                    "service_cluster_ip_range", "10.254.0.0/16"
                                 )
                             ],
                         },
@@ -2354,8 +2346,7 @@ class Cluster(ClusterBase):
                             },
                             {
                                 "name": "apiServerTLSCipherSuites",
-                                "value": utils.get_cluster_label(
-                                    self.cluster,
+                                "value": self.cluster.labels.get(
                                     "api_server_tls_cipher_suites",
                                     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",  # noqa: E501
                                 ),
@@ -2363,23 +2354,23 @@ class Cluster(ClusterBase):
                             {
                                 "name": "openidConnect",
                                 "value": {
-                                    "clientId": utils.get_cluster_label(
-                                        self.cluster, "oidc_client_id", ""
+                                    "clientId": self.cluster.labels.get(
+                                        "oidc_client_id", ""
                                     ),
-                                    "groupsClaim": utils.get_cluster_label(
-                                        self.cluster, "oidc_groups_claim", ""
+                                    "groupsClaim": self.cluster.labels.get(
+                                        "oidc_groups_claim", ""
                                     ),
-                                    "groupsPrefix": utils.get_cluster_label(
-                                        self.cluster, "oidc_groups_prefix", ""
+                                    "groupsPrefix": self.cluster.labels.get(
+                                        "oidc_groups_prefix", ""
                                     ),
-                                    "issuerUrl": utils.get_cluster_label(
-                                        self.cluster, "oidc_issuer_url", ""
+                                    "issuerUrl": self.cluster.labels.get(
+                                        "oidc_issuer_url", ""
                                     ),
-                                    "usernameClaim": utils.get_cluster_label(
-                                        self.cluster, "oidc_username_claim", "sub"
+                                    "usernameClaim": self.cluster.labels.get(
+                                        "oidc_username_claim", "sub"
                                     ),
-                                    "usernamePrefix": utils.get_cluster_label(
-                                        self.cluster, "oidc_username_prefix", "-"
+                                    "usernamePrefix": self.cluster.labels.get(
+                                        "oidc_username_prefix", "-"
                                     ),
                                 },
                             },
@@ -2389,14 +2380,14 @@ class Cluster(ClusterBase):
                                     "enabled": utils.get_cluster_label_as_bool(
                                         self.cluster, "audit_log_enabled", False
                                     ),
-                                    "maxAge": utils.get_cluster_label(
-                                        self.cluster, "audit_log_max_age", "30"
+                                    "maxAge": self.cluster.labels.get(
+                                        "audit_log_max_age", "30"
                                     ),
-                                    "maxBackup": utils.get_cluster_label(
-                                        self.cluster, "audit_log_max_backup", "10"
+                                    "maxBackup": self.cluster.labels.get(
+                                        "audit_log_max_backup", "10"
                                     ),
-                                    "maxSize": utils.get_cluster_label(
-                                        self.cluster, "audit_log_max_size", "100"
+                                    "maxSize": self.cluster.labels.get(
+                                        "audit_log_max_size", "100"
                                     ),
                                 },
                             },
@@ -2408,8 +2399,7 @@ class Cluster(ClusterBase):
                                         "boot_volume_size",
                                         CONF.cinder.default_boot_volume_size,
                                     ),
-                                    "type": utils.get_cluster_label(
-                                        self.cluster,
+                                    "type": self.cluster.labels.get(
                                         "boot_volume_type",
                                         cinder.get_default_boot_volume_type(
                                             self.context
@@ -2514,16 +2504,14 @@ class Cluster(ClusterBase):
                             },
                             {
                                 "name": "kubeletTLSCipherSuites",
-                                "value": utils.get_cluster_label(
-                                    self.cluster,
+                                "value": self.cluster.labels.get(
                                     "kubelet_tls_cipher_suites",
                                     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",  # noqa: E501
                                 ),
                             },
                             {
                                 "name": "nodeCidr",
-                                "value": utils.get_cluster_label(
-                                    self.cluster,
+                                "value": self.cluster.labels.get(
                                     "fixed_subnet_cidr",
                                     "10.0.0.0/24",
                                 ),
@@ -2555,16 +2543,15 @@ class Cluster(ClusterBase):
                             },
                             {
                                 "name": "etcdVolumeType",
-                                "value": utils.get_cluster_label(
-                                    self.cluster,
+                                "value": self.cluster.labels.get(
                                     "etcd_volume_type",
                                     default_volume_type.name,
                                 ),
                             },
                             {
                                 "name": "availabilityZone",
-                                "value": utils.get_cluster_label(
-                                    self.cluster, "availability_zone", ""
+                                "value": self.cluster.labels.get(
+                                    "availability_zone", ""
                                 ),
                             },
                             {
