@@ -74,7 +74,7 @@ class ClusterAutoscalerHelmRelease:
             release_name=self.cluster.stack_id,
             chart_ref=os.path.join(
                 pkg_resources.resource_filename("magnum_cluster_api", "charts"),
-                "cluster-autoscaler/",
+                "vendor/cluster-autoscaler/",
             ),
             values={
                 "fullnameOverride": f"{self.cluster.stack_id}-autoscaler",
@@ -204,11 +204,27 @@ class ClusterResourcesConfigMap(ClusterBase):
             data = {
                 **data,
                 **{
-                    "cilium.yml": image_utils.update_manifest_images(
-                        self.cluster.uuid,
-                        os.path.join(manifests_path, f"cilium/{cilium_version}.yaml"),
-                        repository=repository,
-                    )
+                    "cilium.yml": helm.TemplateReleaseCommand(
+                        namespace="kube-system",
+                        release_name="cilium",
+                        chart_ref=os.path.join(
+                            pkg_resources.resource_filename(
+                                "magnum_cluster_api", "charts"
+                            ),
+                            "vendor/cilium/",
+                        ),
+                        values={
+                            "ipam": {
+                                "operator": {
+                                    "clusterPoolIPv4PodCIDRList": [
+                                        utils.get_cluster_label(
+                                            self.cluster, "cilium_ipv4pool", "10.100.0.0/16",
+                                        ),
+                                    ],
+                                },
+                            },
+                        },
+                    )(repository=repository)
                 },
             }
 
