@@ -70,8 +70,16 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     assert len(mds) == 2
 
 
-@pytest.mark.parametrize("auto_scaling_enabled", [True, False, None], ids=lambda x: f"auto_scaling_enabled={x}")
-@pytest.mark.parametrize("auto_healing_enabled", [True, False, None], ids=lambda x: f"auto_healing_enabled={x}")
+@pytest.mark.parametrize(
+    "auto_scaling_enabled",
+    [True, False, None],
+    ids=lambda x: f"auto_scaling_enabled={x}",
+)
+@pytest.mark.parametrize(
+    "auto_healing_enabled",
+    [True, False, None],
+    ids=lambda x: f"auto_healing_enabled={x}",
+)
 class TestExistingMutateMachineDeployment:
     @pytest.fixture(autouse=True)
     def setup(self, auto_scaling_enabled, auto_healing_enabled, context):
@@ -117,12 +125,12 @@ class TestExistingMutateMachineDeployment:
 
         if auto_scaling_enabled:
             assert md["replicas"] is None
-            assert md["metadata"]["annotations"][resources.AUTOSCALE_ANNOTATION_MIN] == str(
-                self.node_group.min_node_count
-            )
-            assert md["metadata"]["annotations"][resources.AUTOSCALE_ANNOTATION_MAX] == str(
-                self.node_group.max_node_count
-            )
+            assert md["metadata"]["annotations"][
+                resources.AUTOSCALE_ANNOTATION_MIN
+            ] == str(self.node_group.min_node_count)
+            assert md["metadata"]["annotations"][
+                resources.AUTOSCALE_ANNOTATION_MAX
+            ] == str(self.node_group.max_node_count)
         else:
             assert md["replicas"] == self.node_group.node_count
             assert md["metadata"]["annotations"] == {}
