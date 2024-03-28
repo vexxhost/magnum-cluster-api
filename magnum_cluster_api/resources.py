@@ -600,14 +600,23 @@ class KubeadmControlPlaneTemplate(Base):
                                             }
                                         ],
                                     },
+                                    "etcd": {
+                                        "local": {
+                                            "extraArgs": {
+                                                "listen-metrics-urls": "http://0.0.0.0:2381",
+                                            },
+                                        },
+                                    },
                                     "controllerManager": {
                                         "extraArgs": {
+                                            "bind-address": "0.0.0.0",
                                             "cloud-provider": "external",
                                             "profiling": "false",
                                         },
                                     },
                                     "scheduler": {
                                         "extraArgs": {
+                                            "bind-address": "0.0.0.0",
                                             "profiling": "false",
                                         },
                                     },
