@@ -111,7 +111,7 @@ class TestDriver:
         return responses.Response(
             method,
             re.compile(
-                f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w" # noqa
+                f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w"  # noqa
             ),
             json=obj,
             match=match,
@@ -170,7 +170,7 @@ class TestDriver:
             rsps.add(
                 responses.GET,
                 re.compile(
-                    f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w+" # noqa
+                    f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w+"  # noqa
                 ),
                 status=404,
             )
@@ -191,7 +191,7 @@ class TestDriver:
             rsps.add_callback(
                 responses.PATCH,
                 re.compile(
-                    f"http://localhost/apis/{objects.KubeadmControlPlaneTemplate.version}/namespaces/magnum-system/{objects.KubeadmControlPlaneTemplate.endpoint}/\\w+" # noqa
+                    f"http://localhost/apis/{objects.KubeadmControlPlaneTemplate.version}/namespaces/magnum-system/{objects.KubeadmControlPlaneTemplate.endpoint}/\\w+"  # noqa
                 ),
                 match=[self.server_side_apply_matcher],
                 callback=lambda request: (200, {}, request.body),
@@ -199,7 +199,7 @@ class TestDriver:
             rsps.add_callback(
                 responses.PATCH,
                 re.compile(
-                    f"http://localhost/apis/{objects.KubeadmConfigTemplate.version}/namespaces/magnum-system/{objects.KubeadmConfigTemplate.endpoint}/\\w+" # noqa
+                    f"http://localhost/apis/{objects.KubeadmConfigTemplate.version}/namespaces/magnum-system/{objects.KubeadmConfigTemplate.endpoint}/\\w+"  # noqa
                 ),
                 match=[self.server_side_apply_matcher],
                 callback=lambda request: (200, {}, request.body),
@@ -207,7 +207,7 @@ class TestDriver:
             rsps.add_callback(
                 responses.PATCH,
                 re.compile(
-                    f"http://localhost/apis/{objects.OpenStackMachineTemplate.version}/namespaces/magnum-system/{objects.OpenStackMachineTemplate.endpoint}/\\w+" # noqa
+                    f"http://localhost/apis/{objects.OpenStackMachineTemplate.version}/namespaces/magnum-system/{objects.OpenStackMachineTemplate.endpoint}/\\w+"  # noqa
                 ),
                 match=[self.server_side_apply_matcher],
                 callback=lambda request: (200, {}, request.body),
@@ -215,7 +215,7 @@ class TestDriver:
             rsps.add_callback(
                 responses.PATCH,
                 re.compile(
-                    f"http://localhost/apis/{objects.OpenStackClusterTemplate.version}/namespaces/magnum-system/{objects.OpenStackClusterTemplate.endpoint}/\\w+" # noqa
+                    f"http://localhost/apis/{objects.OpenStackClusterTemplate.version}/namespaces/magnum-system/{objects.OpenStackClusterTemplate.endpoint}/\\w+"  # noqa
                 ),
                 match=[self.server_side_apply_matcher],
                 callback=lambda request: (200, {}, request.body),
@@ -223,7 +223,7 @@ class TestDriver:
             rsps.add_callback(
                 responses.PATCH,
                 re.compile(
-                    f"http://localhost/apis/{objects.ClusterClass.version}/namespaces/magnum-system/{objects.ClusterClass.endpoint}/\\w+" # noqa
+                    f"http://localhost/apis/{objects.ClusterClass.version}/namespaces/magnum-system/{objects.ClusterClass.endpoint}/\\w+"  # noqa
                 ),
                 match=[self.server_side_apply_matcher],
                 callback=lambda request: (200, {}, request.body),
@@ -257,7 +257,7 @@ class TestDriver:
             rsps.add_callback(
                 responses.PATCH,
                 re.compile(
-                    f"http://localhost/apis/{objects.ClusterResourceSet.version}/namespaces/magnum-system/{objects.ClusterResourceSet.endpoint}/\\w+" # noqa
+                    f"http://localhost/apis/{objects.ClusterResourceSet.version}/namespaces/magnum-system/{objects.ClusterResourceSet.endpoint}/\\w+"  # noqa
                 ),
                 match=[self.server_side_apply_matcher],
                 callback=lambda request: (200, {}, request.body),
@@ -265,7 +265,7 @@ class TestDriver:
             rsps.add_callback(
                 responses.PATCH,
                 re.compile(
-                    f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w+" # noqa
+                    f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w+"  # noqa
                 ),
                 match=[self.server_side_apply_matcher],
                 callback=lambda request: (200, {}, request.body),
