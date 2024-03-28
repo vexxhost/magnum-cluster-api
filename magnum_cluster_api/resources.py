@@ -168,11 +168,6 @@ class ClusterResourcesConfigMap(ClusterBase):
         self.cluster = cluster
 
     def get_object(self) -> pykube.ConfigMap:
-        # NOTE(mnaser): We have to assert that the only CNIs we support are Calico and Cilium.
-        assert Counter(
-            CONF.cluster_template.kubernetes_allowed_network_drivers
-        ) == Counter(["calico", "cilium"])
-
         manifests_path = pkg_resources.resource_filename(
             "magnum_cluster_api", "manifests"
         )
