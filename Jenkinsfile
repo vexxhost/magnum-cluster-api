@@ -91,6 +91,7 @@ operatingSystems.each { operatingSystem ->
                 }
 
                 archiveArtifacts artifacts: 'sonobuoy-results.tar.gz'
+                archiveArtifacts artifacts: "${operatingSystem}-kube-${kubernetesVersion}.qcow2"
             }
         }
     }
