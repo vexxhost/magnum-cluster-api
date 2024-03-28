@@ -9,13 +9,10 @@ jobs['unit'] = {
     node('jammy-2c-8g') {
         checkout scm
 
-        sh 'sudo apt-get install -y python3-pip'
-        sh 'sudo pip install poetry'
+        sh './hack/install-nix.sh'
         
-        sh 'poetry install'
-
         try {
-            sh 'poetry run pytest --junitxml=junit.xml magnum_cluster_api/tests/unit'
+            sh 'nix develop --command hatch run test:unit --junit-xml=junit.xml'
         } finally {
             step([$class: 'JUnitResultArchiver', testResults: 'junit.xml'])
         }
@@ -26,11 +23,9 @@ jobs['functional'] = {
     node('jammy-2c-8g') {
         checkout scm
 
-        sh 'sudo apt-get install -y python3-pip'
-        sh 'sudo pip install poetry'
-        
-        sh 'poetry install'
+        sh './hack/install-nix.sh'
 
+        // TODO: move this to nix
         sh './hack/setup-kubectl.sh'
         sh './hack/setup-helm.sh'
         sh './hack/setup-docker.sh'
@@ -38,7 +33,7 @@ jobs['functional'] = {
         sh './hack/setup-capo.sh'
 
         try {
-            sh 'poetry run pytest --junitxml=junit.xml magnum_cluster_api/tests/functional'
+            sh 'nix develop --command hatch run test:functional --junit-xml=junit.xml'
         } finally {
             step([$class: 'JUnitResultArchiver', testResults: 'junit.xml'])
         }

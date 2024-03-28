@@ -1,0 +1,21 @@
+[package]
+name = "magnum-cluster-api"
+version = "0.15.1"
+edition = "2021"
+
+[lib]
+name = "magnum_cluster_api"
+crate-type = ["cdylib"]
+
+[dependencies]
+cached = { version = "0.49.2", features = ["disk_store"] }
+rand = "0.8.5"
+rayon = "1.10.0"
+reqwest = { version = "0.12.1", features = ["blocking"] }
+slug = "0.1.5"
+tempfile = "3.10.1"
+thiserror = "1.0.58"
+
+[dependencies.pyo3]
+version = "0.20.0"
+features = ["abi3-py38"]

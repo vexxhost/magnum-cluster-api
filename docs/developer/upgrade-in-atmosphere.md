@@ -9,7 +9,7 @@ Run the following cmd to update all Magnum image tags in `Atmosphere` project.
 ```sh
 earthly +pin-images
 ```
-It will fetch the hash value of the current head image and set it in `roles/default/vars/main.yaml` file. Then you can run `ansible-playbook` or `poetry` command to deploy/upgrade atmosphere as normal.
+It will fetch the hash value of the current head image and set it in `roles/default/vars/main.yaml` file. Then you can run `ansible-playbook` command to deploy/upgrade atmosphere as normal.
 
 ## To apply main branch (not released yet)
 If you want to apply patches merged into main branch but not released yet, you can follow this instruction.
