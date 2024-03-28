@@ -16,8 +16,8 @@ from unittest import mock
 
 import pytest
 from magnum import objects as magnum_objects  # type: ignore
-from magnum.tests.unit.objects import utils  # type: ignore
 from magnum.objects import fields  # type: ignore
+from magnum.tests.unit.objects import utils  # type: ignore
 
 from magnum_cluster_api import clients, objects
 

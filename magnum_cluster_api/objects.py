@@ -35,7 +35,7 @@ class NamespacedAPIObject(pykube.objects.NamespacedAPIObject):
                 "involvedObject.kind": self.kind,
             },
         )
-    
+
     @property
     def observed_generation(self):
         return self.obj.get("status", {}).get("observedGeneration")
@@ -60,9 +60,7 @@ class NamespacedAPIObject(pykube.objects.NamespacedAPIObject):
             with attempt:
                 self.reload()
             if not attempt.retry_state.outcome.failed:
-                attempt.retry_state.set_result(
-                    self.observed_generation
-                )
+                attempt.retry_state.set_result(self.observed_generation)
 
 
 class EndpointSlice(NamespacedAPIObject):
@@ -282,7 +280,6 @@ class Cluster(NamespacedAPIObject):
 
 
 class StorageClass(pykube.objects.APIObject):
-
     version = "storage.k8s.io/v1"
     endpoint = "storageclasses"
     kind = "StorageClass"

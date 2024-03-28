@@ -15,8 +15,6 @@
 import os
 from datetime import datetime, timedelta
 from unittest import mock
-from magnum.objects import fields
-from oslo_utils import uuidutils  # type: ignore
 
 import openstack
 import pytest
@@ -25,8 +23,10 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from magnum.common import context as magnum_context  # type: ignore
-from responses import matchers
+from magnum.objects import fields
 from magnum.tests.unit.objects import utils
+from oslo_utils import uuidutils  # type: ignore
+from responses import matchers
 
 from magnum_cluster_api import driver
 
