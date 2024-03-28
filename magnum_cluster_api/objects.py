@@ -36,6 +36,10 @@ class NamespacedAPIObject(pykube.objects.NamespacedAPIObject):
             },
         )
 
+    @property
+    def observed_generation(self):
+        return self.obj.get("status", {}).get("observedGeneration")
+
     def wait_for_observed_generation_changed(
         self,
         existing_observed_generation: int = 0,
@@ -43,7 +47,7 @@ class NamespacedAPIObject(pykube.objects.NamespacedAPIObject):
         interval: int = 1,
     ):
         if existing_observed_generation == 0:
-            existing_observed_generation = self.obj["status"]["observedGeneration"]
+            existing_observed_generation = self.observed_generation
 
         for attempt in Retrying(
             retry=(
@@ -56,9 +60,7 @@ class NamespacedAPIObject(pykube.objects.NamespacedAPIObject):
             with attempt:
                 self.reload()
             if not attempt.retry_state.outcome.failed:
-                attempt.retry_state.set_result(
-                    self.obj.get("status", {}).get("observedGeneration")
-                )
+                attempt.retry_state.set_result(self.observed_generation)
 
 
 class EndpointSlice(NamespacedAPIObject):
@@ -278,7 +280,6 @@ class Cluster(NamespacedAPIObject):
 
 
 class StorageClass(pykube.objects.APIObject):
-
     version = "storage.k8s.io/v1"
     endpoint = "storageclasses"
     kind = "StorageClass"
