@@ -36,6 +36,7 @@ from magnum_cluster_api.integrations import cinder, cloud_provider, manila
 
 CONF = cfg.CONF
 CALICO_TAG = "v3.24.2"
+CILIUM_TAG = "v1.15.3"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
@@ -47,6 +48,8 @@ PLACEHOLDER = "PLACEHOLDER"
 
 AUTOSCALE_ANNOTATION_MIN = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size"
 AUTOSCALE_ANNOTATION_MAX = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"
+
+DEFAULT_POD_CIDR = "10.100.0.0/16"
 
 
 class ClusterAutoscalerHelmRelease:
@@ -65,7 +68,7 @@ class ClusterAutoscalerHelmRelease:
             release_name=self.cluster.stack_id,
             chart_ref=os.path.join(
                 pkg_resources.resource_filename("magnum_cluster_api", "charts"),
-                "cluster-autoscaler/",
+                "vendor/cluster-autoscaler/",
             ),
             values={
                 "fullnameOverride": f"{self.cluster.stack_id}-autoscaler",
@@ -163,6 +166,7 @@ class ClusterResourcesConfigMap(ClusterBase):
             "magnum_cluster_api", "manifests"
         )
         calico_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
+        cilium_version = utils.get_cluster_label(self.cluster, "cilium_tag", CILIUM_TAG)
 
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
 
@@ -183,14 +187,57 @@ class ClusterResourcesConfigMap(ClusterBase):
                 )
                 for manifest in glob.glob(os.path.join(manifests_path, "ccm/*.yaml"))
             },
-            **{
-                "calico.yml": image_utils.update_manifest_images(
-                    self.cluster.uuid,
-                    os.path.join(manifests_path, f"calico/{calico_version}.yaml"),
-                    repository=repository,
-                )
-            },
         }
+
+        if self.cluster.cluster_template.network_driver == "cilium":
+            data = {
+                **data,
+                **{
+                    "cilium.yml": helm.TemplateReleaseCommand(
+                        namespace="kube-system",
+                        release_name="cilium",
+                        chart_ref=os.path.join(
+                            pkg_resources.resource_filename(
+                                "magnum_cluster_api", "charts"
+                            ),
+                            "vendor/cilium/",
+                        ),
+                        values={
+                            "image": {
+                                "tag": cilium_version,
+                            },
+                            "operator": {
+                                "image": {
+                                    "tag": cilium_version,
+                                },
+                            },
+                            "ipam": {
+                                "operator": {
+                                    "clusterPoolIPv4PodCIDRList": [
+                                        utils.get_cluster_label(
+                                            self.cluster,
+                                            "cilium_ipv4pool",
+                                            DEFAULT_POD_CIDR,
+                                        ),
+                                    ],
+                                },
+                            },
+                        },
+                    )(repository=repository)
+                },
+            }
+
+        if self.cluster.cluster_template.network_driver == "calico":
+            data = {
+                **data,
+                **{
+                    "calico.yml": image_utils.update_manifest_images(
+                        self.cluster.uuid,
+                        os.path.join(manifests_path, f"calico/{calico_version}.yaml"),
+                        repository=repository,
+                    )
+                },
+            }
 
         if cinder.is_enabled(self.cluster):
             volume_types = osc.cinder().volume_types.list()
@@ -2275,10 +2322,21 @@ class Cluster(ClusterBase):
 
     @property
     def labels(self) -> dict:
-        cni_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
-        labels = {
-            "cni": f"calico-{cni_version}",
-        }
+        labels = {}
+        if self.cluster.cluster_template.network_driver == "calico":
+            cni_version = utils.get_cluster_label(
+                self.cluster, "calico_tag", CALICO_TAG
+            )
+            labels = {
+                "cni": f"calico-{cni_version}",
+            }
+        if self.cluster.cluster_template.network_driver == "cilium":
+            cni_version = utils.get_cluster_label(
+                self.cluster, "cilium_tag", CILIUM_TAG
+            )
+            labels = {
+                "cni": f"cilium-{cni_version}",
+            }
 
         return {**super().labels, **labels}
 
@@ -2290,6 +2348,20 @@ class Cluster(ClusterBase):
     def get_object(self) -> objects.Cluster:
         osc = clients.get_openstack_api(self.context)
         default_volume_type = osc.cinder().volume_types.default()
+        pod_cidr = DEFAULT_POD_CIDR
+        if self.cluster.cluster_template.network_driver == "calico":
+            pod_cidr = utils.get_cluster_label(
+                self.cluster,
+                "calico_ipv4pool",
+                DEFAULT_POD_CIDR,
+            )
+        if self.cluster.cluster_template.network_driver == "cilium":
+            pod_cidr = utils.get_cluster_label(
+                self.cluster,
+                "cilium_ipv4pool",
+                DEFAULT_POD_CIDR,
+            )
+
         return objects.Cluster(
             self.api,
             {
@@ -2308,13 +2380,7 @@ class Cluster(ClusterBase):
                             "cluster.local",
                         ),
                         "pods": {
-                            "cidrBlocks": [
-                                utils.get_cluster_label(
-                                    self.cluster,
-                                    "calico_ipv4pool",
-                                    "10.100.0.0/16",
-                                )
-                            ],
+                            "cidrBlocks": [pod_cidr],
                         },
                         "services": {
                             "cidrBlocks": [

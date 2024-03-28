@@ -22,6 +22,7 @@ source /opt/stack/openrc
 
 OS_DISTRO=${OS_DISTRO:-ubuntu}
 NODE_COUNT=${NODE_COUNT:-2}
+NETWORK_DRIVER=${NETWORK_DRIVER:-calico}
 SONOBUOY_VERSION=${SONOBUOY_VERSION:-0.56.16}
 SONOBUOY_ARCH=${SONOBUOY_ARCH:-amd64}
 DNS_NAMESERVER=${DNS_NAMESERVER:-1.1.1.1}
@@ -52,7 +53,7 @@ openstack coe cluster template create \
     --master-lb-enabled \
     --master-flavor m1.medium \
     --flavor m1.medium \
-    --network-driver calico \
+    --network-driver ${NETWORK_DRIVER} \
     --docker-storage-driver overlay2 \
     --coe kubernetes \
     --label kube_tag=${KUBE_TAG} \
