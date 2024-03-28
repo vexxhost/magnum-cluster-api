@@ -40,15 +40,16 @@ class TestDriver:
         self.cluster = utils.get_test_cluster(context, labels={})
         self.cluster.save = mocker.MagicMock()
 
-        self.node_group = utils.get_test_nodegroup(
-            context,
-            labels={
-                "availability_zone": "az1",
-                "boot_volume_size": 10,
-                "boot_volume_type": "nvme",
-                "container_infra_prefix": "",
-            },
-        )
+        if auto_scaling_enabled is not None:
+            self.cluster.labels["auto_scaling_enabled"] = str(auto_scaling_enabled)
+
+        if auto_healing_enabled is not None:
+            self.cluster.labels["auto_healing_enabled"] = str(auto_healing_enabled)
+
+        self.node_group = utils.get_test_nodegroup(context, labels={})
+        if auto_scaling_enabled is not None:
+            self.node_group.min_node_count = 1
+            self.node_group.max_node_count = 3
         self.node_group.save = mocker.MagicMock()
 
         mocker.patch(
@@ -64,25 +65,6 @@ class TestDriver:
         mocker.patch(
             "magnum_cluster_api.utils.get_image_uuid",
             return_value=uuidutils.generate_uuid(),
-        )
-
-        mocker.patch(
-            "magnum_cluster_api.utils.get_auto_scaling_enabled",
-            return_value=auto_scaling_enabled,
-        )
-        if auto_scaling_enabled:
-            mocker.patch(
-                "magnum_cluster_api.utils.get_node_group_min_node_count",
-                return_value=1,
-            )
-            mocker.patch(
-                "magnum_cluster_api.utils.get_node_group_max_node_count",
-                return_value=3,
-            )
-
-        mocker.patch(
-            "magnum_cluster_api.utils.get_auto_healing_enabled",
-            return_value=auto_healing_enabled,
         )
 
     def _assert_node_group_status(self, expected_status):
