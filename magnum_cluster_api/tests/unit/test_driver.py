@@ -12,10 +12,14 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import re
+
+import pykube
 import pytest
 import responses
 from magnum.objects import fields  # type: ignore
 from magnum.tests.unit.objects import utils  # type: ignore
+from oslo_serialization import base64, jsonutils
 from oslo_utils import uuidutils  # type: ignore
 from responses import matchers
 
@@ -32,13 +36,13 @@ class TestDriver:
     @pytest.fixture(autouse=True)
     def setup(
         self,
+        context,
+        mocker,
         auto_scaling_enabled,
         auto_healing_enabled,
-        mocker,
-        context,
+        cluster_obj,
     ):
-        self.cluster = utils.get_test_cluster(context, labels={})
-        self.cluster.save = mocker.MagicMock()
+        self.cluster = cluster_obj
 
         if auto_scaling_enabled is not None:
             self.cluster.labels["auto_scaling_enabled"] = str(auto_scaling_enabled)
@@ -51,6 +55,13 @@ class TestDriver:
             self.node_group.min_node_count = 1
             self.node_group.max_node_count = 3
         self.node_group.save = mocker.MagicMock()
+
+        self.server_side_apply_matcher = matchers.query_param_matcher(
+            {
+                "fieldManager": "atmosphere-operator",
+                "force": "True",
+            }
+        )
 
         mocker.patch(
             "magnum_cluster_api.utils.validate_flavor_name",
@@ -92,20 +103,16 @@ class TestDriver:
             },
         }
 
-        url = "http://localhost/apis/%s/namespaces/%s/%s/%s" % (
-            objects.Cluster.version,
-            "magnum-system",
-            objects.Cluster.endpoint,
-            self.cluster.stack_id,
-        )
         match = []
         if method == responses.PATCH:
-            url += "?fieldManager=atmosphere-operator&force=True"
+            match.append(self.server_side_apply_matcher)
             match.append(matchers.json_params_matcher(obj))
 
         return responses.Response(
             method,
-            url,
+            re.compile(
+                f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w"
+            ),
             json=obj,
             match=match,
         )
@@ -149,6 +156,125 @@ class TestDriver:
             ],
             json=json,
         )
+
+    def test_create_cluster(
+        self,
+        requests_mock,
+        context,
+        ubuntu_driver,
+        mock_validate_cluster,
+        mock_osc,
+        mock_certificates,
+    ):
+        with requests_mock as rsps:
+            rsps.add(
+                responses.GET,
+                re.compile(
+                    f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w+"
+                ),
+                status=404,
+            )
+            rsps.add_callback(
+                responses.PATCH,
+                f"http://localhost/api/{pykube.Namespace.version}/{pykube.Namespace.endpoint}/magnum-system",
+                match=[self.server_side_apply_matcher],
+                callback=lambda request: (200, {}, request.body),
+            )
+            rsps.add_callback(
+                responses.PATCH,
+                re.compile(
+                    f"http://localhost/api/{pykube.Secret.version}/namespaces/magnum-system/\\w"
+                ),
+                match=[self.server_side_apply_matcher],
+                callback=lambda request: (200, {}, request.body),
+            )
+            rsps.add_callback(
+                responses.PATCH,
+                re.compile(
+                    f"http://localhost/apis/{objects.KubeadmControlPlaneTemplate.version}/namespaces/magnum-system/{objects.KubeadmControlPlaneTemplate.endpoint}/\\w+"
+                ),
+                match=[self.server_side_apply_matcher],
+                callback=lambda request: (200, {}, request.body),
+            )
+            rsps.add_callback(
+                responses.PATCH,
+                re.compile(
+                    f"http://localhost/apis/{objects.KubeadmConfigTemplate.version}/namespaces/magnum-system/{objects.KubeadmConfigTemplate.endpoint}/\\w+"
+                ),
+                match=[self.server_side_apply_matcher],
+                callback=lambda request: (200, {}, request.body),
+            )
+            rsps.add_callback(
+                responses.PATCH,
+                re.compile(
+                    f"http://localhost/apis/{objects.OpenStackMachineTemplate.version}/namespaces/magnum-system/{objects.OpenStackMachineTemplate.endpoint}/\\w+"
+                ),
+                match=[self.server_side_apply_matcher],
+                callback=lambda request: (200, {}, request.body),
+            )
+            rsps.add_callback(
+                responses.PATCH,
+                re.compile(
+                    f"http://localhost/apis/{objects.OpenStackClusterTemplate.version}/namespaces/magnum-system/{objects.OpenStackClusterTemplate.endpoint}/\\w+"
+                ),
+                match=[self.server_side_apply_matcher],
+                callback=lambda request: (200, {}, request.body),
+            )
+            rsps.add_callback(
+                responses.PATCH,
+                re.compile(
+                    f"http://localhost/apis/{objects.ClusterClass.version}/namespaces/magnum-system/{objects.ClusterClass.endpoint}/\\w+"
+                ),
+                match=[self.server_side_apply_matcher],
+                callback=lambda request: (200, {}, request.body),
+            )
+            rsps.add(
+                responses.GET,
+                re.compile(
+                    f"http://localhost/api/{pykube.Secret.version}/namespaces/magnum-system/\\w"
+                ),
+                json={
+                    "data": {
+                        "clouds.yaml": base64.encode_as_text(
+                            jsonutils.dumps(
+                                {
+                                    "clouds": {
+                                        "default": {
+                                            "region_name": "RegionOne",
+                                            "verify": True,
+                                            "auth": {
+                                                "application_credential_id": "fake_application_credential_id",
+                                                "application_credential_secret": "fake_application_credential_secret",
+                                            },
+                                        }
+                                    }
+                                }
+                            )
+                        ),
+                    }
+                },
+            )
+            rsps.add_callback(
+                responses.PATCH,
+                re.compile(
+                    f"http://localhost/apis/{objects.ClusterResourceSet.version}/namespaces/magnum-system/{objects.ClusterResourceSet.endpoint}/\\w+"
+                ),
+                match=[self.server_side_apply_matcher],
+                callback=lambda request: (200, {}, request.body),
+            )
+            rsps.add_callback(
+                responses.PATCH,
+                re.compile(
+                    f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w+"
+                ),
+                match=[self.server_side_apply_matcher],
+                callback=lambda request: (200, {}, request.body),
+            )
+
+            ubuntu_driver.create_cluster(context, self.cluster, 60)
+
+        assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
+        self.cluster.save.assert_called_once()
 
     def setup_node_group_tests(self, rsps, before, after):
         rsps.add(
