@@ -193,23 +193,6 @@ def cluster_template(context, image, kube_tag):
 
 
 @pytest.fixture()
-def node_group_obj(context, cluster_template):
-    node_group = utils.get_test_nodegroup(
-        context,
-        name="default-master",
-        role="master",
-        node_count=1,
-        flavor_id=cluster_template.flavor_id,
-        image_id=cluster_template.image_id,
-        labels={},
-        status=fields.ClusterStatus.CREATE_IN_PROGRESS,
-    )
-    node_group.save = mock.MagicMock()
-
-    yield node_group
-
-
-@pytest.fixture()
 def control_plane_node_group_obj(context, cluster_template):
     node_group = utils.get_test_nodegroup(
         context,
@@ -218,7 +201,7 @@ def control_plane_node_group_obj(context, cluster_template):
         node_count=1,
         flavor_id=cluster_template.master_flavor_id,
         image_id=cluster_template.image_id,
-        labels={},
+        labels=cluster_template.labels,
         status=fields.ClusterStatus.CREATE_IN_PROGRESS,
     )
     node_group.save = mock.MagicMock()
@@ -235,7 +218,7 @@ def worker_node_group_obj(context, cluster_template):
         node_count=1,
         flavor_id=cluster_template.master_flavor_id,
         image_id=cluster_template.image_id,
-        labels={},
+        labels=cluster_template.labels,
         status=fields.ClusterStatus.CREATE_IN_PROGRESS,
     )
     node_group.save = mock.MagicMock()
@@ -267,7 +250,7 @@ def cluster_obj(
         magnum_cert_ref=uuidutils.generate_uuid(),
         etcd_ca_cert_ref=uuidutils.generate_uuid(),
         front_proxy_ca_cert_ref=uuidutils.generate_uuid(),
-        labels={},
+        labels=cluster_template.labels,
     )
     cluster.save = mock.MagicMock()
 

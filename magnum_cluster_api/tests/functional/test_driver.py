@@ -22,7 +22,7 @@ from magnum.objects import fields  # type: ignore
 from magnum_cluster_api import clients, objects
 
 
-class TestNodeGroupDriver:
+class TestDriver:
     @pytest.fixture(autouse=True)
     def setup(self, cluster):
         self.api = clients.get_pykube_api()
@@ -88,7 +88,82 @@ class TestNodeGroupDriver:
         assert self.cluster.status == fields.ClusterStatus.UPDATE_IN_PROGRESS
         assert self.cluster.save.called_once()
 
+        self.cluster.save.reset_mock()
+
         return new_node_group
+
+    def test_upgrade_cluster(self, context, ubuntu_driver, cluster_template):
+        cluster_template.labels["kube_tag"] = "v1.26.3"
+
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
+        current_observed_generation = cluster_resource.observed_generation
+
+        ubuntu_driver.upgrade_cluster(
+            context, self.cluster, cluster_template, None, None
+        )
+
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
+        assert cluster_resource.observed_generation != current_observed_generation
+
+        self.cluster.save.assert_not_called()
+
+    def test_upgrade_cluster_to_same_version(
+        self, kube_tag, context, ubuntu_driver, cluster_template
+    ):
+        cluster_template.labels["kube_tag"] = kube_tag
+
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
+        current_observed_generation = cluster_resource.observed_generation
+
+        ubuntu_driver.upgrade_cluster(
+            context, self.cluster, cluster_template, None, None
+        )
+
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
+        assert cluster_resource.observed_generation == current_observed_generation
+
+        self.cluster.save.assert_not_called()
+
+    def test_upgrade_cluster_with_multiple_node_groups(
+        self,
+        mocker,
+        control_plane_node_group_obj,
+        worker_node_group_obj,
+        mock_validate_nodegroup,
+        context,
+        ubuntu_driver,
+        cluster_template,
+    ):
+        new_node_group = self._create_node_group(
+            context, ubuntu_driver, "high-cpu", cluster_template
+        )
+
+        mocker.patch(
+            "magnum.objects.NodeGroup.list",
+            return_value=[
+                control_plane_node_group_obj,
+                worker_node_group_obj,
+                new_node_group,
+            ],
+        )
+
+        cluster_template.labels["kube_tag"] = "v1.26.3"
+
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
+        current_observed_generation = cluster_resource.observed_generation
+
+        ubuntu_driver.upgrade_cluster(
+            context, self.cluster, cluster_template, None, None
+        )
+
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
+        assert cluster_resource.observed_generation != current_observed_generation
+
+        self._assert_machine_deployments_for_node_groups(
+            *self.cluster.nodegroups,
+        )
+
+        self.cluster.save.assert_not_called()
 
     def test_create_node_group(
         self, mock_validate_nodegroup, context, ubuntu_driver, cluster_template

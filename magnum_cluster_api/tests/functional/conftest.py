@@ -36,6 +36,9 @@ def cluster(
             existing_observed_generation=1
         )
 
+        cluster_obj.save.assert_called_once()
+        cluster_obj.save.reset_mock()
+
         yield cluster_obj
     finally:
         ubuntu_driver.delete_cluster(context, cluster_obj)
