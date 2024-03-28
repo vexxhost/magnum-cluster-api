@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.16.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.15.1...v0.16.0) (2024-03-28)
+
+
+### Features
+
+* allow ovn lbs ([#348](https://github.com/vexxhost/magnum-cluster-api/issues/348)) ([80efca9](https://github.com/vexxhost/magnum-cluster-api/commit/80efca982ca979ee947bcc84ff37407f986a30d3))
+
+
+### Bug Fixes
+
+* solve lock issues + extra unit tests ([#343](https://github.com/vexxhost/magnum-cluster-api/issues/343)) ([3438204](https://github.com/vexxhost/magnum-cluster-api/commit/3438204a0787c5c84c1d6d5d496d8949ca73c2d5))
+* **upgrades:** set correct cluster_template_id ([#349](https://github.com/vexxhost/magnum-cluster-api/issues/349)) ([49dc0c9](https://github.com/vexxhost/magnum-cluster-api/commit/49dc0c980d1f0c84032ab1f3517f0081afc76a38))
+
 ## [0.15.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.15.1...v0.15.1) (2024-03-22)
 
 
