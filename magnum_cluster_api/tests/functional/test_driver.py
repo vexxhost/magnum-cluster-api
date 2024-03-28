@@ -12,16 +12,17 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import copy
+from unittest import mock
 
 import pytest
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.objects import fields  # type: ignore
+from magnum.tests.unit.objects import utils  # type: ignore
 
 from magnum_cluster_api import clients, objects
 
 
-class TestNodeGroupDriver:
+class TestDriver:
     @pytest.fixture(autouse=True)
     def setup(self, cluster):
         self.api = clients.get_pykube_api()
@@ -42,16 +43,16 @@ class TestNodeGroupDriver:
             },
         )
 
-        assert len(mds) == len(
-            node_groups
-        ), "Expected %d MachineDeployments, got %d" % (
-            len(node_groups),
+        worker_ngs = [ng for ng in node_groups if ng.role != "master"]
+
+        assert len(mds) == len(worker_ngs), "Expected %d MachineDeployments, got %d" % (
+            len(worker_ngs),
             len(mds),
         )
 
         # NOTE(mnaser): We need to loop over all the node groups and make sure
         #               that the machine deployments are created for them.
-        for ng in node_groups:
+        for ng in worker_ngs:
             md = objects.MachineDeployment.for_node_group(self.api, self.cluster, ng)
             self._assert_machine_deployment_config_matches_node_group(md, ng)
 
@@ -65,9 +66,19 @@ class TestNodeGroupDriver:
     def test_default_node_group(self):
         self._assert_machine_deployments_for_node_groups(*self.cluster.nodegroups)
 
-    def _create_node_group(self, context, driver, node_group_obj, node_group_name):
-        new_node_group = copy.deepcopy(node_group_obj)
+    def _create_node_group(self, context, driver, node_group_name, cluster_template):
+        new_node_group = utils.get_test_nodegroup(
+            context,
+            name="default-worker",
+            role="worker",
+            node_count=1,
+            flavor_id=cluster_template.master_flavor_id,
+            image_id=cluster_template.image_id,
+            labels={},
+            status=fields.ClusterStatus.CREATE_IN_PROGRESS,
+        )
         new_node_group.name = node_group_name
+        new_node_group.save = mock.MagicMock()
 
         driver.create_nodegroup(context, self.cluster, new_node_group)
 
@@ -77,14 +88,89 @@ class TestNodeGroupDriver:
         assert self.cluster.status == fields.ClusterStatus.UPDATE_IN_PROGRESS
         assert self.cluster.save.called_once()
 
+        self.cluster.save.reset_mock()
+
         return new_node_group
 
+    def test_upgrade_cluster(self, context, ubuntu_driver, cluster_template):
+        cluster_template.labels["kube_tag"] = "v1.26.3"
+
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
+        current_observed_generation = cluster_resource.observed_generation
+
+        ubuntu_driver.upgrade_cluster(
+            context, self.cluster, cluster_template, None, None
+        )
+
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
+        assert cluster_resource.observed_generation != current_observed_generation
+
+        self.cluster.save.assert_not_called()
+
+    def test_upgrade_cluster_to_same_version(
+        self, kube_tag, context, ubuntu_driver, cluster_template
+    ):
+        cluster_template.labels["kube_tag"] = kube_tag
+
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
+        current_observed_generation = cluster_resource.observed_generation
+
+        ubuntu_driver.upgrade_cluster(
+            context, self.cluster, cluster_template, None, None
+        )
+
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
+        assert cluster_resource.observed_generation == current_observed_generation
+
+        self.cluster.save.assert_not_called()
+
+    def test_upgrade_cluster_with_multiple_node_groups(
+        self,
+        mocker,
+        control_plane_node_group_obj,
+        worker_node_group_obj,
+        mock_validate_nodegroup,
+        context,
+        ubuntu_driver,
+        cluster_template,
+    ):
+        new_node_group = self._create_node_group(
+            context, ubuntu_driver, "high-cpu", cluster_template
+        )
+
+        mocker.patch(
+            "magnum.objects.NodeGroup.list",
+            return_value=[
+                control_plane_node_group_obj,
+                worker_node_group_obj,
+                new_node_group,
+            ],
+        )
+
+        cluster_template.labels["kube_tag"] = "v1.26.3"
+
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
+        current_observed_generation = cluster_resource.observed_generation
+
+        ubuntu_driver.upgrade_cluster(
+            context, self.cluster, cluster_template, None, None
+        )
+
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
+        assert cluster_resource.observed_generation != current_observed_generation
+
+        self._assert_machine_deployments_for_node_groups(
+            *self.cluster.nodegroups,
+        )
+
+        self.cluster.save.assert_not_called()
+
     def test_create_node_group(
-        self, mock_validate_nodegroup, context, ubuntu_driver, node_group_obj
+        self, mock_validate_nodegroup, context, ubuntu_driver, cluster_template
     ):
         self._assert_machine_deployments_for_node_groups(*self.cluster.nodegroups)
         new_node_group = self._create_node_group(
-            context, ubuntu_driver, node_group_obj, "high-cpu"
+            context, ubuntu_driver, "high-cpu", cluster_template
         )
         self._assert_machine_deployments_for_node_groups(
             *self.cluster.nodegroups,
@@ -92,11 +178,11 @@ class TestNodeGroupDriver:
         )
 
     def test_create_and_delete_node_group(
-        self, mock_validate_nodegroup, context, ubuntu_driver, node_group_obj
+        self, mock_validate_nodegroup, context, ubuntu_driver, cluster_template
     ):
         self._assert_machine_deployments_for_node_groups(*self.cluster.nodegroups)
         new_node_group = self._create_node_group(
-            context, ubuntu_driver, node_group_obj, "high-cpu"
+            context, ubuntu_driver, "high-cpu", cluster_template
         )
         self._assert_machine_deployments_for_node_groups(
             *self.cluster.nodegroups,
@@ -106,18 +192,18 @@ class TestNodeGroupDriver:
         self._assert_machine_deployments_for_node_groups(*self.cluster.nodegroups)
 
     def test_create_two_node_groups(
-        self, mock_validate_nodegroup, context, ubuntu_driver, node_group_obj
+        self, mock_validate_nodegroup, context, ubuntu_driver, cluster_template
     ):
         self._assert_machine_deployments_for_node_groups(*self.cluster.nodegroups)
         first_new_node_group = self._create_node_group(
-            context, ubuntu_driver, node_group_obj, "high-cpu"
+            context, ubuntu_driver, "high-cpu", cluster_template
         )
         self._assert_machine_deployments_for_node_groups(
             *self.cluster.nodegroups,
             first_new_node_group,
         )
         second_new_node_group = self._create_node_group(
-            context, ubuntu_driver, node_group_obj, "high-memory"
+            context, ubuntu_driver, "high-memory", cluster_template
         )
         self._assert_machine_deployments_for_node_groups(
             *self.cluster.nodegroups,
@@ -126,18 +212,18 @@ class TestNodeGroupDriver:
         )
 
     def test_create_and_delete_two_node_groups_deleting_newest_first(
-        self, mock_validate_nodegroup, context, ubuntu_driver, node_group_obj
+        self, mock_validate_nodegroup, context, ubuntu_driver, cluster_template
     ):
         self._assert_machine_deployments_for_node_groups(*self.cluster.nodegroups)
         first_new_node_group = self._create_node_group(
-            context, ubuntu_driver, node_group_obj, "high-cpu"
+            context, ubuntu_driver, "high-cpu", cluster_template
         )
         self._assert_machine_deployments_for_node_groups(
             *self.cluster.nodegroups,
             first_new_node_group,
         )
         second_new_node_group = self._create_node_group(
-            context, ubuntu_driver, node_group_obj, "high-memory"
+            context, ubuntu_driver, "high-memory", cluster_template
         )
         self._assert_machine_deployments_for_node_groups(
             *self.cluster.nodegroups,
@@ -153,18 +239,18 @@ class TestNodeGroupDriver:
         self._assert_machine_deployments_for_node_groups(*self.cluster.nodegroups)
 
     def test_create_and_delete_two_node_groups_deleting_oldest_first(
-        self, mock_validate_nodegroup, context, ubuntu_driver, node_group_obj
+        self, mock_validate_nodegroup, context, ubuntu_driver, cluster_template
     ):
         self._assert_machine_deployments_for_node_groups(*self.cluster.nodegroups)
         first_new_node_group = self._create_node_group(
-            context, ubuntu_driver, node_group_obj, "high-cpu"
+            context, ubuntu_driver, "high-cpu", cluster_template
         )
         self._assert_machine_deployments_for_node_groups(
             *self.cluster.nodegroups,
             first_new_node_group,
         )
         second_new_node_group = self._create_node_group(
-            context, ubuntu_driver, node_group_obj, "high-memory"
+            context, ubuntu_driver, "high-memory", cluster_template
         )
         self._assert_machine_deployments_for_node_groups(
             *self.cluster.nodegroups,
