@@ -4,7 +4,7 @@ clean:
 vendir:
 	curl -Lo vendir https://github.com/carvel-dev/vendir/releases/download/v0.40.0/vendir-linux-amd64
 	chmod +x vendir && ./vendir version
-	mv vendir /usr/local/bin/vendir
+	sudo mv vendir /usr/local/bin/vendir
 
 vendor: clean vendir
 	vendir sync

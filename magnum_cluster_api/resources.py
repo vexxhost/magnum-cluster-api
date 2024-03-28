@@ -56,6 +56,8 @@ PLACEHOLDER = "PLACEHOLDER"
 AUTOSCALE_ANNOTATION_MIN = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size"
 AUTOSCALE_ANNOTATION_MAX = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"
 
+DEFAULT_POD_CIDR = "10.100.0.0/16"
+
 
 class ClusterAutoscalerHelmRelease:
     def __init__(self, api, cluster) -> None:
@@ -222,7 +224,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                                         utils.get_cluster_label(
                                             self.cluster,
                                             "cilium_ipv4pool",
-                                            "10.100.0.0/16",
+                                            DEFAULT_POD_CIDR,
                                         ),
                                     ],
                                 },
@@ -2387,14 +2389,16 @@ class Cluster(ClusterBase):
     def get_object(self) -> objects.Cluster:
         osc = clients.get_openstack_api(self.context)
         default_volume_type = osc.cinder().volume_types.default()
-
+        pod_cidr = DEFAULT_POD_CIDR
         if self.cluster.cluster_template.network_driver == "calico":
             pod_cidr = self.cluster.labels.get(
-                "calico_ipv4pool", "10.100.0.0/16"
+                "calico_ipv4pool",
+                DEFAULT_POD_CIDR,
             )
         if self.cluster.cluster_template.network_driver == "cilium":
             pod_cidr = self.cluster.labels.get(
-                "cilium_ipv4pool", "10.100.0.0/16"
+                "cilium_ipv4pool",
+                DEFAULT_POD_CIDR,
             )
 
         return objects.Cluster(
