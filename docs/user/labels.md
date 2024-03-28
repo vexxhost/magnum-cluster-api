@@ -111,6 +111,12 @@ is often accomplished by deploying a driver on each node.
 
    Default value: Automatically detected based on `kube_tag` label.
 
+* `octavia_provider`
+
+   The Octavia provider to configure for the load balancers created by the cluster.
+
+   Default value: `amphora`
+
 ## Container Networking Interface (CNI)
 
 ### Calcio
