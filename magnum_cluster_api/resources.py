@@ -41,8 +41,6 @@ CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
 CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT = "300s"  # seconds
 
-CLUSTER_UPGRADE_LABELS = {"kube_tag"}
-
 PLACEHOLDER = "PLACEHOLDER"
 
 AUTOSCALE_ANNOTATION_MIN = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size"
@@ -162,7 +160,7 @@ class ClusterResourcesConfigMap(ClusterBase):
         manifests_path = pkg_resources.resource_filename(
             "magnum_cluster_api", "manifests"
         )
-        calico_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
+        calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
 
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
 
@@ -244,9 +242,7 @@ class ClusterResourcesConfigMap(ClusterBase):
 
         if manila.is_enabled(self.cluster):
             share_types = osc.manila().share_types.list()
-            share_network_id = utils.get_cluster_label(
-                self.cluster, "manila_csi_share_network_id", None
-            )
+            share_network_id = self.cluster.labels.get("manila_csi_share_network_id")
             data = {
                 **data,
                 **{
@@ -2144,13 +2140,18 @@ def mutate_machine_deployment(
     context: context.RequestContext,
     cluster: objects.Cluster,
     node_group: magnum_objects.NodeGroup,
-    machine_deployment: dict = {},
+    machine_deployment: dict = None,
 ):
     """
     This function will either makes updates to machine deployment fields which
     will not cause a rolling update or will return a new machine deployment
     if none is provided.
     """
+
+    # NOTE(okozachenko1203): Initialize as an empty dict if not provided
+    #                        instead of using mutable default argument.
+    if machine_deployment is None:
+        machine_deployment = {}
 
     auto_scaling_enabled = utils.get_auto_scaling_enabled(cluster)
 
@@ -2176,7 +2177,7 @@ def mutate_machine_deployment(
                 utils.get_node_group_min_node_count(node_group)
             ),
             AUTOSCALE_ANNOTATION_MAX: str(
-                utils.get_node_group_max_node_count(cluster, node_group)
+                utils.get_node_group_max_node_count(node_group)
             ),
         }
     else:
@@ -2200,9 +2201,7 @@ def mutate_machine_deployment(
         {
             "class": "default-worker",
             "name": node_group.name,
-            "failureDomain": utils.get_node_group_label(
-                cluster, node_group, "availability_zone", ""
-            ),
+            "failureDomain": node_group.labels.get("availability_zone", ""),
             "machineHealthCheck": {"enable": utils.get_auto_healing_enabled(cluster)},
             "variables": {
                 "overrides": [
@@ -2210,14 +2209,11 @@ def mutate_machine_deployment(
                         "name": "bootVolume",
                         "value": {
                             "size": utils.get_node_group_label_as_int(
-                                cluster,
                                 node_group,
                                 "boot_volume_size",
                                 CONF.cinder.default_boot_volume_size,
                             ),
-                            "type": utils.get_node_group_label(
-                                cluster,
-                                node_group,
+                            "type": node_group.labels.get(
                                 "boot_volume_type",
                                 cinder.get_default_boot_volume_type(context),
                             ),
@@ -2229,9 +2225,7 @@ def mutate_machine_deployment(
                     },
                     {
                         "name": "imageRepository",
-                        "value": utils.get_node_group_label(
-                            cluster,
-                            node_group,
+                        "value": node_group.labels.get(
                             "container_infra_prefix",
                             "",
                         ),
@@ -2275,7 +2269,7 @@ class Cluster(ClusterBase):
 
     @property
     def labels(self) -> dict:
-        cni_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
+        cni_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
         labels = {
             "cni": f"calico-{cni_version}",
         }
@@ -2302,26 +2296,20 @@ class Cluster(ClusterBase):
                 },
                 "spec": {
                     "clusterNetwork": {
-                        "serviceDomain": utils.get_cluster_label(
-                            self.cluster,
-                            "dns_cluster_domain",
-                            "cluster.local",
+                        "serviceDomain": self.cluster.labels.get(
+                            "dns_cluster_domain", "cluster.local"
                         ),
                         "pods": {
                             "cidrBlocks": [
-                                utils.get_cluster_label(
-                                    self.cluster,
-                                    "calico_ipv4pool",
-                                    "10.100.0.0/16",
+                                self.cluster.labels.get(
+                                    "calico_ipv4pool", "10.100.0.0/16"
                                 )
                             ],
                         },
                         "services": {
                             "cidrBlocks": [
-                                utils.get_cluster_label(
-                                    self.cluster,
-                                    "service_cluster_ip_range",
-                                    "10.254.0.0/16",
+                                self.cluster.labels.get(
+                                    "service_cluster_ip_range", "10.254.0.0/16"
                                 )
                             ],
                         },
@@ -2354,8 +2342,7 @@ class Cluster(ClusterBase):
                             },
                             {
                                 "name": "apiServerTLSCipherSuites",
-                                "value": utils.get_cluster_label(
-                                    self.cluster,
+                                "value": self.cluster.labels.get(
                                     "api_server_tls_cipher_suites",
                                     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",  # noqa: E501
                                 ),
@@ -2363,23 +2350,23 @@ class Cluster(ClusterBase):
                             {
                                 "name": "openidConnect",
                                 "value": {
-                                    "clientId": utils.get_cluster_label(
-                                        self.cluster, "oidc_client_id", ""
+                                    "clientId": self.cluster.labels.get(
+                                        "oidc_client_id", ""
                                     ),
-                                    "groupsClaim": utils.get_cluster_label(
-                                        self.cluster, "oidc_groups_claim", ""
+                                    "groupsClaim": self.cluster.labels.get(
+                                        "oidc_groups_claim", ""
                                     ),
-                                    "groupsPrefix": utils.get_cluster_label(
-                                        self.cluster, "oidc_groups_prefix", ""
+                                    "groupsPrefix": self.cluster.labels.get(
+                                        "oidc_groups_prefix", ""
                                     ),
-                                    "issuerUrl": utils.get_cluster_label(
-                                        self.cluster, "oidc_issuer_url", ""
+                                    "issuerUrl": self.cluster.labels.get(
+                                        "oidc_issuer_url", ""
                                     ),
-                                    "usernameClaim": utils.get_cluster_label(
-                                        self.cluster, "oidc_username_claim", "sub"
+                                    "usernameClaim": self.cluster.labels.get(
+                                        "oidc_username_claim", "sub"
                                     ),
-                                    "usernamePrefix": utils.get_cluster_label(
-                                        self.cluster, "oidc_username_prefix", "-"
+                                    "usernamePrefix": self.cluster.labels.get(
+                                        "oidc_username_prefix", "-"
                                     ),
                                 },
                             },
@@ -2389,14 +2376,14 @@ class Cluster(ClusterBase):
                                     "enabled": utils.get_cluster_label_as_bool(
                                         self.cluster, "audit_log_enabled", False
                                     ),
-                                    "maxAge": utils.get_cluster_label(
-                                        self.cluster, "audit_log_max_age", "30"
+                                    "maxAge": self.cluster.labels.get(
+                                        "audit_log_max_age", "30"
                                     ),
-                                    "maxBackup": utils.get_cluster_label(
-                                        self.cluster, "audit_log_max_backup", "10"
+                                    "maxBackup": self.cluster.labels.get(
+                                        "audit_log_max_backup", "10"
                                     ),
-                                    "maxSize": utils.get_cluster_label(
-                                        self.cluster, "audit_log_max_size", "100"
+                                    "maxSize": self.cluster.labels.get(
+                                        "audit_log_max_size", "100"
                                     ),
                                 },
                             },
@@ -2408,8 +2395,7 @@ class Cluster(ClusterBase):
                                         "boot_volume_size",
                                         CONF.cinder.default_boot_volume_size,
                                     ),
-                                    "type": utils.get_cluster_label(
-                                        self.cluster,
+                                    "type": self.cluster.labels.get(
                                         "boot_volume_type",
                                         cinder.get_default_boot_volume_type(
                                             self.context
@@ -2514,16 +2500,14 @@ class Cluster(ClusterBase):
                             },
                             {
                                 "name": "kubeletTLSCipherSuites",
-                                "value": utils.get_cluster_label(
-                                    self.cluster,
+                                "value": self.cluster.labels.get(
                                     "kubelet_tls_cipher_suites",
                                     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",  # noqa: E501
                                 ),
                             },
                             {
                                 "name": "nodeCidr",
-                                "value": utils.get_cluster_label(
-                                    self.cluster,
+                                "value": self.cluster.labels.get(
                                     "fixed_subnet_cidr",
                                     "10.0.0.0/24",
                                 ),
@@ -2555,16 +2539,15 @@ class Cluster(ClusterBase):
                             },
                             {
                                 "name": "etcdVolumeType",
-                                "value": utils.get_cluster_label(
-                                    self.cluster,
+                                "value": self.cluster.labels.get(
                                     "etcd_volume_type",
                                     default_volume_type.name,
                                 ),
                             },
                             {
                                 "name": "availabilityZone",
-                                "value": utils.get_cluster_label(
-                                    self.cluster, "availability_zone", ""
+                                "value": self.cluster.labels.get(
+                                    "availability_zone", ""
                                 ),
                             },
                             {
@@ -2589,31 +2572,12 @@ def apply_cluster_from_magnum_cluster(
     context: context.RequestContext,
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
-    cluster_template: magnum_objects.ClusterTemplate = None,
     skip_auto_scaling_release: bool = False,
 ) -> None:
     """
     Create a ClusterAPI cluster given a Magnum Cluster object.
     """
     create_cluster_class(api)
-
-    if cluster_template is None:
-        cluster_template = cluster.cluster_template
-        cluster.cluster_template_id = cluster_template.uuid
-
-    # NOTE(mnaser): When using Cluster API, there is a 1:1 mapping between image
-    #               and version of Kubernetes, therefore, we need to ignore the
-    #               `image_id` field, as well as copy over any tags relating to
-    #               the Kubernetes version.
-    #
-    #               I hate this.
-    for label in CLUSTER_UPGRADE_LABELS:
-        cluster.labels[label] = cluster_template.labels[label]
-        for ng in cluster.nodegroups:
-            ng.image_id = cluster_template.image_id
-            ng.labels[label] = cluster_template.labels[label]
-            ng.save()
-    cluster.save()
 
     ClusterResourcesConfigMap(context, api, cluster).apply()
     ClusterResourceSet(api, cluster).apply()

@@ -14,6 +14,8 @@ jobs['unit'] = {
         
         sh 'poetry install'
 
+        sh './hack/setup-helm.sh'
+
         try {
             sh 'poetry run pytest --junitxml=junit.xml magnum_cluster_api/tests/unit'
         } finally {

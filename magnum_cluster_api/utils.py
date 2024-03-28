@@ -123,7 +123,7 @@ def generate_cloud_controller_manager_config(
         tls-insecure={"false" if CONF.drivers.verify_ca else "true"}
         {"ca-file=/etc/config/ca.crt" if get_cloud_ca_cert() else ""}
         [LoadBalancer]
-        lb-provider={get_cluster_label(cluster, "octavia_provider", "amphora")}
+        lb-provider={cluster.labels.get("octavia_provider", "amphora")}
         """
     )
 
@@ -166,7 +166,7 @@ def generate_manila_csi_cloud_config(
 
 
 def get_kube_tag(cluster: magnum_objects.Cluster) -> str:
-    return get_cluster_label(cluster, "kube_tag", "v1.25.3")
+    return cluster.labels.get("kube_tag", "v1.25.3")
 
 
 def get_auto_scaling_enabled(cluster: magnum_objects.Cluster) -> bool:
@@ -178,11 +178,7 @@ def get_auto_healing_enabled(cluster: magnum_objects.Cluster) -> bool:
 
 
 def get_cluster_container_infra_prefix(cluster: magnum_objects.Cluster) -> str:
-    return get_cluster_label(
-        cluster,
-        "container_infra_prefix",
-        "",
-    )
+    return cluster.labels.get("container_infra_prefix", "")
 
 
 def get_cluster_floating_ip_disabled(cluster: magnum_objects.Cluster) -> bool:
@@ -256,17 +252,6 @@ def generate_apt_proxy_config(cluster: magnum_objects.Cluster):
         return ""
 
 
-def get_node_group_label(
-    cluster: magnum_objects.Cluster,
-    node_group: magnum_objects.NodeGroup,
-    key: str,
-    default: str,
-) -> str:
-    if key in node_group.labels:
-        return node_group.labels[key]
-    return get_cluster_label(cluster, key, default)
-
-
 def get_node_group_min_node_count(
     node_group: magnum_objects.NodeGroup,
     default=1,
@@ -277,12 +262,10 @@ def get_node_group_min_node_count(
 
 
 def get_node_group_max_node_count(
-    cluster: magnum_objects.Cluster,
     node_group: magnum_objects.NodeGroup,
 ) -> int:
     if node_group.max_node_count is None:
         return get_node_group_label_as_int(
-            cluster,
             node_group,
             "max_node_count",
             get_node_group_min_node_count(node_group) + 1,
@@ -290,39 +273,26 @@ def get_node_group_max_node_count(
     return node_group.max_node_count
 
 
-def get_cluster_label(cluster: magnum_objects.Cluster, key: str, default: str) -> str:
-    return cluster.labels.get(
-        key, get_cluster_template_label(cluster.cluster_template, key, default)
-    )
-
-
-def get_cluster_template_label(
-    cluster_template: magnum_objects.ClusterTemplate, key: str, default: str
-) -> str:
-    return cluster_template.labels.get(key, default)
-
-
 def get_node_group_label_as_int(
-    cluster: magnum_objects.Cluster,
     node_group: magnum_objects.NodeGroup,
     key: str,
     default: int,
 ) -> int:
-    value = get_node_group_label(cluster, node_group, key, str(default))
+    value = node_group.labels.get(key, str(default))
     return strutils.validate_integer(value, key)
 
 
 def get_cluster_label_as_int(
     cluster: magnum_objects.Cluster, key: str, default: int
 ) -> int:
-    value = get_cluster_label(cluster, key, default)
+    value = cluster.labels.get(key, default)
     return strutils.validate_integer(value, key)
 
 
 def get_cluster_label_as_bool(
     cluster: magnum_objects.Cluster, key: str, default: bool
 ) -> bool:
-    value = get_cluster_label(cluster, key, default)
+    value = cluster.labels.get(key, default)
     return strutils.bool_from_string(value, strict=True)
 
 

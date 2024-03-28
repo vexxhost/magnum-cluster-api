@@ -70,29 +70,34 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     assert len(mds) == 2
 
 
+@pytest.mark.parametrize(
+    "auto_scaling_enabled",
+    [True, False, None],
+    ids=lambda x: f"auto_scaling_enabled={x}",
+)
+@pytest.mark.parametrize(
+    "auto_healing_enabled",
+    [True, False, None],
+    ids=lambda x: f"auto_healing_enabled={x}",
+)
 class TestExistingMutateMachineDeployment:
     @pytest.fixture(autouse=True)
-    def setup(self, mocker, context):
-        self.cluster = utils.get_test_cluster(context)
-        self.node_group = utils.get_test_nodegroup(context)
+    def setup(self, auto_scaling_enabled, auto_healing_enabled, context):
+        self.cluster = utils.get_test_cluster(context, labels={})
+        if auto_scaling_enabled is not None:
+            self.cluster.labels["auto_scaling_enabled"] = str(auto_scaling_enabled)
 
-        self.mock_get_node_group_label = mocker.patch(
-            "magnum_cluster_api.utils.get_node_group_label"
-        )
-        self.mock_auto_scaling = mocker.patch(
-            "magnum_cluster_api.utils.get_auto_scaling_enabled"
-        )
-        self.mock_get_node_group_min_node_count = mocker.patch(
-            "magnum_cluster_api.utils.get_node_group_min_node_count"
-        )
-        self.mock_get_node_group_max_node_count = mocker.patch(
-            "magnum_cluster_api.utils.get_node_group_max_node_count"
-        )
+        if auto_healing_enabled is not None:
+            self.cluster.labels["auto_healing_enabled"] = str(auto_healing_enabled)
+
+        self.node_group = utils.get_test_nodegroup(context, labels={})
+        if auto_scaling_enabled is not None:
+            self.node_group.min_node_count = 1
+            self.node_group.max_node_count = 3
 
     def _assert_no_mutations(self, md):
         assert md["name"] == self.node_group.name
         assert "class" not in md
-        self.mock_get_node_group_label.assert_not_called()
 
     def _assert_common_machine_deployment_values(self, md):
         assert md["name"] == self.node_group.name
@@ -105,9 +110,7 @@ class TestExistingMutateMachineDeployment:
             == resources.CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT
         )
 
-    def test_mutate_machine_deployment_without_autoscaling(self, context):
-        self.mock_auto_scaling.return_value = False
-
+    def test_mutate_machine_deployment(self, context, auto_scaling_enabled):
         md = resources.mutate_machine_deployment(
             context,
             self.cluster,
@@ -120,28 +123,14 @@ class TestExistingMutateMachineDeployment:
         self._assert_common_machine_deployment_values(md)
         self._assert_no_mutations(md)
 
-        assert md["replicas"] == self.node_group.node_count
-        assert md["metadata"]["annotations"] == {}
-
-    def test_mutate_machine_deployment_with_autoscaling(self, context):
-        self.mock_auto_scaling.return_value = True
-
-        md = resources.mutate_machine_deployment(
-            context,
-            self.cluster,
-            self.node_group,
-            {
-                "name": self.node_group.name,
-            },
-        )
-
-        self._assert_common_machine_deployment_values(md)
-        self._assert_no_mutations(md)
-
-        assert md["replicas"] is None
-        assert md["metadata"]["annotations"][resources.AUTOSCALE_ANNOTATION_MIN] == str(
-            self.mock_get_node_group_min_node_count.return_value
-        )
-        assert md["metadata"]["annotations"][resources.AUTOSCALE_ANNOTATION_MAX] == str(
-            self.mock_get_node_group_max_node_count.return_value
-        )
+        if auto_scaling_enabled:
+            assert md["replicas"] is None
+            assert md["metadata"]["annotations"][
+                resources.AUTOSCALE_ANNOTATION_MIN
+            ] == str(self.node_group.min_node_count)
+            assert md["metadata"]["annotations"][
+                resources.AUTOSCALE_ANNOTATION_MAX
+            ] == str(self.node_group.max_node_count)
+        else:
+            assert md["replicas"] == self.node_group.node_count
+            assert md["metadata"]["annotations"] == {}
