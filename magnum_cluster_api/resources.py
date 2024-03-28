@@ -18,7 +18,6 @@ import json
 import os
 import textwrap
 import types
-from collections import Counter
 
 import certifi
 import pkg_resources
@@ -2362,6 +2361,7 @@ class Cluster(ClusterBase):
 
     @property
     def labels(self) -> dict:
+        labels = {}
         if self.cluster.cluster_template.network_driver == "calico":
             cni_version = self.cluster.labels.get(
                 "calico_tag", CALICO_TAG
