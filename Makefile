@@ -1,7 +1,12 @@
 clean:
-	rm -rfv magnum_cluster_api/charts/cluster-autoscaler
+	rm -rfv magnum_cluster_api/charts/vendor
 
-vendor: clean
+vendir:
+	curl -Lo vendir https://github.com/carvel-dev/vendir/releases/download/v0.40.0/vendir-linux-amd64
+	chmod +x vendir && ./vendir version
+	mv vendir /usr/local/bin/vendir
+
+vendor: clean vendir
 	vendir sync
 	patch -p0 magnum_cluster_api/charts/vendor/cluster-autoscaler/templates/clusterrole.yaml < hack/add-omt-to-clusterrole.patch
 
