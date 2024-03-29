@@ -1,7 +1,7 @@
 - hosts: all
   tasks:
-    - shell: ./hack/setup-kubectl.sh
-    - shell: ./hack/setup-helm.sh
-    - shell: ./hack/setup-docker.sh
-    - shell: ./hack/setup-kind.sh
-    - shell: ./hack/setup-capo.sh
+    - shell: "{{ zuul_work_dir }}./hack/setup-kubectl.sh"
+    - shell: "{{ zuul_work_dir }}./hack/setup-helm.sh"
+    - shell: "{{ zuul_work_dir }}./hack/setup-docker.sh"
+    - shell: "{{ zuul_work_dir }}./hack/setup-kind.sh"
+    - shell: "{{ zuul_work_dir }}./hack/setup-capo.sh"
