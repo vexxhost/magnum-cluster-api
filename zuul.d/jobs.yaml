@@ -1,21 +1,21 @@
 - job:
     name: magnum-cluster-api-unit
     parent: tox
-    pre-run: zuul.d/playbooks/unit/pre.yaml
+    pre-run: zuul.d/playbooks/unit/pre.yml
     vars:
       tox_envlist: unit
 
 - job:
     name: magnum-cluster-api-functional
     parent: tox
-    pre-run: zuul.d/playbooks/functional/pre.yaml
+    pre-run: zuul.d/playbooks/functional/pre.yml
     vars:
       tox_envlist: functional
 
 - job:
     name: magnum-cluster-api-image-build
     abstract: true
-    run: zuul.d/playbooks/image-build/run.yaml
+    run: zuul.d/playbooks/image-build/run.yml
     files:
       - magnum_cluster_api/cmd/image_builder.py
 
@@ -23,8 +23,8 @@
     name: magnum-cluster-api-sonobuoy
     abstract: true
     timeout: 7200
-    run: zuul.d/playbooks/sonobuoy/run.yaml
-    post-run: zuul.d/playbooks/sonobuoy/post.yaml
+    run: zuul.d/playbooks/sonobuoy/run.yml
+    post-run: zuul.d/playbooks/sonobuoy/post.yml
     nodeset:
       nodes:
         - name: ubuntu-jammy
