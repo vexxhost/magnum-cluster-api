@@ -1,10 +1,13 @@
 - hosts: all
-  tasks:
-    - shell: "{{ zuul.project.src_dir }}/hack/stack.sh"
-    # TODO: pull artifact if it exists
+   tasks:
     - debug: var=zuul
-    - shell: "{{ zuul.project.src_dir }}/hack/run-integration-tests.sh"
-      environment:
-        OS_DISTRO: "{{ os_distro }}"
-        KUBE_TAG: "{{ kube_tag }}"
-        NODE_COUNT: 2
+
+    # - shell: "./hack/stack.sh"
+    #   args:
+    #     chdir: "{{ zuul.project.src_dir }}"
+ 
+    # - shell: "{{ zuul.project.src_dir }}/hack/run-integration-tests.sh"
+    #   environment:
+    #     OS_DISTRO: "{{ os_distro }}"
+    #     KUBE_TAG: "{{ kube_tag }}"
+    #     NODE_COUNT: 2
