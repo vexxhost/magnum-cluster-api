@@ -25,6 +25,10 @@
     timeout: 7200
     run: zuul.d/playbooks/sonobuoy/run.yaml
     post-run: zuul.d/playbooks/sonobuoy/post.yaml
+    nodeset:
+      nodes:
+        - name: ubuntu-jammy
+          label: jammy-8c-32g
 
 - project:
     check:
