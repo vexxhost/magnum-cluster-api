@@ -63,3 +63,5 @@
         - magnum-cluster-api-py39
         - magnum-cluster-api-py310
         - magnum-cluster-api-functional
+        - magnum-cluster-api-sonobuoy-flatcar-v1.27.8
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.8
