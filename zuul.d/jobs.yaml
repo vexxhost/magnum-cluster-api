@@ -16,6 +16,7 @@
     name: magnum-cluster-api-image-build
     abstract: true
     run: zuul.d/playbooks/image-build/run.yml
+    post-run: zuul.d/playbooks/image-build/post.yml
     files:
       - magnum_cluster_api/cmd/image_builder.py
 
