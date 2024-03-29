@@ -2365,16 +2365,12 @@ class Cluster(ClusterBase):
     def labels(self) -> dict:
         labels = {}
         if self.cluster.cluster_template.network_driver == "calico":
-            cni_version = self.cluster.labels.get(
-                "calico_tag", CALICO_TAG
-            )
+            cni_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
             labels = {
                 "cni": f"calico-{cni_version}",
             }
         if self.cluster.cluster_template.network_driver == "cilium":
-            cni_version = self.cluster.labels.get(
-                "cilium_tag", CILIUM_TAG
-            )
+            cni_version = self.cluster.labels.get("cilium_tag", CILIUM_TAG)
             labels = {
                 "cni": f"cilium-{cni_version}",
             }
