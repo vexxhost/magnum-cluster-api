@@ -1,6 +1,7 @@
 - hosts: all
   tasks:
     - name: Install dependencies
+      become: true
       ansible.builtin.apt:
         name: jq
 
