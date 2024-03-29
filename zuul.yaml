@@ -28,6 +28,34 @@
     vars:
       tox_envlist: functional
 
+- job:
+    name: magnum-cluster-api-sonobuoy
+    abstract: true
+
+- job:
+    name: magnum-cluster-api-sonobuoy-flatcar
+    parent: magnum-cluster-api-sonobuoy
+    abstract: true
+
+- job:
+    name: magnum-cluster-api-sonobuoy-flatcar-v1.27.8
+    parent: magnum-cluster-api-sonobuoy-flatcar
+    vars:
+      os_distro: flatcar
+      kube_tag: v1.27.8
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204
+    parent: magnum-cluster-api-sonobuoy
+    abstract: true
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.8
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204
+    vars:
+      os_distro: ubuntu
+      kube_tag: v1.27.8
+
 - project:
     check:
       jobs:
