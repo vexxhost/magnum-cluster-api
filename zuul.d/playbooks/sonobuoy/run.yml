@@ -1,13 +1,26 @@
 - hosts: all
-   tasks:
+  tasks:
     - debug: var=zuul
 
-    # - shell: "./hack/stack.sh"
-    #   args:
-    #     chdir: "{{ zuul.project.src_dir }}"
+    - name: Fetch artifact
+      get_url:
+        url: "{{ item.url }}"
+        dest: "{{ zuul.project.src_dir }}/{{ os_distro }}-kube-{{ kube_tag }}.qcow2"
+      register: fetch_artifact
+      loop: "{{ zuul.artifacts }}"
+      when:
+        - item.name is defined
+        - item.name == "{{ os_distro }}-kube-{{ kube_tag }}.qcow2"
+
+    - shell: "./hack/stack.sh"
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
  
-    # - shell: "{{ zuul.project.src_dir }}/hack/run-integration-tests.sh"
-    #   environment:
-    #     OS_DISTRO: "{{ os_distro }}"
-    #     KUBE_TAG: "{{ kube_tag }}"
-    #     NODE_COUNT: 2
+    - shell: "{{ zuul.project.src_dir }}/hack/run-integration-tests.sh"
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+      environment:
+        OS_DISTRO: "{{ os_distro }}"
+        KUBE_TAG: "{{ kube_tag }}"
+        NODE_COUNT: 2
+        BUILD_NEW_IMAGE: "{{ fetch_artifact.changed }}"
