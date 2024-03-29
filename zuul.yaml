@@ -24,7 +24,7 @@
 - job:
     name: magnum-cluster-api-functional
     parent: tox
-    pre-run: zuul.d/playbooks/unit/pre.yaml
+    pre-run: zuul.d/playbooks/functional/pre.yaml
     vars:
       tox_envlist: functional
 
