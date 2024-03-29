@@ -1,10 +1,5 @@
 - hosts: all
   tasks:
-    - name: Copy image to output folder
-      copy:
-        src: "{{ zuul.project.src_dir }}/{{ os_distro }}-kube-{{ kube_tag }}.qcow2"
-        dest: "{{ zuul_output_dir }}/artifacts/{{ os_distro }}-kube-{{ kube_tag }}.qcow2"
-
     - name: Return built artifacts to Zuul
       zuul_return:
         data:
