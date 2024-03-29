@@ -1,0 +1,7 @@
+- hosts: all
+  tasks:
+    - shell: ./hack/setup-kubectl.sh
+    - shell: ./hack/setup-helm.sh
+    - shell: ./hack/setup-docker.sh
+    - shell: ./hack/setup-kind.sh
+    - shell: ./hack/setup-capo.sh
