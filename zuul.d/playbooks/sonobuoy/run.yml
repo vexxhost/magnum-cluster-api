@@ -16,7 +16,7 @@
       args:
         chdir: "{{ zuul.project.src_dir }}"
  
-    - shell: "{{ zuul.project.src_dir }}/hack/run-integration-tests.sh"
+    - shell: "./hack/run-integration-tests.sh"
       args:
         chdir: "{{ zuul.project.src_dir }}"
       environment:
