@@ -27,7 +27,8 @@
     vars:
       kube_tag: v1.27.8
 
-- project:
+- project-template:
+    name: magnum-cluster-api-flatcar
     check:
       jobs:
         - magnum-cluster-api-image-build-flatcar-v1.27.8

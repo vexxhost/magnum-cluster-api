@@ -26,3 +26,10 @@
         soft: true
     vars:
       kube_tag: v1.27.8
+
+- project-template:
+    name: magnum-cluster-api-ubuntu-2204
+    check:
+      jobs:
+        - magnum-cluster-api-image-build-ubuntu-2204-v1.27.8
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.8

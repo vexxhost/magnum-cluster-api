@@ -26,3 +26,10 @@
         soft: true
     vars:
       kube_tag: v1.27.8
+
+- project-template:
+    name: magnum-cluster-api-rockylinux-8
+    check:
+      jobs:
+        - magnum-cluster-api-image-build-rockylinux-8-v1.27.8
+        - magnum-cluster-api-sonobuoy-rockylinux-8-v1.27.8
