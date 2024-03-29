@@ -1,0 +1,34 @@
+- job:
+    name: magnum-cluster-api-image-build-flatcar
+    parent: magnum-cluster-api-image-build
+    abstract: true
+    vars:
+      os_distro: flatcar
+
+- job:
+    name: magnum-cluster-api-sonobuoy-flatcar
+    parent: magnum-cluster-api-sonobuoy
+    abstract: true
+    vars:
+      os_distro: flatcar
+
+- job:
+    name: magnum-cluster-api-image-build-flatcar-v1.27.8
+    parent: magnum-cluster-api-image-build-flatcar
+    vars:
+      kube_tag: v1.27.8
+
+- job:
+    name: magnum-cluster-api-sonobuoy-flatcar-v1.27.8
+    parent: magnum-cluster-api-sonobuoy-flatcar
+    dependencies:
+      - name: magnum-cluster-api-image-build-flatcar-v1.27.8
+        soft: true
+    vars:
+      kube_tag: v1.27.8
+
+- project:
+    check:
+      jobs:
+        - magnum-cluster-api-image-build-flatcar-v1.27.8
+        - magnum-cluster-api-sonobuoy-flatcar-v1.27.8

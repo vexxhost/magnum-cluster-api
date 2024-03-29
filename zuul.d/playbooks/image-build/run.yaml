@@ -1,0 +1,15 @@
+- hosts: all
+  tasks:
+    - name: Install dependencies
+      ansible.builtin.apt:
+        name: jq
+
+    - name: Install PIP
+      include_role:
+        name: ensure-pip
+
+    - name: Install current package
+      shell: pip install {{ zuul.project.src_dir }}
+
+    - name: Build the image
+      shell: "$HOME/.local/bin/magnum-cluster-api-image-builder --operating-system {{ os_distro }} --version {{ kube_tag }}"

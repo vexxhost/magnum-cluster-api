@@ -1,6 +1,8 @@
 - hosts: all
   tasks:
     - shell: "{{ zuul.project.src_dir }}/hack/stack.sh"
+    # TODO: pull artifact if it exists
+    - debug: var=zuul
     - shell: "{{ zuul.project.src_dir }}/hack/run-integration-tests.sh"
       environment:
         OS_DISTRO: "{{ os_distro }}"

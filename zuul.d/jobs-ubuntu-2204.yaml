@@ -1,0 +1,28 @@
+- job:
+    name: magnum-cluster-api-image-build-ubuntu-2204
+    parent: magnum-cluster-api-image-build
+    abstract: true
+    vars:
+      os_distro: ubuntu-2204
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204
+    parent: magnum-cluster-api-sonobuoy
+    abstract: true
+    vars:
+      os_distro: ubuntu
+
+- job:
+    name: magnum-cluster-api-image-build-ubuntu-2204-v1.27.8
+    parent: magnum-cluster-api-image-build-ubuntu-2204
+    vars:
+      kube_tag: v1.27.8
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.8
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204
+    dependencies:
+      - name: magnum-cluster-api-image-build-ubuntu-2204-v1.27.8
+        soft: true
+    vars:
+      kube_tag: v1.27.8
