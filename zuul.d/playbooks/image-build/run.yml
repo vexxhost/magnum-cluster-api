@@ -3,7 +3,7 @@
     - name: Install dependencies
       become: true
       ansible.builtin.apt:
-        name: jq
+        name: ["jq", "unzip"]
 
     - name: Install PIP
       include_role:
