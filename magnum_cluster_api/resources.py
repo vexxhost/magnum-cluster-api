@@ -221,8 +221,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                             "ipam": {
                                 "operator": {
                                     "clusterPoolIPv4PodCIDRList": [
-                                        utils.get_cluster_label(
-                                            self.cluster,
+                                        self.cluster.labels.get(
                                             "cilium_ipv4pool",
                                             DEFAULT_POD_CIDR,
                                         ),
