@@ -1,4 +1,13 @@
+- job:
+    name: magnum-cluster-api-tox-py39
+    parent: tox-py39
+
+- job:
+    name: magnum-cluster-api-tox-py310
+    parent: tox-py310
+
 - project:
     check:
       jobs:
-        - tox-py38
+        - magnum-cluster-api-tox-py39
+        - magnum-cluster-api-tox-py310
