@@ -1,6 +1,7 @@
 - job:
     name: magnum-cluster-api-py38
     parent: tox-py38
+    pre-run: zuul.d/playbooks/unit/pre.yaml
     nodeset:
       nodes:
         - name: ubuntu-focal
@@ -9,6 +10,7 @@
 - job:
     name: magnum-cluster-api-py39
     parent: tox-py39
+    pre-run: zuul.d/playbooks/unit/pre.yaml
     nodeset:
       nodes:
         - name: ubuntu-focal
@@ -17,6 +19,14 @@
 - job:
     name: magnum-cluster-api-py310
     parent: tox-py310
+    pre-run: zuul.d/playbooks/unit/pre.yaml
+
+- job:
+    name: magnum-cluster-api-functional
+    parent: tox
+    pre-run: zuul.d/playbooks/unit/pre.yaml
+    vars:
+      tox_envlist: functional
 
 - project:
     check:
@@ -24,3 +34,4 @@
         - magnum-cluster-api-py38
         - magnum-cluster-api-py39
         - magnum-cluster-api-py310
+        - magnum-cluster-api-functional
