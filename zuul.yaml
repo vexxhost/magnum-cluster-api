@@ -31,7 +31,7 @@
 - job:
     name: magnum-cluster-api-sonobuoy
     abstract: true
-    run: playbooks/sonobuoy/run.yaml
+    run: zuul.d/playbooks/sonobuoy/run.yaml
     post-run: zuul.d/playbooks/sonobuoy/post.yaml
 
 - job:
