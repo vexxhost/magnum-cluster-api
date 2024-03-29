@@ -1,13 +1,26 @@
 - job:
-    name: magnum-cluster-api-tox-py39
-    parent: tox-py39
+    name: magnum-cluster-api-py38
+    parent: tox-py38
+    nodeset:
+      nodes:
+        - name: ubuntu-focal
+          label: focal-2c-8g
 
 - job:
-    name: magnum-cluster-api-tox-py310
+    name: magnum-cluster-api-py39
+    parent: tox-py39
+    nodeset:
+      nodes:
+        - name: ubuntu-focal
+          label: focal-2c-8g
+
+- job:
+    name: magnum-cluster-api-py310
     parent: tox-py310
 
 - project:
     check:
       jobs:
-        - magnum-cluster-api-tox-py39
-        - magnum-cluster-api-tox-py310
+        - magnum-cluster-api-py38
+        - magnum-cluster-api-py39
+        - magnum-cluster-api-py310
