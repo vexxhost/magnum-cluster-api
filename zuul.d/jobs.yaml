@@ -29,14 +29,3 @@
       nodes:
         - name: ubuntu-jammy
           label: jammy-8c-32g
-
-- project:
-    check:
-      jobs:
-        - magnum-cluster-api-unit
-        - magnum-cluster-api-functional
-    templates:
-      - magnum-cluster-api-flatcar
-      - magnum-cluster-api-rockylinux-8
-      - magnum-cluster-api-rockylinux-9
-      - magnum-cluster-api-ubuntu-2204
