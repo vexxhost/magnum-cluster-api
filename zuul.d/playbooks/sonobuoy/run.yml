@@ -1,16 +1,14 @@
 - hosts: all
   tasks:
-    - debug: var=zuul
-
     - name: Fetch artifact
       get_url:
         url: "{{ item.url }}"
-        dest: "{{ zuul.project.src_dir }}/{{ os_distro }}-kube-{{ kube_tag }}.qcow2"
+        dest: "{{ zuul.project.src_dir }}/{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
       register: fetch_artifact
       loop: "{{ zuul.artifacts }}"
       when:
         - item.name is defined
-        - item.name == "{{ os_distro }}-kube-{{ kube_tag }}.qcow2"
+        - item.name == "{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
 
     - shell: "./hack/stack.sh"
       args:
@@ -20,7 +18,8 @@
       args:
         chdir: "{{ zuul.project.src_dir }}"
       environment:
-        OS_DISTRO: "{{ os_distro }}"
+        IMAGE_OS: "{{ image_operating_system }}"
+        OS_DISTRO: "{{ image_os_distro }}"
         KUBE_TAG: "{{ kube_tag }}"
         NODE_COUNT: 2
         BUILD_NEW_IMAGE: "{{ fetch_artifact.changed }}"

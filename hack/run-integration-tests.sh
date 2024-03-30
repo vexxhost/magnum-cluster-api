@@ -21,19 +21,19 @@
 source /opt/stack/openrc
 
 OS_DISTRO=${OS_DISTRO:-ubuntu}
+IMAGE_OS=${IMAGE_OS:-ubuntu-2204}
 NODE_COUNT=${NODE_COUNT:-2}
 SONOBUOY_VERSION=${SONOBUOY_VERSION:-0.56.16}
 SONOBUOY_ARCH=${SONOBUOY_ARCH:-amd64}
 DNS_NAMESERVER=${DNS_NAMESERVER:-1.1.1.1}
-IMAGE_NAME="${OS_DISTRO}-kube-${KUBE_TAG}"
-
-# Determine image os_distro
-[[ "${OS_DISTRO}" == ubuntu* ]] && OS_DISTRO="ubuntu" || OS_DISTRO="flatcar";
+IMAGE_NAME="${IMAGE_OS}-kube-${KUBE_TAG}"
 
 # If `BUILD_NEW_IMAGE` is true, then we use the provided artifact, otherwise
 # we download the latest promoted image.
 if [[ "${BUILD_NEW_IMAGE}" != "true" ]]; then
   curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/${IMAGE_NAME}.qcow2
+else
+  test -f ${IMAGE_NAME}.qcow2 || exit 1
 fi
 
 # Upload image to Glance

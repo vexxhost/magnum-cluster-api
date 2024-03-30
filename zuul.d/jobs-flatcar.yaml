@@ -3,14 +3,15 @@
     parent: magnum-cluster-api-image-build
     abstract: true
     vars:
-      os_distro: flatcar
+      image_operating_system: flatcar
 
 - job:
     name: magnum-cluster-api-sonobuoy-flatcar
     parent: magnum-cluster-api-sonobuoy
     abstract: true
     vars:
-      os_distro: flatcar
+      image_operating_system: flatcar
+      image_os_distro: flatcar
 
 - job:
     name: magnum-cluster-api-image-build-flatcar-v1.27.8

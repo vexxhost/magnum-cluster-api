@@ -5,5 +5,5 @@
         data:
           zuul:
             artifacts:
-              - name: "{{ os_distro }}-kube-{{ kube_tag }}.qcow2"
-                url: "artifacts/{{ os_distro }}-kube-{{ kube_tag }}.qcow2"
+              - name: "{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
+                url: "artifacts/{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"

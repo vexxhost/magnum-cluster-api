@@ -3,14 +3,15 @@
     parent: magnum-cluster-api-image-build
     abstract: true
     vars:
-      os_distro: rockylinux-9
+      image_operating_system: rockylinux-9
 
 - job:
     name: magnum-cluster-api-sonobuoy-rockylinux-9
     parent: magnum-cluster-api-sonobuoy
     abstract: true
     vars:
-      os_distro: ubuntu
+      image_operating_system: rockylinux-9
+      image_os_distro: ubuntu
 
 - job:
     name: magnum-cluster-api-image-build-rockylinux-9-v1.27.8

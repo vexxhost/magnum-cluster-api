@@ -13,6 +13,6 @@
       shell: pip install {{ zuul.project.src_dir }}
 
     - name: Build the image
-      shell: "$HOME/.local/bin/magnum-cluster-api-image-builder --operating-system {{ os_distro }} --version {{ kube_tag }}"
+      shell: "$HOME/.local/bin/magnum-cluster-api-image-builder --operating-system {{ image_operating_system }} --version {{ kube_tag }}"
       args:
         chdir: "{{ zuul_output_dir }}/artifacts"
