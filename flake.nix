@@ -21,6 +21,7 @@
                 bashInteractive
                 glibcLocales
                 poetry
+                python311Packages.tox
               ];
             };
         }

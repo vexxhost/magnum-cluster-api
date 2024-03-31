@@ -1,0 +1,7 @@
+- hosts: all
+  tasks:
+    - shell: "{{ zuul.project.src_dir }}/hack/setup-kubectl.sh"
+    - shell: "{{ zuul.project.src_dir }}/hack/setup-helm.sh"
+    - shell: "{{ zuul.project.src_dir }}/hack/setup-docker.sh"
+    - shell: "{{ zuul.project.src_dir }}/hack/setup-kind.sh"
+    - shell: "{{ zuul.project.src_dir }}/hack/setup-capo.sh"
