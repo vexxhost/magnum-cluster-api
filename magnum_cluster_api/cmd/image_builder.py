@@ -12,6 +12,12 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+# NOTE(mnaser): We use this file to gate if we do build new images or not,
+#               so we will simply keep increasing the following placeholder,
+#               feel free to keep counting up.
+#
+#               Image build count: 1
+
 import getpass
 import json
 import os
