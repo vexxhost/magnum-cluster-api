@@ -29,4 +29,4 @@
     nodeset:
       nodes:
         - name: ubuntu-jammy
-          label: jammy-8c-32g
+          label: jammy-16c-64g
