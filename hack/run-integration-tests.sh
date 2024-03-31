@@ -50,8 +50,8 @@ openstack coe cluster template create \
     --external-network public \
     --dns-nameserver ${DNS_NAMESERVER} \
     --master-lb-enabled \
-    --master-flavor m1.medium \
-    --flavor m1.medium \
+    --master-flavor m1.large \
+    --flavor m1.large \
     --network-driver calico \
     --docker-storage-driver overlay2 \
     --coe kubernetes \
