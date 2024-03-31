@@ -1,11 +1,5 @@
 - hosts: all
   tasks:
-    - name: Copy Sonobuoy results to output folder
-      copy:
-        src: "{{ zuul.project.src_dir }}/sonobuoy-results.tar.gz"
-        dest: "{{ zuul_output_dir }}/artifacts/sonobuoy-results.tar.gz"
-        remote_src: true
-
     - name: Return built artifacts to Zuul
       zuul_return:
         data:
