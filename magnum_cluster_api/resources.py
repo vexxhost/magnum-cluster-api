@@ -2566,8 +2566,8 @@ class Cluster(ClusterBase):
                             },
                             {
                                 "name": "controlPlaneAvailabilityZones",
-                                "value": utils.get_cluster_label(
-                                    self.cluster, "control_plane_availability_zones", ""
+                                "value": self.cluster.labels.get(
+                                    "control_plane_availability_zones", ""
                                 ).split(","),
                             },
                         ],
