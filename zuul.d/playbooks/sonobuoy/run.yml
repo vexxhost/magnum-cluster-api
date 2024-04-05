@@ -23,6 +23,7 @@
         KUBE_TAG: "{{ kube_tag }}"
         NODE_COUNT: 2
         BUILD_NEW_IMAGE: "{{ fetch_artifact.changed }}"
+        NETWORK_DRIVER: "{{ network_driver }}"
 
     - name: Copy Sonobuoy results to output folder
       copy:
