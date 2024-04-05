@@ -14,23 +14,57 @@
       image_os_distro: ubuntu
 
 - job:
-    name: magnum-cluster-api-image-build-rockylinux-8-v1.27.8
+    name: magnum-cluster-api-image-build-rockylinux-8-v1.27.11
     parent: magnum-cluster-api-image-build-rockylinux-8
     vars:
-      kube_tag: v1.27.8
+      kube_tag: v1.27.11
 
 - job:
-    name: magnum-cluster-api-sonobuoy-rockylinux-8-v1.27.8
+    name: magnum-cluster-api-sonobuoy-rockylinux-8-v1.27.11
     parent: magnum-cluster-api-sonobuoy-rockylinux-8
     dependencies:
-      - name: magnum-cluster-api-image-build-rockylinux-8-v1.27.8
+      - name: magnum-cluster-api-image-build-rockylinux-8-v1.27.11
         soft: true
     vars:
-      kube_tag: v1.27.8
+      kube_tag: v1.27.11
+
+- job:
+    name: magnum-cluster-api-image-build-rockylinux-8-v1.28.7
+    parent: magnum-cluster-api-image-build-rockylinux-8
+    vars:
+      kube_tag: v1.28.7
+
+- job:
+    name: magnum-cluster-api-sonobuoy-rockylinux-8-v1.28.7
+    parent: magnum-cluster-api-sonobuoy-rockylinux-8
+    dependencies:
+      - name: magnum-cluster-api-image-build-rockylinux-8-v1.28.7
+        soft: true
+    vars:
+      kube_tag: v1.28.7
+
+- job:
+    name: magnum-cluster-api-image-build-rockylinux-8-v1.29.2
+    parent: magnum-cluster-api-image-build-rockylinux-8
+    vars:
+      kube_tag: v1.29.2
+
+- job:
+    name: magnum-cluster-api-sonobuoy-rockylinux-8-v1.29.2
+    parent: magnum-cluster-api-sonobuoy-rockylinux-8
+    dependencies:
+      - name: magnum-cluster-api-image-build-rockylinux-8-v1.29.2
+        soft: true
+    vars:
+      kube_tag: v1.29.2
 
 - project-template:
     name: magnum-cluster-api-rockylinux-8
     check:
       jobs:
-        - magnum-cluster-api-image-build-rockylinux-8-v1.27.8
-        - magnum-cluster-api-sonobuoy-rockylinux-8-v1.27.8
+        - magnum-cluster-api-image-build-rockylinux-8-v1.27.11
+        - magnum-cluster-api-sonobuoy-rockylinux-8-v1.27.11
+        - magnum-cluster-api-image-build-rockylinux-8-v1.28.7
+        - magnum-cluster-api-sonobuoy-rockylinux-8-v1.28.7
+        - magnum-cluster-api-image-build-rockylinux-8-v1.29.2
+        - magnum-cluster-api-sonobuoy-rockylinux-8-v1.29.2
