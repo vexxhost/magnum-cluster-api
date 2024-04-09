@@ -16,7 +16,7 @@
 
 # Versions to test
 CAPI_VERSION=${CAPI_VERSION:-v1.6.0}
-CAPO_VERSION=${CAPO_VERSION:-v0.9.0}
+CAPO_VERSION=${CAPO_VERSION:-v0.10.0-alpha.1}
 
 # Install the `clusterctl` CLI
 sudo curl -Lo /usr/local/bin/clusterctl https://github.com/kubernetes-sigs/cluster-api/releases/download/${CAPI_VERSION}/clusterctl-linux-amd64
