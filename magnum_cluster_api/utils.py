@@ -113,6 +113,18 @@ def generate_cloud_controller_manager_config(
     clouds_yaml = base64.decode_as_text(data.obj["data"]["clouds.yaml"])
     cloud_config = yaml.safe_load(clouds_yaml)
 
+    octavia_provider = cluster.labels.get("octavia_provider", "amphora")
+    octavia_lb_algorithm = cluster.labels.get("octavia_lb_algorithm")
+
+    if octavia_provider == "amphora" and octavia_lb_algorithm is None:
+        octavia_lb_algorithm = "ROUND_ROBIN"
+    elif octavia_provider == "ovn" and octavia_lb_algorithm is None:
+        octavia_lb_algorithm = "SOURCE_IP_PORT"
+    elif octavia_provider == "ovn" and octavia_lb_algorithm != "SOURCE_IP_PORT":
+        raise mcapi_exceptions.InvalidOctaviaLoadBalancerAlgorithm(
+            octavia_lb_algorithm=octavia_lb_algorithm
+        )
+
     return textwrap.dedent(
         f"""\
         [Global]
@@ -123,7 +135,8 @@ def generate_cloud_controller_manager_config(
         tls-insecure={"false" if CONF.drivers.verify_ca else "true"}
         {"ca-file=/etc/config/ca.crt" if get_cloud_ca_cert() else ""}
         [LoadBalancer]
-        lb-provider={cluster.labels.get("octavia_provider", "amphora")}
+        lb-provider={octavia_provider}
+        lb-method={octavia_lb_algorithm}
         """
     )
 
