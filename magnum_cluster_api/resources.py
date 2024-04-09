@@ -218,11 +218,12 @@ class ClusterResourcesConfigMap(ClusterBase):
                                     "tag": cilium_version,
                                 },
                             },
-                            # NOTE(okozachenko1203): For users who run with kube-proxy (i.e. with Cilium's kube-proxy replacement
-                            #                        disabled), the ClusterIP service loadbalancing when a request is sent from a pod
-                            #                        running in a non-host network namespace is still performed at the pod network
-                            #                        interface (until https://github.com/cilium/cilium/issues/16197 is fixed).
-                            #                        For this case the session affinity support is disabled by default.
+                            # NOTE(okozachenko1203): For users who run with kube-proxy (i.e. with Cilium's kube-proxy
+                            #                        replacement disabled), the ClusterIP service loadbalancing when a
+                            #                        request is sent from a pod running in a non-host network namespace
+                            #                        is still performed at the pod network interface (until
+                            #                        https://github.com/cilium/cilium/issues/16197 is fixed). For this
+                            #                        case the session affinity support is disabled by default.
                             "sessionAffinity": "true",
                             "ipam": {
                                 "operator": {
