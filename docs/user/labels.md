@@ -117,6 +117,18 @@ is often accomplished by deploying a driver on each node.
 
    Default value: `amphora`
 
+* `octavia_lb_algorithm`
+
+   The Octavia load balancer algorithm to configure for the load balancers
+   created by the cluster (options are `ROUND_ROBIN`, `LEAST_CONNECTIONS`,
+   `SOURCE_IP` & `SOURCE_IP_PORT`).
+
+   It's important to note that the OVN provider supports only the `SOURCE_IP_PORT`
+   driver as part of it's [limitations](https://docs.openstack.org/ovn-octavia-provider/latest/admin/driver.html).
+
+   Default value (`amphora` provider): `ROUND_ROBIN`
+   Default value (`ovn` provider): `SOURCE_IP_PORT`
+
 ## Container Networking Interface (CNI)
 
 ### Calcio
