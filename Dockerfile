@@ -6,7 +6,7 @@ ADD registry/config.yml /etc/docker-registry/config.yml
 
 FROM registry-base AS registry-loader
 COPY --from=gcr.io/go-containerregistry/crane /ko-app/crane /usr/local/bin/crane
-RUN apk add --no-cache gcc linux-headers musl-dev netcat-openbsd py3-pip python3-dev
+RUN apk add --no-cache cargo gcc linux-headers musl-dev netcat-openbsd py3-pip python3-dev
 RUN \
   --mount=type=bind,source=.,target=/src \
   --mount=type=cache,target=/root/.cache \

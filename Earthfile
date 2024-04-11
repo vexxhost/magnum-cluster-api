@@ -10,6 +10,7 @@ build:
 	RUN helm fetch autoscaler/cluster-autoscaler --version 9.29.1 --untar --untardir magnum_cluster_api/charts
   COPY hack/add-omt-to-clusterrole.patch /hack/
 	RUN patch -p0 magnum_cluster_api/charts/cluster-autoscaler/templates/clusterrole.yaml < /hack/add-omt-to-clusterrole.patch
+  RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
   DO github.com/vexxhost/atmosphere/images/openstack-service+PIP_INSTALL --PACKAGES /src
   SAVE ARTIFACT /var/lib/openstack venv
 

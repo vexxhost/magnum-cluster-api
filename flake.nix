@@ -19,9 +19,10 @@
 
               buildInputs = with pkgs; [
                 bashInteractive
+                cargo
                 glibcLocales
-                poetry
                 python311Packages.tox
+                rustc
               ];
             };
         }

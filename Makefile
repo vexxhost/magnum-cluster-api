@@ -7,17 +7,8 @@ vendor: clean
 	helm fetch autoscaler/cluster-autoscaler --version 9.29.1 --untar --untardir magnum_cluster_api/charts
 	patch -p0 magnum_cluster_api/charts/cluster-autoscaler/templates/clusterrole.yaml < hack/add-omt-to-clusterrole.patch
 
-poetry:
-	pipx install poetry
+maturin:
+	pipx install maturin
 
-build: vendor poetry
-	poetry build
-
-install: build poetry
-	poetry install
-
-unit-tests: install poetry
-	poetry run pytest magnum_cluster_api/tests/unit/
-
-functional-tests: install poetry
-	poetry run pytest magnum_cluster_api/tests/functional/
+build: vendor maturin
+	maturin build

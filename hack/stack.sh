@@ -14,6 +14,23 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+
+# Install Maturin
+sudo apt-get install -y python3-pip
+pip3 install maturin
+
+# Install Helm
+./hack/setup-helm.sh
+
+# Vendor the chart
+make vendor
+
+# Build wheels
+$HOME/.local/bin/maturin build -o dist
+
 # Setup folders for DevStack
 sudo mkdir -p /opt/stack
 sudo chown -R ${USER}. /opt/stack
@@ -95,9 +112,6 @@ EOF
 # Install "kubectl"
 ./hack/setup-kubectl.sh
 
-# Install Helm
-./hack/setup-helm.sh
-
 # Install Docker
 ./hack/setup-docker.sh
 
@@ -107,12 +121,9 @@ EOF
 # Install CAPI/CAPO
 ./hack/setup-capo.sh
 
-# Vendor the chart
-make vendor
-
 # Install `magnum-cluster-api`
 pip install -U setuptools pip python-magnumclient
-$HOME/.local/bin/pip3 install -e .
+$HOME/.local/bin/pip3 install dist/*.whl
 
 # Restart Magnum to pick-up new driver
 sudo systemctl restart devstack@magnum-{api,cond}

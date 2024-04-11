@@ -16,11 +16,9 @@ from __future__ import annotations
 
 import json
 import re
-import string
 import textwrap
 
 import pykube
-import shortuuid
 import yaml
 from magnum import objects as magnum_objects
 from magnum.api import attr_validator
@@ -31,7 +29,7 @@ from oslo_serialization import base64
 from oslo_utils import strutils, uuidutils
 from tenacity import retry, retry_if_exception_type
 
-from magnum_cluster_api import clients
+from magnum_cluster_api import _internal, clients
 from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import image_utils, images, objects
 
@@ -62,10 +60,7 @@ def get_or_generate_cluster_api_name(
 def generate_cluster_api_name(
     api: pykube.HTTPClient,
 ) -> str:
-    alphabet = string.ascii_lowercase + string.digits
-    su = shortuuid.ShortUUID(alphabet=alphabet)
-
-    name = "kube-%s" % (su.random(length=5))
+    name = _internal.generate_cluster_name()
     if cluster_exists(api, name):
         raise exception.Conflict("Generated name already exists")
     return name
