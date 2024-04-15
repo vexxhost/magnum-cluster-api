@@ -840,6 +840,9 @@ class ClusterClass(Base):
                                         "enabled": {
                                             "type": "boolean",
                                         },
+                                        "provider": {
+                                            "type": "string",
+                                        },
                                     },
                                 },
                             },
@@ -2346,6 +2349,9 @@ class Cluster(ClusterBase):
                                 "name": "apiServerLoadBalancer",
                                 "value": {
                                     "enabled": self.cluster.master_lb_enabled,
+                                    "provider": self.cluster.labels.get(
+                                        "octavia_provider", "amphora"
+                                    ),
                                 },
                             },
                             {
