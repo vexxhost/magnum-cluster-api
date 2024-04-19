@@ -220,6 +220,7 @@ class BaseDriver(driver.Driver):
                 cluster.status = fields.ClusterStatus.UPDATE_COMPLETE
 
             cluster.save()
+            return
 
         if cluster.status == fields.ClusterStatus.DELETE_IN_PROGRESS:
             if capi_cluster and capi_cluster.exists():
@@ -254,6 +255,9 @@ class BaseDriver(driver.Driver):
             cluster.status_reason = None
             cluster.status = fields.ClusterStatus.DELETE_COMPLETE
             cluster.save()
+            return
+
+        resources.set_certificate_expiry_days(self.k8s_api)
 
     @cluster_lock_wrapper
     def update_cluster(

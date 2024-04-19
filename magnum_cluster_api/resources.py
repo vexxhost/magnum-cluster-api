@@ -57,6 +57,7 @@ AUTOSCALE_ANNOTATION_MIN = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-m
 AUTOSCALE_ANNOTATION_MAX = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"
 
 DEFAULT_POD_CIDR = "10.100.0.0/16"
+CERTIFICATE_EXPIRY_DAY_FIX_APPLIED = False
 
 
 class ClusterAutoscalerHelmRelease:
@@ -2816,3 +2817,18 @@ def get_machine_deployment(
     if len(mds) == 1:
         return list(mds)[0]
     return None
+
+
+def set_certificate_expiry_days(
+    api: pykube.HTTPClient,
+):
+    global CERTIFICATE_EXPIRY_DAY_FIX_APPLIED
+    if not CERTIFICATE_EXPIRY_DAY_FIX_APPLIED:
+        kcpts = objects.KubeadmControlPlaneTemplate.objects(
+            api, namespace="magnum-system"
+        ).all()
+        for kcpt in kcpts:
+            kcpt.obj["spec"]["template"]["spec"]["rolloutBefore"][
+                "certificatesExpiryDays"
+            ] = 21
+            utils.kube_apply_patch(kcpt)
