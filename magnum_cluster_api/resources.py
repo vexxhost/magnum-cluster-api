@@ -583,6 +583,9 @@ class KubeadmControlPlaneTemplate(Base):
                 "spec": {
                     "template": {
                         "spec": {
+                            "rolloutBefore": {
+                                "certificatesExpiryDays": 21,
+                            },
                             "kubeadmConfigSpec": {
                                 "clusterConfiguration": {
                                     "apiServer": {
