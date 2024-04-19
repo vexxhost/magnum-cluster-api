@@ -2793,3 +2793,5 @@ def set_certificate_expiry_days(
                 "certificatesExpiryDays"
             ] = 21
             utils.kube_apply_patch(kcpt)
+
+        CERTIFICATE_EXPIRY_DAY_FIX_APPLIED = True
