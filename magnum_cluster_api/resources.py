@@ -2817,20 +2817,3 @@ def get_machine_deployment(
     if len(mds) == 1:
         return list(mds)[0]
     return None
-
-
-def set_certificate_expiry_days(
-    api: pykube.HTTPClient,
-):
-    global CERTIFICATE_EXPIRY_DAY_FIX_APPLIED
-    if not CERTIFICATE_EXPIRY_DAY_FIX_APPLIED:
-        kcpts = objects.KubeadmControlPlaneTemplate.objects(
-            api, namespace="magnum-system"
-        ).all()
-        for kcpt in kcpts:
-            kcpt.obj["spec"]["template"]["spec"]["rolloutBefore"][
-                "certificatesExpiryDays"
-            ] = 21
-            utils.kube_apply_patch(kcpt)
-
-        CERTIFICATE_EXPIRY_DAY_FIX_APPLIED = True

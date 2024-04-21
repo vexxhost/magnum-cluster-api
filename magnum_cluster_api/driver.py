@@ -24,6 +24,7 @@ from magnum.objects import fields
 from magnum_cluster_api import (
     clients,
     exceptions,
+    hacks,
     monitor,
     objects,
     resources,
@@ -257,7 +258,7 @@ class BaseDriver(driver.Driver):
             cluster.save()
             return
 
-        resources.set_certificate_expiry_days(self.k8s_api)
+        hacks.set_certificate_expiry_days(self.k8s_api)
 
     @cluster_lock_wrapper
     def update_cluster(
