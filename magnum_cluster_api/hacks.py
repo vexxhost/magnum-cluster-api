@@ -39,9 +39,24 @@ def set_certificate_expiry_days(
                 "rolloutBefore", {}
             )
             if "certificatesExpiryDays" not in rollout_before:
+                kcpt.obj["spec"]["template"]["spec"].setdefault("rolloutBefore", {})
                 kcpt.obj["spec"]["template"]["spec"]["rolloutBefore"][
                     "certificatesExpiryDays"
                 ] = 21
+
+                # NOTE(mnaser): Since the KubeadmControlPlaneTemplate is immutable, we need to
+                #               delete the object and re-create it.
+                kcpt.delete()
+                del kcpt.obj["metadata"]["uid"]
+
                 utils.kube_apply_patch(kcpt)
 
         CERTIFICATE_EXPIRY_DAYS_FIX_APPLIED = True
+
+        kcps = objects.KubeadmControlPlane.objects(
+            api, namespace="magnum-system"
+        ).all()
+        for kcp in kcps:
+            kcp.obj["spec"].setdefault("rolloutBefore", {})
+            kcp.obj["spec"]["rolloutBefore"]["certificatesExpiryDays"] = 21
+            utils.kube_apply_patch(kcp)
