@@ -79,4 +79,4 @@ class Monitor(monitors.MonitorBase):
 
         self.poll_nodegroup_replicas()
 
-        hacks.set_certificate_expiry_days(self.k8s_api)
+        hacks.set_certificate_expiry_days(k8s_api)
