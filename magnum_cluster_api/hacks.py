@@ -52,11 +52,3 @@ def set_certificate_expiry_days(
                 utils.kube_apply_patch(kcpt)
 
         CERTIFICATE_EXPIRY_DAYS_FIX_APPLIED = True
-
-        kcps = objects.KubeadmControlPlane.objects(
-            api, namespace="magnum-system"
-        ).all()
-        for kcp in kcps:
-            kcp.obj["spec"].setdefault("rolloutBefore", {})
-            kcp.obj["spec"]["rolloutBefore"]["certificatesExpiryDays"] = 21
-            utils.kube_apply_patch(kcp)

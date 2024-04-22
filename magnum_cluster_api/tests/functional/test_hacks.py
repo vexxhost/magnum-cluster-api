@@ -13,12 +13,7 @@
 # under the License.
 
 import pytest
-from tenacity import (
-    Retrying,
-    retry_if_result,
-    stop_after_delay,
-    wait_fixed,
-)
+from tenacity import Retrying, retry_if_result, stop_after_delay, wait_fixed
 
 from magnum_cluster_api import clients, hacks, objects, resources, utils
 
