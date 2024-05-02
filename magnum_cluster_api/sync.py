@@ -34,3 +34,24 @@ class ClusterLock(sherlock.KubernetesLock):
             k8s_namespace="magnum-system",
             expire=expire,
         )
+
+
+class TaskLock(sherlock.KubernetesLock):
+    """
+    A task lock that is used to lock for a certain task across all of
+    the conductor nodes.
+    """
+
+    DEFAULT_EXPIRE: int = 60
+
+    def __init__(self, task_id: str, expire: int = DEFAULT_EXPIRE):
+        sherlock.configure(
+            backend=sherlock.backends.KUBERNETES,
+            retry_interval=1,
+        )
+
+        super().__init__(
+            lock_name="task-%s" % task_id,
+            k8s_namespace="magnum-system",
+            expire=expire,
+        )
