@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.17.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.16.0...v0.17.0) (2024-05-02)
+
+
+### Features
+
+* Automatically rotating certificates using Kubeadm Control Plane provider ([#361](https://github.com/vexxhost/magnum-cluster-api/issues/361)) ([9e4bed1](https://github.com/vexxhost/magnum-cluster-api/commit/9e4bed1d328e29cfaf43635978f6da4688768856))
+* enable octavia_lb_algorithm label ([#358](https://github.com/vexxhost/magnum-cluster-api/issues/358)) ([bd339ee](https://github.com/vexxhost/magnum-cluster-api/commit/bd339eefa43f88e91281c7c3a132ed8c7bd313e2)), closes [#355](https://github.com/vexxhost/magnum-cluster-api/issues/355)
+* support multiple control plane availability zones ([#320](https://github.com/vexxhost/magnum-cluster-api/issues/320)) ([8ceb19a](https://github.com/vexxhost/magnum-cluster-api/commit/8ceb19accf272c708bc09ed3340aa45c9ac54253))
+
+
+### Bug Fixes
+
+* fix unit tests for sync and disable image build job in CI ([#367](https://github.com/vexxhost/magnum-cluster-api/issues/367)) ([668d4f9](https://github.com/vexxhost/magnum-cluster-api/commit/668d4f9a62e5370408199b759eb8a7526ce06082))
+* **ovn:** use octavia_provider for api lb ([#360](https://github.com/vexxhost/magnum-cluster-api/issues/360)) ([9b0ec1e](https://github.com/vexxhost/magnum-cluster-api/commit/9b0ec1eecd9a1ae067b4c046bb92c569d9c4d121))
+
 ## [0.16.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.15.1...v0.16.0) (2024-03-28)
 
 
