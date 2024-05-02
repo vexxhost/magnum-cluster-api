@@ -14,23 +14,57 @@
       image_os_distro: ubuntu
 
 - job:
-    name: magnum-cluster-api-image-build-ubuntu-2204-v1.27.8
+    name: magnum-cluster-api-image-build-ubuntu-2204-v1.27.13
     parent: magnum-cluster-api-image-build-ubuntu-2204
     vars:
-      kube_tag: v1.27.8
+      kube_tag: v1.27.13
 
 - job:
-    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.8
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.13
     parent: magnum-cluster-api-sonobuoy-ubuntu-2204
     dependencies:
-      - name: magnum-cluster-api-image-build-ubuntu-2204-v1.27.8
+      - name: magnum-cluster-api-image-build-ubuntu-2204-v1.27.13
         soft: true
     vars:
-      kube_tag: v1.27.8
+      kube_tag: v1.27.13
+
+- job:
+    name: magnum-cluster-api-image-build-ubuntu-2204-v1.28.9
+    parent: magnum-cluster-api-image-build-ubuntu-2204
+    vars:
+      kube_tag: v1.28.9
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.9
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204
+    dependencies:
+      - name: magnum-cluster-api-image-build-ubuntu-2204-v1.28.9
+        soft: true
+    vars:
+      kube_tag: v1.28.9
+
+- job:
+    name: magnum-cluster-api-image-build-ubuntu-2204-v1.29.4
+    parent: magnum-cluster-api-image-build-ubuntu-2204
+    vars:
+      kube_tag: v1.29.4
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.4
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204
+    dependencies:
+      - name: magnum-cluster-api-image-build-ubuntu-2204-v1.29.4
+        soft: true
+    vars:
+      kube_tag: v1.29.4
 
 - project-template:
     name: magnum-cluster-api-ubuntu-2204
     check:
       jobs:
-        - magnum-cluster-api-image-build-ubuntu-2204-v1.27.8
-        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.8
+        - magnum-cluster-api-image-build-ubuntu-2204-v1.27.13
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.13
+        - magnum-cluster-api-image-build-ubuntu-2204-v1.28.9
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.9
+        - magnum-cluster-api-image-build-ubuntu-2204-v1.29.4
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.4
