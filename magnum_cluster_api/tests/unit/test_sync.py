@@ -12,16 +12,15 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from unittest import mock
+from unittest import TestCase, mock
 
-from magnum.tests import base
 from oslo_utils import uuidutils
 
 from magnum_cluster_api.sync import ClusterLock
 
 
 @mock.patch("kubernetes.config.load_config")
-class ClusterLockTestCase(base.TestCase):
+class ClusterLockTestCase(TestCase):
     def test_cluster_lock_init_with_no_expire(self, mock_load_config):
         cluster_id = uuidutils.generate_uuid()
 
