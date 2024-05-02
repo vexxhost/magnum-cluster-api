@@ -20,6 +20,7 @@ ClusterClass.
 """
 
 import pykube
+from tenacity import Retrying, retry_if_result, stop_after_delay, wait_fixed
 
 from magnum_cluster_api import objects, utils
 
@@ -38,17 +39,31 @@ def set_certificate_expiry_days(
             rollout_before = kcpt.obj["spec"]["template"]["spec"].get(
                 "rolloutBefore", {}
             )
-            if "certificatesExpiryDays" not in rollout_before:
-                kcpt.obj["spec"]["template"]["spec"].setdefault("rolloutBefore", {})
-                kcpt.obj["spec"]["template"]["spec"]["rolloutBefore"][
-                    "certificatesExpiryDays"
-                ] = 21
+            if "certificatesExpiryDays" in rollout_before:
+                continue
 
-                # NOTE(mnaser): Since the KubeadmControlPlaneTemplate is immutable, we need to
-                #               delete the object and re-create it.
-                kcpt.delete()
-                del kcpt.obj["metadata"]["uid"]
+            # NOTE(mnaser): Since the KubeadmControlPlaneTemplate is immutable, we need to
+            #               delete the object and re-create it.
+            kcpt.delete()
 
-                utils.kube_apply_patch(kcpt)
+            del kcpt.obj["metadata"]["uid"]
+            kcpt.obj["spec"]["template"]["spec"].setdefault("rolloutBefore", {})
+            kcpt.obj["spec"]["template"]["spec"]["rolloutBefore"][
+                "certificatesExpiryDays"
+            ] = 21
+
+            # Use tenacity to wait for kcpt to be created
+            for attempt in Retrying(
+                retry=retry_if_result(lambda result: result is None),
+                stop=stop_after_delay(10),
+                wait=wait_fixed(1),
+            ):
+                with attempt:
+                    utils.kube_apply_patch(kcpt)
+                    new_kcpt = objects.KubeadmControlPlaneTemplate.objects(
+                        api, namespace="magnum-system"
+                    ).get(name=kcpt.obj["metadata"]["name"])
+                if not attempt.retry_state.outcome.failed:
+                    attempt.retry_state.set_result(new_kcpt)
 
         CERTIFICATE_EXPIRY_DAYS_FIX_APPLIED = True
