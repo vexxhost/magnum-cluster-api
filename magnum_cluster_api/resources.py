@@ -615,6 +615,10 @@ class KubeadmControlPlaneTemplate(Base):
                                         },
                                     },
                                 },
+                                "diskSetup": {
+                                    "partitions": [],
+                                    "filesystems": [],
+                                },
                                 "files": [
                                     {
                                         "path": "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml",
@@ -648,6 +652,7 @@ class KubeadmControlPlaneTemplate(Base):
                                         },
                                     },
                                 },
+                                "mounts": [],
                                 "preKubeadmCommands": [
                                     "rm /var/lib/etcd/lost+found -rf"
                                 ],
@@ -673,6 +678,10 @@ class KubeadmConfigTemplate(Base):
                 "spec": {
                     "template": {
                         "spec": {
+                            "diskSetup": {
+                                "partitions": [],
+                                "filesystems": [],
+                            },
                             "files": [
                                 {
                                     "path": "/etc/kubernetes/.placeholder",
@@ -712,6 +721,7 @@ class OpenStackMachineTemplate(Base):
                         "spec": {
                             "cloudName": "default",
                             "flavor": PLACEHOLDER,
+                            "additionalBlockDevices": [],
                         }
                     }
                 },
@@ -1123,6 +1133,15 @@ class ClusterClass(Base):
                                     "type": "string",
                                     "enum": utils.AVAILABLE_OPERATING_SYSTEMS,
                                     "default": "ubuntu",
+                                },
+                            },
+                        },
+                        {
+                            "name": "enableDockerVolume",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "boolean",
                                 },
                             },
                         },
@@ -1812,8 +1831,8 @@ class ClusterClass(Base):
                             ],
                         },
                         {
-                            "name": "etcdVolume",
-                            "enabledIf": "{{ if .enableEtcdVolume }}true{{end}}",
+                            "name": "dockerVolume",
+                            "enabledIf": "{{ if .enableDockerVolume }}true{{end}}",
                             "definitions": [
                                 {
                                     "selector": {
@@ -1826,32 +1845,40 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/diskSetup",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/diskSetup/partitions/-",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
                                                     """\
-                                                    "partitions":
-                                                      - "device": "/dev/vdb"
-                                                        "tableType": "gpt"
-                                                        "layout": True
-                                                        "overwrite": False
-                                                    "filesystems":
-                                                      - "label": "etcd_disk"
-                                                        "filesystem": "ext4"
-                                                        "device": "/dev/vdb"
-                                                        "extraOpts": ["-F", "-E", "lazy_itable_init=1,lazy_journal_init=1"] # noqa: E501
+                                                    "device": "/dev/vdc"
+                                                    "tableType": "gpt"
+                                                    "layout": True
+                                                    "overwrite": False
                                                     """
                                                 ),
                                             },
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/mounts",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/diskSetup/filesystems/-",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
                                                     """\
-                                                    - - LABEL=etcd_disk
-                                                      - /var/lib/etcd
+                                                    "label": "docker_disk"
+                                                    "filesystem": "ext4"
+                                                    "device": "/dev/vdc"
+                                                    "extraOpts": ["-F", "-E", "lazy_itable_init=1,lazy_journal_init=1"] # noqa: E501
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/mounts/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - LABEL=docker_disk
+                                                    - /var/lib/containerd
                                                     """
                                                 ),
                                             },
@@ -1869,17 +1896,155 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/additionalBlockDevices",
+                                            "path": "/spec/template/spec/additionalBlockDevices/-",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
                                                     """\
-                                                    - name: etcd
-                                                      sizeGiB: {{ .etcdVolumeSize }}
-                                                      storage:
-                                                        type: Volume
-                                                        volume:
-                                                          type: "{{ .etcdVolumeType }}"
-                                                          availabilityZone: "{{ .availabilityZone }}"
+                                                    name: docker
+                                                    sizeGiB: {{ .dockerVolumeSize }}
+                                                    storage:
+                                                      type: Volume
+                                                      volume:
+                                                        type: "{{ .dockerVolumeType }}"
+                                                        availabilityZone: "{{ .availabilityZone }}"
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmConfigTemplate.version,
+                                        "kind": objects.KubeadmConfigTemplate.kind,
+                                        "matchResources": {
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            }
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/diskSetup/partitions/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    "device": "/dev/vdc"
+                                                    "tableType": "gpt"
+                                                    "layout": True
+                                                    "overwrite": False
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/diskSetup/filesystems/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    "label": "docker_disk"
+                                                    "filesystem": "ext4"
+                                                    "device": "/dev/vdc"
+                                                    "extraOpts": ["-F", "-E", "lazy_itable_init=1,lazy_journal_init=1"] # noqa: E501
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/mounts",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - - LABEL=docker_disk
+                                                      - /var/lib/containerd
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            "name": "etcdVolume",
+                            "enabledIf": "{{ if .enableEtcdVolume }}true{{end}}",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                        "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/diskSetup/partitions/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    "device": "/dev/vdb"
+                                                    "tableType": "gpt"
+                                                    "layout": True
+                                                    "overwrite": False
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/diskSetup/filesystems/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    "label": "etcd_disk"
+                                                    "filesystem": "ext4"
+                                                    "device": "/dev/vdb"
+                                                    "extraOpts": ["-F", "-E", "lazy_itable_init=1,lazy_journal_init=1"] # noqa: E501
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/mounts/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - LABEL=etcd_disk
+                                                    - /var/lib/etcd
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackMachineTemplate.version,
+                                        "kind": objects.OpenStackMachineTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/additionalBlockDevices/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    name: etcd
+                                                    sizeGiB: {{ .etcdVolumeSize }}
+                                                    storage:
+                                                      type: Volume
+                                                      volume:
+                                                        type: "{{ .etcdVolumeType }}"
+                                                        availabilityZone: "{{ .availabilityZone }}"
                                                     """
                                                 ),
                                             },
@@ -2536,6 +2701,30 @@ class Cluster(ClusterBase):
                             {
                                 "name": "operatingSystem",
                                 "value": utils.get_operating_system(self.cluster),
+                            },
+                            {
+                                "name": "enableDockerVolume",
+                                "value": utils.get_cluster_label_as_int(
+                                    self.cluster,
+                                    "docker_volume_size",
+                                    0,
+                                )
+                                > 0,
+                            },
+                            {
+                                "name": "dockerVolumeSize",
+                                "value": utils.get_cluster_label_as_int(
+                                    self.cluster,
+                                    "docker_volume_size",
+                                    0,
+                                ),
+                            },
+                            {
+                                "name": "dockerVolumeType",
+                                "value": self.cluster.labels.get(
+                                    "docker_volume_type",
+                                    default_volume_type.name,
+                                ),
                             },
                             {
                                 "name": "enableEtcdVolume",
