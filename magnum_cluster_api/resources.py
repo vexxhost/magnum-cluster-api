@@ -1899,18 +1899,10 @@ class ClusterClass(Base):
                                                         "tableType": "gpt"
                                                         "layout": True
                                                         "overwrite": False
-                                                      - "device": "/dev/vdc"
-                                                        "tableType": "gpt"
-                                                        "layout": True
-                                                        "overwrite": False
                                                     "filesystems":
-                                                      - "label": "etcd_disk"
-                                                        "filesystem": "ext4"
-                                                        "device": "/dev/vdb"
-                                                        "extraOpts": ["-F", "-E", "lazy_itable_init=1,lazy_journal_init=1"] # noqa: E501
                                                       - "label": "docker_disk"
                                                         "filesystem": "ext4"
-                                                        "device": "/dev/vdc"
+                                                        "device": "/dev/vdb"
                                                         "extraOpts": ["-F", "-E", "lazy_itable_init=1,lazy_journal_init=1"] # noqa: E501
                                                     """
                                                 ),
@@ -1922,8 +1914,6 @@ class ClusterClass(Base):
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
                                                     """\
-                                                    - - LABEL=etcd_disk
-                                                      - /var/lib/etcd
                                                     - - LABEL=docker_disk
                                                       - /var/lib/containerd
                                                     """
@@ -1936,6 +1926,9 @@ class ClusterClass(Base):
                                     "selector": {
                                         "apiVersion": objects.OpenStackMachineTemplate.version,
                                         "kind": objects.OpenStackMachineTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
                                     },
                                     "jsonPatches": [
                                         {
@@ -1951,6 +1944,36 @@ class ClusterClass(Base):
                                                         volume:
                                                           type: "{{ .etcdVolumeType }}"
                                                           availabilityZone: "{{ .availabilityZone }}"
+                                                    - name: docker
+                                                      sizeGiB: {{ .dockerVolumeSize }}
+                                                      storage:
+                                                        type: Volume
+                                                        volume:
+                                                          type: "{{ .dockerVolumeType }}"
+                                                          availabilityZone: "{{ .availabilityZone }}"
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackMachineTemplate.version,
+                                        "kind": objects.OpenStackMachineTemplate.kind,
+                                        "matchResources": {
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            },
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/additionalBlockDevices",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
                                                     - name: docker
                                                       sizeGiB: {{ .dockerVolumeSize }}
                                                       storage:
@@ -2062,6 +2085,12 @@ class ClusterClass(Base):
                                     "selector": {
                                         "apiVersion": objects.OpenStackMachineTemplate.version,
                                         "kind": objects.OpenStackMachineTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            },
+                                        },
                                     },
                                     "jsonPatches": [
                                         {
