@@ -1136,6 +1136,24 @@ class ClusterClass(Base):
                             },
                         },
                         {
+                            "name": "dockerVolumeSize",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "integer",
+                                },
+                            },
+                        },
+                        {
+                            "name": "dockerVolumeType",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
                             "name": "enableEtcdVolume",
                             "required": True,
                             "schema": {
