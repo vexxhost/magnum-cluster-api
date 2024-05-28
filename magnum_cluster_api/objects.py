@@ -134,10 +134,9 @@ class MachineDeployment(NamespacedAPIObject):
             return None
 
     def equals_spec(self, spec: dict) -> bool:
-        annotations_match = (
-            self.obj["spec"]["template"]["metadata"]["annotations"]
-            == spec["metadata"]["annotations"]
-        )
+        annotations_match = self.obj["spec"]["template"]["metadata"].get(
+            "annotations"
+        ) == spec["metadata"].get("annotations")
         replicas_match = self.obj["spec"].get("replicas") == spec.get("replicas")
 
         return annotations_match and replicas_match
