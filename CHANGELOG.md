@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.17.0...v0.17.1) (2024-05-28)
+
+
+### Bug Fixes
+
+* use get method to get obj component ([#376](https://github.com/vexxhost/magnum-cluster-api/issues/376)) ([c259a71](https://github.com/vexxhost/magnum-cluster-api/commit/c259a7142cdc90d68b453d286f1cc504722c3ee3)), closes [#368](https://github.com/vexxhost/magnum-cluster-api/issues/368)
+
 ## [0.17.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.16.0...v0.17.0) (2024-05-02)
 
 
