@@ -281,21 +281,17 @@ class BaseDriver(driver.Driver):
     ):
         """
         Upgrade a cluster to a new version of Kubernetes.
-        """
-        # NOTE(mnaser): The only label that we change during the upgrade is the `kube_tag`
-        #               label.
-        #
-        #               Historically, the upgrade cluster has been a "hammer" that was
-        #               used to sync the Kubernetes Cluster API objects with the Magnum
-        #               objects.  However, by doing this, we're losing the ability to
-        #               maintain the existing labels of the cluster.
-        #
-        #               For now, upgrade cluster simply modifies the labels that are
-        #               necessary for the upgrade, nothing else.  For the future, we
-        #               can perhaps use the `update_cluster` API.
-        current_kube_tag = cluster.labels["kube_tag"]
-        new_kube_tag = cluster_template.labels["kube_tag"]
 
+        The only label that we change during the upgrade is the `kube_tag` label.
+
+        Historically, the upgrade cluster has been a "hammer" that was used to sync the
+        Kubernetes Cluster API objects with the Magnum objects.  However, by doing this,
+        we're losing the ability to maintain the existing labels of the cluster.
+
+        For now, upgrade cluster simply modifies the labels that are necessary for the
+        upgrade, nothing else.  For the future, we can perhaps use the `update_cluster`
+        API.
+        """
         # XXX(mnaser): The Magnum API historically only did upgrade one node group at a
         #              time.  This is a limitation of the Magnum API and not the Magnum
         #              Cluster API since doing multiple rolling upgrades was not very
@@ -305,18 +301,20 @@ class BaseDriver(driver.Driver):
         #              we ignore the `nodegroup` parameter and upgrade the entire cluster
         #              at once.
         cluster.cluster_template_id = cluster_template.uuid
-        cluster.labels["kube_tag"] = new_kube_tag
+        cluster.labels["kube_tag"] = cluster_template.labels["kube_tag"]
 
         for ng in cluster.nodegroups:
             ng.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
             ng.image_id = cluster_template.image_id
-            ng.labels["kube_tag"] = new_kube_tag
+            ng.labels["kube_tag"] = cluster_template.labels["kube_tag"]
             ng.save()
 
-        if current_kube_tag != new_kube_tag:
-            cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
-            resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
-            cluster_resource.wait_for_observed_generation_changed()
+        # NOTE(mnaser): We run a full apply on the cluster regardless of the changes, since
+        #               the expectation is that running an upgrade operation will change
+        #               the cluster in some way.
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
+        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
+        cluster_resource.wait_for_observed_generation_changed()
 
         # NOTE(mnaser): We do not save the cluster object here because the Magnum driver
         #               will save the object that it passed to us here.
