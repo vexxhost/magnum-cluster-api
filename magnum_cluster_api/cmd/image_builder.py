@@ -146,25 +146,28 @@ def main(ctx: click.Context, operating_system, version, image_builder_version):
 
     # NOTE(mnaser): We use the latest tested daily ISO for Ubuntu 22.04 in order
     #               to avoid a lengthy upgrade process.
-    if operating_system == "ubuntu-2204":
-        iso = "jammy-live-server-amd64.iso"
 
-        customization["iso_url"] = (
-            f"http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/{iso}"
-        )
-
-        # Get the SHA256 sum for the ISO
-        r = requests.get(
-            "http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/SHA256SUMS"
-        )
-        r.raise_for_status()
-        for line in r.text.splitlines():
-            if iso in line:
-                customization["iso_checksum"] = line.split()[0]
-                break
-
-        # Assert that we have the checksum
-        assert "iso_checksum" in customization
+    # NOTE(jrosser): This can be uncommented again when
+    # https://github.com/vexxhost/magnum-cluster-api/issues/378 is fixed
+    # if operating_system == "ubuntu-2204":
+    #    iso = "jammy-live-server-amd64.iso"
+    #
+    #    customization["iso_url"] = (
+    #        f"http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/{iso}"
+    #    )
+    #
+    #    # Get the SHA256 sum for the ISO
+    #    r = requests.get(
+    #        "http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/SHA256SUMS"
+    #    )
+    #    r.raise_for_status()
+    #    for line in r.text.splitlines():
+    #        if iso in line:
+    #            customization["iso_checksum"] = line.split()[0]
+    #            break
+    #
+    #    # Assert that we have the checksum
+    #    assert "iso_checksum" in customization
 
     if operating_system == "rockylinux-8":
         iso = "Rocky-x86_64-minimal.iso"
