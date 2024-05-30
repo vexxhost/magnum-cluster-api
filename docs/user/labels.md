@@ -15,13 +15,26 @@ specify the volume size and type using the following labels:
 
 `boot_volume_size`
 
-:   The size in gigabytes of the boot volume.
-    **Default value**: `[cinder]/default_boot_volume_size` from Magnum configuration.
+:   The size in gigabytes of the boot volume.  If you set this value, it will
+    enable boot from volume.
+    **Default value**: Unset
 
 `boot_volume_type`
 
 :   The volume type of the boot volume.
-    **Default value**: `[cinder]/default_boot_volume_type` from Magnum configuration.
+    **Default value**: Default volume 
+
+`etcd_volume_size`
+
+:   The size in gigabytes of the `etcd` volume.  If you set this value, it will
+    create a volume for `etcd` specifically and mount it on the system.
+    **Default value**: Unset
+
+`etcd_volume_type`
+
+:   The volume type of the `etcd` volume, this can be useful if you want to use an
+    encrypted or high performance volume type.
+    **Default value**: None
 
 !!! note
 
@@ -98,6 +111,24 @@ is often accomplished by deploying a driver on each node.
 
    Default value: Automatically detected based on `kube_tag` label.
 
+* `octavia_provider`
+
+   The Octavia provider to configure for the load balancers created by the cluster.
+
+   Default value: `amphora`
+
+* `octavia_lb_algorithm`
+
+   The Octavia load balancer algorithm to configure for the load balancers
+   created by the cluster (options are `ROUND_ROBIN`, `LEAST_CONNECTIONS`,
+   `SOURCE_IP` & `SOURCE_IP_PORT`).
+
+   It's important to note that the OVN provider supports only the `SOURCE_IP_PORT`
+   driver as part of it's [limitations](https://docs.openstack.org/ovn-octavia-provider/latest/admin/driver.html).
+
+   Default value (`amphora` provider): `ROUND_ROBIN`
+   Default value (`ovn` provider): `SOURCE_IP_PORT`
+
 ## Container Networking Interface (CNI)
 
 ### Calcio
@@ -137,6 +168,14 @@ is often accomplished by deploying a driver on each node.
 
 ## Kubernetes
 
+* `api_server_tls_cipher_suites`
+
+   Specify the list of TLS cipher suites to use for the Kubernetes API server,
+   separated by commas.  If not specified, the default list of cipher suites
+   will be used using the [Mozilla SSL Configuration Generator](https://ssl-config.mozilla.org/#server=go&config=intermediate).
+
+   Default value: `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305`
+
 * `auto_healing_enabled`
 
    Enable auto-healing for the cluster.  This will automatically replace failed
@@ -151,6 +190,14 @@ is often accomplished by deploying a driver on each node.
    cluster up and down based on the number of pods running in the cluster.
 
    Default value: `false`
+
+* `kubelet_tls_cipher_suites`
+
+   Specify the list of TLS cipher suites to use in communication between the
+   kubelet and applications, separated by commas.  If not specified, the
+   default list of cipher suites will be used.
+
+   Default value: `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305`
 
 * `kube_tag`
 

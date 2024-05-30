@@ -1,0 +1,19 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: system:{{ include "k8s-keystone-auth.fullname" . }}
+  labels:
+    {{- include "k8s-keystone-auth.labels" . | nindent 4 }}
+  {{- with .Values.serviceAccount.annotations }}
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:{{ include "k8s-keystone-auth.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "k8s-keystone-auth.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}

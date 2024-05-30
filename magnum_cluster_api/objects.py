@@ -13,11 +13,14 @@
 # under the License.
 
 import configparser
+import copy
 import io
 
 import pykube
 import yaml
+from magnum import objects as magnum_objects
 from oslo_serialization import base64
+from tenacity import Retrying, retry_if_result, stop_after_delay, wait_fixed
 
 from magnum_cluster_api import exceptions
 
@@ -32,6 +35,32 @@ class NamespacedAPIObject(pykube.objects.NamespacedAPIObject):
                 "involvedObject.kind": self.kind,
             },
         )
+
+    @property
+    def observed_generation(self):
+        return self.obj.get("status", {}).get("observedGeneration")
+
+    def wait_for_observed_generation_changed(
+        self,
+        existing_observed_generation: int = 0,
+        timeout: int = 10,
+        interval: int = 1,
+    ):
+        if existing_observed_generation == 0:
+            existing_observed_generation = self.observed_generation
+
+        for attempt in Retrying(
+            retry=(
+                retry_if_result(lambda g: g == existing_observed_generation)
+                | retry_if_result(lambda g: g is None)
+            ),
+            stop=stop_after_delay(timeout),
+            wait=wait_fixed(interval),
+        ):
+            with attempt:
+                self.reload()
+            if not attempt.retry_state.outcome.failed:
+                attempt.retry_state.set_result(self.observed_generation)
 
 
 class EndpointSlice(NamespacedAPIObject):
@@ -74,6 +103,43 @@ class MachineDeployment(NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
     endpoint = "machinedeployments"
     kind = "MachineDeployment"
+
+    @classmethod
+    def for_node_group(
+        cls,
+        api: pykube.HTTPClient,
+        cluster: magnum_objects.Cluster,
+        node_group: magnum_objects.NodeGroup,
+    ):
+        mds = cls.objects(api, namespace="magnum-system").filter(
+            selector={
+                "cluster.x-k8s.io/cluster-name": cluster.stack_id,
+                "topology.cluster.x-k8s.io/deployment-name": node_group.name,
+            },
+        )
+        if len(mds) != 1:
+            raise exceptions.MachineDeploymentNotFound(name=node_group.name)
+        return list(mds)[0]
+
+    @classmethod
+    def for_node_group_or_none(
+        cls,
+        api: pykube.HTTPClient,
+        cluster: magnum_objects.Cluster,
+        node_group: magnum_objects.NodeGroup,
+    ):
+        try:
+            return cls.for_node_group(api, cluster, node_group)
+        except exceptions.MachineDeploymentNotFound:
+            return None
+
+    def equals_spec(self, spec: dict) -> bool:
+        annotations_match = self.obj["spec"]["template"]["metadata"].get(
+            "annotations"
+        ) == spec["metadata"].get("annotations")
+        replicas_match = self.obj["spec"].get("replicas") == spec.get("replicas")
+
+        return annotations_match and replicas_match
 
 
 class Machine(NamespacedAPIObject):
@@ -170,6 +236,33 @@ class Cluster(NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
     endpoint = "clusters"
     kind = "Cluster"
+
+    @classmethod
+    def for_magnum_cluster(
+        cls, api: pykube.HTTPClient, cluster: magnum_objects.Cluster
+    ) -> "Cluster":
+        return cls.objects(api, namespace="magnum-system").get(name=cluster.stack_id)
+
+    def get_machine_deployment_index(self, name: str) -> int:
+        for i, machine_deployment in enumerate(
+            self.obj["spec"]["topology"]["workers"]["machineDeployments"]
+        ):
+            if machine_deployment["name"] == name:
+                return i
+
+        raise exceptions.MachineDeploymentNotFound(name=name)
+
+    def get_machine_deployment_spec(self, name: str) -> dict:
+        return copy.deepcopy(
+            self.obj["spec"]["topology"]["workers"]["machineDeployments"][
+                self.get_machine_deployment_index(name)
+            ]
+        )
+
+    def set_machine_deployment_spec(self, name: str, spec: dict):
+        self.obj["spec"]["topology"]["workers"]["machineDeployments"][
+            self.get_machine_deployment_index(name)
+        ] = spec
 
     @property
     def openstack_cluster(self):

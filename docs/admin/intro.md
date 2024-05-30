@@ -27,3 +27,10 @@ declarative and consistent approach to manage their Kubernetes clusters in an
 OpenStack environment. By leveraging Magnum's container orchestration
 capabilities, users can easily create and scale Kubernetes deployments while
 benefiting from the automation and extensibility provided by the Cluster API.
+
+## Reference
+
+Here references some awesome Intro and Install blogs:
+
+- [`Openstack Magnum Cluster API`](https://satishdotpatel.github.io/openstack-magnum-capi/) written by Satish Patel.
+- [`OpenStack Magnum Kubernetes Cluster API driver in Kolla-Ansible`](https://www.roksblog.de/openstack-magnum-cluster-api-driver/) written by R0K5T4R.

@@ -1,0 +1,9 @@
+- hosts: all
+  tasks:
+    - name: Return built artifacts to Zuul
+      zuul_return:
+        data:
+          zuul:
+            artifacts:
+              - name: "{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
+                url: "artifacts/{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"

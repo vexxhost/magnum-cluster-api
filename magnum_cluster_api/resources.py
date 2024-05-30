@@ -39,8 +39,7 @@ CALICO_TAG = "v3.24.2"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
-
-CLUSTER_UPGRADE_LABELS = {"kube_tag"}
+CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT = "300s"  # seconds
 
 PLACEHOLDER = "PLACEHOLDER"
 
@@ -135,7 +134,7 @@ class Namespace(Base):
 
 
 class ClusterBase(Base):
-    def __init__(self, api: pykube.HTTPClient, cluster: any):
+    def __init__(self, api: pykube.HTTPClient, cluster: magnum_objects.Cluster):
         super().__init__(api)
         self.cluster = cluster
 
@@ -158,13 +157,10 @@ class ClusterResourcesConfigMap(ClusterBase):
         self.cluster = cluster
 
     def get_object(self) -> pykube.ConfigMap:
-        # NOTE(mnaser): We have to assert that the only CNI we support is Calico.
-        assert CONF.cluster_template.kubernetes_allowed_network_drivers == ["calico"]
-
         manifests_path = pkg_resources.resource_filename(
             "magnum_cluster_api", "manifests"
         )
-        calico_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
+        calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
 
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
 
@@ -222,14 +218,16 @@ class ClusterResourcesConfigMap(ClusterBase):
                             "allowVolumeExpansion": True,
                             "kind": objects.StorageClass.kind,
                             "metadata": {
-                                "annotations": {
-                                    "storageclass.kubernetes.io/is-default-class": "true"
-                                }
-                                if default_volume_type.name == vt.name
-                                else {},
+                                "annotations": (
+                                    {
+                                        "storageclass.kubernetes.io/is-default-class": "true"
+                                    }
+                                    if default_volume_type.name == vt.name
+                                    else {}
+                                ),
                                 "name": "block-%s" % utils.convert_to_rfc1123(vt.name),
                             },
-                            "provisioner": "kubernetes.io/cinder",
+                            "provisioner": "cinder.csi.openstack.org",
                             "parameters": {
                                 "type": utils.convert_to_rfc1123(vt.name),
                             },
@@ -244,9 +242,7 @@ class ClusterResourcesConfigMap(ClusterBase):
 
         if manila.is_enabled(self.cluster):
             share_types = osc.manila().share_types.list()
-            share_network_id = utils.get_cluster_label(
-                self.cluster, "manila_csi_share_network_id", None
-            )
+            share_network_id = self.cluster.labels.get("manila_csi_share_network_id")
             data = {
                 **data,
                 **{
@@ -327,6 +323,37 @@ class ClusterResourcesConfigMap(ClusterBase):
                         for st in share_types
                     },
                 }
+
+        if utils.get_cluster_label_as_bool(self.cluster, "keystone_auth_enabled", True):
+            auth_url = osc.url_for(
+                service_type="identity",
+                interface=CONF.capi_client.endpoint_type.replace("URL", ""),
+            )
+            data = {
+                **data,
+                **{
+                    "keystone-auth.yaml": helm.TemplateReleaseCommand(
+                        namespace="kube-system",
+                        release_name="k8s-keystone-auth",
+                        chart_ref=os.path.join(
+                            pkg_resources.resource_filename(
+                                "magnum_cluster_api", "charts"
+                            ),
+                            "k8s-keystone-auth/",
+                        ),
+                        values={
+                            "conf": {
+                                "auth_url": auth_url
+                                + ("" if auth_url.endswith("/v3") else "/v3"),
+                                "ca_file": utils.get_cloud_ca_cert(),
+                                "policy": utils.get_keystone_auth_default_policy(
+                                    self.cluster
+                                ),
+                            },
+                        },
+                    )(repository=repository)
+                },
+            }
 
         return pykube.ConfigMap(
             self.api,
@@ -505,15 +532,17 @@ class CloudConfigSecret(ClusterBase):
                     "labels": self.labels,
                 },
                 "stringData": {
-                    "cacert": ca_certificate
-                    if ca_certificate
-                    else open(certifi.where(), "r").read(),
+                    "cacert": (
+                        ca_certificate
+                        if ca_certificate
+                        else open(certifi.where(), "r").read()
+                    ),
                     "clouds.yaml": yaml.dump(
                         {
                             "clouds": {
                                 "default": {
                                     "region_name": self.region_name,
-                                    "interface": CONF.capi_client.endpoint_type.replace(
+                                    "endpoint_type": CONF.capi_client.endpoint_type.replace(
                                         "URL", ""
                                     ),
                                     "identity_api_version": 3,
@@ -535,9 +564,12 @@ class CloudConfigSecret(ClusterBase):
 class KubeadmControlPlaneTemplate(Base):
     def get_object(self) -> objects.KubeadmControlPlaneTemplate:
         manifests_path = pkg_resources.resource_filename(
-            "magnum_cluster_api.manifests", "audit"
+            "magnum_cluster_api", "manifests"
         )
-        audit_policy = open(os.path.join(manifests_path, "policy.yaml")).read()
+        audit_policy = open(os.path.join(manifests_path, "audit/policy.yaml")).read()
+        keystone_auth_webhook = open(
+            os.path.join(manifests_path, "keystone-auth/webhook.yaml")
+        ).read()
 
         return objects.KubeadmControlPlaneTemplate(
             self.api,
@@ -551,6 +583,9 @@ class KubeadmControlPlaneTemplate(Base):
                 "spec": {
                     "template": {
                         "spec": {
+                            "rolloutBefore": {
+                                "certificatesExpiryDays": 21,
+                            },
                             "kubeadmConfigSpec": {
                                 "clusterConfiguration": {
                                     "apiServer": {
@@ -558,7 +593,15 @@ class KubeadmControlPlaneTemplate(Base):
                                             "cloud-provider": "external",
                                             "profiling": "false",
                                         },
-                                        "extraVolumes": [],
+                                        "extraVolumes": [
+                                            # Note(oleks): Add this as default as a workaround of the json patch limitation # noqa: E501
+                                            # https://cluster-api.sigs.k8s.io/tasks/experimental-features/cluster-class/write-clusterclass#json-patches-tips--tricks
+                                            {
+                                                "name": "webhooks",
+                                                "hostPath": "/etc/kubernetes/webhooks",
+                                                "mountPath": "/etc/kubernetes/webhooks",
+                                            }
+                                        ],
                                     },
                                     "etcd": {
                                         "local": {
@@ -588,6 +631,15 @@ class KubeadmControlPlaneTemplate(Base):
                                         "content": base64.encode_as_text(audit_policy),
                                         "encoding": "base64",
                                     },
+                                    {
+                                        "path": "/etc/kubernetes/webhooks/webhookconfig.yaml",
+                                        "owner": "root:root",
+                                        "permissions": "0644",
+                                        "content": base64.encode_as_text(
+                                            keystone_auth_webhook
+                                        ),
+                                        "encoding": "base64",
+                                    },
                                 ],
                                 "initConfiguration": {
                                     "nodeRegistration": {
@@ -605,6 +657,9 @@ class KubeadmControlPlaneTemplate(Base):
                                         },
                                     },
                                 },
+                                "preKubeadmCommands": [
+                                    "rm /var/lib/etcd/lost+found -rf"
+                                ],
                             },
                         },
                     },
@@ -627,7 +682,14 @@ class KubeadmConfigTemplate(Base):
                 "spec": {
                     "template": {
                         "spec": {
-                            "files": [],
+                            "files": [
+                                {
+                                    "path": "/etc/kubernetes/.placeholder",
+                                    "permissions": "0644",
+                                    "content": base64.encode_as_text(PLACEHOLDER),
+                                    "encoding": "base64",
+                                },
+                            ],
                             "joinConfiguration": {
                                 "nodeRegistration": {
                                     "name": "{{ local_hostname }}",
@@ -656,7 +718,10 @@ class OpenStackMachineTemplate(Base):
                 },
                 "spec": {
                     "template": {
-                        "spec": {"cloudName": "default", "flavor": PLACEHOLDER}
+                        "spec": {
+                            "cloudName": "default",
+                            "flavor": PLACEHOLDER,
+                        }
                     }
                 },
             },
@@ -700,6 +765,7 @@ class ClusterClass(Base):
                 },
                 "spec": {
                     "controlPlane": {
+                        "nodeVolumeDetachTimeout": CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT,
                         "ref": {
                             "apiVersion": objects.KubeadmControlPlaneTemplate.version,
                             "kind": objects.KubeadmControlPlaneTemplate.kind,
@@ -739,6 +805,7 @@ class ClusterClass(Base):
                         "machineDeployments": [
                             {
                                 "class": "default-worker",
+                                "nodeVolumeDetachTimeout": CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT,
                                 "template": {
                                     "bootstrap": {
                                         "ref": {
@@ -785,7 +852,19 @@ class ClusterClass(Base):
                                         "enabled": {
                                             "type": "boolean",
                                         },
+                                        "provider": {
+                                            "type": "string",
+                                        },
                                     },
+                                },
+                            },
+                        },
+                        {
+                            "name": "apiServerTLSCipherSuites",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
                                 },
                             },
                         },
@@ -909,6 +988,24 @@ class ClusterClass(Base):
                             },
                         },
                         {
+                            "name": "systemdProxyConfig",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "aptProxyConfig",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
                             "name": "containerdConfig",
                             "required": True,
                             "schema": {
@@ -1002,6 +1099,15 @@ class ClusterClass(Base):
                             },
                         },
                         {
+                            "name": "kubeletTLSCipherSuites",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
                             "name": "nodeCidr",
                             "required": True,
                             "schema": {
@@ -1026,6 +1132,64 @@ class ClusterClass(Base):
                                     "type": "string",
                                     "enum": utils.AVAILABLE_OPERATING_SYSTEMS,
                                     "default": "ubuntu",
+                                },
+                            },
+                        },
+                        {
+                            "name": "enableEtcdVolume",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "boolean",
+                                },
+                            },
+                        },
+                        {
+                            "name": "etcdVolumeSize",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "integer",
+                                },
+                            },
+                        },
+                        {
+                            "name": "etcdVolumeType",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "availabilityZone",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "enableKeystoneAuth",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "boolean",
+                                    "default": False,
+                                },
+                            },
+                        },
+                        {
+                            "name": "controlPlaneAvailabilityZones",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string",
+                                    },
                                 },
                             },
                         },
@@ -1077,16 +1241,26 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes",  # noqa: E501
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-",  # noqa: E501
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
                                                     """\
-                                                    - name: audit-policy
-                                                      hostPath: /etc/kubernetes/audit-policy
-                                                      mountPath: /etc/kubernetes/audit-policy
-                                                    - name: audit-logs
-                                                      hostPath: /var/log/kubernetes/audit
-                                                      mountPath: /var/log/audit
+                                                    name: audit-policy
+                                                    hostPath: /etc/kubernetes/audit-policy
+                                                    mountPath: /etc/kubernetes/audit-policy
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-",  # noqa: E501
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    name: audit-logs
+                                                    hostPath: /var/log/kubernetes/audit
+                                                    mountPath: /var/log/audit
                                                     """
                                                 ),
                                             },
@@ -1187,6 +1361,79 @@ class ClusterClass(Base):
                             ],
                         },
                         {
+                            "name": "ubuntu",
+                            "enabledIf": '{{ if eq .operatingSystem "ubuntu" }}true{{end}}',
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                        "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    path: "/etc/apt/apt.conf.d/90proxy"
+                                                    owner: "root:root"
+                                                    permissions: "0644"
+                                                    content: "{{ .aptProxyConfig }}"
+                                                    encoding: "base64"
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-",
+                                            "value": "systemctl daemon-reload && systemctl restart containerd",
+                                        },
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmConfigTemplate.version,
+                                        "kind": objects.KubeadmConfigTemplate.kind,
+                                        "matchResources": {
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            }
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/files/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    path: "/etc/apt/apt.conf.d/90proxy"
+                                                    owner: "root:root"
+                                                    permissions: "0644"
+                                                    content: "{{ .aptProxyConfig }}"
+                                                    encoding: "base64"
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/preKubeadmCommands",
+                                            "value": [
+                                                "systemctl daemon-reload",
+                                                "systemctl restart containerd",
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
                             "name": "flatcar",
                             "enabledIf": '{{ if eq .operatingSystem "flatcar" }}true{{end}}',
                             "definitions": [
@@ -1201,14 +1448,13 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands",
-                                            "value": [
-                                                textwrap.dedent(
-                                                    """\
-                                                bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
-                                                """  # noqa: E501
-                                                )
-                                            ],
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-",
+                                            "value": textwrap.dedent(
+                                                """\
+                                            bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                            bash -c "test -f /tmp/containerd-bootstrap || (touch /tmp/containerd-bootstrap && systemctl daemon-reload && systemctl restart containerd)"
+                                            """  # noqa: E501
+                                            ),
                                         },
                                         {
                                             "op": "replace",
@@ -1271,6 +1517,7 @@ class ClusterClass(Base):
                                                 textwrap.dedent(
                                                     """\
                                                 bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                                bash -c "test -f /tmp/containerd-bootstrap || (touch /tmp/containerd-bootstrap && systemctl daemon-reload && systemctl restart containerd)"
                                                 """  # noqa: E501
                                                 )
                                             ],
@@ -1434,6 +1681,30 @@ class ClusterClass(Base):
                             ],
                         },
                         {
+                            "name": "controlPlaneAvailabilityZones",
+                            "enabledIf": '{{ if ne (index .controlPlaneAvailabilityZones 0) "" }}true{{end}}',
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackClusterTemplate.version,
+                                        "kind": objects.OpenStackClusterTemplate.kind,
+                                        "matchResources": {
+                                            "infrastructureCluster": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/controlPlaneAvailabilityZones",
+                                            "valueFrom": {
+                                                "variable": "controlPlaneAvailabilityZones"
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
                             "name": "newNetworkConfig",
                             "enabledIf": '{{ if eq .fixedNetworkName "" }}true{{end}}',
                             "definitions": [
@@ -1550,6 +1821,115 @@ class ClusterClass(Base):
                             ],
                         },
                         {
+                            "name": "etcdVolume",
+                            "enabledIf": "{{ if .enableEtcdVolume }}true{{end}}",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                        "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/diskSetup",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    "partitions":
+                                                      - "device": "/dev/vdb"
+                                                        "tableType": "gpt"
+                                                        "layout": True
+                                                        "overwrite": False
+                                                    "filesystems":
+                                                      - "label": "etcd_disk"
+                                                        "filesystem": "ext4"
+                                                        "device": "/dev/vdb"
+                                                        "extraOpts": ["-F", "-E", "lazy_itable_init=1,lazy_journal_init=1"] # noqa: E501
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/mounts",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - - LABEL=etcd_disk
+                                                      - /var/lib/etcd
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                },
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackMachineTemplate.version,
+                                        "kind": objects.OpenStackMachineTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/additionalBlockDevices",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - name: etcd
+                                                      sizeGiB: {{ .etcdVolumeSize }}
+                                                      storage:
+                                                        type: Volume
+                                                        volume:
+                                                          type: "{{ .etcdVolumeType }}"
+                                                          availabilityZone: "{{ .availabilityZone }}"
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            "name": "keystoneAuth",
+                            "enabledIf": "{{ if .enableKeystoneAuth }}true{{end}}",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                        "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                        "matchResources": {
+                                            "controlPlane": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authentication-token-webhook-config-file",  # noqa: E501
+                                            "value": "/etc/kubernetes/webhooks/webhookconfig.yaml",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authorization-webhook-config-file",  # noqa: E501
+                                            "value": "/etc/kubernetes/webhooks/webhookconfig.yaml",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authorization-mode",  # noqa: E501
+                                            "value": "Node,RBAC,Webhook",
+                                        },
+                                    ],
+                                }
+                            ],
+                        },
+                        {
                             "name": "controlPlaneConfig",
                             "definitions": [
                                 {
@@ -1563,17 +1943,23 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/tls-cipher-suites",  # noqa: E501
                                             "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    path: "/etc/containerd/config.toml"
-                                                    owner: "root:root"
-                                                    permissions: "0644"
-                                                    content: "{{ .containerdConfig }}"
-                                                    encoding: "base64"
-                                                    """
-                                                )
+                                                "variable": "apiServerTLSCipherSuites",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/initConfiguration/nodeRegistration/kubeletExtraArgs/tls-cipher-suites",  # noqa: E501
+                                            "valueFrom": {
+                                                "variable": "kubeletTLSCipherSuites",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/joinConfiguration/nodeRegistration/kubeletExtraArgs/tls-cipher-suites",  # noqa: E501
+                                            "valueFrom": {
+                                                "variable": "kubeletTLSCipherSuites",
                                             },
                                         },
                                         {
@@ -1592,22 +1978,62 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/files",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
                                                     """\
-                                                    - path: "/etc/kubernetes/cloud.conf"
-                                                      owner: "root:root"
-                                                      permissions: "0600"
-                                                      content: "{{ .cloudControllerManagerConfig }}"
-                                                      encoding: "base64"
-                                                    - path: "/etc/kubernetes/cloud_ca.crt"
-                                                      owner: "root:root"
-                                                      permissions: "0600"
-                                                      content: "{{ .cloudCaCert }}"
-                                                      encoding: "base64"
+                                                    path: "/etc/containerd/config.toml"
+                                                    owner: "root:root"
+                                                    permissions: "0644"
+                                                    content: "{{ .containerdConfig }}"
+                                                    encoding: "base64"
                                                     """
-                                                ),
+                                                )
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    path: "/etc/kubernetes/cloud.conf"
+                                                    owner: "root:root"
+                                                    permissions: "0600"
+                                                    content: "{{ .cloudControllerManagerConfig }}"
+                                                    encoding: "base64"
+                                                    """
+                                                )
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    path: "/etc/kubernetes/cloud_ca.crt"
+                                                    owner: "root:root"
+                                                    permissions: "0600"
+                                                    content: "{{ .cloudCaCert }}"
+                                                    encoding: "base64"
+                                                    """
+                                                )
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    path: "/etc/systemd/system/containerd.service.d/proxy.conf"
+                                                    owner: "root:root"
+                                                    permissions: "0644"
+                                                    content: "{{ .systemdProxyConfig }}"
+                                                    encoding: "base64"
+                                                    """
+                                                )
                                             },
                                         },
                                     ],
@@ -1625,27 +2051,87 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/files",
+                                            "path": "/spec/template/spec/files/-",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
                                                     """\
-                                                    - path: "/etc/kubernetes/cloud.conf"
-                                                      owner: "root:root"
-                                                      permissions: "0600"
-                                                      content: "{{ .cloudControllerManagerConfig }}"
-                                                      encoding: "base64"
-                                                    - path: "/etc/kubernetes/cloud_ca.crt"
-                                                      owner: "root:root"
-                                                      permissions: "0600"
-                                                      content: "{{ .cloudCaCert }}"
-                                                      encoding: "base64"
-                                                    - path: "/etc/containerd/config.toml"
-                                                      owner: "root:root"
-                                                      permissions: "0644"
-                                                      content: "{{ .containerdConfig }}"
-                                                      encoding: "base64"
-                                                """
+                                                    path: "/etc/kubernetes/cloud.conf"
+                                                    owner: "root:root"
+                                                    permissions: "0600"
+                                                    content: "{{ .cloudControllerManagerConfig }}"
+                                                    encoding: "base64"
+                                                    """
                                                 ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/files/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    path: "/etc/kubernetes/cloud_ca.crt"
+                                                    owner: "root:root"
+                                                    permissions: "0600"
+                                                    content: "{{ .cloudCaCert }}"
+                                                    encoding: "base64"
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/files/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    path: "/etc/containerd/config.toml"
+                                                    owner: "root:root"
+                                                    permissions: "0644"
+                                                    content: "{{ .containerdConfig }}"
+                                                    encoding: "base64"
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/files/-",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    path: "/etc/systemd/system/containerd.service.d/proxy.conf"
+                                                    owner: "root:root"
+                                                    permissions: "0644"
+                                                    content: "{{ .systemdProxyConfig }}"
+                                                    encoding: "base64"
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            "name": "workerConfig",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.KubeadmConfigTemplate.version,
+                                        "kind": objects.KubeadmConfigTemplate.kind,
+                                        "matchResources": {
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            }
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/joinConfiguration/nodeRegistration/kubeletExtraArgs/tls-cipher-suites",  # noqa: E501
+                                            "valueFrom": {
+                                                "variable": "kubeletTLSCipherSuites",
                                             },
                                         },
                                     ],
@@ -1673,49 +2159,84 @@ def create_cluster_class(
     ClusterClass(api).apply()
 
 
-def generate_machine_deployments_for_cluster(
-    context: context.RequestContext, cluster: objects.Cluster
-) -> list:
+def mutate_machine_deployment(
+    context: context.RequestContext,
+    cluster: objects.Cluster,
+    node_group: magnum_objects.NodeGroup,
+    machine_deployment: dict = None,
+):
+    """
+    This function will either makes updates to machine deployment fields which
+    will not cause a rolling update or will return a new machine deployment
+    if none is provided.
+    """
+
+    # NOTE(okozachenko1203): Initialize as an empty dict if not provided
+    #                        instead of using mutable default argument.
+    if machine_deployment is None:
+        machine_deployment = {}
+
     auto_scaling_enabled = utils.get_auto_scaling_enabled(cluster)
-    return [
+
+    machine_deployment.setdefault(
+        "metadata",
+        {
+            "annotations": {},
+            "labels": {},
+        },
+    )
+
+    # Node labels
+    machine_deployment["metadata"]["labels"] = {
+        f"node-role.kubernetes.io/{node_group.role}": "",
+        "node.cluster.x-k8s.io/nodegroup": node_group.name,
+    }
+
+    # Replicas (or min/max if auto-scaling is enabled)
+    if auto_scaling_enabled:
+        machine_deployment["replicas"] = None
+        machine_deployment["metadata"]["annotations"] = {
+            AUTOSCALE_ANNOTATION_MIN: str(
+                utils.get_node_group_min_node_count(node_group)
+            ),
+            AUTOSCALE_ANNOTATION_MAX: str(
+                utils.get_node_group_max_node_count(node_group)
+            ),
+        }
+    else:
+        machine_deployment["replicas"] = node_group.node_count
+        machine_deployment["metadata"]["annotations"] = {}
+
+    # Fixes
+    machine_deployment["nodeVolumeDetachTimeout"] = (
+        CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT
+    )
+
+    # Anything beyond this point will *NOT* be changed in the machine deployment
+    # for update operations (i.e. if the machine deployment already exists).
+    if machine_deployment.get("name") == node_group.name:
+        return machine_deployment
+
+    # At this point, this is all code that will be added for brand new machine
+    # deployments.  We can bring any of this code into the above block if we
+    # want to change it for existing machine deployments.
+    machine_deployment.update(
         {
             "class": "default-worker",
-            "name": ng.name,
-            "replicas": utils.get_node_group_min_node_count(ng)
-            if auto_scaling_enabled
-            else ng.node_count,
-            "metadata": {
-                "annotations": {
-                    AUTOSCALE_ANNOTATION_MIN: f"{utils.get_node_group_min_node_count(ng)}",  # noqa: E501
-                    AUTOSCALE_ANNOTATION_MAX: f"{utils.get_node_group_max_node_count(context, ng)}",  # noqa: E501
-                }
-                if auto_scaling_enabled
-                else {},
-                "labels": {
-                    f"node-role.kubernetes.io/{ng.role}": "",
-                    "node.cluster.x-k8s.io/nodegroup": ng.name,
-                },
-            },
-            "failureDomain": utils.get_cluster_label(cluster, "availability_zone", ""),
-            "machineHealthCheck": {
-                "enable": utils.get_cluster_label_as_bool(
-                    cluster, "auto_healing_enabled", True
-                )
-            },
+            "name": node_group.name,
+            "failureDomain": node_group.labels.get("availability_zone", ""),
+            "machineHealthCheck": {"enable": utils.get_auto_healing_enabled(cluster)},
             "variables": {
                 "overrides": [
                     {
                         "name": "bootVolume",
                         "value": {
                             "size": utils.get_node_group_label_as_int(
-                                context,
-                                ng,
+                                node_group,
                                 "boot_volume_size",
                                 CONF.cinder.default_boot_volume_size,
                             ),
-                            "type": utils.get_node_group_label(
-                                context,
-                                ng,
+                            "type": node_group.labels.get(
                                 "boot_volume_type",
                                 cinder.get_default_boot_volume_type(context),
                             ),
@@ -1723,27 +2244,39 @@ def generate_machine_deployments_for_cluster(
                     },
                     {
                         "name": "flavor",
-                        "value": ng.flavor_id,
+                        "value": node_group.flavor_id,
                     },
                     {
                         "name": "imageRepository",
-                        "value": utils.get_node_group_label(
-                            context,
-                            ng,
+                        "value": node_group.labels.get(
                             "container_infra_prefix",
                             "",
                         ),
                     },
                     {
                         "name": "imageUUID",
-                        "value": utils.get_image_uuid(ng.image_id, context),
+                        "value": utils.get_image_uuid(node_group.image_id, context),
                     },
                 ],
             },
         }
-        for ng in cluster.nodegroups
-        if ng.role != "master" and not ng.status.startswith("DELETE")
-    ]
+    )
+
+    return machine_deployment
+
+
+def generate_machine_deployments_for_cluster(
+    context: context.RequestContext, cluster: objects.Cluster
+) -> list:
+    machine_deployments = []
+    for ng in cluster.nodegroups:
+        if ng.role == "master" or ng.status.startswith("DELETE"):
+            continue
+
+        machine_deployment = mutate_machine_deployment(context, cluster, ng)
+        machine_deployments.append(machine_deployment)
+
+    return machine_deployments
 
 
 class Cluster(ClusterBase):
@@ -1759,7 +2292,7 @@ class Cluster(ClusterBase):
 
     @property
     def labels(self) -> dict:
-        cni_version = utils.get_cluster_label(self.cluster, "calico_tag", CALICO_TAG)
+        cni_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
         labels = {
             "cni": f"calico-{cni_version}",
         }
@@ -1771,13 +2304,9 @@ class Cluster(ClusterBase):
             name=self.cluster.stack_id
         )
 
-    def get_observed_generation(self) -> int:
-        capi_cluster = self.get_or_none()
-        if capi_cluster:
-            return capi_cluster.obj["status"]["observedGeneration"]
-        raise Exception("Cluster doesn't exists.")
-
     def get_object(self) -> objects.Cluster:
+        osc = clients.get_openstack_api(self.context)
+        default_volume_type = osc.cinder().volume_types.default()
         return objects.Cluster(
             self.api,
             {
@@ -1790,26 +2319,20 @@ class Cluster(ClusterBase):
                 },
                 "spec": {
                     "clusterNetwork": {
-                        "serviceDomain": utils.get_cluster_label(
-                            self.cluster,
-                            "dns_cluster_domain",
-                            "cluster.local",
+                        "serviceDomain": self.cluster.labels.get(
+                            "dns_cluster_domain", "cluster.local"
                         ),
                         "pods": {
                             "cidrBlocks": [
-                                utils.get_cluster_label(
-                                    self.cluster,
-                                    "calico_ipv4pool",
-                                    "10.100.0.0/16",
+                                self.cluster.labels.get(
+                                    "calico_ipv4pool", "10.100.0.0/16"
                                 )
                             ],
                         },
                         "services": {
                             "cidrBlocks": [
-                                utils.get_cluster_label(
-                                    self.cluster,
-                                    "service_cluster_ip_range",
-                                    "10.254.0.0/16",
+                                self.cluster.labels.get(
+                                    "service_cluster_ip_range", "10.254.0.0/16"
                                 )
                             ],
                         },
@@ -1825,9 +2348,7 @@ class Cluster(ClusterBase):
                             },
                             "replicas": self.cluster.master_count,
                             "machineHealthCheck": {
-                                "enable": utils.get_cluster_label_as_bool(
-                                    self.cluster, "auto_healing_enabled", True
-                                )
+                                "enable": utils.get_auto_healing_enabled(self.cluster)
                             },
                         },
                         "workers": {
@@ -1840,28 +2361,38 @@ class Cluster(ClusterBase):
                                 "name": "apiServerLoadBalancer",
                                 "value": {
                                     "enabled": self.cluster.master_lb_enabled,
+                                    "provider": self.cluster.labels.get(
+                                        "octavia_provider", "amphora"
+                                    ),
                                 },
+                            },
+                            {
+                                "name": "apiServerTLSCipherSuites",
+                                "value": self.cluster.labels.get(
+                                    "api_server_tls_cipher_suites",
+                                    "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",  # noqa: E501
+                                ),
                             },
                             {
                                 "name": "openidConnect",
                                 "value": {
-                                    "clientId": utils.get_cluster_label(
-                                        self.cluster, "oidc_client_id", ""
+                                    "clientId": self.cluster.labels.get(
+                                        "oidc_client_id", ""
                                     ),
-                                    "groupsClaim": utils.get_cluster_label(
-                                        self.cluster, "oidc_groups_claim", ""
+                                    "groupsClaim": self.cluster.labels.get(
+                                        "oidc_groups_claim", ""
                                     ),
-                                    "groupsPrefix": utils.get_cluster_label(
-                                        self.cluster, "oidc_groups_prefix", ""
+                                    "groupsPrefix": self.cluster.labels.get(
+                                        "oidc_groups_prefix", ""
                                     ),
-                                    "issuerUrl": utils.get_cluster_label(
-                                        self.cluster, "oidc_issuer_url", ""
+                                    "issuerUrl": self.cluster.labels.get(
+                                        "oidc_issuer_url", ""
                                     ),
-                                    "usernameClaim": utils.get_cluster_label(
-                                        self.cluster, "oidc_username_claim", "sub"
+                                    "usernameClaim": self.cluster.labels.get(
+                                        "oidc_username_claim", "sub"
                                     ),
-                                    "usernamePrefix": utils.get_cluster_label(
-                                        self.cluster, "oidc_username_prefix", "-"
+                                    "usernamePrefix": self.cluster.labels.get(
+                                        "oidc_username_prefix", "-"
                                     ),
                                 },
                             },
@@ -1871,14 +2402,14 @@ class Cluster(ClusterBase):
                                     "enabled": utils.get_cluster_label_as_bool(
                                         self.cluster, "audit_log_enabled", False
                                     ),
-                                    "maxAge": utils.get_cluster_label(
-                                        self.cluster, "audit_log_max_age", "30"
+                                    "maxAge": self.cluster.labels.get(
+                                        "audit_log_max_age", "30"
                                     ),
-                                    "maxBackup": utils.get_cluster_label(
-                                        self.cluster, "audit_log_max_backup", "10"
+                                    "maxBackup": self.cluster.labels.get(
+                                        "audit_log_max_backup", "10"
                                     ),
-                                    "maxSize": utils.get_cluster_label(
-                                        self.cluster, "audit_log_max_size", "100"
+                                    "maxSize": self.cluster.labels.get(
+                                        "audit_log_max_size", "100"
                                     ),
                                 },
                             },
@@ -1890,8 +2421,7 @@ class Cluster(ClusterBase):
                                         "boot_volume_size",
                                         CONF.cinder.default_boot_volume_size,
                                     ),
-                                    "type": utils.get_cluster_label(
-                                        self.cluster,
+                                    "type": self.cluster.labels.get(
                                         "boot_volume_type",
                                         cinder.get_default_boot_volume_type(
                                             self.context
@@ -1920,6 +2450,18 @@ class Cluster(ClusterBase):
                                     utils.generate_cloud_controller_manager_config(
                                         self.context, self.api, self.cluster
                                     )
+                                ),
+                            },
+                            {
+                                "name": "systemdProxyConfig",
+                                "value": base64.encode_as_text(
+                                    utils.generate_systemd_proxy_config(self.cluster)
+                                ),
+                            },
+                            {
+                                "name": "aptProxyConfig",
+                                "value": base64.encode_as_text(
+                                    utils.generate_apt_proxy_config(self.cluster)
                                 ),
                             },
                             {
@@ -1983,9 +2525,15 @@ class Cluster(ClusterBase):
                                 ),
                             },
                             {
+                                "name": "kubeletTLSCipherSuites",
+                                "value": self.cluster.labels.get(
+                                    "kubelet_tls_cipher_suites",
+                                    "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",  # noqa: E501
+                                ),
+                            },
+                            {
                                 "name": "nodeCidr",
-                                "value": utils.get_cluster_label(
-                                    self.cluster,
+                                "value": self.cluster.labels.get(
                                     "fixed_subnet_cidr",
                                     "10.0.0.0/24",
                                 ),
@@ -1997,6 +2545,48 @@ class Cluster(ClusterBase):
                             {
                                 "name": "operatingSystem",
                                 "value": utils.get_operating_system(self.cluster),
+                            },
+                            {
+                                "name": "enableEtcdVolume",
+                                "value": utils.get_cluster_label_as_int(
+                                    self.cluster,
+                                    "etcd_volume_size",
+                                    0,
+                                )
+                                > 0,
+                            },
+                            {
+                                "name": "etcdVolumeSize",
+                                "value": utils.get_cluster_label_as_int(
+                                    self.cluster,
+                                    "etcd_volume_size",
+                                    0,
+                                ),
+                            },
+                            {
+                                "name": "etcdVolumeType",
+                                "value": self.cluster.labels.get(
+                                    "etcd_volume_type",
+                                    default_volume_type.name,
+                                ),
+                            },
+                            {
+                                "name": "availabilityZone",
+                                "value": self.cluster.labels.get(
+                                    "availability_zone", ""
+                                ),
+                            },
+                            {
+                                "name": "enableKeystoneAuth",
+                                "value": utils.get_cluster_label_as_bool(
+                                    self.cluster, "keystone_auth_enabled", True
+                                ),
+                            },
+                            {
+                                "name": "controlPlaneAvailabilityZones",
+                                "value": self.cluster.labels.get(
+                                    "control_plane_availability_zones", ""
+                                ).split(","),
                             },
                         ],
                     },
@@ -2014,30 +2604,12 @@ def apply_cluster_from_magnum_cluster(
     context: context.RequestContext,
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
-    cluster_template: magnum_objects.ClusterTemplate = None,
     skip_auto_scaling_release: bool = False,
-) -> objects.Cluster:
+) -> None:
     """
     Create a ClusterAPI cluster given a Magnum Cluster object.
     """
     create_cluster_class(api)
-
-    if cluster_template is None:
-        cluster_template = cluster.cluster_template
-
-    # NOTE(mnaser): When using Cluster API, there is a 1:1 mapping between image
-    #               and version of Kubernetes, therefore, we need to ignore the
-    #               `image_id` field, as well as copy over any tags relating to
-    #               the Kubernetes version.
-    #
-    #               I hate this.
-    for label in CLUSTER_UPGRADE_LABELS:
-        cluster.labels[label] = cluster_template.labels[label]
-        for ng in cluster.nodegroups:
-            ng.image_id = cluster_template.image_id
-            ng.labels[label] = cluster_template.labels[label]
-            ng.save()
-    cluster.save()
 
     ClusterResourcesConfigMap(context, api, cluster).apply()
     ClusterResourceSet(api, cluster).apply()

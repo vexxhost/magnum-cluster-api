@@ -1,0 +1,36 @@
+- job:
+    name: magnum-cluster-api-image-build-rockylinux-9
+    parent: magnum-cluster-api-image-build
+    abstract: true
+    vars:
+      image_operating_system: rockylinux-9
+
+- job:
+    name: magnum-cluster-api-sonobuoy-rockylinux-9
+    parent: magnum-cluster-api-sonobuoy
+    abstract: true
+    vars:
+      image_operating_system: rockylinux-9
+      image_os_distro: ubuntu
+
+- job:
+    name: magnum-cluster-api-image-build-rockylinux-9-v1.27.8
+    parent: magnum-cluster-api-image-build-rockylinux-9
+    vars:
+      kube_tag: v1.27.8
+
+- job:
+    name: magnum-cluster-api-sonobuoy-rockylinux-9-v1.27.8
+    parent: magnum-cluster-api-sonobuoy-rockylinux-9
+    dependencies:
+      - name: magnum-cluster-api-image-build-rockylinux-9-v1.27.8
+        soft: true
+    vars:
+      kube_tag: v1.27.8
+
+- project-template:
+    name: magnum-cluster-api-rockylinux-9
+    check:
+      jobs:
+        - magnum-cluster-api-image-build-rockylinux-9-v1.27.8
+        - magnum-cluster-api-sonobuoy-rockylinux-9-v1.27.8
