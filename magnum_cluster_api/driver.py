@@ -292,6 +292,11 @@ class BaseDriver(driver.Driver):
         upgrade, nothing else.  For the future, we can perhaps use the `update_cluster`
         API.
         """
+        need_to_wait = (
+            cluster.default_ng_master.image_id != cluster_template.image_id
+            or cluster.labels["kube_tag"] != cluster_template.labels["kube_tag"]
+        )
+
         # XXX(mnaser): The Magnum API historically only did upgrade one node group at a
         #              time.  This is a limitation of the Magnum API and not the Magnum
         #              Cluster API since doing multiple rolling upgrades was not very
@@ -314,7 +319,9 @@ class BaseDriver(driver.Driver):
         #               the cluster in some way.
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
-        cluster_resource.wait_for_observed_generation_changed()
+
+        if need_to_wait:
+            cluster_resource.wait_for_observed_generation_changed()
 
         # NOTE(mnaser): We do not save the cluster object here because the Magnum driver
         #               will save the object that it passed to us here.
