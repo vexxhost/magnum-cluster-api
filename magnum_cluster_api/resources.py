@@ -13,6 +13,7 @@
 # under the License.
 
 import glob
+import importlib.resources
 import json
 import os
 import textwrap
@@ -637,6 +638,18 @@ class KubeadmControlPlaneTemplate(Base):
                                         "permissions": "0644",
                                         "content": base64.encode_as_text(
                                             keystone_auth_webhook
+                                        ),
+                                        "encoding": "base64",
+                                    },
+                                    {
+                                        "path": "/run/kubeadm/configure-kube-proxy.sh",
+                                        "permissions": "0755",
+                                        "content": base64.encode_as_text(
+                                            importlib.resources.files(
+                                                "magnum_cluster_api.files.run.kubeadm"
+                                            )
+                                            .joinpath("configure-kube-proxy.sh")
+                                            .read_text()
                                         ),
                                         "encoding": "base64",
                                     },
