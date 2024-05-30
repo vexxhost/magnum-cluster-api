@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.18.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.17.1...v0.18.0) (2024-05-30)
+
+
+### Features
+
+* Update bind address for k8s components ([#197](https://github.com/vexxhost/magnum-cluster-api/issues/197)) ([4b1f5d8](https://github.com/vexxhost/magnum-cluster-api/commit/4b1f5d840fb9f2158e7c7d8ebca6f1a86fb8569f))
+
+
+### Bug Fixes
+
+* force a cluster upgrade all the time ([#382](https://github.com/vexxhost/magnum-cluster-api/issues/382)) ([436bcf2](https://github.com/vexxhost/magnum-cluster-api/commit/436bcf26eb3fb30efef67b01a8ad400ca1bcce03))
+
 ## [0.17.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.17.0...v0.17.1) (2024-05-28)
 
 
