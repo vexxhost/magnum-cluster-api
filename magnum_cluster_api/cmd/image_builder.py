@@ -69,7 +69,26 @@ def validate_version(_, __, value):
     default="v0.1.29",
     help="Image builder tag (or commit) to use for building image",
 )
-def main(ctx: click.Context, operating_system, version, image_builder_version):
+@click.option(
+    "--extra-ansible-user-vars",
+    show_default=True,
+    default="",
+    help="Extra user defined variables to set in image-builder ansible_user_vars",
+)
+@click.option(
+    "--node-custom-roles-pre",
+    show_default=True,
+    default="",
+    help="Custom pre-roles to run in image-builder",
+)
+def main(
+    ctx: click.Context,
+    operating_system,
+    version,
+    image_builder_version,
+    extra_ansible_user_vars,
+    node_custom_roles_pre,
+):
     ib_path = f"/tmp/image-builder-{image_builder_version}"
     output_path = f"{ib_path}/images/capi/output"
 
@@ -141,7 +160,8 @@ def main(ctx: click.Context, operating_system, version, image_builder_version):
         "kubernetes_semver": f"{version}",
         "kubernetes_series": f"{kubernetes_series}",
         # https://github.com/flatcar/Flatcar/issues/823
-        "ansible_user_vars": "oem_id=openstack",
+        "ansible_user_vars": f"oem_id=openstack {extra_ansible_user_vars}",
+        "node_custom_roles_pre": f"{node_custom_roles_pre}",
     }
 
     # NOTE(mnaser): We use the latest tested daily ISO for Ubuntu 22.04 in order
