@@ -35,6 +35,7 @@ import requests
 QEMU_PACKAGES = [
     "qemu-kvm",
     "qemu-utils",
+    "mkisofs",
 ]
 
 
@@ -255,7 +256,7 @@ def main(
                 /usr/bin/make \
                 -C \
                 {ib_path}/images/capi \
-                build-qemu-{operating_system}
+                build-qemu-{operating_system}-cloudimg
             """
             ).encode("utf-8"),
             env={
