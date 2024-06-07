@@ -15,49 +15,49 @@
       image_os_distro: ubuntu
 
 - job:
-    name: magnum-cluster-api-image-build-rockylinux-9-v1.27.13
+    name: magnum-cluster-api-image-build-rockylinux-9-v1.27.14
     parent: magnum-cluster-api-image-build-rockylinux-9
     vars:
-      kube_tag: v1.27.13
+      kube_tag: v1.27.14
 
 - job:
-    name: magnum-cluster-api-sonobuoy-rockylinux-9-v1.27.13
+    name: magnum-cluster-api-sonobuoy-rockylinux-9-v1.27.14
     parent: magnum-cluster-api-sonobuoy-rockylinux-9
     dependencies:
-      - name: magnum-cluster-api-image-build-rockylinux-9-v1.27.13
+      - name: magnum-cluster-api-image-build-rockylinux-9-v1.27.14
         soft: true
     vars:
-      kube_tag: v1.27.13
+      kube_tag: v1.27.14
 
 - job:
-    name: magnum-cluster-api-image-build-rockylinux-9-v1.28.9
+    name: magnum-cluster-api-image-build-rockylinux-9-v1.28.10
     parent: magnum-cluster-api-image-build-rockylinux-9
     vars:
-      kube_tag: v1.28.9
+      kube_tag: v1.28.10
 
 - job:
-    name: magnum-cluster-api-sonobuoy-rockylinux-9-v1.28.9
+    name: magnum-cluster-api-sonobuoy-rockylinux-9-v1.28.10
     parent: magnum-cluster-api-sonobuoy-rockylinux-9
     dependencies:
-      - name: magnum-cluster-api-image-build-rockylinux-9-v1.28.9
+      - name: magnum-cluster-api-image-build-rockylinux-9-v1.28.10
         soft: true
     vars:
-      kube_tag: v1.28.9
+      kube_tag: v1.28.10
 
 - job:
-    name: magnum-cluster-api-image-build-rockylinux-9-v1.29.4
+    name: magnum-cluster-api-image-build-rockylinux-9-v1.29.5
     parent: magnum-cluster-api-image-build-rockylinux-9
     vars:
-      kube_tag: v1.29.4
+      kube_tag: v1.29.5
 
 - job:
-    name: magnum-cluster-api-sonobuoy-rockylinux-9-v1.29.4
+    name: magnum-cluster-api-sonobuoy-rockylinux-9-v1.29.5
     parent: magnum-cluster-api-sonobuoy-rockylinux-9
     dependencies:
-      - name: magnum-cluster-api-image-build-rockylinux-9-v1.29.4
+      - name: magnum-cluster-api-image-build-rockylinux-9-v1.29.5
         soft: true
     vars:
-      kube_tag: v1.29.4
+      kube_tag: v1.29.5
 
 - job:
     name: magnum-cluster-api-sonobuoy-rockylinux-9-v1.27.8-calico
