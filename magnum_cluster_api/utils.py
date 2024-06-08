@@ -12,6 +12,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from __future__ import annotations
+
+import json
 import re
 import string
 import textwrap
@@ -32,7 +35,7 @@ from magnum_cluster_api import clients
 from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import image_utils, images, objects
 
-AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar"]
+AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar", "rockylinux"]
 CONF = cfg.CONF
 
 
@@ -50,7 +53,7 @@ def get_or_generate_cluster_api_name(
     api: pykube.HTTPClient, cluster: magnum_objects.Cluster
 ) -> str:
     if cluster.stack_id is None:
-        cluster.stack_id = generate_cluster_api_name(api, cluster)
+        cluster.stack_id = generate_cluster_api_name(api)
         cluster.save()
     return cluster.stack_id
 
@@ -110,6 +113,18 @@ def generate_cloud_controller_manager_config(
     clouds_yaml = base64.decode_as_text(data.obj["data"]["clouds.yaml"])
     cloud_config = yaml.safe_load(clouds_yaml)
 
+    octavia_provider = cluster.labels.get("octavia_provider", "amphora")
+    octavia_lb_algorithm = cluster.labels.get("octavia_lb_algorithm")
+
+    if octavia_provider == "amphora" and octavia_lb_algorithm is None:
+        octavia_lb_algorithm = "ROUND_ROBIN"
+    elif octavia_provider == "ovn" and octavia_lb_algorithm is None:
+        octavia_lb_algorithm = "SOURCE_IP_PORT"
+    elif octavia_provider == "ovn" and octavia_lb_algorithm != "SOURCE_IP_PORT":
+        raise mcapi_exceptions.InvalidOctaviaLoadBalancerAlgorithm(
+            octavia_lb_algorithm=octavia_lb_algorithm
+        )
+
     return textwrap.dedent(
         f"""\
         [Global]
@@ -119,6 +134,9 @@ def generate_cloud_controller_manager_config(
         application-credential-secret={cloud_config["clouds"]["default"]["auth"]["application_credential_secret"]}
         tls-insecure={"false" if CONF.drivers.verify_ca else "true"}
         {"ca-file=/etc/config/ca.crt" if get_cloud_ca_cert() else ""}
+        [LoadBalancer]
+        lb-provider={octavia_provider}
+        lb-method={octavia_lb_algorithm}
         """
     )
 
@@ -127,7 +145,7 @@ def generate_manila_csi_cloud_config(
     ctx: context.RequestContext,
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
-) -> str:
+) -> dict[str, str]:
     """
     Generate coniguration of Openstack authentication  for manila csi
     """
@@ -138,7 +156,7 @@ def generate_manila_csi_cloud_config(
     clouds_yaml = base64.decode_as_text(data.obj["data"]["clouds.yaml"])
     cloud_config = yaml.safe_load(clouds_yaml)
 
-    return {
+    config = {
         "os-authURL": osc.url_for(service_type="identity", interface="public"),
         "os-region": cloud_config["clouds"]["default"]["region_name"],
         "os-applicationCredentialID": cloud_config["clouds"]["default"]["auth"][
@@ -147,27 +165,33 @@ def generate_manila_csi_cloud_config(
         "os-applicationCredentialSecret": cloud_config["clouds"]["default"]["auth"][
             "application_credential_secret"
         ],
-        "os-TLSInsecure": ("false" if CONF.drivers.verify_ca else "true")
-        if cloud_config["clouds"]["default"]["verify"]
-        else "true",
-        "os-certAuthorityPath": "/etc/config/ca.crt",
+        "os-TLSInsecure": (
+            ("false" if CONF.drivers.verify_ca else "true")
+            if cloud_config["clouds"]["default"]["verify"]
+            else "true"
+        ),
     }
+
+    if get_cloud_ca_cert():
+        config["os-certAuthorityPath"] = "/etc/config/ca.crt"
+
+    return config
 
 
 def get_kube_tag(cluster: magnum_objects.Cluster) -> str:
-    return get_cluster_label(cluster, "kube_tag", "v1.25.3")
+    return cluster.labels.get("kube_tag", "v1.25.3")
 
 
 def get_auto_scaling_enabled(cluster: magnum_objects.Cluster) -> bool:
     return get_cluster_label_as_bool(cluster, "auto_scaling_enabled", False)
 
 
+def get_auto_healing_enabled(cluster: magnum_objects.Cluster) -> bool:
+    return get_cluster_label_as_bool(cluster, "auto_healing_enabled", True)
+
+
 def get_cluster_container_infra_prefix(cluster: magnum_objects.Cluster) -> str:
-    return get_cluster_label(
-        cluster,
-        "container_infra_prefix",
-        "",
-    )
+    return cluster.labels.get("container_infra_prefix", "")
 
 
 def get_cluster_floating_ip_disabled(cluster: magnum_objects.Cluster) -> bool:
@@ -199,14 +223,46 @@ def generate_containerd_config(
     ).format(sandbox_image=sandbox_image)
 
 
-def get_node_group_label(
-    context: context.RequestContext,
-    node_group: magnum_objects.NodeGroup,
-    key: str,
-    default: str,
-) -> str:
-    cluster = magnum_objects.Cluster.get_by_uuid(context, node_group.cluster_id)
-    return node_group.labels.get(key, get_cluster_label(cluster, key, default))
+def generate_systemd_proxy_config(cluster: magnum_objects.Cluster):
+    if (
+        cluster.cluster_template.http_proxy is not None
+        or cluster.cluster_template.https_proxy is not None
+    ):
+        return textwrap.dedent(
+            """\
+            [Service]
+            Environment="http_proxy={http_proxy}"
+            Environment="HTTP_PROXY={http_proxy}"
+            Environment="https_proxy={https_proxy}"
+            Environment="HTTPS_PROXY={https_proxy}"
+            Environment="no_proxy={no_proxy}"
+            Environment="NO_PROXY={no_proxy}"
+            """
+        ).format(
+            http_proxy=cluster.cluster_template.http_proxy,
+            https_proxy=cluster.cluster_template.https_proxy,
+            no_proxy=cluster.cluster_template.no_proxy,
+        )
+    else:
+        return ""
+
+
+def generate_apt_proxy_config(cluster: magnum_objects.Cluster):
+    if (
+        cluster.cluster_template.http_proxy is not None
+        or cluster.cluster_template.https_proxy is not None
+    ):
+        return textwrap.dedent(
+            """\
+            Acquire::http::Proxy "{http_proxy}";
+            Acquire::https::Proxy "{https_proxy}";
+            """
+        ).format(
+            http_proxy=cluster.cluster_template.http_proxy,
+            https_proxy=cluster.cluster_template.https_proxy,
+        )
+    else:
+        return ""
 
 
 def get_node_group_min_node_count(
@@ -219,12 +275,10 @@ def get_node_group_min_node_count(
 
 
 def get_node_group_max_node_count(
-    context: context.RequestContext,
     node_group: magnum_objects.NodeGroup,
 ) -> int:
     if node_group.max_node_count is None:
         return get_node_group_label_as_int(
-            context,
             node_group,
             "max_node_count",
             get_node_group_min_node_count(node_group) + 1,
@@ -232,39 +286,26 @@ def get_node_group_max_node_count(
     return node_group.max_node_count
 
 
-def get_cluster_label(cluster: magnum_objects.Cluster, key: str, default: str) -> str:
-    return cluster.labels.get(
-        key, get_cluster_template_label(cluster.cluster_template, key, default)
-    )
-
-
-def get_cluster_template_label(
-    cluster_template: magnum_objects.ClusterTemplate, key: str, default: str
-) -> str:
-    return cluster_template.labels.get(key, default)
-
-
 def get_node_group_label_as_int(
-    context: context.RequestContext,
     node_group: magnum_objects.NodeGroup,
     key: str,
     default: int,
 ) -> int:
-    value = get_node_group_label(context, node_group, key, default)
+    value = node_group.labels.get(key, str(default))
     return strutils.validate_integer(value, key)
 
 
 def get_cluster_label_as_int(
     cluster: magnum_objects.Cluster, key: str, default: int
 ) -> int:
-    value = get_cluster_label(cluster, key, default)
+    value = cluster.labels.get(key, default)
     return strutils.validate_integer(value, key)
 
 
 def get_cluster_label_as_bool(
     cluster: magnum_objects.Cluster, key: str, default: bool
 ) -> bool:
-    value = get_cluster_label(cluster, key, default)
+    value = cluster.labels.get(key, default)
     return strutils.bool_from_string(value, strict=True)
 
 
@@ -393,3 +434,47 @@ def convert_to_rfc1123(input: str) -> str:
     :rtype: str
     """
     return re.sub(r"[^a-zA-Z0-9]+", "-", input).lower()
+
+
+def get_keystone_auth_default_policy(cluster: magnum_objects.Cluster):
+    default_policy = [
+        {
+            "resource": {
+                "verbs": ["list"],
+                "resources": ["pods", "services", "deployments", "pvc"],
+                "version": "*",
+                "namespace": "default",
+            },
+            "match": [
+                {"type": "role", "values": ["member"]},
+                {"type": "project", "values": [cluster.project_id]},
+            ],
+        }
+    ]
+
+    try:
+        with open(CONF.kubernetes.keystone_auth_default_policy) as f:
+            return json.loads(f.read())
+    except Exception:
+        return default_policy
+
+
+def kube_apply_patch(resource):
+    if "metadata" in resource.obj:
+        resource.obj["metadata"]["managedFields"] = None
+
+    resp = resource.api.patch(
+        **resource.api_kwargs(
+            headers={
+                "Content-Type": "application/apply-patch+yaml",
+            },
+            params={
+                "fieldManager": "atmosphere-operator",
+                "force": True,
+            },
+            data=json.dumps(resource.obj),
+        )
+    )
+
+    resource.api.raise_for_status(resp)
+    resource.set_obj(resp.json())

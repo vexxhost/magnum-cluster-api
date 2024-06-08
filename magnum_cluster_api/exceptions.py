@@ -59,3 +59,11 @@ class ClusterMasterCountEven(Exception):
 
 class OpenstackFlavorInvalidName(exception.InvalidName):
     message = _("Expected a flavor name but received flavor id %(flavor)s.")
+
+
+class MachineDeploymentNotFound(exception.ObjectNotFound):
+    message = _("MachineDeployment %(name)s not found.")
+
+
+class InvalidOctaviaLoadBalancerAlgorithm(exception.Invalid):
+    message = _("Invalid value for octavia_lb_algorithm: %(octavia_lb_algorithm)s.")

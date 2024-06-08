@@ -15,13 +15,26 @@ specify the volume size and type using the following labels:
 
 `boot_volume_size`
 
-:   The size in gigabytes of the boot volume.
-    **Default value**: `[cinder]/default_boot_volume_size` from Magnum configuration.
+:   The size in gigabytes of the boot volume.  If you set this value, it will
+    enable boot from volume.
+    **Default value**: Unset
 
 `boot_volume_type`
 
 :   The volume type of the boot volume.
-    **Default value**: `[cinder]/default_boot_volume_type` from Magnum configuration.
+    **Default value**: Default volume 
+
+`etcd_volume_size`
+
+:   The size in gigabytes of the `etcd` volume.  If you set this value, it will
+    create a volume for `etcd` specifically and mount it on the system.
+    **Default value**: Unset
+
+`etcd_volume_type`
+
+:   The volume type of the `etcd` volume, this can be useful if you want to use an
+    encrypted or high performance volume type.
+    **Default value**: None
 
 !!! note
 
@@ -97,6 +110,24 @@ is often accomplished by deploying a driver on each node.
    the cluster.
 
    Default value: Automatically detected based on `kube_tag` label.
+
+* `octavia_provider`
+
+   The Octavia provider to configure for the load balancers created by the cluster.
+
+   Default value: `amphora`
+
+* `octavia_lb_algorithm`
+
+   The Octavia load balancer algorithm to configure for the load balancers
+   created by the cluster (options are `ROUND_ROBIN`, `LEAST_CONNECTIONS`,
+   `SOURCE_IP` & `SOURCE_IP_PORT`).
+
+   It's important to note that the OVN provider supports only the `SOURCE_IP_PORT`
+   driver as part of it's [limitations](https://docs.openstack.org/ovn-octavia-provider/latest/admin/driver.html).
+
+   Default value (`amphora` provider): `ROUND_ROBIN`
+   Default value (`ovn` provider): `SOURCE_IP_PORT`
 
 ## Container Networking Interface (CNI)
 

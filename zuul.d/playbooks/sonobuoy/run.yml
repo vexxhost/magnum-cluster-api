@@ -1,0 +1,31 @@
+- hosts: all
+  tasks:
+    - name: Fetch artifact
+      get_url:
+        url: "{{ item.url }}"
+        dest: "{{ zuul.project.src_dir }}/{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
+      register: fetch_artifact
+      loop: "{{ zuul.artifacts }}"
+      when:
+        - item.name is defined
+        - item.name == "{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
+
+    - shell: "./hack/stack.sh"
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+ 
+    - shell: "./hack/run-integration-tests.sh"
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+      environment:
+        IMAGE_OS: "{{ image_operating_system }}"
+        OS_DISTRO: "{{ image_os_distro }}"
+        KUBE_TAG: "{{ kube_tag }}"
+        NODE_COUNT: 2
+        BUILD_NEW_IMAGE: "{{ fetch_artifact.changed }}"
+
+    - name: Copy Sonobuoy results to output folder
+      copy:
+        src: "{{ zuul.project.src_dir }}/sonobuoy-results.tar.gz"
+        dest: "{{ zuul_output_dir }}/artifacts/sonobuoy-results.tar.gz"
+        remote_src: true

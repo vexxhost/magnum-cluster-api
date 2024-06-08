@@ -12,6 +12,12 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+# NOTE(mnaser): We use this file to gate if we do build new images or not,
+#               so we will simply keep increasing the following placeholder,
+#               feel free to keep counting up.
+#
+#               Image build count: 1
+
 import getpass
 import json
 import os
@@ -20,6 +26,7 @@ import tarfile
 import tempfile
 import textwrap
 import zlib
+from os.path import expanduser
 from pathlib import Path
 
 import click
@@ -43,7 +50,9 @@ def validate_version(_, __, value):
     "--operating-system",
     show_default=True,
     default="ubuntu-2204",
-    type=click.Choice(["ubuntu-2004", "ubuntu-2204", "flatcar"]),
+    type=click.Choice(
+        ["ubuntu-2004", "ubuntu-2204", "flatcar", "rockylinux-8", "rockylinux-9"]
+    ),
     help="Operating system to build image for",
     prompt="Operating system to build image for",
 )
@@ -57,10 +66,29 @@ def validate_version(_, __, value):
 @click.option(
     "--image-builder-version",
     show_default=True,
-    default="v0.1.19",
+    default="v0.1.29",
     help="Image builder tag (or commit) to use for building image",
 )
-def main(ctx: click.Context, operating_system, version, image_builder_version):
+@click.option(
+    "--extra-ansible-user-vars",
+    show_default=True,
+    default="",
+    help="Extra user defined variables to set in image-builder ansible_user_vars",
+)
+@click.option(
+    "--node-custom-roles-pre",
+    show_default=True,
+    default="",
+    help="Custom pre-roles to run in image-builder",
+)
+def main(
+    ctx: click.Context,
+    operating_system,
+    version,
+    image_builder_version,
+    extra_ansible_user_vars,
+    node_custom_roles_pre,
+):
     ib_path = f"/tmp/image-builder-{image_builder_version}"
     output_path = f"{ib_path}/images/capi/output"
 
@@ -128,29 +156,74 @@ def main(ctx: click.Context, operating_system, version, image_builder_version):
     kubernetes_series = ".".join(version.split(".")[0:2])
     customization = {
         "kubernetes_deb_version": f"{version.replace('v', '')}-1.1",
+        "kubernetes_rpm_version": f"{version.replace('v', '')}",
         "kubernetes_semver": f"{version}",
         "kubernetes_series": f"{kubernetes_series}",
         # https://github.com/flatcar/Flatcar/issues/823
-        "ansible_user_vars": "oem_id=openstack",
+        "ansible_user_vars": f"oem_id=openstack {extra_ansible_user_vars}",
+        "node_custom_roles_pre": f"{node_custom_roles_pre}",
     }
 
     # NOTE(mnaser): We use the latest tested daily ISO for Ubuntu 22.04 in order
     #               to avoid a lengthy upgrade process.
-    if operating_system == "ubuntu-2204":
-        iso = "jammy-live-server-amd64.iso"
 
-        customization[
-            "iso_url"
-        ] = f"http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/{iso}"
+    # NOTE(jrosser): This can be uncommented again when
+    # https://github.com/vexxhost/magnum-cluster-api/issues/378 is fixed
+    # if operating_system == "ubuntu-2204":
+    #    iso = "jammy-live-server-amd64.iso"
+    #
+    #    customization["iso_url"] = (
+    #        f"http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/{iso}"
+    #    )
+    #
+    #    # Get the SHA256 sum for the ISO
+    #    r = requests.get(
+    #        "http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/SHA256SUMS"
+    #    )
+    #    r.raise_for_status()
+    #    for line in r.text.splitlines():
+    #        if iso in line:
+    #            customization["iso_checksum"] = line.split()[0]
+    #            break
+    #
+    #    # Assert that we have the checksum
+    #    assert "iso_checksum" in customization
+
+    if operating_system == "rockylinux-8":
+        iso = "Rocky-x86_64-minimal.iso"
+
+        customization["iso_url"] = (
+            f"https://download.rockylinux.org/pub/rocky/8/isos/x86_64/{iso}"
+        )
 
         # Get the SHA256 sum for the ISO
         r = requests.get(
-            "http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/SHA256SUMS"
+            "https://download.rockylinux.org/pub/rocky/8/isos/x86_64/Rocky-x86_64-minimal.iso.CHECKSUM"
         )
         r.raise_for_status()
         for line in r.text.splitlines():
-            if iso in line:
-                customization["iso_checksum"] = line.split()[0]
+            if iso in line and "SHA256" in line:
+                customization["iso_checksum"] = line.split()[3]
+                break
+
+        # Assert that we have the checksum
+        assert "iso_checksum" in customization
+
+    if operating_system == "rockylinux-9":
+        iso = "Rocky-x86_64-minimal.iso"
+
+        customization["iso_url"] = (
+            f"https://download.rockylinux.org/pub/rocky/9/isos/x86_64/{iso}"
+        )
+
+        # Get the SHA256 sum for the ISO
+        r = requests.get(
+            "https://download.rockylinux.org/pub/rocky/9/isos/x86_64/Rocky-x86_64-minimal.iso.CHECKSUM"
+        )
+        r.raise_for_status()
+        for line in r.text.splitlines():
+            if iso in line and "SHA256" in line:
+                customization["iso_checksum"] = line.split()[3]
                 break
 
         # Assert that we have the checksum
@@ -191,6 +264,7 @@ def main(ctx: click.Context, operating_system, version, image_builder_version):
             env={
                 **os.environ,
                 **{
+                    "PATH": f"{expanduser('~/.local/bin')}:{os.environ['PATH']}",
                     "PACKER_VAR_FILES": fp.name,
                 },
             },

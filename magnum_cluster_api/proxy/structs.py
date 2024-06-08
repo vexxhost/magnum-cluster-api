@@ -17,6 +17,7 @@ import os
 import socket
 from datetime import datetime, timezone
 
+import haproxyadmin
 from oslo_log import log as logging
 from pyroute2 import netns
 
@@ -70,6 +71,25 @@ class ProxiedCluster:
             namespace=namespaces[0],
         )
 
+    @classmethod
+    def from_endpoint_slice(
+        cls, endpoint_slice: objects.EndpointSlice
+    ) -> "ProxiedCluster":
+        """
+        Returns a ProxiedCluster object from an endpoint slice.
+
+        This is used when we're looking up a cluster from an endpoint slice
+        and we need to get the cluster name from the endpoint slice.
+        """
+        return ProxiedCluster(
+            name=endpoint_slice.metadata["labels"][cls.CLUSTER_LABEL],
+            namespace=endpoint_slice.namespace,
+            # TODO(mnaser): We can try and figure out a way to get this, but
+            #               when we're looking up from the endpoint slice, we
+            #               don't really need it.
+            internal_ip="",
+        )
+
     @property
     def endpoint_slice_name(self) -> str:
         return f"{self.name}-{socket.gethostname()}"
@@ -115,3 +135,29 @@ class ProxiedCluster:
     @property
     def kubeconfig_secret_name(self) -> str:
         return f"{self.name}-kubeconfig"
+
+    @property
+    def backend_name(self) -> str:
+        """
+        Returns the name of the backend for this cluster.
+        """
+        return f"{self.name}.magnum-system"
+
+    @property
+    def backend(self) -> haproxyadmin.backend.Backend:
+        """
+        Returns the backend object for this cluster.
+        """
+        hap = haproxyadmin.haproxy.HAProxy(socket_dir="/var/run")
+        return hap.backend(self.backend_name)
+
+    @property
+    def healthy(self) -> bool:
+        """
+        Returns whether the backend is healthy or not.
+        """
+        try:
+            return self.backend.status == "UP"
+        except ValueError:
+            LOG.error("Backend %s does not exist", self.backend_name)
+            return False

@@ -21,15 +21,14 @@ from pathlib import Path
 import jinja2
 import pykube
 import yaml
-from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_service import periodic_task
 
 import magnum_cluster_api.privsep.haproxy
-from magnum_cluster_api import clients, objects
+from magnum_cluster_api import clients, conf, objects
 from magnum_cluster_api.proxy import structs, utils
 
-CONF = cfg.CONF
+CONF = conf.CONF
 LOG = logging.getLogger(__name__)
 
 
@@ -46,6 +45,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
         self.haproxy_port = utils.find_free_port(
             port_hint=int(os.getenv("PROXY_PORT", 0))
         )
+        self.haproxy_bind = os.getenv("PROXY_BIND", "*")
         self.haproxy_pid = None
 
     def periodic_tasks(self, context, raise_on_error=False):
@@ -54,8 +54,9 @@ class ProxyManager(periodic_task.PeriodicTasks):
     def _sync_haproxy(self, proxied_clusters: list):
         # Generate HAproxy config
         config = self.template.render(
-            pid_file=utils.get_haproxy_pid_path(),
+            pid_file=CONF.proxy.haproxy_pid_path,
             port=self.haproxy_port,
+            bind=self.haproxy_bind,
             clusters=proxied_clusters,
         )
 
@@ -107,7 +108,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
             {
                 "name": "https",
                 "port": 6443,
-                "targetPort": self.haproxy_port,
+                "targetPort": 6443,
                 "protocol": "TCP",
             },
         ]
@@ -166,7 +167,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
             cluster.endpoint_slice_name for cluster in proxied_clusters
         ]
 
-        # Delete EndpointSlices that are no longer needed
+        # Delete EndpointSlices that are no longer needed or if they are not healthy
         for endpoint_slice in endpoint_slices_for_host:
             if endpoint_slice.name not in proxied_clusters_endpoint_slice_names:
                 LOG.info(
@@ -174,9 +175,23 @@ class ProxyManager(periodic_task.PeriodicTasks):
                     endpoint_slice.name,
                 )
                 endpoint_slice.delete()
+                continue
+
+            proxied_cluster = structs.ProxiedCluster.from_endpoint_slice(endpoint_slice)
+            if not proxied_cluster.healthy:
+                LOG.info(
+                    "Deleting unhealthy EndpointSlice %s since the backend is unhealthy",
+                    endpoint_slice.name,
+                )
+                endpoint_slice.delete()
+                continue
 
         # Create EndpointSlices for each cluster
         for proxied_cluster in proxied_clusters:
+            # Skip creating endpoint slices if the backend is unhealthy
+            if not proxied_cluster.healthy:
+                continue
+
             endpoint_slice_ports = proxied_cluster.endpoint_slice_ports(
                 haproxy_port=self.haproxy_port
             )
@@ -209,26 +224,55 @@ class ProxyManager(periodic_task.PeriodicTasks):
                     self.api, namespace="magnum-system"
                 ).get(name=proxied_cluster.endpoint_slice_name)
 
+            # NOTE(mnaser): We always update the annotations since it contains the timestamp
+            #               which we need for liveness.
+            endpoint_slice.metadata["annotations"] = (
+                proxied_cluster.endpoint_slice_annotations
+            )
+            endpoint_slice.update()
+
             if (
                 endpoint_slice.metadata["labels"]
                 != proxied_cluster.endpoint_slice_labels
-                or endpoint_slice.metadata["annotations"]
-                != proxied_cluster.endpoint_slice_annotations
                 or endpoint_slice.obj["endpoints"]
                 != proxied_cluster.endpoint_slice_endpoints
                 or endpoint_slice.obj["ports"] != endpoint_slice_ports
             ):
+                if (
+                    endpoint_slice.metadata["labels"]
+                    != proxied_cluster.endpoint_slice_labels
+                ):
+                    LOG.info(
+                        "old_labels: %s, new_labels: %s",
+                        endpoint_slice.labels,
+                        proxied_cluster.endpoint_slice_labels,
+                    )
+                    endpoint_slice.metadata["labels"] = (
+                        proxied_cluster.endpoint_slice_labels
+                    )
+
+                if (
+                    endpoint_slice.obj["endpoints"]
+                    != proxied_cluster.endpoint_slice_endpoints
+                ):
+                    LOG.info(
+                        "old_endpoints: %s, new_endpoints: %s",
+                        endpoint_slice.obj["endpoints"],
+                        proxied_cluster.endpoint_slice_endpoints,
+                    )
+                    endpoint_slice.obj["endpoints"] = (
+                        proxied_cluster.endpoint_slice_endpoints
+                    )
+
+                if endpoint_slice.obj["ports"] != endpoint_slice_ports:
+                    LOG.info(
+                        "old_ports: %s, new_ports: %s",
+                        endpoint_slice.obj["ports"],
+                        endpoint_slice_ports,
+                    )
+                    endpoint_slice.obj["ports"] = endpoint_slice_ports
+
                 LOG.info("Updating EndpointSlice %s", endpoint_slice.name)
-                endpoint_slice.metadata[
-                    "labels"
-                ] = proxied_cluster.endpoint_slice_labels
-                endpoint_slice.metadata[
-                    "annotations"
-                ] = proxied_cluster.endpoint_slice_annotations
-                endpoint_slice.obj[
-                    "endpoints"
-                ] = proxied_cluster.endpoint_slice_endpoints
-                endpoint_slice.obj["ports"] = endpoint_slice_ports
                 endpoint_slice.update()
 
     def _sync_kubeconfigs(self, proxied_clusters: list):
