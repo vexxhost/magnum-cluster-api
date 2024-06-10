@@ -56,6 +56,12 @@ class BaseDriver(driver.Driver):
     def create_cluster(
         self, context, cluster: magnum_objects.Cluster, cluster_create_timeout: int
     ):
+        """
+        Create cluster.
+
+        This method is called asynchonously by the Magnum API, therefore it will not be
+        blocking the Magnum API.
+        """
         # NOTE(mnaser): We want to set the `stack_id` as early as possible to
         #               make sure we can use it in the cluster creation.
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
@@ -234,6 +240,12 @@ class BaseDriver(driver.Driver):
         scale_manager=None,
         rollback=False,
     ):
+        """
+        Update cluster.
+
+        This method is called asynchonously by the Magnum API, therefore it will not be
+        blocking the Magnum API.
+        """
         raise NotImplementedError()
 
     @cluster_lock_wrapper
@@ -246,6 +258,12 @@ class BaseDriver(driver.Driver):
         nodes_to_remove: list[str],
         nodegroup: magnum_objects.NodeGroup = None,
     ):
+        """
+        Resize cluster.
+
+        This method is called asynchonously by the Magnum API, therefore it will not be
+        blocking the Magnum API.
+        """
         utils.validate_cluster(context, cluster)
 
         if nodes_to_remove:
@@ -291,6 +309,9 @@ class BaseDriver(driver.Driver):
         For now, upgrade cluster simply modifies the labels that are necessary for the
         upgrade, nothing else.  For the future, we can perhaps use the `update_cluster`
         API.
+
+        This method is called synchonously by the Magnum API, therefore it will be blocking
+        the Magnum API, so it should be as fast as possible.
         """
         need_to_wait = (
             cluster.default_ng_master.image_id != cluster_template.image_id
@@ -328,6 +349,12 @@ class BaseDriver(driver.Driver):
 
     @cluster_lock_wrapper
     def delete_cluster(self, context, cluster: magnum_objects.Cluster):
+        """
+        Delete cluster.
+
+        This method is called asynchonously by the Magnum API, therefore it will not be
+        blocking the Magnum API.
+        """
         if cluster.stack_id is None:
             return
         # NOTE(mnaser): This should be removed when this is fixed:
@@ -348,6 +375,12 @@ class BaseDriver(driver.Driver):
         cluster: magnum_objects.Cluster,
         nodegroup: magnum_objects.NodeGroup,
     ):
+        """
+        Create node group.
+
+        This method is called asynchonously by the Magnum API, therefore it will not be
+        blocking the Magnum API.
+        """
         utils.validate_nodegroup(nodegroup, context)
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
@@ -433,6 +466,12 @@ class BaseDriver(driver.Driver):
         cluster: magnum_objects.Cluster,
         nodegroup: magnum_objects.NodeGroup,
     ):
+        """
+        Update node group.
+
+        This method is called asynchonously by the Magnum API, therefore it will not be
+        blocking the Magnum API.
+        """
         self._update_nodegroup(context, cluster, nodegroup)
 
     def _update_nodegroup(
@@ -484,6 +523,12 @@ class BaseDriver(driver.Driver):
         cluster: magnum_objects.Cluster,
         nodegroup: magnum_objects.NodeGroup,
     ):
+        """
+        Delete node group.
+
+        This method is called asynchonously by the Magnum API, therefore it will not be
+        blocking the Magnum API.
+        """
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 
         try:
