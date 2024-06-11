@@ -20,14 +20,6 @@ from magnum import objects as magnum_objects
 from magnum.conductor import scale_manager
 from magnum.drivers.common import driver
 from magnum.objects import fields
-from tenacity import (
-    Retrying,
-    retry_if_exception,
-    retry_if_not_result,
-    retry_unless_exception_type,
-    stop_after_delay,
-    wait_fixed,
-)
 
 from magnum_cluster_api import (
     clients,
