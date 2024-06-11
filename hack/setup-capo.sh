@@ -14,6 +14,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+# XXX(mnaser): This is a workaround for when Cluster API is tagged but not
+#              released yet.
+export GOPROXY=off
+
 # Versions to test
 CAPI_VERSION=${CAPI_VERSION:-v1.6.0}
 CAPO_VERSION=${CAPO_VERSION:-v0.9.0}
