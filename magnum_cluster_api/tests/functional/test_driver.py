@@ -12,8 +12,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from unittest import mock
-
 import pytest
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.objects import fields  # type: ignore
