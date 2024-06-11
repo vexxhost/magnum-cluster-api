@@ -21,8 +21,8 @@ from magnum.conductor import scale_manager
 from magnum.drivers.common import driver
 from magnum.objects import fields
 from tenacity import (
-    Retrying,
     RetryError,
+    Retrying,
     retry_if_exception,
     retry_if_not_result,
     retry_unless_exception_type,
