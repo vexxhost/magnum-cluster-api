@@ -261,6 +261,10 @@ class BaseDriver(driver.Driver):
         """
         Resize cluster.
 
+        The cluster object passed to this method is already not in `UPDATE_IN_PROGRESS`
+        state and the node group object passed to this method is in `UPDATE_IN_PROGRESS`
+        state and saved.
+
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
@@ -455,6 +459,10 @@ class BaseDriver(driver.Driver):
         """
         Update node group.
 
+        This cluster object passed to this method is already in `UPDATE_IN_PROGRESS` state
+        and the node group object passed to this method is in `UPDATE_IN_PROGRESS` state
+        but it's not saved.
+
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
@@ -466,6 +474,17 @@ class BaseDriver(driver.Driver):
         cluster: magnum_objects.Cluster,
         nodegroup: magnum_objects.NodeGroup,
     ):
+        # NOTE(mnaser): We want to set the node group to `UPDATE_IN_PROGRESS` as soon as
+        #               possible to make sure that the Magnum API knows that the node group
+        #               is being updated.
+        nodegroup.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        nodegroup.save()
+
+        # NOTE(mnaser): We want to make sure that the cluster is in `UPDATE_IN_PROGRESS`
+        #               state before we start updating the node group.
+        cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        cluster.save()
+
         utils.validate_nodegroup(nodegroup, context)
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
@@ -495,12 +514,6 @@ class BaseDriver(driver.Driver):
                 )
             if not attempt.retry_state.outcome.failed:
                 attempt.retry_state.set_result(md)
-
-        nodegroup.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
-        nodegroup.save()
-
-        cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
-        cluster.save()
 
     @cluster_lock_wrapper
     def delete_nodegroup(
