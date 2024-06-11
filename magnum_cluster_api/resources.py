@@ -1880,14 +1880,14 @@ class ClusterClass(Base):
                                     json_patches.DiskConfig(
                                         type="docker",
                                         mount_path="/var/lib/containerd",
-                                    )
+                                    ),
                                 ],
                                 worker_disks=[
                                     json_patches.DiskConfig(
                                         type="docker",
                                         mount_path="/var/lib/containerd",
                                     )
-                                ]
+                                ],
                             ).definitions,
                         },
                         {
@@ -1905,7 +1905,7 @@ class ClusterClass(Base):
                                         type="docker",
                                         mount_path="/var/lib/containerd",
                                     )
-                                ]
+                                ],
                             ).definitions,
                         },
                         {
@@ -1917,7 +1917,7 @@ class ClusterClass(Base):
                                         type="etcd",
                                         mount_path="/var/lib/etcd",
                                     )
-                                ]
+                                ],
                             ).definitions,
                         },
                         {

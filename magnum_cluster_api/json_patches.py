@@ -12,8 +12,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import yaml
 from dataclasses import dataclass, field
+
+import yaml
 
 from magnum_cluster_api import objects
 
@@ -169,18 +170,14 @@ class Volumes:
                         "op": "add",
                         "path": "/spec/template/spec/diskSetup",
                         "valueFrom": {
-                            "template": yaml.dump(
-                                self._disk_setup(self.worker_disks)
-                            ),
+                            "template": yaml.dump(self._disk_setup(self.worker_disks)),
                         },
                     },
                     {
                         "op": "add",
                         "path": "/spec/template/spec/mounts",
                         "valueFrom": {
-                            "template": yaml.dump(
-                                self._mounts(self.worker_disks)
-                            ),
+                            "template": yaml.dump(self._mounts(self.worker_disks)),
                         },
                     },
                 ],
