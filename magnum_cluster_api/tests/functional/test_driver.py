@@ -15,6 +15,7 @@
 from unittest import mock
 
 import pytest
+import tenacity
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.objects import fields  # type: ignore
 from magnum.tests.unit.objects import utils  # type: ignore
@@ -32,6 +33,10 @@ class TestDriver:
         assert md is not None
         # TODO: more?
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(10),
+        wait=tenacity.wait_fixed(1),
+    )
     def _assert_machine_deployments_for_node_groups(
         self, *node_groups: magnum_objects.NodeGroup
     ):
