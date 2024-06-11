@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import textwrap
 from dataclasses import dataclass, field
 
 import yaml
@@ -65,121 +66,134 @@ class Volumes:
             for disk in disks
         ]
 
-    def _additional_block_devices(self, disks: list[DiskConfig]) -> list[dict]:
-        return [
-            {
-                "name": disk.type,
-                "sizeGiB": f"{{{{ .{disk.type}VolumeSize }}}}",
-                "storage": {
-                    "type": "Volume",
-                    "volume": {
-                        "type": f"{{{{ .{disk.type}VolumeType }}}}",
-                        "availabilityZone": "{{ .availabilityZone }}",
-                    },
-                },
-            }
-            for disk in disks
-        ]
+    def _additional_block_devices(self, disks: list[DiskConfig]) -> str:
+        return "\n".join(
+            [
+                textwrap.dedent(
+                    f"""\
+                - name: {disk.type}
+                  sizeGiB: {{ .{disk.type}VolumeSize }}
+                  storage:
+                    type: Volume
+                    volume:
+                      type: "{{ .{disk.type}VolumeType }}"
+                      availabilityZone: "{{ .availabilityZone }}"
+                """
+                )
+                for disk in disks
+            ]
+        )
 
     @property
     def definitions(self) -> list[dict]:
-        return [
-            {
-                "selector": {
-                    "apiVersion": objects.OpenStackMachineTemplate.version,
-                    "kind": objects.OpenStackMachineTemplate.kind,
-                    "matchResources": {
-                        "controlPlane": True,
+        definitions = []
+
+        if len(self.control_plane_disks) > 0:
+            definitions += [
+                {
+                    "selector": {
+                        "apiVersion": objects.OpenStackMachineTemplate.version,
+                        "kind": objects.OpenStackMachineTemplate.kind,
+                        "matchResources": {
+                            "controlPlane": True,
+                        },
                     },
+                    "jsonPatches": [
+                        {
+                            "op": "add",
+                            "path": "/spec/template/spec/additionalBlockDevices",
+                            "valueFrom": {
+                                "template": self._additional_block_devices(
+                                    self.control_plane_disks
+                                ),
+                            },
+                        },
+                    ],
                 },
-                "jsonPatches": [
-                    {
-                        "op": "add",
-                        "path": "/spec/template/spec/additionalBlockDevices",
-                        "valueFrom": {
-                            "template": yaml.dump(
-                                self._additional_block_devices(self.control_plane_disks)
-                            ),
+                {
+                    "selector": {
+                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                        "kind": objects.KubeadmControlPlaneTemplate.kind,
+                        "matchResources": {
+                            "controlPlane": True,
                         },
                     },
-                ],
-            },
-            {
-                "selector": {
-                    "apiVersion": objects.KubeadmControlPlaneTemplate.version,
-                    "kind": objects.KubeadmControlPlaneTemplate.kind,
-                    "matchResources": {
-                        "controlPlane": True,
-                    },
+                    "jsonPatches": [
+                        {
+                            "op": "add",
+                            "path": "/spec/template/spec/kubeadmConfigSpec/diskSetup",
+                            "valueFrom": {
+                                "template": yaml.dump(
+                                    self._disk_setup(self.control_plane_disks)
+                                ),
+                            },
+                        },
+                        {
+                            "op": "add",
+                            "path": "/spec/template/spec/kubeadmConfigSpec/mounts",
+                            "valueFrom": {
+                                "template": yaml.dump(
+                                    self._mounts(self.control_plane_disks)
+                                ),
+                            },
+                        },
+                    ],
                 },
-                "jsonPatches": [
-                    {
-                        "op": "add",
-                        "path": "/spec/template/spec/kubeadmConfigSpec/diskSetup",
-                        "valueFrom": {
-                            "template": yaml.dump(
-                                self._disk_setup(self.control_plane_disks)
-                            ),
+            ]
+
+        if len(self.worker_disks) > 0:
+            definitions + [
+                {
+                    "selector": {
+                        "apiVersion": objects.OpenStackMachineTemplate.version,
+                        "kind": objects.OpenStackMachineTemplate.kind,
+                        "matchResources": {
+                            "machineDeploymentClass": {
+                                "names": ["default-worker"],
+                            },
                         },
                     },
-                    {
-                        "op": "add",
-                        "path": "/spec/template/spec/kubeadmConfigSpec/mounts",
-                        "valueFrom": {
-                            "template": yaml.dump(
-                                self._mounts(self.control_plane_disks)
-                            ),
+                    "jsonPatches": [
+                        {
+                            "op": "add",
+                            "path": "/spec/template/spec/additionalBlockDevices",
+                            "valueFrom": {
+                                "template": self._additional_block_devices(
+                                    self.worker_disks
+                                ),
+                            },
                         },
-                    },
-                ],
-            },
-            {
-                "selector": {
-                    "apiVersion": objects.OpenStackMachineTemplate.version,
-                    "kind": objects.OpenStackMachineTemplate.kind,
-                    "matchResources": {
-                        "machineDeploymentClass": {
-                            "names": ["default-worker"],
-                        },
-                    },
+                    ],
                 },
-                "jsonPatches": [
-                    {
-                        "op": "add",
-                        "path": "/spec/template/spec/additionalBlockDevices",
-                        "valueFrom": {
-                            "template": yaml.dump(
-                                self._additional_block_devices(self.worker_disks)
-                            ),
+                {
+                    "selector": {
+                        "apiVersion": objects.KubeadmConfigTemplate.version,
+                        "kind": objects.KubeadmConfigTemplate.kind,
+                        "matchResources": {
+                            "machineDeploymentClass": {
+                                "names": ["default-worker"],
+                            }
                         },
                     },
-                ],
-            },
-            {
-                "selector": {
-                    "apiVersion": objects.KubeadmConfigTemplate.version,
-                    "kind": objects.KubeadmConfigTemplate.kind,
-                    "matchResources": {
-                        "machineDeploymentClass": {
-                            "names": ["default-worker"],
-                        }
-                    },
+                    "jsonPatches": [
+                        {
+                            "op": "add",
+                            "path": "/spec/template/spec/diskSetup",
+                            "valueFrom": {
+                                "template": yaml.dump(
+                                    self._disk_setup(self.worker_disks)
+                                ),
+                            },
+                        },
+                        {
+                            "op": "add",
+                            "path": "/spec/template/spec/mounts",
+                            "valueFrom": {
+                                "template": yaml.dump(self._mounts(self.worker_disks)),
+                            },
+                        },
+                    ],
                 },
-                "jsonPatches": [
-                    {
-                        "op": "add",
-                        "path": "/spec/template/spec/diskSetup",
-                        "valueFrom": {
-                            "template": yaml.dump(self._disk_setup(self.worker_disks)),
-                        },
-                    },
-                    {
-                        "op": "add",
-                        "path": "/spec/template/spec/mounts",
-                        "valueFrom": {
-                            "template": yaml.dump(self._mounts(self.worker_disks)),
-                        },
-                    },
-                ],
-            },
-        ]
+            ]
+
+        return definitions
