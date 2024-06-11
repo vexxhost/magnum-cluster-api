@@ -387,22 +387,11 @@ class BaseDriver(driver.Driver):
         utils.validate_nodegroup(nodegroup, context)
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
-
         cluster_resource.obj["spec"]["topology"]["workers"][
             "machineDeployments"
         ].append(resources.mutate_machine_deployment(context, cluster, nodegroup))
 
         utils.kube_apply_patch(cluster_resource)
-
-        for attempt in Retrying(
-            retry=retry_if_exception(exceptions.MachineDeploymentNotFound),
-            stop=stop_after_delay(10),
-            wait=wait_fixed(1),
-        ):
-            with attempt:
-                objects.MachineDeployment.for_node_group(
-                    self.k8s_api, cluster, nodegroup
-                )
 
     def update_nodegroup_status(
         self,
