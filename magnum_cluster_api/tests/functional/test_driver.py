@@ -12,6 +12,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from unittest import mock
+
 import pytest
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.objects import fields  # type: ignore
@@ -76,6 +78,7 @@ class TestDriver:
             status=fields.ClusterStatus.CREATE_IN_PROGRESS,
         )
         new_node_group.name = node_group_name
+        new_node_group.save = mock.MagicMock()
 
         self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
         driver.create_nodegroup(context, self.cluster, new_node_group)
