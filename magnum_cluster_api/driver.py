@@ -436,7 +436,7 @@ class BaseDriver(driver.Driver):
 
             if phase in ("ScalingUp", "ScalingDown"):
                 nodegroup.status = f"{action}_IN_PROGRESS"
-            elif phase == "Running":
+            elif phase == "Running" and action != "DELETE":
                 nodegroup.status = f"{action}_COMPLETE"
             elif phase in ("Failed", "Unknown"):
                 nodegroup.status = f"{action}_FAILED"
@@ -512,9 +512,20 @@ class BaseDriver(driver.Driver):
         """
         Delete node group.
 
+        The cluster resource that is passed to this method is already in `UPDATE_IN_PROGRESS`
+        however the node group object passed to this method is in `DELETE_IN_PROGRESS` state
+        but it's not saved.
+
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
+
+        # NOTE(mnaser): We want to switch the node group to `DELETE_IN_PROGRESS` state
+        #               as soon as possible to make sure that the Magnum API knows that
+        #               the node group is being deleted.
+        nodegroup.status = fields.ClusterStatus.DELETE_IN_PROGRESS
+        nodegroup.save()
+
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 
         try:
@@ -529,25 +540,6 @@ class BaseDriver(driver.Driver):
         ]
 
         utils.kube_apply_patch(cluster_resource)
-
-        try:
-            for attempt in Retrying(
-                retry=retry_unless_exception_type(exceptions.MachineDeploymentNotFound),
-                stop=stop_after_delay(10),
-                wait=wait_fixed(1),
-            ):
-                with attempt:
-                    objects.MachineDeployment.for_node_group(
-                        self.k8s_api, cluster, nodegroup
-                    )
-        except exceptions.MachineDeploymentNotFound:
-            pass
-
-        nodegroup.status = fields.ClusterStatus.DELETE_IN_PROGRESS
-        nodegroup.save()
-
-        cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
-        cluster.save()
 
     @cluster_lock_wrapper
     def get_monitor(self, context, cluster: magnum_objects.Cluster):
