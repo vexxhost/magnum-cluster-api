@@ -506,17 +506,6 @@ class BaseDriver(driver.Driver):
         cluster: magnum_objects.Cluster,
         nodegroup: magnum_objects.NodeGroup,
     ):
-        # NOTE(mnaser): We want to set the node group to `UPDATE_IN_PROGRESS` as soon as
-        #               possible to make sure that the Magnum API knows that the node group
-        #               is being updated.
-        nodegroup.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
-        nodegroup.save()
-
-        # NOTE(mnaser): We want to make sure that the cluster is in `UPDATE_IN_PROGRESS`
-        #               state before we start updating the node group.
-        cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
-        cluster.save()
-
         utils.validate_nodegroup(nodegroup, context)
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
@@ -534,6 +523,12 @@ class BaseDriver(driver.Driver):
 
         cluster_resource.set_machine_deployment_spec(nodegroup.name, target_md_spec)
         utils.kube_apply_patch(cluster_resource)
+
+        nodegroup.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        nodegroup.save()
+
+        cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        cluster.save()
 
     @cluster_lock_wrapper
     def delete_nodegroup(
