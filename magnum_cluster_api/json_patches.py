@@ -60,7 +60,7 @@ class Volumes:
     def _mounts(self, disks: list[DiskConfig]) -> list[list[str]]:
         return [
             [
-                f"{disk.type}_disk",
+                f"LABEL={disk.type}_disk",
                 disk.mount_path,
             ]
             for disk in disks
