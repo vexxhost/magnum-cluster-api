@@ -378,6 +378,9 @@ class BaseDriver(driver.Driver):
         """
         Create node group.
 
+        The cluster object passed to this method is already in `UPDATE_IN_PROGRESS` state
+        and the node group object passed to this method is in `CREATE_IN_PROGRESS` state.
+
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
@@ -400,12 +403,6 @@ class BaseDriver(driver.Driver):
                 objects.MachineDeployment.for_node_group(
                     self.k8s_api, cluster, nodegroup
                 )
-
-        nodegroup.status = fields.ClusterStatus.CREATE_IN_PROGRESS
-        nodegroup.save()
-
-        cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
-        cluster.save()
 
     def update_nodegroup_status(
         self,
