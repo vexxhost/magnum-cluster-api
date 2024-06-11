@@ -22,6 +22,7 @@ from magnum.drivers.common import driver
 from magnum.objects import fields
 from tenacity import (
     Retrying,
+    RetryError,
     retry_if_exception,
     retry_if_not_result,
     retry_unless_exception_type,
@@ -459,17 +460,20 @@ class BaseDriver(driver.Driver):
         cluster_resource.set_machine_deployment_spec(nodegroup.name, target_md_spec)
         utils.kube_apply_patch(cluster_resource)
 
-        for attempt in Retrying(
-            retry=retry_if_not_result(lambda md: md.equals_spec(target_md_spec)),
-            stop=stop_after_delay(10),
-            wait=wait_fixed(1),
-        ):
-            with attempt:
-                md = objects.MachineDeployment.for_node_group(
-                    self.k8s_api, cluster, nodegroup
-                )
-            if not attempt.retry_state.outcome.failed:
-                attempt.retry_state.set_result(md)
+        try:
+            for attempt in Retrying(
+                retry=retry_if_not_result(lambda md: md.equals_spec(target_md_spec)),
+                stop=stop_after_delay(10),
+                wait=wait_fixed(1),
+            ):
+                with attempt:
+                    md = objects.MachineDeployment.for_node_group(
+                        self.k8s_api, cluster, nodegroup
+                    )
+                if not attempt.retry_state.outcome.failed:
+                    attempt.retry_state.set_result(md)
+        except RetryError:
+            pass
 
         nodegroup.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
         nodegroup.save()
