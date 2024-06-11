@@ -243,6 +243,12 @@ class Cluster(NamespacedAPIObject):
     ) -> "Cluster":
         return cls.objects(api, namespace="magnum-system").get(name=cluster.stack_id)
 
+    @classmethod
+    def for_magnum_cluster_or_none(
+        cls, api: pykube.HTTPClient, cluster: magnum_objects.Cluster
+    ) -> "Cluster":
+        return cls.objects(api, namespace="magnum-system").get_or_none(name=cluster.stack_id)
+
     def get_machine_deployment_index(self, name: str) -> int:
         for i, machine_deployment in enumerate(
             self.obj["spec"]["topology"]["workers"]["machineDeployments"]

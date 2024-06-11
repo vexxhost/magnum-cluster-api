@@ -423,11 +423,12 @@ class BaseDriver(driver.Driver):
     def update_nodegroups_status(
         self, context, cluster: magnum_objects.Cluster
     ) -> list[magnum_objects.NodeGroup]:
+        cluster_resource = objects.Cluster.for_magnum_cluster_or_none(self.k8s_api, cluster)
+        if cluster_resource is None:
+            return cluster.nodegroups
+
         node_groups = []
-
         for node_group in cluster.nodegroups:
-            cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
-
             md = objects.MachineDeployment.for_node_group_or_none(
                 self.k8s_api, cluster, node_group
             )
