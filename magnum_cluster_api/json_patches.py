@@ -72,12 +72,12 @@ class Volumes:
                 textwrap.dedent(
                     f"""\
                 - name: {disk.type}
-                  sizeGiB: {{ .{disk.type}VolumeSize }}
+                  sizeGiB: {{{{ .{disk.type}VolumeSize }}}}
                   storage:
                     type: Volume
                     volume:
-                      type: "{{ .{disk.type}VolumeType }}"
-                      availabilityZone: "{{ .availabilityZone }}"
+                      type: "{{{{ .{disk.type}VolumeType }}}}"
+                      availabilityZone: "{{{{ .availabilityZone }}}}"
                 """
                 )
                 for disk in disks
