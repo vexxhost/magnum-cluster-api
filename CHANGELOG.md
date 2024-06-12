@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.19.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.18.0...v0.19.0) (2024-06-12)
+
+
+### Features
+
+* support docker volume type and size ([#370](https://github.com/vexxhost/magnum-cluster-api/issues/370)) ([5360349](https://github.com/vexxhost/magnum-cluster-api/commit/5360349333aa52b934b8f5cc37df859064dfed48))
+
+
+### Bug Fixes
+
+* Improve node group tracking ([#388](https://github.com/vexxhost/magnum-cluster-api/issues/388)) ([a0fbfdd](https://github.com/vexxhost/magnum-cluster-api/commit/a0fbfddfadadad736232713331665737f468e9b9))
+
 ## [0.18.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.17.1...v0.18.0) (2024-05-30)
 
 
