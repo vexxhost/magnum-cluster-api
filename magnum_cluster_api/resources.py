@@ -679,7 +679,8 @@ class KubeadmControlPlaneTemplate(Base):
                                     },
                                 },
                                 "preKubeadmCommands": [
-                                    "rm /var/lib/etcd/lost+found -rf"
+                                    "rm /var/lib/etcd/lost+found -rf",
+                                    "bash /run/kubeadm/configure-kube-proxy.sh",
                                 ],
                             },
                         },
