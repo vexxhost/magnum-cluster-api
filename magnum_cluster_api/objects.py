@@ -20,7 +20,6 @@ import pykube
 import yaml
 from magnum import objects as magnum_objects
 from oslo_serialization import base64
-from tenacity import Retrying, retry_if_result, stop_after_delay, wait_fixed
 
 from magnum_cluster_api import exceptions
 
@@ -39,28 +38,6 @@ class NamespacedAPIObject(pykube.objects.NamespacedAPIObject):
     @property
     def observed_generation(self):
         return self.obj.get("status", {}).get("observedGeneration")
-
-    def wait_for_observed_generation_changed(
-        self,
-        existing_observed_generation: int = 0,
-        timeout: int = 10,
-        interval: int = 1,
-    ):
-        if existing_observed_generation == 0:
-            existing_observed_generation = self.observed_generation
-
-        for attempt in Retrying(
-            retry=(
-                retry_if_result(lambda g: g == existing_observed_generation)
-                | retry_if_result(lambda g: g is None)
-            ),
-            stop=stop_after_delay(timeout),
-            wait=wait_fixed(interval),
-        ):
-            with attempt:
-                self.reload()
-            if not attempt.retry_state.outcome.failed:
-                attempt.retry_state.set_result(self.observed_generation)
 
 
 class EndpointSlice(NamespacedAPIObject):
@@ -284,6 +261,12 @@ class Cluster(NamespacedAPIObject):
             raise exceptions.OpenStackClusterNotCreated()
 
         return list(filtered_clusters)[0]
+
+
+class OpenStackMachine(NamespacedAPIObject):
+    version = "infrastructure.cluster.x-k8s.io/v1alpha7"
+    endpoint = "openstackmachines"
+    kind = "OpenStackMachine"
 
 
 class StorageClass(pykube.objects.APIObject):

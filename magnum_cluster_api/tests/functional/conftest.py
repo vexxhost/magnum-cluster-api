@@ -32,9 +32,6 @@ def cluster(
         cluster_resource = objects.Cluster.for_magnum_cluster(
             ubuntu_driver.k8s_api, cluster_obj
         )
-        cluster_resource.wait_for_observed_generation_changed(
-            existing_observed_generation=1
-        )
 
         cluster_obj.save.assert_called_once()
         cluster_obj.save.reset_mock()
