@@ -340,11 +340,6 @@ class BaseDriver(driver.Driver):
         This method is called synchonously by the Magnum API, therefore it will be blocking
         the Magnum API, so it should be as fast as possible.
         """
-        need_to_wait = (
-            cluster.default_ng_master.image_id != cluster_template.image_id
-            or cluster.labels["kube_tag"] != cluster_template.labels["kube_tag"]
-        )
-
         # XXX(mnaser): The Magnum API historically only did upgrade one node group at a
         #              time.  This is a limitation of the Magnum API and not the Magnum
         #              Cluster API since doing multiple rolling upgrades was not very
@@ -365,11 +360,7 @@ class BaseDriver(driver.Driver):
         # NOTE(mnaser): We run a full apply on the cluster regardless of the changes, since
         #               the expectation is that running an upgrade operation will change
         #               the cluster in some way.
-        cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
         resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
-
-        if need_to_wait:
-            cluster_resource.wait_for_observed_generation_changed()
 
         # NOTE(mnaser): We do not save the cluster object here because the Magnum driver
         #               will save the object that it passed to us here.
@@ -431,6 +422,9 @@ class BaseDriver(driver.Driver):
 
         node_groups = []
         for node_group in cluster.nodegroups:
+            if node_group.role == "master":
+                continue
+
             md = objects.MachineDeployment.for_node_group_or_none(
                 self.k8s_api, cluster, node_group
             )
@@ -448,6 +442,29 @@ class BaseDriver(driver.Driver):
                 node_group.status = fields.ClusterStatus.CREATE_COMPLETE
                 node_group.save()
 
+            # Get list of all of the OpenStackMachine objects for this node group
+            machines = objects.OpenStackMachine.objects(
+                self.k8s_api, namespace="magnum-system"
+            ).filter(
+                selector={
+                    "cluster.x-k8s.io/cluster-name": cluster.stack_id,
+                    "topology.cluster.x-k8s.io/deployment-name": node_group.name,
+                },
+            )
+
+            # Ensure that the image ID from the spec matches all of the OpenStackMachine objects
+            # for this node group
+            md_spec = cluster_resource.get_machine_deployment_spec(node_group.name)
+            md_variables = {
+                i["name"]: i["value"] for i in md_spec["variables"]["overrides"]
+            }
+            image_id_match = all(
+                [
+                    machine.obj["spec"]["imageUUID"] == md_variables["imageUUID"]
+                    for machine in machines
+                ]
+            )
+
             # NOTE(mnaser): If the cluster is in `UPDATE_IN_PROGRESS` state, we need to
             #               wait for the `MachineDeployment` to match the desired state
             #               from the `Cluster` resource and that it is in the `Running`
@@ -458,6 +475,7 @@ class BaseDriver(driver.Driver):
                 and md.equals_spec(
                     cluster_resource.get_machine_deployment_spec(node_group.name)
                 )
+                and image_id_match
             ):
                 node_group.status = fields.ClusterStatus.UPDATE_COMPLETE
                 node_group.save()

@@ -134,12 +134,20 @@ class MachineDeployment(NamespacedAPIObject):
             return None
 
     def equals_spec(self, spec: dict) -> bool:
-        annotations_match = self.obj["spec"]["template"]["metadata"].get(
+        expected_annotations = spec["metadata"].get("annotations")
+        current_annotations = self.obj["spec"]["template"]["metadata"].get(
             "annotations"
-        ) == spec["metadata"].get("annotations")
-        replicas_match = self.obj["spec"].get("replicas") == spec.get("replicas")
+        )
 
-        return annotations_match and replicas_match
+        # NOTE(mnaser): If we have any annotations, that means that autoscaling is
+        #               enabled and we should not compare the replicas.
+        if expected_annotations:
+            return expected_annotations == current_annotations
+
+        expected_replicas = spec.get("replicas")
+        current_replicas = self.obj["spec"].get("replicas")
+
+        return expected_replicas == current_replicas
 
 
 class Machine(NamespacedAPIObject):
@@ -284,6 +292,12 @@ class Cluster(NamespacedAPIObject):
             raise exceptions.OpenStackClusterNotCreated()
 
         return list(filtered_clusters)[0]
+
+
+class OpenStackMachine(NamespacedAPIObject):
+    version = "infrastructure.cluster.x-k8s.io/v1alpha7"
+    endpoint = "openstackmachines"
+    kind = "OpenStackMachine"
 
 
 class StorageClass(pykube.objects.APIObject):

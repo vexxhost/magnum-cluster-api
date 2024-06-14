@@ -100,6 +100,10 @@ class TestDriver:
             context, self.cluster, cluster_template, None, None
         )
 
+        cluster_resource.wait_for_observed_generation_changed(
+            existing_observed_generation=current_observed_generation,
+        )
+
         cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
         assert cluster_resource.observed_generation != current_observed_generation
 
