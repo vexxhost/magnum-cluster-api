@@ -422,6 +422,9 @@ class BaseDriver(driver.Driver):
 
         node_groups = []
         for node_group in cluster.nodegroups:
+            if node_group.role == "master":
+                continue
+
             md = objects.MachineDeployment.for_node_group_or_none(
                 self.k8s_api, cluster, node_group
             )
