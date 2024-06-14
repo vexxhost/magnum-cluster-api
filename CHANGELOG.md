@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.19.0...v0.19.1) (2024-06-14)
+
+
+### Bug Fixes
+
+* Stop waiting on CAPI in API ([#393](https://github.com/vexxhost/magnum-cluster-api/issues/393)) ([024a3d9](https://github.com/vexxhost/magnum-cluster-api/commit/024a3d93cc3689d1cea7281dad3270be8b4d22c5))
+
 ## [0.19.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.18.0...v0.19.0) (2024-06-12)
 
 
