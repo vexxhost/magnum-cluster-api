@@ -14,8 +14,6 @@
 
 import pytest
 
-from magnum_cluster_api import objects
-
 
 @pytest.fixture
 def cluster(
@@ -28,10 +26,6 @@ def cluster(
 ):
     try:
         ubuntu_driver.create_cluster(context, cluster_obj, 60)
-
-        cluster_resource = objects.Cluster.for_magnum_cluster(
-            ubuntu_driver.k8s_api, cluster_obj
-        )
 
         cluster_obj.save.assert_called_once()
         cluster_obj.save.reset_mock()
