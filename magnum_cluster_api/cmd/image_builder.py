@@ -66,7 +66,7 @@ def validate_version(_, __, value):
 @click.option(
     "--image-builder-version",
     show_default=True,
-    default="v0.1.29",
+    default="v0.1.30",
     help="Image builder tag (or commit) to use for building image",
 )
 @click.option(
@@ -166,28 +166,25 @@ def main(
 
     # NOTE(mnaser): We use the latest tested daily ISO for Ubuntu 22.04 in order
     #               to avoid a lengthy upgrade process.
+    if operating_system == "ubuntu-2204":
+        iso = "jammy-live-server-amd64.iso"
 
-    # NOTE(jrosser): This can be uncommented again when
-    # https://github.com/vexxhost/magnum-cluster-api/issues/378 is fixed
-    # if operating_system == "ubuntu-2204":
-    #    iso = "jammy-live-server-amd64.iso"
-    #
-    #    customization["iso_url"] = (
-    #        f"http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/{iso}"
-    #    )
-    #
-    #    # Get the SHA256 sum for the ISO
-    #    r = requests.get(
-    #        "http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/SHA256SUMS"
-    #    )
-    #    r.raise_for_status()
-    #    for line in r.text.splitlines():
-    #        if iso in line:
-    #            customization["iso_checksum"] = line.split()[0]
-    #            break
-    #
-    #    # Assert that we have the checksum
-    #    assert "iso_checksum" in customization
+        customization["iso_url"] = (
+            f"http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/{iso}"
+        )
+
+        # Get the SHA256 sum for the ISO
+        r = requests.get(
+            "http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/SHA256SUMS"
+        )
+        r.raise_for_status()
+        for line in r.text.splitlines():
+            if iso in line:
+                customization["iso_checksum"] = line.split()[0]
+                break
+
+        # Assert that we have the checksum
+        assert "iso_checksum" in customization
 
     if operating_system == "rockylinux-8":
         iso = "Rocky-x86_64-minimal.iso"
