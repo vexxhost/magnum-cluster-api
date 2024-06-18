@@ -210,9 +210,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                             "vendor/cilium/",
                         ),
                         values={
-                            "cni": {
-                                "chainingMode": "portmap"
-                            },
+                            "cni": {"chainingMode": "portmap"},
                             "image": {
                                 "tag": cilium_version,
                             },
