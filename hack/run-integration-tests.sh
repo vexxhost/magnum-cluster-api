@@ -117,14 +117,6 @@ RESULTS_FILE=$(./sonobuoy retrieve --filename sonobuoy-results.tar.gz)
 
 # Fail if the Sonobuoy tests failed
 if ! ./sonobuoy results --plugin e2e ${RESULTS_FILE} | grep -q "Status: passed"; then
-  if [[ ${NETWORK_DRIVER} == "cilium" ]]; then
-    # NOTE(okozachenko1203): One failure is expected until https://github.com/cilium/cilium/issues/14287 is fixed.
-    if ! ./sonobuoy results --plugin e2e ${RESULTS_FILE} | grep -Eq "Failed: 1$"; then
-      echo "Sonobuoy tests failed"
-      exit 1
-    fi
-  else
-    echo "Sonobuoy tests failed"
-    exit 1
-  fi
+  echo "Sonobuoy tests failed"
+  exit 1
 fi
