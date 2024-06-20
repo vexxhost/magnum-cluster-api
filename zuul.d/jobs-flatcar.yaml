@@ -28,9 +28,22 @@
     vars:
       kube_tag: v1.27.8
 
+- job:
+    name: magnum-cluster-api-sonobuoy-flatcar-v1.27.8-calico
+    parent: magnum-cluster-api-sonobuoy-flatcar-v1.27.8
+    vars:
+      network_driver: calico
+
+- job:
+    name: magnum-cluster-api-sonobuoy-flatcar-v1.27.8-cilium
+    parent: magnum-cluster-api-sonobuoy-flatcar-v1.27.8
+    vars:
+      network_driver: cilium
+
 - project-template:
     name: magnum-cluster-api-flatcar
     check:
       jobs:
         - magnum-cluster-api-image-build-flatcar-v1.27.8
-        - magnum-cluster-api-sonobuoy-flatcar-v1.27.8
+        - magnum-cluster-api-sonobuoy-flatcar-v1.27.8-calico
+        - magnum-cluster-api-sonobuoy-flatcar-v1.27.8-cilium

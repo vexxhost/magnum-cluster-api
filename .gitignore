@@ -1,7 +1,5 @@
 .direnv
 __pycache__
 dist
-magnum_cluster_api/charts/*
-!magnum_cluster_api/charts/.gitkeep
-!magnum_cluster_api/charts/k8s-keystone-auth
+magnum_cluster_api/charts/vendor/*
 site
