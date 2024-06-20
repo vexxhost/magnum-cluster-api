@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.19.1...v0.19.2) (2024-06-20)
+
+
+### Bug Fixes
+
+* Add missing equal sign for mounts ([#397](https://github.com/vexxhost/magnum-cluster-api/issues/397)) ([2385424](https://github.com/vexxhost/magnum-cluster-api/commit/2385424421808083597ae282402368ece4957459))
+
 ## [0.19.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.19.0...v0.19.1) (2024-06-14)
 
 
