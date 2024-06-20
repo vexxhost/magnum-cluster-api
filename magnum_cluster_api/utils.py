@@ -362,9 +362,14 @@ def validate_flavor_name(cli: clients.OpenStackClients, flavor: str):
 
 
 def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluster):
+    # Check network driver
+    if cluster.cluster_template.network_driver not in ["cilium", "calico"]:
+        raise mcapi_exceptions.UnsupportedCNI
+
     # Check master count
     if (cluster.master_count % 2) == 0:
         raise mcapi_exceptions.ClusterMasterCountEven
+
     # Validate flavors
     osc = clients.get_openstack_api(ctx)
     validate_flavor_name(osc, cluster.master_flavor_id)

@@ -142,7 +142,7 @@ class Volumes:
             ]
 
         if len(self.worker_disks) > 0:
-            definitions + [
+            definitions += [
                 {
                     "selector": {
                         "apiVersion": objects.OpenStackMachineTemplate.version,
