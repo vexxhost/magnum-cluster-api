@@ -488,17 +488,6 @@ def kube_apply_patch(resource):
 def generate_api_cert_san_list(cluster: magnum_objects.Cluster):
     cert_sans = cluster.labels.get("api_server_cert_sans", "")
     additional_cert_sans_list = cert_sans.split(",")
-    # Prepare the value for certSANs
-    cert_sans_template = textwrap.dedent(
-        """\
-        - {{ .builtin.cluster.name }}
-        - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}
-        - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc
-        - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc.cluster.local
-        """
-    )
 
     # Add the additional cert SANs to the template
-    for san in additional_cert_sans_list:
-        cert_sans_template += f"- {san}\n"
-    return cert_sans_template
+    return "\n".join(f"- {san}" for san in additional_cert_sans_list if san)

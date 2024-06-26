@@ -2055,6 +2055,10 @@ class ClusterClass(Base):
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
                                                     """\
+                                                    - {{ .builtin.cluster.name }}
+                                                    - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}
+                                                    - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc
+                                                    - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc.cluster.local
                                                     {{ .apiServerSANs }}
                                                     """
                                                 ),
