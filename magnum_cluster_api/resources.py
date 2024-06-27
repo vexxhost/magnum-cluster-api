@@ -2058,7 +2058,7 @@ class ClusterClass(Base):
                                                     - {{ .builtin.cluster.name }}
                                                     - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}
                                                     - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc
-                                                    - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc.cluster.local
+                                                    - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc.cluster.local # noqa: E501
                                                     {{ .apiServerSANs }}
                                                     """
                                                 ),
