@@ -1184,6 +1184,15 @@ class ClusterClass(Base):
                             },
                         },
                         {
+                            "name": "apiServerSANs",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
                             "name": "nodeCidr",
                             "required": True,
                             "schema": {
@@ -2050,6 +2059,7 @@ class ClusterClass(Base):
                                                     - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}
                                                     - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc
                                                     - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc.cluster.local # noqa: E501
+                                                    {{ .apiServerSANs }}
                                                     """
                                                 ),
                                             },
@@ -2623,6 +2633,10 @@ class Cluster(ClusterBase):
                                     "kubelet_tls_cipher_suites",
                                     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",  # noqa: E501
                                 ),
+                            },
+                            {
+                                "name": "apiServerSANs",
+                                "value": utils.generate_api_cert_san_list(self.cluster),
                             },
                             {
                                 "name": "nodeCidr",
