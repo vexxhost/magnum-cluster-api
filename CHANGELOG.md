@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.20.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.19.2...v0.20.0) (2024-06-27)
+
+
+### Features
+
+* support additional cert sans [ATMOSPHERE-260] ([#402](https://github.com/vexxhost/magnum-cluster-api/issues/402)) ([da93f6a](https://github.com/vexxhost/magnum-cluster-api/commit/da93f6abc822579d52d88eace644c7d9bd0a8cdd))
+* support cilium cni ([#287](https://github.com/vexxhost/magnum-cluster-api/issues/287)) ([4f922d0](https://github.com/vexxhost/magnum-cluster-api/commit/4f922d0a805cea8a4b0e6e520b28d81a55b5e150))
+
 ## [0.19.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.19.1...v0.19.2) (2024-06-20)
 
 
