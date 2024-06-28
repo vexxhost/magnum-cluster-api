@@ -10,10 +10,16 @@
         - item.name is defined
         - item.name == "{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
 
+    - name: Download image
+      when: image_url is defined
+      get_url:
+        url: "{{ image_url }}"
+        dest: "{{ zuul.project.src_dir }}/{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
+
     - shell: "./hack/stack.sh"
       args:
         chdir: "{{ zuul.project.src_dir }}"
- 
+
     - shell: "./hack/run-integration-tests.sh"
       args:
         chdir: "{{ zuul.project.src_dir }}"
@@ -22,7 +28,7 @@
         OS_DISTRO: "{{ image_os_distro }}"
         KUBE_TAG: "{{ kube_tag }}"
         NODE_COUNT: 2
-        BUILD_NEW_IMAGE: "{{ fetch_artifact.changed }}"
+        BUILD_NEW_IMAGE: "true"
         NETWORK_DRIVER: "{{ network_driver }}"
 
     - name: Copy Sonobuoy results to output folder
