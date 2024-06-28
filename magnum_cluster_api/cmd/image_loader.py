@@ -182,6 +182,7 @@ def _get_calico_images():
         "docker.io/calico/node:v3.24.2",
     ]
 
+
 def _get_cilium_images():
     return [
         # Cilium 1.15.6
@@ -190,6 +191,7 @@ def _get_cilium_images():
         "quay.io/cilium/cilium:v1.15.6",
         "quay.io/cilium/operator-generic:v1.15.6",
     ]
+
 
 def _get_cloud_provider_images():
     return [
