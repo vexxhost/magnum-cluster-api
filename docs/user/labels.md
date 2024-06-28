@@ -168,6 +168,11 @@ is often accomplished by deploying a driver on each node.
 
 ## Kubernetes
 
+* `api_server_cert_sans`
+
+   Specify the additional Subject Alternative Names (SANs) for the Kubernetes API Server,
+   separated by commas.
+
 * `api_server_tls_cipher_suites`
 
    Specify the list of TLS cipher suites to use for the Kubernetes API server,
