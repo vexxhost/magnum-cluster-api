@@ -9,6 +9,7 @@
     name: magnum-cluster-api-sonobuoy-flatcar
     parent: magnum-cluster-api-sonobuoy
     abstract: true
+    voting: false
     vars:
       image_operating_system: flatcar
       image_os_distro: flatcar

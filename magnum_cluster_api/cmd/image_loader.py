@@ -44,9 +44,10 @@ VERSIONS = [
     "v1.26.11",
     "v1.27.3",
     "v1.27.8",
-    "v1.27.14",
+    "v1.27.15",
     "v1.28.11",
     "v1.29.6",
+    "v1.30.2",
 ]
 
 
@@ -86,6 +87,7 @@ def main(repository, parallel, insecure):
     images = set(
         _get_all_kubeadm_images()
         + _get_calico_images()
+        + _get_cilium_images()
         + _get_cloud_provider_images()
         + _get_infra_images()
     )
@@ -181,9 +183,19 @@ def _get_calico_images():
     ]
 
 
+def _get_cilium_images():
+    return [
+        # Cilium 1.15.6
+        "quay.io/cilium/cilium:v1.15.3",
+        "quay.io/cilium/operator-generic:v1.15.3",
+        "quay.io/cilium/cilium:v1.15.6",
+        "quay.io/cilium/operator-generic:v1.15.6",
+    ]
+
+
 def _get_cloud_provider_images():
     return [
-        # 1.24.6
+        # v1.24.6
         "registry.k8s.io/provider-os/k8s-keystone-auth:v1.24.6",
         "registry.k8s.io/provider-os/cinder-csi-plugin:v1.24.6",
         "registry.k8s.io/provider-os/manila-csi-plugin:v1.24.6",
@@ -228,6 +240,11 @@ def _get_cloud_provider_images():
         "registry.k8s.io/provider-os/cinder-csi-plugin:v1.29.0",
         "registry.k8s.io/provider-os/manila-csi-plugin:v1.29.0",
         "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.29.0",
+        # v1.30.0
+        "registry.k8s.io/provider-os/k8s-keystone-auth:v1.30.0",
+        "registry.k8s.io/provider-os/cinder-csi-plugin:v1.30.0",
+        "registry.k8s.io/provider-os/manila-csi-plugin:v1.30.0",
+        "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.30.0",
     ]
 
 
