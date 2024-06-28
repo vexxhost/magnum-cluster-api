@@ -44,6 +44,10 @@ VERSIONS = [
     "v1.26.11",
     "v1.27.3",
     "v1.27.8",
+    "v1.27.15",
+    "v1.28.11",
+    "v1.29.6",
+    "v1.30.2",
 ]
 
 
@@ -83,6 +87,7 @@ def main(repository, parallel, insecure):
     images = set(
         _get_all_kubeadm_images()
         + _get_calico_images()
+        + _get_cilium_images()
         + _get_cloud_provider_images()
         + _get_infra_images()
     )
@@ -177,35 +182,67 @@ def _get_calico_images():
         "docker.io/calico/node:v3.24.2",
     ]
 
+def _get_cilium_images():
+    return [
+        # Cilium 1.15.6
+        "quay.io/cilium/cilium:v1.15.3",
+        "quay.io/cilium/operator-generic:v1.15.3",
+        "quay.io/cilium/cilium:v1.15.6",
+        "quay.io/cilium/operator-generic:v1.15.6",
+    ]
 
 def _get_cloud_provider_images():
     return [
-        # 1.24.6
+        # v1.24.6
+        "registry.k8s.io/provider-os/k8s-keystone-auth:v1.24.6",
         "registry.k8s.io/provider-os/cinder-csi-plugin:v1.24.6",
         "registry.k8s.io/provider-os/manila-csi-plugin:v1.24.6",
         "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.24.6",
         # v1.25.3
+        "docker.io/k8scloudprovider/k8s-keystone-auth:v1.25.3",
         "docker.io/k8scloudprovider/cinder-csi-plugin:v1.25.3",
         "docker.io/k8scloudprovider/manila-csi-plugin:v1.25.3",
         "docker.io/k8scloudprovider/openstack-cloud-controller-manager:v1.25.3",
         # v1.25.6
+        "registry.k8s.io/provider-os/k8s-keystone-auth:v1.25.6",
         "registry.k8s.io/provider-os/cinder-csi-plugin:v1.25.6",
         "registry.k8s.io/provider-os/manila-csi-plugin:v1.25.6",
         "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.25.6",
         # v1.26.3
+        "registry.k8s.io/provider-os/k8s-keystone-auth:v1.26.3",
         "registry.k8s.io/provider-os/cinder-csi-plugin:v1.26.3",
         "registry.k8s.io/provider-os/manila-csi-plugin:v1.26.3",
         "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.26.3",
         # v1.27.2
+        "registry.k8s.io/provider-os/k8s-keystone-auth:v1.27.2",
         "registry.k8s.io/provider-os/cinder-csi-plugin:v1.27.2",
         "registry.k8s.io/provider-os/manila-csi-plugin:v1.27.2",
         "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.27.2",
+        # v1.27.3
+        "registry.k8s.io/provider-os/k8s-keystone-auth:v1.27.3",
+        "registry.k8s.io/provider-os/cinder-csi-plugin:v1.27.3",
+        "registry.k8s.io/provider-os/manila-csi-plugin:v1.27.3",
+        "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.27.3",
         # v1.28.0
+        "registry.k8s.io/provider-os/k8s-keystone-auth:v1.28.0",
         "registry.k8s.io/provider-os/cinder-csi-plugin:v1.28.0",
         "registry.k8s.io/provider-os/manila-csi-plugin:v1.28.0",
         "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.28.0",
+        # v1.28.2
+        "registry.k8s.io/provider-os/k8s-keystone-auth:v1.28.2",
+        "registry.k8s.io/provider-os/cinder-csi-plugin:v1.28.2",
+        "registry.k8s.io/provider-os/manila-csi-plugin:v1.28.2",
+        "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.28.2",
         # v1.29.0
         "registry.k8s.io/provider-os/k8s-keystone-auth:v1.29.0",
+        "registry.k8s.io/provider-os/cinder-csi-plugin:v1.29.0",
+        "registry.k8s.io/provider-os/manila-csi-plugin:v1.29.0",
+        "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.29.0",
+        # v1.30.0
+        "registry.k8s.io/provider-os/k8s-keystone-auth:v1.30.0",
+        "registry.k8s.io/provider-os/cinder-csi-plugin:v1.30.0",
+        "registry.k8s.io/provider-os/manila-csi-plugin:v1.30.0",
+        "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.30.0",
     ]
 
 

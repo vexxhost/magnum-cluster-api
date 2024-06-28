@@ -83,9 +83,13 @@ def get_cloud_provider_tag(cluster: objects.Cluster, label: str) -> str:
     elif version.major == 1 and version.minor == 26:
         tag = "v1.26.3"
     elif version.major == 1 and version.minor == 27:
-        # TODO(mnaser): There is no 1.27 release yet, so we're using
-        #               the latest 1.26 release for now.
-        tag = "v1.26.3"
+        tag = "v1.27.3"
+    elif version.major == 1 and version.minor == 28:
+        tag = "v1.28.2"
+    elif version.major == 1 and version.minor == 29:
+        tag = "v1.29.0"
+    elif version.major == 1 and version.minor == 30:
+        tag = "v1.30.0"
 
     if tag is None:
         raise ValueError(
