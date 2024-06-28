@@ -2373,10 +2373,12 @@ class Cluster(ClusterBase):
         context: context.RequestContext,
         api: pykube.HTTPClient,
         cluster: magnum_objects.Cluster,
+        cluster_class: str = CLUSTER_CLASS_NAME,
     ):
         self.context = context
         self.api = api
         self.cluster = cluster
+        self.cluster_class = cluster_class
 
     @property
     def labels(self) -> dict:
@@ -2441,7 +2443,7 @@ class Cluster(ClusterBase):
                         },
                     },
                     "topology": {
-                        "class": CLUSTER_CLASS_NAME,
+                        "class": self.cluster_class,
                         "version": utils.get_kube_tag(self.cluster),
                         "controlPlane": {
                             "metadata": {
@@ -2735,6 +2737,7 @@ def apply_cluster_from_magnum_cluster(
     context: context.RequestContext,
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
+    cluster_class: str = CLUSTER_CLASS_NAME,
     skip_auto_scaling_release: bool = False,
 ) -> None:
     """
@@ -2744,7 +2747,7 @@ def apply_cluster_from_magnum_cluster(
 
     ClusterResourcesConfigMap(context, api, cluster).apply()
     ClusterResourceSet(api, cluster).apply()
-    Cluster(context, api, cluster).apply()
+    Cluster(context, api, cluster, cluster_class).apply()
 
     if not skip_auto_scaling_release and utils.get_auto_scaling_enabled(cluster):
         ClusterAutoscalerHelmRelease(api, cluster).apply()
