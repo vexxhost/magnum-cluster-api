@@ -16,3 +16,5 @@
       shell: "$HOME/.local/bin/magnum-cluster-api-image-builder --operating-system {{ image_operating_system }} --version {{ kube_tag }}"
       args:
         chdir: "{{ zuul_output_dir }}/artifacts"
+      environment:
+        CI: "true"

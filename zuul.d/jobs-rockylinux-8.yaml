@@ -15,19 +15,49 @@
       image_os_distro: ubuntu
 
 - job:
-    name: magnum-cluster-api-image-build-rockylinux-8-v1.27.8
+    name: magnum-cluster-api-image-build-rockylinux-8-v1.27.14
     parent: magnum-cluster-api-image-build-rockylinux-8
     vars:
-      kube_tag: v1.27.8
+      kube_tag: v1.27.14
 
 - job:
-    name: magnum-cluster-api-sonobuoy-rockylinux-8-v1.27.8
+    name: magnum-cluster-api-sonobuoy-rockylinux-8-v1.27.14
     parent: magnum-cluster-api-sonobuoy-rockylinux-8
     dependencies:
-      - name: magnum-cluster-api-image-build-rockylinux-8-v1.27.8
+      - name: magnum-cluster-api-image-build-rockylinux-8-v1.27.14
         soft: true
     vars:
-      kube_tag: v1.27.8
+      kube_tag: v1.27.14
+
+- job:
+    name: magnum-cluster-api-image-build-rockylinux-8-v1.28.10
+    parent: magnum-cluster-api-image-build-rockylinux-8
+    vars:
+      kube_tag: v1.28.10
+
+- job:
+    name: magnum-cluster-api-sonobuoy-rockylinux-8-v1.28.10
+    parent: magnum-cluster-api-sonobuoy-rockylinux-8
+    dependencies:
+      - name: magnum-cluster-api-image-build-rockylinux-8-v1.28.10
+        soft: true
+    vars:
+      kube_tag: v1.28.10
+
+- job:
+    name: magnum-cluster-api-image-build-rockylinux-8-v1.29.5
+    parent: magnum-cluster-api-image-build-rockylinux-8
+    vars:
+      kube_tag: v1.29.5
+
+- job:
+    name: magnum-cluster-api-sonobuoy-rockylinux-8-v1.29.5
+    parent: magnum-cluster-api-sonobuoy-rockylinux-8
+    dependencies:
+      - name: magnum-cluster-api-image-build-rockylinux-8-v1.29.5
+        soft: true
+    vars:
+      kube_tag: v1.29.5
 
 - job:
     name: magnum-cluster-api-sonobuoy-rockylinux-8-v1.27.8-calico
@@ -48,3 +78,4 @@
         - magnum-cluster-api-image-build-rockylinux-8-v1.27.8
         - magnum-cluster-api-sonobuoy-rockylinux-8-v1.27.8-calico
         - magnum-cluster-api-sonobuoy-rockylinux-8-v1.27.8-cilium
+
