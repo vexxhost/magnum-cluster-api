@@ -17,6 +17,10 @@ class OpenAPIV3SchemaType(str, Enum):
 class OpenAPIV3Schema(BaseModel):
     type: OpenAPIV3SchemaType
 
+    class Config:
+        use_enum_values = True
+        discriminator = "type"
+
 
 class OpenAPIV3ArraySchema(OpenAPIV3Schema):
     type: OpenAPIV3SchemaType = OpenAPIV3SchemaType.ARRAY
@@ -45,6 +49,10 @@ class OpenAPIV3StringSchema(OpenAPIV3Schema):
     type: OpenAPIV3SchemaType = OpenAPIV3SchemaType.STRING
     default: Optional[str] = None
     enum: Optional[List[str]] = None
+
+
+# Update forward references
+OpenAPIV3ObjectSchema.update_forward_refs()
 
 
 class VariableSchema(BaseModel):
