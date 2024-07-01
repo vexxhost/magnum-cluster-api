@@ -20,6 +20,9 @@ class OpenAPIV3Schema(BaseModel):
     class Config:
         use_enum_values = True
 
+    def model_dump(self):
+        return super().model_dump(exclude_none=True)
+
 
 class OpenAPIV3ArraySchema(OpenAPIV3Schema):
     type: OpenAPIV3SchemaType = OpenAPIV3SchemaType.ARRAY
