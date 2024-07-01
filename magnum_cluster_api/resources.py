@@ -1139,7 +1139,7 @@ class ClusterClass(Base):
                         ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="operatingSystem",
-                            required=False,
+                            required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema(
                                     enum=utils.AVAILABLE_OPERATING_SYSTEMS,
