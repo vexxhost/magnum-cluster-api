@@ -930,14 +930,14 @@ class ClusterClass(Base):
                                     },
                                 ),
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="apiServerTLSCipherSuites",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="openidConnect",
                             required=True,
@@ -961,7 +961,7 @@ class ClusterClass(Base):
                                     },
                                 ),
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="auditLog",
                             required=True,
@@ -981,7 +981,7 @@ class ClusterClass(Base):
                                     },
                                 ),
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="bootVolume",
                             required=True,
@@ -994,7 +994,7 @@ class ClusterClass(Base):
                                     },
                                 ),
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="clusterIdentityRef",
                             required=True,
@@ -1009,56 +1009,56 @@ class ClusterClass(Base):
                                     },
                                 ),
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="cloudCaCert",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="cloudControllerManagerConfig",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="systemdProxyConfig",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="aptProxyConfig",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="containerdConfig",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="controlPlaneFlavor",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="disableAPIServerFloatingIP",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3BooleanSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="dnsNameservers",
                             required=True,
@@ -1067,77 +1067,77 @@ class ClusterClass(Base):
                                     items=cluster_class.OpenAPIV3StringSchema()
                                 )
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="externalNetworkId",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="fixedNetworkName",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="fixedSubnetId",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="flavor",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="imageRepository",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="imageUUID",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="kubeletTLSCipherSuites",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="apiServerSANs",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="nodeCidr",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="sshKeyName",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="operatingSystem",
                             required=True,
@@ -1147,63 +1147,63 @@ class ClusterClass(Base):
                                     default="ubuntu",
                                 ),
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="enableDockerVolume",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3BooleanSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="dockerVolumeSize",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3IntegerSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="dockerVolumeType",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="enableEtcdVolume",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3BooleanSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="etcdVolumeSize",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3IntegerSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="etcdVolumeType",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="availabilityZone",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="enableKeystoneAuth",
                             required=True,
                             schema=cluster_class.VariableSchema(
                                 openAPIV3Schema=cluster_class.OpenAPIV3BooleanSchema(default=False)
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                         cluster_class.Variable(
                             name="controlPlaneAvailabilityZones",
                             required=True,
@@ -1212,7 +1212,7 @@ class ClusterClass(Base):
                                     items=cluster_class.OpenAPIV3StringSchema()
                                 )
                             ),
-                        ).dict(),
+                        ).dict(exclude_none=True),
                     ],
                     "patches": [
                         {
