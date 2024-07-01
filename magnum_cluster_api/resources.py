@@ -34,6 +34,7 @@ from oslo_utils import encodeutils
 
 from magnum_cluster_api import (
     clients,
+    cluster_class,
     helm,
     image_utils,
     images,
@@ -917,40 +918,32 @@ class ClusterClass(Base):
                         ],
                     },
                     "variables": [
-                        {
-                            "name": "apiServerLoadBalancer",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "object",
-                                    "required": ["enabled"],
-                                    "properties": {
-                                        "enabled": {
-                                            "type": "boolean",
-                                        },
-                                        "provider": {
-                                            "type": "string",
-                                        },
+                        cluster_class.Variable(
+                            name="apiServerLoadBalancer",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3ObjectSchema(
+                                    required=["enabled"],
+                                    properties={
+                                        "enabled": cluster_class.OpenAPIV3BooleanSchema(),
+                                        "provider": cluster_class.OpenAPIV3StringSchema(),
                                     },
-                                },
-                            },
-                        },
-                        {
-                            "name": "apiServerTLSCipherSuites",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "openidConnect",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "object",
-                                    "required": [
+                                ),
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="apiServerTLSCipherSuites",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="openidConnect",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3ObjectSchema(
+                                    required=[
                                         "issuerUrl",
                                         "clientId",
                                         "usernameClaim",
@@ -958,353 +951,268 @@ class ClusterClass(Base):
                                         "groupsClaim",
                                         "groupsPrefix",
                                     ],
-                                    "properties": {
-                                        "issuerUrl": {
-                                            "type": "string",
-                                        },
-                                        "clientId": {
-                                            "type": "string",
-                                        },
-                                        "usernameClaim": {
-                                            "type": "string",
-                                        },
-                                        "usernamePrefix": {
-                                            "type": "string",
-                                        },
-                                        "groupsClaim": {
-                                            "type": "string",
-                                        },
-                                        "groupsPrefix": {
-                                            "type": "string",
-                                        },
+                                    properties={
+                                        "issuerUrl": cluster_class.OpenAPIV3StringSchema(),
+                                        "clientId": cluster_class.OpenAPIV3StringSchema(),
+                                        "usernameClaim": cluster_class.OpenAPIV3StringSchema(),
+                                        "usernamePrefix": cluster_class.OpenAPIV3StringSchema(),
+                                        "groupsClaim": cluster_class.OpenAPIV3StringSchema(),
+                                        "groupsPrefix": cluster_class.OpenAPIV3StringSchema(),
                                     },
-                                },
-                            },
-                        },
-                        {
-                            "name": "auditLog",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "object",
-                                    "required": [
+                                ),
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="auditLog",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3ObjectSchema(
+                                    required=[
                                         "enabled",
                                         "maxAge",
                                         "maxBackup",
                                         "maxSize",
                                     ],
-                                    "properties": {
-                                        "enabled": {
-                                            "type": "boolean",
-                                        },
-                                        "maxAge": {
-                                            "type": "string",
-                                        },
-                                        "maxBackup": {
-                                            "type": "string",
-                                        },
-                                        "maxSize": {
-                                            "type": "string",
-                                        },
+                                    properties={
+                                        "enabled": cluster_class.OpenAPIV3BooleanSchema(),
+                                        "maxAge": cluster_class.OpenAPIV3StringSchema(),
+                                        "maxBackup": cluster_class.OpenAPIV3StringSchema(),
+                                        "maxSize": cluster_class.OpenAPIV3StringSchema(),
                                     },
-                                },
-                            },
-                        },
-                        {
-                            "name": "bootVolume",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "object",
-                                    "required": ["size"],
-                                    "properties": {
-                                        "size": {
-                                            "type": "integer",
-                                        },
-                                        "type": {
-                                            "type": "string",
-                                        },
+                                ),
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="bootVolume",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3ObjectSchema(
+                                    required=["size"],
+                                    properties={
+                                        "size": cluster_class.OpenAPIV3IntegerSchema(),
+                                        "type": cluster_class.OpenAPIV3StringSchema(),
                                     },
-                                },
-                            },
-                        },
-                        {
-                            "name": "clusterIdentityRef",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "object",
-                                    "required": ["kind", "name"],
-                                    "properties": {
-                                        "kind": {
-                                            "type": "string",
-                                            "enum": [pykube.Secret.kind],
-                                        },
-                                        "name": {"type": "string"},
+                                ),
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="clusterIdentityRef",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3ObjectSchema(
+                                    required=["kind", "name"],
+                                    properties={
+                                        "kind": cluster_class.OpenAPIV3StringSchema(
+                                            enum=[pykube.Secret.kind],
+                                        ),
+                                        "name": cluster_class.OpenAPIV3StringSchema(),
                                     },
-                                },
-                            },
-                        },
-                        {
-                            "name": "cloudCaCert",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "cloudControllerManagerConfig",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "systemdProxyConfig",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "aptProxyConfig",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "containerdConfig",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "controlPlaneFlavor",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "disableAPIServerFloatingIP",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "boolean",
-                                },
-                            },
-                        },
-                        {
-                            "name": "dnsNameservers",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string",
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            "name": "externalNetworkId",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "fixedNetworkName",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "fixedSubnetId",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "flavor",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "imageRepository",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "imageUUID",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "kubeletTLSCipherSuites",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "apiServerSANs",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "nodeCidr",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "sshKeyName",
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "operatingSystem",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                    "enum": utils.AVAILABLE_OPERATING_SYSTEMS,
-                                    "default": "ubuntu",
-                                },
-                            },
-                        },
-                        {
-                            "name": "enableDockerVolume",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "boolean",
-                                },
-                            },
-                        },
-                        {
-                            "name": "dockerVolumeSize",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "integer",
-                                },
-                            },
-                        },
-                        {
-                            "name": "dockerVolumeType",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "enableEtcdVolume",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "boolean",
-                                },
-                            },
-                        },
-                        {
-                            "name": "etcdVolumeSize",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "integer",
-                                },
-                            },
-                        },
-                        {
-                            "name": "etcdVolumeType",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "availabilityZone",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                        {
-                            "name": "enableKeystoneAuth",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "boolean",
-                                    "default": False,
-                                },
-                            },
-                        },
-                        {
-                            "name": "controlPlaneAvailabilityZones",
-                            "required": True,
-                            "schema": {
-                                "openAPIV3Schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string",
-                                    },
-                                },
-                            },
-                        },
+                                ),
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="cloudCaCert",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="cloudControllerManagerConfig",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="systemdProxyConfig",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="aptProxyConfig",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="containerdConfig",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="controlPlaneFlavor",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="disableAPIServerFloatingIP",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3BooleanSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="dnsNameservers",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3ArraySchema(
+                                    items=cluster_class.OpenAPIV3StringSchema()
+                                )
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="externalNetworkId",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="fixedNetworkName",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="fixedSubnetId",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="flavor",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="imageRepository",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="imageUUID",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="kubeletTLSCipherSuites",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="apiServerSANs",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="nodeCidr",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="sshKeyName",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="operatingSystem",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema(
+                                    enum=utils.AVAILABLE_OPERATING_SYSTEMS,
+                                    default="ubuntu",
+                                ),
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="enableDockerVolume",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3BooleanSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="dockerVolumeSize",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3IntegerSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="dockerVolumeType",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="enableEtcdVolume",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3BooleanSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="etcdVolumeSize",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3IntegerSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="etcdVolumeType",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="availabilityZone",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3StringSchema()
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="enableKeystoneAuth",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3BooleanSchema(default=False)
+                            ),
+                        ).dict(),
+                        cluster_class.Variable(
+                            name="controlPlaneAvailabilityZones",
+                            required=True,
+                            schema=cluster_class.VariableSchema(
+                                openAPIV3Schema=cluster_class.OpenAPIV3ArraySchema(
+                                    items=cluster_class.OpenAPIV3StringSchema()
+                                )
+                            ),
+                        ).dict(),
                     ],
                     "patches": [
                         {

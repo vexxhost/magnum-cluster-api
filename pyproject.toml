@@ -30,6 +30,7 @@ requests = ">=2.27.1"
 semver = "^2.0.0"
 sherlock = "^0.4.1"
 shortuuid = "*"
+pydantic = "^2.8.0"
 
 [tool.poetry.group.dev.dependencies]
 fixtures = "^4.1.0"
