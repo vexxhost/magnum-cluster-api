@@ -137,11 +137,11 @@ class BaseDriver(driver.Driver):
         if generation > 1:
             action = "UPDATE"
 
-        ready = kcp.obj["status"].get("ready", False)
-        failure_message = kcp.obj["status"].get("failureMessage")
+        ready = kcp.obj.get("status", {}).get("ready", False)
+        failure_message = kcp.obj.get("status", {}).get("failureMessage")
 
-        updated_replicas = kcp.obj["status"].get("updatedReplicas")
-        replicas = kcp.obj["status"].get("replicas")
+        updated_replicas = kcp.obj.get("status", {}).get("updatedReplicas")
+        replicas = kcp.obj.get("status", {}).get("replicas")
 
         if updated_replicas != replicas:
             nodegroup.status = f"{action}_IN_PROGRESS"
