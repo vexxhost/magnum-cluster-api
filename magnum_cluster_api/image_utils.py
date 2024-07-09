@@ -57,7 +57,9 @@ def get_image(name: str, repository: str = None):
         return name
 
     if name.startswith("docker.io/calico"):
-        return name.replace("docker.io/calico/", f"{repository}/calico-")
+        return name.replace("docker.io/calico/", f"{repository}/calico/")
+    if name.startswith("quay.io/cilium"):
+        return name.replace("quay.io/cilium/", f"{repository}/cilium/")
     if name.startswith(f"{repository}/livenessprobe"):
         return name.replace("livenessprobe", "csi-livenessprobe")
 
