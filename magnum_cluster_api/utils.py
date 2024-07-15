@@ -269,7 +269,7 @@ def get_node_group_min_node_count(
     node_group: magnum_objects.NodeGroup,
     default=1,
 ) -> int:
-    if node_group.min_node_count == 0:
+    if node_group.min_node_count is None:
         return default
     return node_group.min_node_count
 
