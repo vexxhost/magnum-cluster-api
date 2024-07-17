@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.21.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.21.0...v0.21.1) (2024-07-17)
+
+
+### Bug Fixes
+
+* add skips + breakout for DELETE_COMPLETE ([0e904b6](https://github.com/vexxhost/magnum-cluster-api/commit/0e904b6e256f6cfb5ddf32816707368ea6738ac2))
+
+
+### Miscellaneous Chores
+
+* release 0.21.1 ([8a16cf9](https://github.com/vexxhost/magnum-cluster-api/commit/8a16cf9330a075025d726c670746ae604a0c3a60))
+
 ## [0.21.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.20.0...v0.21.0) (2024-06-28)
 
 
