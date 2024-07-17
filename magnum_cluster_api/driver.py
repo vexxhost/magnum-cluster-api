@@ -422,7 +422,12 @@ class BaseDriver(driver.Driver):
 
         node_groups = []
         for node_group in cluster.nodegroups:
-            if node_group.role == "master":
+            # NOTE(mnaser): Nothing to do if the node group is in `DELETE_COMPLETE`
+            #               state and skip work if it's a master node group.
+            if (
+                node_group.role == "master"
+                and node_group.status == fields.ClusterStatus.DELETE_COMPLETE
+            ):
                 continue
 
             md = objects.MachineDeployment.for_node_group_or_none(
@@ -438,6 +443,7 @@ class BaseDriver(driver.Driver):
             ):
                 node_group.status = fields.ClusterStatus.DELETE_COMPLETE
                 node_group.save()
+                continue
 
             md_is_running = (
                 md is not None and md.obj.get("status", {}).get("phase") == "Running"
@@ -452,6 +458,7 @@ class BaseDriver(driver.Driver):
             ):
                 node_group.status = fields.ClusterStatus.CREATE_COMPLETE
                 node_group.save()
+                continue
 
             # Get list of all of the OpenStackMachine objects for this node group
             machines = objects.OpenStackMachine.objects(
@@ -490,6 +497,7 @@ class BaseDriver(driver.Driver):
             ):
                 node_group.status = fields.ClusterStatus.UPDATE_COMPLETE
                 node_group.save()
+                continue
 
             node_groups.append(node_group)
 
