@@ -1,6 +1,7 @@
 - job:
     name: magnum-cluster-api-linters
     parent: tox-linters
+    pre-run: zuul.d/playbooks/linters/pre.yml
 
 - job:
     name: magnum-cluster-api-unit
