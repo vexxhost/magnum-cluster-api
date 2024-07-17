@@ -428,6 +428,17 @@ class BaseDriver(driver.Driver):
             md = objects.MachineDeployment.for_node_group_or_none(
                 self.k8s_api, cluster, node_group
             )
+
+            # NOTE(mnaser): If the cluster is in `DELETE_IN_PROGRESS` state, we need to
+            #               wait for the `MachineDeployment` to be deleted before we can
+            #               mark the node group as `DELETE_COMPLETE`.
+            if (
+                node_group.status == fields.ClusterStatus.DELETE_IN_PROGRESS
+                and md is None
+            ):
+                node_group.status = fields.ClusterStatus.DELETE_COMPLETE
+                node_group.save()
+
             md_is_running = (
                 md is not None and md.obj.get("status", {}).get("phase") == "Running"
             )
@@ -478,16 +489,6 @@ class BaseDriver(driver.Driver):
                 and image_id_match
             ):
                 node_group.status = fields.ClusterStatus.UPDATE_COMPLETE
-                node_group.save()
-
-            # NOTE(mnaser): If the cluster is in `DELETE_IN_PROGRESS` state, we need to
-            #               wait for the `MachineDeployment` to be deleted before we can
-            #               mark the node group as `DELETE_COMPLETE`.
-            if (
-                node_group.status == fields.ClusterStatus.DELETE_IN_PROGRESS
-                and md is None
-            ):
-                node_group.status = fields.ClusterStatus.DELETE_COMPLETE
                 node_group.save()
 
             node_groups.append(node_group)
