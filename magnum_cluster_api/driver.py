@@ -426,7 +426,7 @@ class BaseDriver(driver.Driver):
             #               state and skip work if it's a master node group.
             if (
                 node_group.role == "master"
-                and node_group.status == fields.ClusterStatus.DELETE_COMPLETE
+                or node_group.status == fields.ClusterStatus.DELETE_COMPLETE
             ):
                 continue
 
