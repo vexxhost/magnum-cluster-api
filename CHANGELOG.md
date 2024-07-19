@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.21.1...v0.21.2) (2024-07-19)
+
+
+### Bug Fixes
+
+* allow skipping node groups that are master or delete complete ([#415](https://github.com/vexxhost/magnum-cluster-api/issues/415)) ([bd32dec](https://github.com/vexxhost/magnum-cluster-api/commit/bd32dec463b0990175ba4517b4539ceb9cc75f18))
+
 ## [0.21.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.21.0...v0.21.1) (2024-07-17)
 
 
