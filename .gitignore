@@ -1,4 +1,5 @@
 .direnv
+.idea
 __pycache__
 dist
 site
