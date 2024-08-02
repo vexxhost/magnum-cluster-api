@@ -2015,10 +2015,10 @@ class ClusterClass(Base):
                                                     - patch: |-
                                                       - op: add
                                                         path: /spec/containers/0/command/-
-                                                        value: --authentication-token-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml
+                                                        value: --authentication-token-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
                                                       - op: add
                                                         path: /spec/containers/0/command/-
-                                                        value: --authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml
+                                                        value: --authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
                                                       - op: add
                                                         path: /spec/containers/0/command/-
                                                         value: --authorization-mode=Node,RBAC,Webhook
@@ -2036,12 +2036,12 @@ class ClusterClass(Base):
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-",
-                                            "value": "cp /etc/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml",
+                                            "value": "cp /etc/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml",  # noqa: E501
                                         },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-",
-                                            "value": "kubectl kustomize /etc/kubernetes/keystone-kustomization -o /etc/kubernetes/manifests/kube-apiserver.yaml",
+                                            "value": "kubectl kustomize /etc/kubernetes/keystone-kustomization -o /etc/kubernetes/manifests/kube-apiserver.yaml",  # noqa: E501
                                         },
                                     ],
                                 }
