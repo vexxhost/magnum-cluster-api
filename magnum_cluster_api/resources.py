@@ -736,6 +736,9 @@ class KubeadmControlPlaneTemplate(Base):
                                     "rm /var/lib/etcd/lost+found -rf",
                                     "bash /run/kubeadm/configure-kube-proxy.sh",
                                 ],
+                                "postKubeadmCommands": [
+                                    "echo PLACEHOLDER",
+                                ],
                             },
                         },
                     },
@@ -1999,18 +2002,46 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authentication-token-webhook-config-file",  # noqa: E501
-                                            "value": "/etc/kubernetes/webhooks/webhookconfig.yaml",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
+                                            "value": {
+                                                "path": "/etc/kubernetes/keystone-kustomization/kustomization.yml",
+                                                "permissions": "0644",
+                                                "owner": "root:root",
+                                                "content": textwrap.dedent(
+                                                    """\
+                                                    resources:
+                                                    - kube-apiserver.yaml
+                                                    patches:
+                                                    - patch: |-
+                                                      - op: add
+                                                        path: /spec/containers/0/command/-
+                                                        value: --authentication-token-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml
+                                                      - op: add
+                                                        path: /spec/containers/0/command/-
+                                                        value: --authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml
+                                                      - op: add
+                                                        path: /spec/containers/0/command/-
+                                                        value: --authorization-mode=Node,RBAC,Webhook
+                                                      target:
+                                                        kind: Pod
+                                                    """
+                                                ),
+                                            },
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authorization-webhook-config-file",  # noqa: E501
-                                            "value": "/etc/kubernetes/webhooks/webhookconfig.yaml",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-",
+                                            "value": "mkdir /etc/kubernetes/keystone-kustomization",
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authorization-mode",  # noqa: E501
-                                            "value": "Node,RBAC,Webhook",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-",
+                                            "value": "cp /etc/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml",
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-",
+                                            "value": "kubectl kustomize /etc/kubernetes/keystone-kustomization -o /etc/kubernetes/manifests/kube-apiserver.yaml",
                                         },
                                     ],
                                 }
