@@ -22,7 +22,7 @@ specify the volume size and type using the following labels:
 `boot_volume_type`
 
 :   The volume type of the boot volume.
-    **Default value**: Default volume 
+    **Default value**: Default volume
 
 `etcd_volume_size`
 

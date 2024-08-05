@@ -41,7 +41,7 @@ state, you can follow the steps below to troubleshoot the issue:
     ```
 
     !!! note
-   
+
         If the cluster exists and it is in `Provisioned` state, you can skip to
         step 3.
 

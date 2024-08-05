@@ -63,33 +63,49 @@ for manifest in MANIFESTS:
                 "value"
             ] = "unix:///var/lib/kubelet/plugins/csi-nfsplugin/csi.sock"
             doc["spec"]["template"]["spec"]["containers"][3]["env"][4]["value"] = "NFS"
-            doc["spec"]["template"]["spec"]["containers"][3]["image"] = "registry.k8s.io/provider-os/manila-csi-plugin:latest"
-            doc["spec"]["template"]["spec"]["containers"][3]["volumeMounts"][1]["mountPath"] = "/var/lib/kubelet/plugins/csi-nfsplugin"
-            doc["spec"]["template"]["spec"]["volumes"][1]["hostPath"]["path"] = "/var/lib/kubelet/plugins/csi-nfsplugin"
+            doc["spec"]["template"]["spec"]["containers"][3][
+                "image"
+            ] = "registry.k8s.io/provider-os/manila-csi-plugin:latest"
+            doc["spec"]["template"]["spec"]["containers"][3]["volumeMounts"][1][
+                "mountPath"
+            ] = "/var/lib/kubelet/plugins/csi-nfsplugin"
+            doc["spec"]["template"]["spec"]["volumes"][1]["hostPath"][
+                "path"
+            ] = "/var/lib/kubelet/plugins/csi-nfsplugin"
 
             # NOTE(okozachenko1203): Add `/etc/kuberentes/cloud_ca.crt`.
-            doc["spec"]["template"]["spec"]["containers"][3]["volumeMounts"].append({
-                "name": "cloud-ca-cert-volume",
-                "readOnly": True,
-                "mountPath": "/etc/config/ca.crt",
-            })
-            doc["spec"]["template"]["spec"]["volumes"].append({
-                "name": "cloud-ca-cert-volume",
-                "hostPath": {
-                    "type": "File",
-                    "path": "/etc/kubernetes/cloud_ca.crt",
-                },
-            })
+            doc["spec"]["template"]["spec"]["containers"][3]["volumeMounts"].append(
+                {
+                    "name": "cloud-ca-cert-volume",
+                    "readOnly": True,
+                    "mountPath": "/etc/config/ca.crt",
+                }
+            )
+            doc["spec"]["template"]["spec"]["volumes"].append(
+                {
+                    "name": "cloud-ca-cert-volume",
+                    "hostPath": {
+                        "type": "File",
+                        "path": "/etc/kubernetes/cloud_ca.crt",
+                    },
+                }
+            )
 
         if doc["kind"] == "DaemonSet":
             doc["spec"]["template"]["spec"]["containers"][1]["env"][3][
                 "value"
             ] = "unix:///var/lib/kubelet/plugins/csi-nfsplugin/csi.sock"
             doc["spec"]["template"]["spec"]["containers"][1]["env"][4]["value"] = "NFS"
-            doc["spec"]["template"]["spec"]["containers"][1]["image"] = "registry.k8s.io/provider-os/manila-csi-plugin:latest"
+            doc["spec"]["template"]["spec"]["containers"][1][
+                "image"
+            ] = "registry.k8s.io/provider-os/manila-csi-plugin:latest"
             # Set FWD plugin
-            doc["spec"]["template"]["spec"]["containers"][1]["volumeMounts"][1]["mountPath"] = "/var/lib/kubelet/plugins/csi-nfsplugin"
-            doc["spec"]["template"]["spec"]["volumes"][2]["hostPath"]["path"] = "/var/lib/kubelet/plugins/csi-nfsplugin"
+            doc["spec"]["template"]["spec"]["containers"][1]["volumeMounts"][1][
+                "mountPath"
+            ] = "/var/lib/kubelet/plugins/csi-nfsplugin"
+            doc["spec"]["template"]["spec"]["volumes"][2]["hostPath"][
+                "path"
+            ] = "/var/lib/kubelet/plugins/csi-nfsplugin"
             # Set toleration
             doc["spec"]["template"]["spec"]["tolerations"] = [{"operator": "Exists"}]
 

@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "magnum-cluster-api"  
+name = "magnum-cluster-api"
 version = "0.21.2"
 description = "Cluster API driver for Magnum"
 authors = ["Mohammed Naser <mnaser@vexxhost.com>"]
