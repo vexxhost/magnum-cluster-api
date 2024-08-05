@@ -2023,7 +2023,7 @@ class ClusterClass(Base):
                                                             value: --authentication-token-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
                                                           - op: add
                                                             path: /spec/containers/0/command/-
-                                                            value: --authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501 
+                                                            value: --authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
                                                           - op: add
                                                             path: /spec/containers/0/command/-
                                                             value: --authorization-mode=Webhook
