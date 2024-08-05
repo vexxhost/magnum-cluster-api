@@ -49,7 +49,7 @@
     parent: magnum-cluster-api-sonobuoy-ubuntu-2204
     vars:
       kube_tag: v1.29.6
-      image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-29-6-1720107687.qcow2 
+      image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-29-6-1720107687.qcow2
 
 - job:
     name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.6-calico

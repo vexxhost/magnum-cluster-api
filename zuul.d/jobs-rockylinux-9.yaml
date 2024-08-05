@@ -78,4 +78,3 @@
         - magnum-cluster-api-image-build-rockylinux-9-v1.27.15
         - magnum-cluster-api-sonobuoy-rockylinux-9-v1.27.15-calico
         - magnum-cluster-api-sonobuoy-rockylinux-9-v1.27.15-cilium
-
