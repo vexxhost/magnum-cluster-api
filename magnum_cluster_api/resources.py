@@ -2010,20 +2010,23 @@ class ClusterClass(Base):
                                                 "content": textwrap.dedent(
                                                     """\
                                                     resources:
-                                                    - kube-apiserver.yaml
+                                                      - kube-apiserver.yaml
                                                     patches:
-                                                    - patch: |-
-                                                      - op: add
-                                                        path: /spec/containers/0/command/-
-                                                        value: --authentication-token-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
-                                                      - op: add
-                                                        path: /spec/containers/0/command/-
-                                                        value: --authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
-                                                      - op: add
-                                                        path: /spec/containers/0/command/-
-                                                        value: --authorization-mode=Node,RBAC,Webhook
-                                                      target:
-                                                        kind: Pod
+                                                      - target:
+                                                          group: ""
+                                                          version: v1
+                                                          kind: Pod
+                                                          name: kube-apiserver
+                                                        patch: |-
+                                                          - op: add
+                                                            path: /spec/containers/0/command/-
+                                                            value: --authentication-token-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
+                                                          - op: add
+                                                            path: /spec/containers/0/command/-
+                                                            value: --authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501 
+                                                          - op: add
+                                                            path: /spec/containers/0/command/-
+                                                            value: --authorization-mode=Webhook
                                                     """
                                                 ),
                                             },
