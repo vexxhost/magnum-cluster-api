@@ -169,9 +169,9 @@ def main(
     if operating_system == "ubuntu-2204":
         iso = "jammy-live-server-amd64.iso"
 
-        customization[
-            "iso_url"
-        ] = f"http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/{iso}"
+        customization["iso_url"] = (
+            f"http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/{iso}"
+        )
 
         # Get the SHA256 sum for the ISO
         r = requests.get(
@@ -189,9 +189,9 @@ def main(
     if operating_system == "rockylinux-8":
         iso = "Rocky-x86_64-minimal.iso"
 
-        customization[
-            "iso_url"
-        ] = f"https://download.rockylinux.org/pub/rocky/8/isos/x86_64/{iso}"
+        customization["iso_url"] = (
+            f"https://download.rockylinux.org/pub/rocky/8/isos/x86_64/{iso}"
+        )
 
         # Get the SHA256 sum for the ISO
         r = requests.get(
@@ -209,9 +209,9 @@ def main(
     if operating_system == "rockylinux-9":
         iso = "Rocky-x86_64-minimal.iso"
 
-        customization[
-            "iso_url"
-        ] = f"https://download.rockylinux.org/pub/rocky/9/isos/x86_64/{iso}"
+        customization["iso_url"] = (
+            f"https://download.rockylinux.org/pub/rocky/9/isos/x86_64/{iso}"
+        )
 
         # Get the SHA256 sum for the ISO
         r = requests.get(
