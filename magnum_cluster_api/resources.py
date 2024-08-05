@@ -2296,9 +2296,9 @@ def mutate_machine_deployment(
         machine_deployment["metadata"]["annotations"] = {}
 
     # Fixes
-    machine_deployment["nodeVolumeDetachTimeout"] = (
-        CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT
-    )
+    machine_deployment[
+        "nodeVolumeDetachTimeout"
+    ] = CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT
 
     # Anything beyond this point will *NOT* be changed in the machine deployment
     # for update operations (i.e. if the machine deployment already exists).
