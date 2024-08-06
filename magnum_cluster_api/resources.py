@@ -214,6 +214,11 @@ class ClusterResourcesConfigMap(ClusterBase):
                             "image": {
                                 "tag": cilium_version,
                             },
+                            # NOTE(okozachenko1203): cilium has a limitation https://github.com/cilium/cilium/issues/9207
+                            #                        Because of that, it fails on the test
+                            #                       `Services should serve endpoints on same port and different protocols`.
+                            #                        https://github.com/kubernetes/kubernetes/pull/120069#issuecomment-2111252221
+                            "k8s": {"serviceProxyName": "cilium"},
                             "operator": {
                                 "image": {
                                     "tag": cilium_version,
