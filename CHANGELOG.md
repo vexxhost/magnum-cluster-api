@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.21.2...v0.22.0) (2024-08-07)
+
+
+### Features
+
+* update handling vendor charts and add linters ([#413](https://github.com/vexxhost/magnum-cluster-api/issues/413)) ([141d536](https://github.com/vexxhost/magnum-cluster-api/commit/141d5361db0b90542bf3c0d8e9dd777833711253))
+
 ## [0.21.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.21.1...v0.21.2) (2024-07-19)
 
 
