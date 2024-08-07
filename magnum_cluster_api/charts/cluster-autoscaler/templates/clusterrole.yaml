@@ -170,14 +170,5 @@ rules:
     - list
     - update
     - watch
-  - apiGroups:
-    - infrastructure.cluster.x-k8s.io
-    resources:
-    - openstackmachinetemplates
-    verbs:
-    - get
-    - list
-    - update
-    - watch
 {{- end }}
 {{- end -}}
