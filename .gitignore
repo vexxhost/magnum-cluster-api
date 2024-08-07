@@ -1,5 +1,7 @@
 .direnv
+.idea
 __pycache__
 dist
-magnum_cluster_api/charts/vendor/*
 site
+*.orig
+*.rej

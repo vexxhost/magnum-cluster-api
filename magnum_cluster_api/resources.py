@@ -75,7 +75,7 @@ class ClusterAutoscalerHelmRelease:
             release_name=self.cluster.stack_id,
             chart_ref=os.path.join(
                 pkg_resources.resource_filename("magnum_cluster_api", "charts"),
-                "vendor/cluster-autoscaler/",
+                "cluster-autoscaler/",
             ),
             values={
                 "fullnameOverride": f"{self.cluster.stack_id}-autoscaler",
@@ -207,7 +207,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                             pkg_resources.resource_filename(
                                 "magnum_cluster_api", "charts"
                             ),
-                            "vendor/cilium/",
+                            "cilium/",
                         ),
                         values={
                             "cni": {"chainingMode": "portmap"},
