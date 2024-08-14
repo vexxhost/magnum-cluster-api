@@ -59,7 +59,7 @@ VERSIONS = [
     help="Target image repository",
 )
 @click.option(
-    "--manifest",
+    "--images-manifest",
     help="YAML file containing image manifest",
 )
 @click.option(
@@ -72,7 +72,7 @@ VERSIONS = [
     is_flag=True,
     help="Allow insecure connections to the registry.",
 )
-def main(repository, manifest, parallel, insecure):
+def main(repository, images_manifest, parallel, insecure):
     """
     Load images into a remote registry for `container_infra_prefix` usage.
     """
@@ -84,8 +84,8 @@ def main(repository, manifest, parallel, insecure):
              https://github.com/google/go-containerregistry/blob/main/cmd/crane/README.md#installation"""
         )
 
-    if manifest:
-        with open(manifest, 'r') as file:
+    if images_manifest:
+        with open(images_manifest, 'r') as file:
             manifest_data = yaml.safe_load(file)
 
         images = set(manifest_data['images'])
