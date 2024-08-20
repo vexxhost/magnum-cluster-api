@@ -2471,7 +2471,7 @@ def mutate_machine_deployment(
                     {
                         "name": "serverGroupId",
                         "value": utils.ensure_server_group(
-                            name=f"{cluster.name}-{node_group.name}",
+                            name=f"{cluster.stack_id}-{node_group.name}",
                             ctx=context,
                             policies=utils.get_node_group_server_group_policies(
                                 node_group
