@@ -26,6 +26,7 @@ from magnum import objects as magnum_objects
 from magnum.api import attr_validator
 from magnum.common import context, exception, neutron, octavia
 from magnum.common import utils as magnum_utils
+from novaclient import exceptions as nova_exception
 from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import strutils, uuidutils
@@ -36,7 +37,10 @@ from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import image_utils, images, objects
 
 AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar", "rockylinux"]
+DEFAULT_SERVER_GROUP_POLICIES = ["soft-anti-affinity"]
 CONF = cfg.CONF
+
+SERVER_GROUP_NAME_ID_MAP = {}
 
 
 def get_cluster_api_cloud_config_secret_name(cluster: magnum_objects.Cluster) -> str:
@@ -499,3 +503,82 @@ def generate_api_cert_san_list(cluster: magnum_objects.Cluster):
 
     # Add the additional cert SANs to the template
     return "\n".join(f"- {san}" for san in additional_cert_sans_list if san)
+
+
+def get_server_group_id(name: string):
+    server_group_id = SERVER_GROUP_NAME_ID_MAP.get(name)
+    if server_group_id:
+        return server_group_id
+
+    # Check if the server group exists already
+    osc = clients.get_openstack_api(self.context)
+    server_groups = osc.nova().server_groups.list(all_projects=True)
+    server_group_id_list = []
+    for sg in server_groups:
+        if sg.name == name:
+            server_group_id_list.append(sg.id)
+
+    if len(server_group_id_list) == 1:
+        SERVER_GROUP_NAME_ID_MAP[name] = server_group_id_list[0]
+        return server_group_id_list[0]
+
+    if len(server_group_id_list) > 1:
+        raise exception.Conflict(f"too many server groups with name {name} were found")
+
+    return None
+
+
+def get_node_group_server_group_policies(
+    node_group: magnum_objects.NodeGroup,
+):
+
+    policies = node_group.labels.get("server_group_policies", "").split(",")
+    if not policies:
+        policies = DEFAULT_SERVER_GROUP_POLICIES
+    return policies
+
+
+def get_controlplane_server_group_policies(
+    cluster: magnum_objects.Cluster,
+):
+
+    policies = cluster.labels.get("server_group_policies", "").split(",")
+    if not policies:
+        policies = DEFAULT_SERVER_GROUP_POLICIES
+    return policies
+
+
+def ensure_server_group(
+    name: string,
+    ctx: context.RequestContext,
+    policies: list(string) = None,
+):
+    # Retrieve existing server group id
+    # name = f"{cluster_name}-{node_group.name}"
+    server_group_id = get_server_group_id(name)
+    if server_group_id:
+        return server_group_id
+
+    # Create a new server group
+    osc = clients.get_openstack_api(ctx)
+    # policies = node_group.labels.get("server_group_policies", "").split(",")
+    if not policies:
+        policies = DEFAULT_SERVER_GROUP_POLICIES
+    server_group = osc.nova().server_groups.create(name=name, policies=policies)
+    SERVER_GROUP_NAME_ID_MAP[name] = server_group.id
+    return server_group.id
+
+
+def delete_server_group(
+    name: string,
+    ctx: context.RequestContext,
+):
+    server_group_id = get_server_group_id(name)
+    if server_group_id is None:
+        return
+
+    osc = clients.get_openstack_api(ctx)
+    try:
+        osc.nova().server_groups.delete(server_group_id)
+    except nova_exception.NotFound:
+        return

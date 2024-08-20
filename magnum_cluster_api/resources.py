@@ -105,6 +105,45 @@ class ClusterAutoscalerHelmRelease:
         )
 
 
+class ClusterServerGroups:
+    def __init__(
+        self, context: context.RequestContext, cluster: magnum_objects.Cluster
+    ) -> None:
+        self.cluster = cluster
+        self.osc = clients.get_openstack_api(self.context)
+
+    @property
+    def apply(self):
+        # Create a server group for controlplane
+        utils.ensure_server_group(
+            name=self.cluster.stack_id,
+            ctx=self.context,
+            policies=utils.get_controlplane_server_group_policies(self.cluster),
+        )
+
+        # Create a server group per a nodegroup
+        for ng in self.cluster.nodegroups:
+            if ng.role == "master":
+                continue
+            utils.ensure_server_group(
+                name=f"{self.cluster.stack_id}-{ng.name}",
+                ctx=self.context,
+                policies=utils.get_node_group_server_group_policies(ng),
+            )
+
+    @property
+    def delete(self):
+        # delete controlplane server group
+        utils.delete_server_group(name=self.cluster.stack_id)
+
+        # Create worker server groups
+        for ng in self.cluster.nodegroups:
+            if ng.role == "master":
+                continue
+
+            utils.delete_server_group(name=f"{self.cluster.stack_id}-{ng.name}")
+
+
 class Base:
     def __init__(self, api: pykube.HTTPClient):
         self.api = api
@@ -1316,6 +1355,15 @@ class ClusterClass(Base):
                                 },
                             },
                         },
+                        {
+                            "name": "serverGroupId",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
                     ],
                     "patches": [
                         {
@@ -1704,6 +1752,13 @@ class ClusterClass(Base):
                                                 "variable": "controlPlaneFlavor",
                                             },
                                         },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/serverGroup/id",
+                                            "valueFrom": {
+                                                "variable": "serverGroupId",
+                                            },
+                                        },
                                     ],
                                 },
                                 {
@@ -1722,6 +1777,13 @@ class ClusterClass(Base):
                                             "path": "/spec/template/spec/flavor",
                                             "valueFrom": {
                                                 "variable": "flavor",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/serverGroup",
+                                            "valueFrom": {
+                                                "variable": "{{ .builtin.cluster.name }}-{{ .nodeGroupName }}",
                                             },
                                         },
                                     ],
@@ -2363,6 +2425,8 @@ def mutate_machine_deployment(
     if machine_deployment.get("name") == node_group.name:
         return machine_deployment
 
+    osc = clients.get_openstack_api(context)
+    server_group = osc.nova()
     # At this point, this is all code that will be added for brand new machine
     # deployments.  We can bring any of this code into the above block if we
     # want to change it for existing machine deployments.
@@ -2402,6 +2466,17 @@ def mutate_machine_deployment(
                     {
                         "name": "imageUUID",
                         "value": utils.get_image_uuid(node_group.image_id, context),
+                    },
+                    # NOTE(oleks): Override this using MachineDeployment-level variable for node groups
+                    {
+                        "name": "serverGroupId",
+                        "value": utils.ensure_server_group(
+                            name=f"{cluster.name}-{node_group.name}",
+                            ctx=context,
+                            policies=utils.get_node_group_server_group_policies(
+                                node_group
+                            ),
+                        ),
                     },
                 ],
             },
@@ -2773,6 +2848,18 @@ class Cluster(ClusterBase):
                                 "value": self.cluster.labels.get(
                                     "control_plane_availability_zones", ""
                                 ).split(","),
+                            },
+                            # NOTE(oleks): Set cluster-level variable serverGroupId using server group id for controlplane. # noqa: E501
+                            #              Override this using MachineDeployment-level variable for node groups
+                            {
+                                "name": "serverGroupId",
+                                "value": utils.ensure_server_group(
+                                    name=self.cluster.stack_id,
+                                    ctx=self.context,
+                                    policies=utils.get_controlplane_server_group_policies(
+                                        self.cluster
+                                    ),
+                                ),
                             },
                         ],
                     },
