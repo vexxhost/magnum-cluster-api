@@ -137,11 +137,11 @@ class BaseDriver(driver.Driver):
         if generation > 1:
             action = "UPDATE"
 
-        ready = kcp.obj["status"].get("ready", False)
-        failure_message = kcp.obj["status"].get("failureMessage")
+        ready = kcp.obj.get("status", {}).get("ready", False)
+        failure_message = kcp.obj.get("status", {}).get("failureMessage")
 
-        updated_replicas = kcp.obj["status"].get("updatedReplicas")
-        replicas = kcp.obj["status"].get("replicas")
+        updated_replicas = kcp.obj.get("status", {}).get("updatedReplicas")
+        replicas = kcp.obj.get("status", {}).get("replicas")
 
         if updated_replicas != replicas:
             nodegroup.status = f"{action}_IN_PROGRESS"
@@ -422,12 +422,29 @@ class BaseDriver(driver.Driver):
 
         node_groups = []
         for node_group in cluster.nodegroups:
-            if node_group.role == "master":
+            # NOTE(mnaser): Nothing to do if the node group is in `DELETE_COMPLETE`
+            #               state and skip work if it's a master node group.
+            if (
+                node_group.role == "master"
+                or node_group.status == fields.ClusterStatus.DELETE_COMPLETE
+            ):
                 continue
 
             md = objects.MachineDeployment.for_node_group_or_none(
                 self.k8s_api, cluster, node_group
             )
+
+            # NOTE(mnaser): If the cluster is in `DELETE_IN_PROGRESS` state, we need to
+            #               wait for the `MachineDeployment` to be deleted before we can
+            #               mark the node group as `DELETE_COMPLETE`.
+            if (
+                node_group.status == fields.ClusterStatus.DELETE_IN_PROGRESS
+                and md is None
+            ):
+                node_group.status = fields.ClusterStatus.DELETE_COMPLETE
+                node_group.save()
+                continue
+
             md_is_running = (
                 md is not None and md.obj.get("status", {}).get("phase") == "Running"
             )
@@ -441,6 +458,7 @@ class BaseDriver(driver.Driver):
             ):
                 node_group.status = fields.ClusterStatus.CREATE_COMPLETE
                 node_group.save()
+                continue
 
             # Get list of all of the OpenStackMachine objects for this node group
             machines = objects.OpenStackMachine.objects(
@@ -479,16 +497,7 @@ class BaseDriver(driver.Driver):
             ):
                 node_group.status = fields.ClusterStatus.UPDATE_COMPLETE
                 node_group.save()
-
-            # NOTE(mnaser): If the cluster is in `DELETE_IN_PROGRESS` state, we need to
-            #               wait for the `MachineDeployment` to be deleted before we can
-            #               mark the node group as `DELETE_COMPLETE`.
-            if (
-                node_group.status == fields.ClusterStatus.DELETE_IN_PROGRESS
-                and md is None
-            ):
-                node_group.status = fields.ClusterStatus.DELETE_COMPLETE
-                node_group.save()
+                continue
 
             node_groups.append(node_group)
 

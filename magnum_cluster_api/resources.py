@@ -75,7 +75,7 @@ class ClusterAutoscalerHelmRelease:
             release_name=self.cluster.stack_id,
             chart_ref=os.path.join(
                 pkg_resources.resource_filename("magnum_cluster_api", "charts"),
-                "vendor/cluster-autoscaler/",
+                "cluster-autoscaler/",
             ),
             values={
                 "fullnameOverride": f"{self.cluster.stack_id}-autoscaler",
@@ -207,24 +207,29 @@ class ClusterResourcesConfigMap(ClusterBase):
                             pkg_resources.resource_filename(
                                 "magnum_cluster_api", "charts"
                             ),
-                            "vendor/cilium/",
+                            "cilium/",
                         ),
                         values={
                             "cni": {"chainingMode": "portmap"},
                             "image": {
                                 "tag": cilium_version,
                             },
+                            # NOTE(okozachenko): cilium has a limitation https://github.com/cilium/cilium/issues/9207
+                            #                    Because of that, it fails on the test
+                            #                    `Services should serve endpoints on same port and different protocols`.
+                            #                    https://github.com/kubernetes/kubernetes/pull/120069#issuecomment-2111252221
+                            "k8s": {"serviceProxyName": "cilium"},
                             "operator": {
                                 "image": {
                                     "tag": cilium_version,
                                 },
                             },
-                            # NOTE(okozachenko1203): For users who run with kube-proxy (i.e. with Cilium's kube-proxy
-                            #                        replacement disabled), the ClusterIP service loadbalancing when a
-                            #                        request is sent from a pod running in a non-host network namespace
-                            #                        is still performed at the pod network interface (until
-                            #                        https://github.com/cilium/cilium/issues/16197 is fixed). For this
-                            #                        case the session affinity support is disabled by default.
+                            # NOTE(okozachenko): For users who run with kube-proxy (i.e. with Cilium's kube-proxy
+                            #                    replacement disabled), the ClusterIP service loadbalancing when a
+                            #                    request is sent from a pod running in a non-host network namespace
+                            #                    is still performed at the pod network interface (until
+                            #                    https://github.com/cilium/cilium/issues/16197 is fixed). For this
+                            #                    case the session affinity support is disabled by default.
                             "sessionAffinity": "true",
                             "ipam": {
                                 "operator": {
@@ -735,6 +740,9 @@ class KubeadmControlPlaneTemplate(Base):
                                 "preKubeadmCommands": [
                                     "rm /var/lib/etcd/lost+found -rf",
                                     "bash /run/kubeadm/configure-kube-proxy.sh",
+                                ],
+                                "postKubeadmCommands": [
+                                    "echo PLACEHOLDER",
                                 ],
                             },
                         },
@@ -1999,18 +2007,49 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authentication-token-webhook-config-file",  # noqa: E501
-                                            "value": "/etc/kubernetes/webhooks/webhookconfig.yaml",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
+                                            "value": {
+                                                "path": "/etc/kubernetes/keystone-kustomization/kustomization.yml",
+                                                "permissions": "0644",
+                                                "owner": "root:root",
+                                                "content": textwrap.dedent(
+                                                    """\
+                                                    resources:
+                                                      - kube-apiserver.yaml
+                                                    patches:
+                                                      - target:
+                                                          group: ""
+                                                          version: v1
+                                                          kind: Pod
+                                                          name: kube-apiserver
+                                                        patch: |-
+                                                          - op: add
+                                                            path: /spec/containers/0/command/-
+                                                            value: --authentication-token-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
+                                                          - op: add
+                                                            path: /spec/containers/0/command/-
+                                                            value: --authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
+                                                          - op: add
+                                                            path: /spec/containers/0/command/-
+                                                            value: --authorization-mode=Webhook
+                                                    """
+                                                ),
+                                            },
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authorization-webhook-config-file",  # noqa: E501
-                                            "value": "/etc/kubernetes/webhooks/webhookconfig.yaml",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-",
+                                            "value": "mkdir /etc/kubernetes/keystone-kustomization",
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authorization-mode",  # noqa: E501
-                                            "value": "Node,RBAC,Webhook",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-",
+                                            "value": "cp /etc/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml",  # noqa: E501
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-",
+                                            "value": "kubectl kustomize /etc/kubernetes/keystone-kustomization -o /etc/kubernetes/manifests/kube-apiserver.yaml",  # noqa: E501
                                         },
                                     ],
                                 }

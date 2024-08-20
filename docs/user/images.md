@@ -7,7 +7,7 @@ all necessary dependencies for deploying Kubernetes clusters. These images are
 pre-configured with Kubernetes binaries, container runtimes, networking
 components, and other required software.
 
-The images used by the Cluster API driver for Magnum are built using the 
+The images used by the Cluster API driver for Magnum are built using the
 [`kubernetes-sigs/image-builder`](https://github.com/kubernetes-sigs/image-builder)
 project. This project provides a comprehensive and flexible framework for
 constructing Kubernetes-specific images.

@@ -1,6 +1,7 @@
 - project:
     check:
       jobs:
+        - magnum-cluster-api-linters
         - magnum-cluster-api-unit
         - magnum-cluster-api-functional
     templates:

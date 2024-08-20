@@ -107,12 +107,6 @@ EOF
 # Install CAPI/CAPO
 ./hack/setup-capo.sh
 
-# Install vendir
-./hack/setup-vendir.sh
-
-# Vendor the chart
-make vendor
-
 # Install `magnum-cluster-api`
 pip install -U setuptools pip python-magnumclient
 $HOME/.local/bin/pip3 install -e .

@@ -1,23 +1,10 @@
 VERSION 0.7
 
-vendir:
-  FROM github.com/vexxhost/atmosphere/images/curl+image
-  ARG TARGETOS
-  ARG TARGETARCH
-  ARG VERSION=v0.40.0
-  RUN curl -Lo vendir https://github.com/carvel-dev/vendir/releases/download/${VERSION}/vendir-${TARGETOS}-${TARGETARCH}
-  RUN chmod +x vendir && ./vendir version
-  SAVE ARTIFACT vendir
-
 build:
   FROM github.com/vexxhost/atmosphere/images/magnum+build
-  COPY +vendir/vendir /usr/local/bin/vendir
   COPY github.com/vexxhost/atmosphere/images/helm+binary/helm /usr/local/bin/helm
-  COPY --dir magnum_cluster_api/ pyproject.toml README.md vendir.yml /src
+  COPY --dir magnum_cluster_api/ pyproject.toml README.md /src
   WORKDIR /src
-	RUN vendir sync
-  COPY hack/add-omt-to-clusterrole.patch /hack/
-	RUN patch -p0 magnum_cluster_api/charts/vendor/cluster-autoscaler/templates/clusterrole.yaml < /hack/add-omt-to-clusterrole.patch
   DO github.com/vexxhost/atmosphere/images/openstack-service+PIP_INSTALL --PACKAGES /src
   SAVE ARTIFACT /var/lib/openstack venv
 

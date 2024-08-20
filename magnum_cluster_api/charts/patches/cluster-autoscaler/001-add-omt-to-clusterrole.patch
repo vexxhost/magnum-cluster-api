@@ -1,0 +1,19 @@
+diff --git a/cluster-autoscaler/templates/clusterrole.yaml b/cluster-autoscaler/templates/clusterrole.yaml
+index 4ef2782..fb1dc2a 100644
+--- a/cluster-autoscaler/templates/clusterrole.yaml
++++ b/cluster-autoscaler/templates/clusterrole.yaml
+@@ -170,5 +170,14 @@ rules:
+     - list
+     - update
+     - watch
++  - apiGroups:
++    - infrastructure.cluster.x-k8s.io
++    resources:
++    - openstackmachinetemplates
++    verbs:
++    - get
++    - list
++    - update
++    - watch
+ {{- end }}
+ {{- end -}}

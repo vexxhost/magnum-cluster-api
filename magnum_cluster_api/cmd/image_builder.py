@@ -35,6 +35,7 @@ import requests
 QEMU_PACKAGES = [
     "qemu-kvm",
     "qemu-utils",
+    "mkisofs",
 ]
 
 
@@ -59,14 +60,14 @@ def validate_version(_, __, value):
 @click.option(
     "--version",
     show_default=True,
-    default="v1.27.8",
+    default="v1.29.5",
     callback=validate_version,
     help="Kubernetes version",
 )
 @click.option(
     "--image-builder-version",
     show_default=True,
-    default="v0.1.29",
+    default="v0.1.31",
     help="Image builder tag (or commit) to use for building image",
 )
 @click.option(
@@ -164,70 +165,30 @@ def main(
         "node_custom_roles_pre": f"{node_custom_roles_pre}",
     }
 
-    # NOTE(mnaser): We use the latest tested daily ISO for Ubuntu 22.04 in order
-    #               to avoid a lengthy upgrade process.
-
-    # NOTE(jrosser): This can be uncommented again when
-    # https://github.com/vexxhost/magnum-cluster-api/issues/378 is fixed
-    # if operating_system == "ubuntu-2204":
-    #    iso = "jammy-live-server-amd64.iso"
-    #
-    #    customization["iso_url"] = (
-    #        f"http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/{iso}"
-    #    )
-    #
-    #    # Get the SHA256 sum for the ISO
-    #    r = requests.get(
-    #        "http://cdimage.ubuntu.com/ubuntu-server/jammy/daily-live/current/SHA256SUMS"
-    #    )
-    #    r.raise_for_status()
-    #    for line in r.text.splitlines():
-    #        if iso in line:
-    #            customization["iso_checksum"] = line.split()[0]
-    #            break
-    #
-    #    # Assert that we have the checksum
-    #    assert "iso_checksum" in customization
-
-    if operating_system == "rockylinux-8":
-        iso = "Rocky-x86_64-minimal.iso"
-
-        customization["iso_url"] = (
-            f"https://download.rockylinux.org/pub/rocky/8/isos/x86_64/{iso}"
-        )
-
-        # Get the SHA256 sum for the ISO
-        r = requests.get(
-            "https://download.rockylinux.org/pub/rocky/8/isos/x86_64/Rocky-x86_64-minimal.iso.CHECKSUM"
-        )
-        r.raise_for_status()
-        for line in r.text.splitlines():
-            if iso in line and "SHA256" in line:
-                customization["iso_checksum"] = line.split()[3]
-                break
-
-        # Assert that we have the checksum
-        assert "iso_checksum" in customization
-
-    if operating_system == "rockylinux-9":
-        iso = "Rocky-x86_64-minimal.iso"
-
-        customization["iso_url"] = (
-            f"https://download.rockylinux.org/pub/rocky/9/isos/x86_64/{iso}"
-        )
-
-        # Get the SHA256 sum for the ISO
-        r = requests.get(
-            "https://download.rockylinux.org/pub/rocky/9/isos/x86_64/Rocky-x86_64-minimal.iso.CHECKSUM"
-        )
-        r.raise_for_status()
-        for line in r.text.splitlines():
-            if iso in line and "SHA256" in line:
-                customization["iso_checksum"] = line.split()[3]
-                break
-
-        # Assert that we have the checksum
-        assert "iso_checksum" in customization
+    # NOTE(mnaser): Inside our CI, we use a local image in order speed up the
+    #               process, so we will not download the image from the internet.
+    if os.environ.get("CI") == "true":
+        if operating_system == "ubuntu-2204":
+            customization["iso_checksum"] = (
+                "https://static.atmosphere.dev/ubuntu/jammy/20240605.1/SHA256SUMS"
+            )
+            customization["iso_url"] = (
+                "https://static.atmosphere.dev/ubuntu/jammy/20240605.1/jammy-server-cloudimg-amd64.img"
+            )
+        elif operating_system == "rockylinux-8":
+            customization["iso_checksum"] = (
+                "https://static.atmosphere.dev/rocky/8/images/x86_64/CHECKSUM"
+            )
+            customization["iso_url"] = (
+                "https://static.atmosphere.dev/rocky/8/images/x86_64/Rocky-8-GenericCloud-Base.latest.x86_64.qcow2"
+            )
+        elif operating_system == "rockylinux-9":
+            customization["iso_checksum"] = (
+                "https://static.atmosphere.dev/rocky/9/images/x86_64/CHECKSUM"
+            )
+            customization["iso_url"] = (
+                "https://static.atmosphere.dev/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2"
+            )
 
     # NOTE(mnaser): Let's set number of CPUs to equal the number of CPUs on the
     #               host to speed up the build process.
@@ -258,7 +219,7 @@ def main(
                 /usr/bin/make \
                 -C \
                 {ib_path}/images/capi \
-                build-qemu-{operating_system}
+                build-qemu-{operating_system}-cloudimg
             """
             ).encode("utf-8"),
             env={
