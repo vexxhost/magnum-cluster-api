@@ -1781,9 +1781,9 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/serverGroup",
+                                            "path": "/spec/template/spec/serverGroup/id",
                                             "valueFrom": {
-                                                "variable": "{{ .builtin.cluster.name }}-{{ .nodeGroupName }}",
+                                                "variable": "serverGroupId",
                                             },
                                         },
                                     ],
