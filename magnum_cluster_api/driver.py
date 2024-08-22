@@ -250,7 +250,7 @@ class BaseDriver(driver.Driver):
             resources.ServiceAccountCertificateAuthoritySecret(
                 context, self.k8s_api, cluster
             ).delete()
-            resources.ClusterServerGroups(self.k8s_api, cluster).delete()
+            resources.ClusterServerGroups(context, cluster).delete()
 
             cluster.status_reason = None
             cluster.status = fields.ClusterStatus.DELETE_COMPLETE

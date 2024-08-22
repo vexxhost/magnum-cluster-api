@@ -110,9 +110,9 @@ class ClusterServerGroups:
         self, context: context.RequestContext, cluster: magnum_objects.Cluster
     ) -> None:
         self.cluster = cluster
+        self.context = context
         self.osc = clients.get_openstack_api(self.context)
 
-    @property
     def apply(self):
         # Create a server group for controlplane
         utils.ensure_controlplane_server_group(ctx=self.context, cluster=self.cluster)
@@ -125,7 +125,6 @@ class ClusterServerGroups:
                 ctx=self.context, cluster=self.cluster, node_group=ng
             )
 
-    @property
     def delete(self):
         # delete controlplane server group
         utils.delete_controlplane_server_group(ctx=self.context, cluster=self.cluster)
@@ -1767,7 +1766,7 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/serverGroup/id",
+                                            "path": "/spec/template/spec/serverGroupID",
                                             "valueFrom": {
                                                 "variable": "serverGroupId",
                                             },
@@ -1801,7 +1800,7 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/serverGroup/id",
+                                            "path": "/spec/template/spec/serverGroupID",
                                             "valueFrom": {
                                                 "variable": "serverGroupId",
                                             },
@@ -2509,7 +2508,7 @@ def mutate_machine_deployment(
                                 utils.is_node_group_different_failure_domain(
                                     node_group=node_group, cluster=cluster
                                 ),
-                            ),
+                            ).lower(),
                         },
                     },
                 ],
@@ -2897,9 +2896,9 @@ class Cluster(ClusterBase):
                                 "value": {
                                     "different_failure_domain": str(
                                         utils.is_controlplane_different_failure_domain(
-                                            cluster=cluster
+                                            cluster=self.cluster
                                         ),
-                                    ),
+                                    ).lower(),
                                 },
                             },
                         ],

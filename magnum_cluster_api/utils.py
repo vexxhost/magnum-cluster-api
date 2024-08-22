@@ -520,7 +520,8 @@ def get_server_group_id(name: string):
         return server_group_id
 
     # Check if the server group exists already
-    osc = clients.get_openstack_api(self.context)
+    admin_ctx = context.get_admin_context()
+    osc = clients.get_openstack_api(admin_ctx)
     server_groups = osc.nova().server_groups.list(all_projects=True)
     server_group_id_list = []
     for sg in server_groups:
@@ -541,9 +542,10 @@ def _get_node_group_server_group_policies(
     node_group: magnum_objects.NodeGroup,
     cluster: magnum_objects.Cluster,
 ):
-
-    policies = node_group.labels.get("server_group_policies", "").split(",")
-    if not policies:
+    policies = node_group.labels.get("server_group_policies", "")
+    if policies:
+        policies = policies.split(",")
+    else:
         policies = _get_controlplane_server_group_policies(cluster)
     return policies
 
@@ -551,9 +553,10 @@ def _get_node_group_server_group_policies(
 def _get_controlplane_server_group_policies(
     cluster: magnum_objects.Cluster,
 ):
-
-    policies = cluster.labels.get("server_group_policies", "").split(",")
-    if not policies:
+    policies = cluster.labels.get("server_group_policies", "")
+    if policies:
+        policies = policies.split(",")
+    else:
         policies = DEFAULT_SERVER_GROUP_POLICIES
     return policies
 
@@ -579,7 +582,7 @@ def ensure_controlplane_server_group(
     ctx: context.RequestContext,
     cluster: magnum_objects.Cluster,
 ):
-    _ensure_server_group(
+    return _ensure_server_group(
         name=cluster.stack_id,
         ctx=ctx,
         policies=_get_controlplane_server_group_policies(cluster),
@@ -591,7 +594,7 @@ def ensure_worker_server_group(
     cluster: magnum_objects.Cluster,
     node_group: magnum_objects.NodeGroup,
 ):
-    _ensure_server_group(
+    return _ensure_server_group(
         name=f"{cluster.stack_id}-{node_group.name}",
         ctx=ctx,
         policies=_get_node_group_server_group_policies(node_group, cluster),
@@ -633,6 +636,7 @@ def _ensure_server_group(
     osc = clients.get_openstack_api(ctx)
     if not policies:
         policies = DEFAULT_SERVER_GROUP_POLICIES
+    # NOTE(oleks): Requires API microversion 2.15 or later for soft-affinity and soft-anti-affinity policy rules.
     server_group = osc.nova().server_groups.create(name=name, policies=policies)
     SERVER_GROUP_NAME_ID_MAP[name] = server_group.id
     return server_group.id
