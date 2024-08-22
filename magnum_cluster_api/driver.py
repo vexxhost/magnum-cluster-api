@@ -250,6 +250,7 @@ class BaseDriver(driver.Driver):
             resources.ServiceAccountCertificateAuthoritySecret(
                 context, self.k8s_api, cluster
             ).delete()
+            resources.ClusterServerGroups(self.k8s_api, cluster).delete()
 
             cluster.status_reason = None
             cluster.status = fields.ClusterStatus.DELETE_COMPLETE
@@ -403,6 +404,9 @@ class BaseDriver(driver.Driver):
         blocking the Magnum API.
         """
         utils.validate_nodegroup(nodegroup, context)
+        utils.ensure_worker_server_group(
+            ctx=context, cluster=cluster, node_group=nodegroup
+        )
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
         cluster_resource.obj["spec"]["topology"]["workers"][
@@ -443,6 +447,9 @@ class BaseDriver(driver.Driver):
                 node_group.status == fields.ClusterStatus.DELETE_IN_PROGRESS
                 and md is None
             ):
+                utils.delete_worker_server_group(
+                    ctx=context, cluster=cluster, node_group=node_group
+                )
                 node_group.status = fields.ClusterStatus.DELETE_COMPLETE
                 node_group.save()
                 continue
@@ -529,6 +536,9 @@ class BaseDriver(driver.Driver):
         nodegroup: magnum_objects.NodeGroup,
     ):
         utils.validate_nodegroup(nodegroup, context)
+        utils.ensure_worker_server_group(
+            ctx=context, cluster=cluster, node_group=nodegroup
+        )
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 

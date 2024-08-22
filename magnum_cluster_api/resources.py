@@ -115,33 +115,29 @@ class ClusterServerGroups:
     @property
     def apply(self):
         # Create a server group for controlplane
-        utils.ensure_server_group(
-            name=self.cluster.stack_id,
-            ctx=self.context,
-            policies=utils.get_controlplane_server_group_policies(self.cluster),
-        )
+        utils.ensure_controlplane_server_group(ctx=self.context, cluster=self.cluster)
 
         # Create a server group per a nodegroup
         for ng in self.cluster.nodegroups:
             if ng.role == "master":
                 continue
-            utils.ensure_server_group(
-                name=f"{self.cluster.stack_id}-{ng.name}",
-                ctx=self.context,
-                policies=utils.get_node_group_server_group_policies(ng),
+            utils.ensure_worker_server_group(
+                ctx=self.context, cluster=self.cluster, node_group=ng
             )
 
     @property
     def delete(self):
         # delete controlplane server group
-        utils.delete_server_group(name=self.cluster.stack_id)
+        utils.delete_controlplane_server_group(ctx=self.context, cluster=self.cluster)
 
         # Create worker server groups
         for ng in self.cluster.nodegroups:
             if ng.role == "master":
                 continue
 
-            utils.delete_server_group(name=f"{self.cluster.stack_id}-{ng.name}")
+            utils.delete_worker_server_group(
+                ctx=self.context, cluster=self.cluster, node_group=ng
+            )
 
 
 class Base:
@@ -1364,6 +1360,23 @@ class ClusterClass(Base):
                                 },
                             },
                         },
+                        {
+                            "name": "schedulerHintProperties",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "object",
+                                    "required": ["different_failure_domain"],
+                                    "properties": {
+                                        "different_failure_domain": {
+                                            "type": "string",
+                                            "enum": ["true", "false"],
+                                            "default": "false",
+                                        },
+                                    },
+                                },
+                            },
+                        },
                     ],
                     "patches": [
                         {
@@ -1759,6 +1772,13 @@ class ClusterClass(Base):
                                                 "variable": "serverGroupId",
                                             },
                                         },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/schedulerHintAdditionalProperties",
+                                            "valueFrom": {
+                                                "variable": "schedulerHintProperties",
+                                            },
+                                        },
                                     ],
                                 },
                                 {
@@ -1784,6 +1804,13 @@ class ClusterClass(Base):
                                             "path": "/spec/template/spec/serverGroup/id",
                                             "valueFrom": {
                                                 "variable": "serverGroupId",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/schedulerHintAdditionalProperties",
+                                            "valueFrom": {
+                                                "variable": "schedulerHintProperties",
                                             },
                                         },
                                     ],
@@ -2430,6 +2457,7 @@ def mutate_machine_deployment(
     # At this point, this is all code that will be added for brand new machine
     # deployments.  We can bring any of this code into the above block if we
     # want to change it for existing machine deployments.
+
     machine_deployment.update(
         {
             "class": "default-worker",
@@ -2467,22 +2495,27 @@ def mutate_machine_deployment(
                         "name": "imageUUID",
                         "value": utils.get_image_uuid(node_group.image_id, context),
                     },
-                    # NOTE(oleks): Override this using MachineDeployment-level variable for node groups
+                    # NOTE(oleks): Override using MachineDeployment-level variables for node groups
                     {
                         "name": "serverGroupId",
-                        "value": utils.ensure_server_group(
-                            name=f"{cluster.stack_id}-{node_group.name}",
-                            ctx=context,
-                            policies=utils.get_node_group_server_group_policies(
-                                node_group
-                            ),
+                        "value": utils.ensure_worker_server_group(
+                            ctx=context, cluster=cluster, node_group=node_group
                         ),
+                    },
+                    {
+                        "name": "schedulerHintProperties",
+                        "value": {
+                            "different_failure_domain": str(
+                                utils.is_node_group_different_failure_domain(
+                                    node_group=node_group, cluster=cluster
+                                ),
+                            ),
+                        },
                     },
                 ],
             },
         }
     )
-
     return machine_deployment
 
 
@@ -2849,17 +2882,25 @@ class Cluster(ClusterBase):
                                     "control_plane_availability_zones", ""
                                 ).split(","),
                             },
-                            # NOTE(oleks): Set cluster-level variable serverGroupId using server group id for controlplane. # noqa: E501
-                            #              Override this using MachineDeployment-level variable for node groups
+                            # NOTE(oleks): Set cluster-level variable using server group id for controlplane.
+                            #              Override this for node groups via  MachineDeployment-level variable.
                             {
                                 "name": "serverGroupId",
-                                "value": utils.ensure_server_group(
-                                    name=self.cluster.stack_id,
-                                    ctx=self.context,
-                                    policies=utils.get_controlplane_server_group_policies(
-                                        self.cluster
-                                    ),
+                                "value": utils.ensure_controlplane_server_group(
+                                    ctx=self.context, cluster=self.cluster
                                 ),
+                            },
+                            # NOTE(oleks): Set cluster-level variable using cluster label for controlplane.
+                            #              Override this using node group label for node groups via  MachineDeployment-level variable. # noqa: E501
+                            {
+                                "name": "schedulerHintProperties",
+                                "value": {
+                                    "different_failure_domain": str(
+                                        utils.is_controlplane_different_failure_domain(
+                                            cluster=cluster
+                                        ),
+                                    ),
+                                },
                             },
                         ],
                     },
@@ -2884,6 +2925,7 @@ def apply_cluster_from_magnum_cluster(
     """
     create_cluster_class(api)
 
+    ClusterServerGroups(context, cluster).apply()
     ClusterResourcesConfigMap(context, api, cluster).apply()
     ClusterResourceSet(api, cluster).apply()
     Cluster(context, api, cluster).apply()
