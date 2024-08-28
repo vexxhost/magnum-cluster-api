@@ -13,7 +13,7 @@
 # under the License.
 
 import itertools
-
+import re
 import yaml
 
 
@@ -48,13 +48,37 @@ def update_manifest_images(cluster_uuid: str, file, repository=None, replacement
     return yaml.safe_dump_all(docs, default_flow_style=False)
 
 
-def get_image(name: str, repository: str = None):
+def get_image_with_rules(name: str, repository: str, rules: list):
+    """
+    Get the image name from the target registry applying substitution rules
+    """
+
+    for rule in rules:
+        pattern = rule.get('pattern')
+        replace = rule.get('replace')
+        if not pattern:
+            continue
+        if not replace:
+            continue
+
+        name, subs_made = re.subn(pattern, replace, name)
+
+        if subs_made:
+          break
+
+    name = name.format(repository=repository)
+    return name
+
+def get_image(name: str, repository: str = None, rules: list = []):
     """
     Get the image name from the target registry given a full image name.
     """
 
     if not repository:
         return name
+
+    if rules:
+        return get_image_with_rules(name, repository, rules)
 
     new_image_name = name
     if name.startswith("docker.io/calico"):
