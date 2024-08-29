@@ -48,16 +48,22 @@ class ProxiedCluster:
 
         # NOTE(mnaser): If the API server floating IP is disabled, we don't
         #               need to proxy it.
-        if spec.get("disableAPIServerFloatingIP", False) is False:
+        if (
+            os.getenv("PROXY_ALWAYS", 0) == 0
+            and spec.get("disableAPIServerFloatingIP", False) is False
+        ):
             return None
 
         status = cluster.obj.get("status", {})
 
         network_id = status.get("network", {}).get("id")
-        internal_ip = status.get("apiServerLoadBalancer", {}).get("internalIP")
-
         if network_id is None:
             LOG.debug("No network ID found for cluster %s", cluster.name)
+            return
+
+        internal_ip = status.get("apiServerLoadBalancer", {}).get("internalIP")
+        if internal_ip is None:
+            LOG.debug("No internal IP found for cluster %s", cluster.name)
             return
 
         namespaces = [n for n in netns.listnetns() if n.endswith(network_id)]
