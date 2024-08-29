@@ -128,6 +128,11 @@ def _mirror_image(image: str, repository: str, rules: list, insecure: bool, cran
     src = image
     dst = image_utils.get_image(image, repository, rules)
 
+    # NOTE(jrosser): whilst crane will load the image data it will
+    #                not create the required metadata in the repository
+    #                if the image destination contains a digest.
+    dst = dst.split('@')[0]
+
     try:
         command = [crane_path]
         if insecure:
