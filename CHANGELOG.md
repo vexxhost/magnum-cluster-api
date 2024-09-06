@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.22.0...v0.22.1) (2024-09-06)
+
+
+### Bug Fixes
+
+* include nodegroups in COMPLETE status in cluster update job ([#427](https://github.com/vexxhost/magnum-cluster-api/issues/427)) ([b50b6dc](https://github.com/vexxhost/magnum-cluster-api/commit/b50b6dc83a8f49f01aacf6fec99b670c1316a620))
+
 ## [0.22.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.21.2...v0.22.0) (2024-08-07)
 
 
