@@ -430,6 +430,8 @@ class BaseDriver(driver.Driver):
             ):
                 continue
 
+            node_groups.append(node_group)
+
             md = objects.MachineDeployment.for_node_group_or_none(
                 self.k8s_api, cluster, node_group
             )
@@ -498,8 +500,6 @@ class BaseDriver(driver.Driver):
                 node_group.status = fields.ClusterStatus.UPDATE_COMPLETE
                 node_group.save()
                 continue
-
-            node_groups.append(node_group)
 
         return node_groups
 
