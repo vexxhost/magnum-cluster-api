@@ -17,7 +17,7 @@ from magnum.objects import fields
 from oslo_log import log as logging
 from oslo_utils import strutils
 
-from magnum_cluster_api import clients, objects, utils
+from magnum_cluster_api import clients, hacks, objects, sync, utils
 
 LOG = logging.getLogger(__name__)
 
@@ -78,3 +78,5 @@ class Monitor(monitors.MonitorBase):
             self.data["health_status"] = fields.ClusterHealthStatus.HEALTHY
 
         self.poll_nodegroup_replicas()
+        with sync.TaskLock("set_certificate_expiry_days"):
+            hacks.set_certificate_expiry_days(k8s_api)
