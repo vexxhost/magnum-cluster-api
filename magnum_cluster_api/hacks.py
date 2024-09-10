@@ -23,7 +23,9 @@ import pykube
 from tenacity import Retrying, retry_if_result, stop_after_delay, wait_fixed
 
 from magnum_cluster_api import objects, utils
+from oslo_log import log as logging
 
+LOG = logging.getLogger(__name__)
 CERTIFICATE_EXPIRY_DAYS_FIX_APPLIED = False
 
 
@@ -42,28 +44,56 @@ def set_certificate_expiry_days(
             if "certificatesExpiryDays" in rollout_before:
                 continue
 
-            # NOTE(mnaser): Since the KubeadmControlPlaneTemplate is immutable, we need to
-            #               delete the object and re-create it.
-            kcpt.delete()
+            # Backup the original object in case we need to restore it
+            original_kcpt = kcpt.obj.copy()
 
-            del kcpt.obj["metadata"]["uid"]
-            kcpt.obj["spec"]["template"]["spec"].setdefault("rolloutBefore", {})
-            kcpt.obj["spec"]["template"]["spec"]["rolloutBefore"][
-                "certificatesExpiryDays"
-            ] = 21
+            try:
+                # NOTE(mnaser): Since the KubeadmControlPlaneTemplate is immutable, we need to
+                #               delete the object and re-create it.
+                kcpt.delete()
 
-            # Use tenacity to wait for kcpt to be created
-            for attempt in Retrying(
-                retry=retry_if_result(lambda result: result is None),
-                stop=stop_after_delay(10),
-                wait=wait_fixed(1),
-            ):
-                with attempt:
-                    utils.kube_apply_patch(kcpt)
-                    new_kcpt = objects.KubeadmControlPlaneTemplate.objects(
-                        api, namespace="magnum-system"
-                    ).get(name=kcpt.obj["metadata"]["name"])
-                if not attempt.retry_state.outcome.failed:
-                    attempt.retry_state.set_result(new_kcpt)
+                del kcpt.obj["metadata"]["uid"]
+                kcpt.obj["spec"]["template"]["spec"].setdefault("rolloutBefore", {})
+                kcpt.obj["spec"]["template"]["spec"]["rolloutBefore"][
+                    "certificatesExpiryDays"
+                ] = 21
+
+                # Use tenacity to wait for kcpt to be created
+                for attempt in Retrying(
+                    retry=retry_if_result(lambda result: result is None),
+                    stop=stop_after_delay(10),
+                    wait=wait_fixed(1),
+                ):
+                    with attempt:
+                        utils.kube_apply_patch(kcpt)
+                        new_kcpt = objects.KubeadmControlPlaneTemplate.objects(
+                            api, namespace="magnum-system"
+                        ).get(name=kcpt.obj["metadata"]["name"])
+                    if not attempt.retry_state.outcome.failed:
+                        attempt.retry_state.set_result(new_kcpt)
+            except Exception as e:
+                LOG.exception(
+                    "Failed to set certificate expiry days for kcpt %s: %s",
+                    kcpt.obj["metadata"]["name"],
+                    str(e),
+                )
+                del original_kcpt["metadata"]["uid"]
+                # Use tenacity to wait for kcpt to be created
+                for attempt in Retrying(
+                    retry=retry_if_result(lambda result: result is None),
+                    stop=stop_after_delay(10),
+                    wait=wait_fixed(1),
+                ):
+                    with attempt:
+                        utils.kube_apply_patch(original_kcpt)
+                        new_kcpt = objects.KubeadmControlPlaneTemplate.objects(
+                            api, namespace="magnum-system"
+                        ).get(name=original_kcpt.obj["metadata"]["name"])
+                    if not attempt.retry_state.outcome.failed:
+                        attempt.retry_state.set_result(new_kcpt)
+                LOG.info(
+                    "Recreated kcpt %s with original values",
+                    kcpt.obj["metadata"]["name"],
+                )
 
         CERTIFICATE_EXPIRY_DAYS_FIX_APPLIED = True
