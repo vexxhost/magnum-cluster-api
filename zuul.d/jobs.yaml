@@ -1,9 +1,12 @@
 - job:
+    name: magnum-cluster-api-chart-vendor
+    parent: chart-vendor
+    vars:
+      chart_vendor_charts_root: "magnum_cluster_api/charts"
+
+- job:
     name: magnum-cluster-api-linters
     parent: tox-linters
-    pre-run: zuul.d/playbooks/linters/pre.yml
-    required-projects:
-      - name: vexxhost/chart-vendor
 
 - job:
     name: magnum-cluster-api-unit
