@@ -45,7 +45,7 @@ spec:
             - {{ .Values.conf.auth_url }}
             - --sync-configmap-name
             - {{ include "k8s-keystone-auth.fullname" . }}-sync
-            {{- if not (empty .Values.conf.ca_cert) }}
+            {{- if or (not (empty .Values.conf.ca_cert)) (not (empty .Values.conf.ca_file)) }}
             - --keystone-ca-file
             - /etc/kubernetes/cloud_ca.crt
             {{- end }}
@@ -59,7 +59,7 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
-            {{- if not (empty .Values.conf.ca_cert) }}
+            {{- if or (not (empty .Values.conf.ca_cert)) (not (empty .Values.conf.ca_file)) }}
             - mountPath: /etc/kubernetes/cloud_ca.crt
               subPath: cloud_ca.crt
               name: cloud-cert
@@ -78,6 +78,11 @@ spec:
           secret:
             secretName: {{ include "k8s-keystone-auth.fullname" . }}-ca
             defaultMode: 0444
+        {{- else if not (empty .Values.conf.ca_file) }}
+        - name: cloud-cert
+          hostPath:
+            path: /etc/kubernetes
+            type: DirectoryOrCreate
         {{- end }}
         - hostPath:
             path: /etc/kubernetes/pki

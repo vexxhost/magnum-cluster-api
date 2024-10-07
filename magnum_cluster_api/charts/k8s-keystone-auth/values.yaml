@@ -18,6 +18,7 @@ conf:
   auth_url: http://keystone:5000/v3
   # Specify the ca certificate body if needed.
   ca_cert: ~
+  ca_file: ~
   sync_config: |
     role-mappings:
       - keystone-role: member
