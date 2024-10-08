@@ -395,7 +395,7 @@ class ClusterResourcesConfigMap(ClusterBase):
         if utils.get_cluster_label_as_bool(self.cluster, "keystone_auth_enabled", True):
             auth_url = osc.url_for(
                 service_type="identity",
-                interface=CONF.capi_client.endpoint_type.replace("URL", ""),
+                interface="public",
             )
             data = {
                 **data,
