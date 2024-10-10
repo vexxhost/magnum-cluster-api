@@ -48,6 +48,7 @@ VERSIONS = [
     "v1.28.11",
     "v1.29.6",
     "v1.30.2",
+    "v1.31.1",
 ]
 
 
@@ -245,6 +246,11 @@ def _get_cloud_provider_images():
         "registry.k8s.io/provider-os/cinder-csi-plugin:v1.30.0",
         "registry.k8s.io/provider-os/manila-csi-plugin:v1.30.0",
         "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.30.0",
+        # v1.31.1
+        "registry.k8s.io/provider-os/k8s-keystone-auth:v1.31.1",
+        "registry.k8s.io/provider-os/cinder-csi-plugin:v1.31.1",
+        "registry.k8s.io/provider-os/manila-csi-plugin:v1.31.1",
+        "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.31.1",
     ]
 
 
