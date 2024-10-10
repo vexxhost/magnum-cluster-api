@@ -827,9 +827,8 @@ class OpenStackClusterTemplate(Base):
                     "template": {
                         "spec": {
                             "cloudName": "default",
-                            "managedSecurityGroups": {
-                                "allowAllInClusterTraffic": True,
-                            },
+                            "managedSecurityGroups": True,
+                            "allowAllInClusterTraffic": True,
                         },
                     },
                 },
