@@ -2039,7 +2039,7 @@ class ClusterClass(Base):
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-",
-                                            "value": "mkdir /etc/kubernetes/keystone-kustomization",
+                                            "value": "mkdir -p /etc/kubernetes/keystone-kustomization",
                                         },
                                         {
                                             "op": "add",

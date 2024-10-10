@@ -79,6 +79,11 @@ auto_scaling_opts = [
         default="$image_repository/cluster-autoscaler:v1.30.1",
         help="Image for the cluster auto-scaler for Kubernetes v1.30.",
     ),
+    cfg.StrOpt(
+        "v1_31_image",
+        default="$image_repository/cluster-autoscaler:v1.31.0",
+        help="Image for the cluster auto-scaler for Kubernetes v1.31.",
+    ),
 ]
 
 
