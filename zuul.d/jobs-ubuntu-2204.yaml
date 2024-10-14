@@ -7,25 +7,6 @@
       image_os_distro: ubuntu
 
 - job:
-    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.15
-    parent: magnum-cluster-api-sonobuoy-ubuntu-2204
-    vars:
-      kube_tag: v1.27.15
-      image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-27-15-1719601165.qcow2
-
-- job:
-    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.15-calico
-    parent: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.15
-    vars:
-      network_driver: calico
-
-- job:
-    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.15-cilium
-    parent: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.15
-    vars:
-      network_driver: cilium
-
-- job:
     name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.11
     parent: magnum-cluster-api-sonobuoy-ubuntu-2204
     vars:
@@ -82,15 +63,34 @@
     vars:
       network_driver: cilium
 
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204
+    vars:
+      kube_tag: v1.31.1
+      image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-31-1-1728920853.qcow2
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1-calico
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1
+    vars:
+      network_driver: calico
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1-cilium
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1
+    vars:
+      network_driver: cilium
+
 - project-template:
     name: magnum-cluster-api-ubuntu-2204
     check:
       jobs:
-        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.15-calico
-        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.15-cilium
         - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.11-calico
         - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.11-cilium
         - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.6-calico
         - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.6-cilium
         - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.30.2-calico
         - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.30.2-cilium
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1-calico
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1-cilium
