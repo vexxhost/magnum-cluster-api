@@ -90,6 +90,8 @@ def get_cloud_provider_tag(cluster: objects.Cluster, label: str) -> str:
         tag = "v1.29.0"
     elif version.major == 1 and version.minor == 30:
         tag = "v1.30.0"
+    elif version.major == 1 and version.minor == 31:
+        tag = "v1.31.1"
 
     if tag is None:
         raise ValueError(
