@@ -141,14 +141,31 @@ common_security_opts = [
     ),
 ]
 
+ALL_GROUPS = [
+    auto_scaling_group,
+    capi_client_group,
+    manila_client_group,
+    proxy_group,
+]
+
+ALL_OPTS = [
+    (auto_scaling_group, auto_scaling_opts),
+    (capi_client_group, capi_client_opts),
+    (capi_client_group, common_security_opts),
+    (manila_client_group, manila_client_opts),
+    (manila_client_group, common_security_opts),
+    (proxy_group, proxy_opts),
+]
+
+
 CONF = cfg.CONF
-CONF.register_group(auto_scaling_group)
-CONF.register_group(capi_client_group)
-CONF.register_group(manila_client_group)
-CONF.register_group(proxy_group)
-CONF.register_opts(auto_scaling_opts, group=auto_scaling_group)
-CONF.register_opts(capi_client_opts, group=capi_client_group)
-CONF.register_opts(common_security_opts, group=capi_client_group)
-CONF.register_opts(manila_client_opts, group=manila_client_group)
-CONF.register_opts(common_security_opts, group=manila_client_group)
-CONF.register_opts(proxy_opts, group=proxy_group)
+
+for group in ALL_GROUPS:
+    CONF.register_group(group)
+
+for group, opts in ALL_OPTS:
+    CONF.register_opts(opts, group=group)
+
+
+def list_opts():
+    return ALL_OPTS

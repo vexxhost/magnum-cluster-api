@@ -53,5 +53,8 @@ magnum-cluster-api-proxy = "magnum_cluster_api.cmd.proxy:main"
 "k8s_cluster_api_flatcar" = "magnum_cluster_api.driver:FlatcarDriver"
 "k8s_cluster_api_rockylinux" = "magnum_cluster_api.driver:RockyLinuxDriver"
 
+[tool.poetry.plugins."oslo.config.opts"]
+magnum_cluster_api = "magnum_cluster_api.conf:list_opts"
+
 [tool.isort]
 profile = "black"
