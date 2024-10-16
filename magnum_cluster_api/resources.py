@@ -104,6 +104,40 @@ class ClusterAutoscalerHelmRelease:
         )
 
 
+class ClusterServerGroups:
+    def __init__(
+        self, context: context.RequestContext, cluster: magnum_objects.Cluster
+    ) -> None:
+        self.cluster = cluster
+        self.context = context
+        self.osc = clients.get_openstack_api(self.context)
+
+    def apply(self):
+        # Create a server group for controlplane
+        utils.ensure_controlplane_server_group(ctx=self.context, cluster=self.cluster)
+
+        # Create a server group per a nodegroup
+        for ng in self.cluster.nodegroups:
+            if ng.role == "master":
+                continue
+            utils.ensure_worker_server_group(
+                ctx=self.context, cluster=self.cluster, node_group=ng
+            )
+
+    def delete(self):
+        # delete controlplane server group
+        utils.delete_controlplane_server_group(ctx=self.context, cluster=self.cluster)
+
+        # Create worker server groups
+        for ng in self.cluster.nodegroups:
+            if ng.role == "master":
+                continue
+
+            utils.delete_worker_server_group(
+                ctx=self.context, cluster=self.cluster, node_group=ng
+            )
+
+
 class Base:
     def __init__(self, api: pykube.HTTPClient):
         self.api = api
@@ -1313,6 +1347,32 @@ class ClusterClass(Base):
                                 },
                             },
                         },
+                        {
+                            "name": "serverGroupId",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "schedulerHintProperties",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "object",
+                                    "required": ["different_failure_domain"],
+                                    "properties": {
+                                        "different_failure_domain": {
+                                            "type": "string",
+                                            "enum": ["true", "false"],
+                                            "default": "false",
+                                        },
+                                    },
+                                },
+                            },
+                        },
                     ],
                     "patches": [
                         {
@@ -1701,6 +1761,20 @@ class ClusterClass(Base):
                                                 "variable": "controlPlaneFlavor",
                                             },
                                         },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/serverGroupID",
+                                            "valueFrom": {
+                                                "variable": "serverGroupId",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/schedulerHintAdditionalProperties",
+                                            "valueFrom": {
+                                                "variable": "schedulerHintProperties",
+                                            },
+                                        },
                                     ],
                                 },
                                 {
@@ -1719,6 +1793,20 @@ class ClusterClass(Base):
                                             "path": "/spec/template/spec/flavor",
                                             "valueFrom": {
                                                 "variable": "flavor",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/serverGroupID",
+                                            "valueFrom": {
+                                                "variable": "serverGroupId",
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/schedulerHintAdditionalProperties",
+                                            "valueFrom": {
+                                                "variable": "schedulerHintProperties",
                                             },
                                         },
                                     ],
@@ -2344,9 +2432,12 @@ def mutate_machine_deployment(
     if machine_deployment.get("name") == node_group.name:
         return machine_deployment
 
+    osc = clients.get_openstack_api(context)
+    server_group = osc.nova()
     # At this point, this is all code that will be added for brand new machine
     # deployments.  We can bring any of this code into the above block if we
     # want to change it for existing machine deployments.
+
     machine_deployment.update(
         {
             "class": "default-worker",
@@ -2384,11 +2475,27 @@ def mutate_machine_deployment(
                         "name": "imageUUID",
                         "value": utils.get_image_uuid(node_group.image_id, context),
                     },
+                    # NOTE(oleks): Override using MachineDeployment-level variables for node groups
+                    {
+                        "name": "serverGroupId",
+                        "value": utils.ensure_worker_server_group(
+                            ctx=context, cluster=cluster, node_group=node_group
+                        ),
+                    },
+                    {
+                        "name": "schedulerHintProperties",
+                        "value": {
+                            "different_failure_domain": str(
+                                utils.is_node_group_different_failure_domain(
+                                    node_group=node_group, cluster=cluster
+                                ),
+                            ).lower(),
+                        },
+                    },
                 ],
             },
         }
     )
-
     return machine_deployment
 
 
@@ -2758,6 +2865,26 @@ class Cluster(ClusterBase):
                                     "control_plane_availability_zones", ""
                                 ).split(","),
                             },
+                            # NOTE(oleks): Set cluster-level variable using server group id for controlplane.
+                            #              Override this for node groups via  MachineDeployment-level variable.
+                            {
+                                "name": "serverGroupId",
+                                "value": utils.ensure_controlplane_server_group(
+                                    ctx=self.context, cluster=self.cluster
+                                ),
+                            },
+                            # NOTE(oleks): Set cluster-level variable using cluster label for controlplane.
+                            #              Override this using node group label for node groups via  MachineDeployment-level variable. # noqa: E501
+                            {
+                                "name": "schedulerHintProperties",
+                                "value": {
+                                    "different_failure_domain": str(
+                                        utils.is_controlplane_different_failure_domain(
+                                            cluster=self.cluster
+                                        ),
+                                    ).lower(),
+                                },
+                            },
                         ],
                     },
                 },
@@ -2781,6 +2908,7 @@ def apply_cluster_from_magnum_cluster(
     """
     create_cluster_class(api)
 
+    ClusterServerGroups(context, cluster).apply()
     ClusterResourcesConfigMap(context, api, cluster).apply()
     ClusterResourceSet(api, cluster).apply()
     Cluster(context, api, cluster).apply()
