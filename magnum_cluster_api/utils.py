@@ -198,13 +198,18 @@ def get_cluster_floating_ip_disabled(cluster: magnum_objects.Cluster) -> bool:
     return not get_cluster_label_as_bool(cluster, "master_lb_floating_ip_enabled", True)
 
 
+def get_insecure_registry_url(cluster: magnum_objects.Cluster) -> str:
+    return cluster.labels.get("insecure_registry_url", "")
+
+
 def generate_containerd_config(
     cluster: magnum_objects.Cluster,
 ):
     image_repository = get_cluster_container_infra_prefix(cluster)
+    insecure_registry_url = get_insecure_registry_url(cluster)
     sandbox_image = image_utils.get_image(images.PAUSE, image_repository)
 
-    return textwrap.dedent(
+    config = textwrap.dedent(
         """\
         # Use config version 2 to enable new configuration fields.
         # Config file is parsed as version 1 by default.
@@ -221,6 +226,24 @@ def generate_containerd_config(
             SystemdCgroup = true
         """
     ).format(sandbox_image=sandbox_image)
+    
+    if insecure_registry_url:
+        insecure_registry_config = textwrap.dedent(
+            """\
+
+            [plugins."io.containerd.grpc.v1.cri".registry]
+              [plugins."io.containerd.grpc.v1.cri".registry.mirrors]
+                [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{insecure_registry_url}"]
+                  endpoint = ["http://{insecure_registry_url}"]
+
+              [plugins."io.containerd.grpc.v1.cri".registry.configs]
+                [plugins."io.containerd.grpc.v1.cri".registry.configs."{insecure_registry_url}".tls]
+                  insecure_skip_verify = true
+            """
+        ).format(insecure_registry_url=insecure_registry_url)
+        config += insecure_registry_config
+
+    return config
 
 
 def generate_systemd_proxy_config(cluster: magnum_objects.Cluster):
