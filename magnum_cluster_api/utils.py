@@ -404,7 +404,7 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
 
 def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
     # Machine requires a lowercase RFC 1123 subdomain name.
-    rgx='[a-z0-9]([-a-z0-9]*[a-z0-9])?(.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
+    rgx = "[a-z0-9]([-a-z0-9]*[a-z0-9])?(.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*"
     if re.fullmatch(rgx, nodegroup.name) is None:
         raise mcapi_exceptions.MachineInvalidName(name=nodegroup.name)
 
