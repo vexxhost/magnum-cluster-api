@@ -402,9 +402,17 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
             neutron.get_subnet(ctx, cluster.fixed_subnet, source="name", target="id")
 
 
+def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
+    # Machine requires a lowercase RFC 1123 subdomain name.
+    rgx = "[a-z0-9]([-a-z0-9]*[a-z0-9])?(.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*"
+    if re.fullmatch(rgx, nodegroup.name) is None:
+        raise mcapi_exceptions.MachineInvalidName(name=nodegroup.name)
+
+
 def validate_nodegroup(
     nodegroup: magnum_objects.NodeGroup, ctx: context.RequestContext
 ):
+    validate_nodegroup_name(nodegroup)
     # Validate flavors
     osc = clients.get_openstack_api(ctx)
     validate_flavor_name(osc, nodegroup.flavor_id)
