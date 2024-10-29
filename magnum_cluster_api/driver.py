@@ -480,7 +480,7 @@ class BaseDriver(driver.Driver):
             }
             image_id_match = all(
                 [
-                    machine.obj["spec"]["imageUUID"] == md_variables["imageUUID"]
+                    machine.obj["spec"]["image"]["id"] == md_variables["imageUUID"]
                     for machine in machines
                 ]
             )

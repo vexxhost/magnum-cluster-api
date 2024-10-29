@@ -52,6 +52,7 @@ CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
 CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT = "300s"  # seconds
 
 PLACEHOLDER = "PLACEHOLDER"
+PLACEHOLDER_UUID = "00000000-0000-0000-0000-000000000000"
 
 AUTOSCALE_ANNOTATION_MIN = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size"
 AUTOSCALE_ANNOTATION_MAX = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"
@@ -803,7 +804,11 @@ class OpenStackMachineTemplate(Base):
                 "spec": {
                     "template": {
                         "spec": {
+                            "image": {
+                                "id": PLACEHOLDER_UUID,
+                            },
                             "identityRef": {
+                                "name": PLACEHOLDER,
                                 "cloudName": "default",
                             },
                             "flavor": PLACEHOLDER,
@@ -829,6 +834,7 @@ class OpenStackClusterTemplate(Base):
                     "template": {
                         "spec": {
                             "identityRef": {
+                                "name": PLACEHOLDER,
                                 "cloudName": "default",
                             },
                             "managedSecurityGroups": {
@@ -1733,7 +1739,7 @@ class ClusterClass(Base):
                                     },
                                     "jsonPatches": [
                                         {
-                                            "op": "add",
+                                            "op": "replace",
                                             "path": "/spec/template/spec/identityRef/name",
                                             "valueFrom": {
                                                 "variable": "clusterIdentityRefName"
@@ -1745,7 +1751,7 @@ class ClusterClass(Base):
                                             "valueFrom": {"variable": "sshKeyName"},
                                         },
                                         {
-                                            "op": "add",
+                                            "op": "replace",
                                             "path": "/spec/template/spec/image/id",
                                             "valueFrom": {"variable": "imageUUID"},
                                         },
@@ -1794,9 +1800,13 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/externalNetwork/id",
+                                            "path": "/spec/template/spec/externalNetwork",
                                             "valueFrom": {
-                                                "variable": "externalNetworkId"
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    id: {{ .externalNetworkId }}
+                                                    """
+                                                ),
                                             },
                                         },
                                     ],
