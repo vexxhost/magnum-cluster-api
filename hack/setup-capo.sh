@@ -20,7 +20,7 @@ export GOPROXY=off
 
 # Versions to test
 CAPI_VERSION=${CAPI_VERSION:-v1.8.4}
-CAPO_VERSION=${CAPO_VERSION:-v0.10.5}
+CAPO_VERSION=${CAPO_VERSION:-v0.11.0}
 
 # Install the `clusterctl` CLI
 sudo curl -Lo /usr/local/bin/clusterctl https://github.com/kubernetes-sigs/cluster-api/releases/download/${CAPI_VERSION}/clusterctl-linux-amd64
