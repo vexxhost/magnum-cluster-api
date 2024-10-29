@@ -803,7 +803,9 @@ class OpenStackMachineTemplate(Base):
                 "spec": {
                     "template": {
                         "spec": {
-                            "cloudName": "default",
+                            "identityRef": {
+                                "cloudName": "default",
+                            },
                             "flavor": PLACEHOLDER,
                         }
                     }
@@ -826,9 +828,12 @@ class OpenStackClusterTemplate(Base):
                 "spec": {
                     "template": {
                         "spec": {
-                            "cloudName": "default",
-                            "managedSecurityGroups": True,
-                            "allowAllInClusterTraffic": True,
+                            "identityRef": {
+                                "cloudName": "default",
+                            },
+                            "managedSecurityGroups": {
+                                "allowAllInClusterTraffic": True,
+                            },
                         },
                     },
                 },
@@ -1037,19 +1042,11 @@ class ClusterClass(Base):
                             },
                         },
                         {
-                            "name": "clusterIdentityRef",
+                            "name": "clusterIdentityRefName",
                             "required": True,
                             "schema": {
                                 "openAPIV3Schema": {
-                                    "type": "object",
-                                    "required": ["kind", "name"],
-                                    "properties": {
-                                        "kind": {
-                                            "type": "string",
-                                            "enum": [pykube.Secret.kind],
-                                        },
-                                        "name": {"type": "string"},
-                                    },
+                                    "type": "string",
                                 },
                             },
                         },
@@ -1470,8 +1467,8 @@ class ClusterClass(Base):
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
                                                     """\
-                                                    diskSize: {{ .bootVolume.size }}
-                                                    volumeType: {{ .bootVolume.type }}
+                                                    sizeGiB: {{ .bootVolume.size }}
+                                                    type: {{ .bootVolume.type }}
                                                     """
                                                 ),
                                             },
@@ -1737,9 +1734,9 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/identityRef",
+                                            "path": "/spec/template/spec/identityRef/name",
                                             "valueFrom": {
-                                                "variable": "clusterIdentityRef"
+                                                "variable": "clusterIdentityRefName"
                                             },
                                         },
                                         {
@@ -1749,7 +1746,7 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/imageUUID",
+                                            "path": "/spec/template/spec/image/id",
                                             "valueFrom": {"variable": "imageUUID"},
                                         },
                                     ],
@@ -1772,9 +1769,9 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/identityRef",
+                                            "path": "/spec/template/spec/identityRef/name",
                                             "valueFrom": {
-                                                "variable": "clusterIdentityRef"
+                                                "variable": "clusterIdentityRefName"
                                             },
                                         },
                                         {
@@ -1786,12 +1783,18 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/dnsNameservers",
-                                            "valueFrom": {"variable": "dnsNameservers"},
+                                            "path": "/spec/template/spec/managedSubnets",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - dnsNameservers: {{ .dnsNameservers }}
+                                                    """
+                                                ),
+                                            },
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/externalNetworkId",
+                                            "path": "/spec/template/spec/externalNetwork/id",
                                             "valueFrom": {
                                                 "variable": "externalNetworkId"
                                             },
@@ -1839,7 +1842,7 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/nodeCidr",
+                                            "path": "/spec/template/spec/managedSubnets/0/cidr",
                                             "valueFrom": {"variable": "nodeCidr"},
                                         },
                                     ],
@@ -1885,8 +1888,14 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/subnet/id",
-                                            "valueFrom": {"variable": "fixedSubnetId"},
+                                            "path": "/spec/template/spec/subnets",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - id: {{ .fixedSubnetId }}
+                                                    """
+                                                ),
+                                            },
                                         },
                                     ],
                                 },
@@ -2572,13 +2581,10 @@ class Cluster(ClusterBase):
                                 },
                             },
                             {
-                                "name": "clusterIdentityRef",
-                                "value": {
-                                    "kind": pykube.Secret.kind,
-                                    "name": utils.get_cluster_api_cloud_config_secret_name(
-                                        self.cluster
-                                    ),
-                                },
+                                "name": "clusterIdentityRefName",
+                                "value": utils.get_cluster_api_cloud_config_secret_name(
+                                    self.cluster
+                                ),
                             },
                             {
                                 "name": "cloudCaCert",
