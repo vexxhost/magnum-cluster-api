@@ -1334,7 +1334,6 @@ class ClusterClass(Base):
                             "schema": {
                                 "openAPIV3Schema": {
                                     "type": "boolean",
-                                    "default": False,
                                 },
                             },
                         },
@@ -1360,19 +1359,11 @@ class ClusterClass(Base):
                             },
                         },
                         {
-                            "name": "schedulerHintProperties",
+                            "name": "isServeGroupDiffFailureDomain",
                             "required": True,
                             "schema": {
                                 "openAPIV3Schema": {
-                                    "type": "object",
-                                    "required": ["different_failure_domain"],
-                                    "properties": {
-                                        "different_failure_domain": {
-                                            "type": "string",
-                                            "enum": ["true", "false"],
-                                            "default": "false",
-                                        },
-                                    },
+                                    "type": "boolean",
                                 },
                             },
                         },
@@ -1775,7 +1766,14 @@ class ClusterClass(Base):
                                             "op": "add",
                                             "path": "/spec/template/spec/schedulerHintAdditionalProperties",
                                             "valueFrom": {
-                                                "variable": "schedulerHintProperties",
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - name: different_failure_domain
+                                                      value:
+                                                        type: bool
+                                                        bool: {{ .isServerGroupDifferentFailureDomain }}
+                                                    """
+                                                ),
                                             },
                                         },
                                     ],
@@ -1809,7 +1807,14 @@ class ClusterClass(Base):
                                             "op": "add",
                                             "path": "/spec/template/spec/schedulerHintAdditionalProperties",
                                             "valueFrom": {
-                                                "variable": "schedulerHintProperties",
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - name: different_failure_domain
+                                                      value:
+                                                        type: bool
+                                                        bool: {{ .isServerGroupDifferentFailureDomain }}
+                                                    """
+                                                ),
                                             },
                                         },
                                     ],
@@ -2451,9 +2456,7 @@ def mutate_machine_deployment(
     if machine_deployment.get("name") == node_group.name:
         return machine_deployment
 
-    osc = clients.get_openstack_api(context)
-    server_group = osc.nova()
-    # At this point, this is all code that will be added for brand new machine
+    # At this point, this is all code that will be added for brand-new machine
     # deployments.  We can bring any of this code into the above block if we
     # want to change it for existing machine deployments.
 
@@ -2502,14 +2505,10 @@ def mutate_machine_deployment(
                         ),
                     },
                     {
-                        "name": "schedulerHintProperties",
-                        "value": {
-                            "different_failure_domain": str(
-                                utils.is_node_group_different_failure_domain(
-                                    node_group=node_group, cluster=cluster
-                                ),
-                            ).lower(),
-                        },
+                        "name": "isServeGroupDiffFailureDomain",
+                        "value": utils.is_node_group_different_failure_domain(
+                            node_group=node_group, cluster=cluster
+                        ),
                     },
                 ],
             },
@@ -2892,14 +2891,10 @@ class Cluster(ClusterBase):
                             # NOTE(oleks): Set cluster-level variable using cluster label for controlplane.
                             #              Override this using node group label for node groups via  MachineDeployment-level variable. # noqa: E501
                             {
-                                "name": "schedulerHintProperties",
-                                "value": {
-                                    "different_failure_domain": str(
-                                        utils.is_controlplane_different_failure_domain(
-                                            cluster=self.cluster
-                                        ),
-                                    ).lower(),
-                                },
+                                "name": "isServeGroupDiffFailureDomain",
+                                "value": utils.is_controlplane_different_failure_domain(
+                                    cluster=self.cluster
+                                ),
                             },
                         ],
                     },
@@ -2943,20 +2938,4 @@ def get_kubeadm_control_plane(
     )
     if len(kcps) == 1:
         return list(kcps)[0]
-    return None
-
-
-def get_machine_deployment(
-    api: pykube.HTTPClient,
-    cluster: magnum_objects.Cluster,
-    node_group: magnum_objects.NodeGroup,
-) -> objects.KubeadmControlPlane:
-    mds = objects.MachineDeployment.objects(api, namespace="magnum-system").filter(
-        selector={
-            "cluster.x-k8s.io/cluster-name": cluster.stack_id,
-            "topology.cluster.x-k8s.io/deployment-name": node_group.name,
-        },
-    )
-    if len(mds) == 1:
-        return list(mds)[0]
     return None

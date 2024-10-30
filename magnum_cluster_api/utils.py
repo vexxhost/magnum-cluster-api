@@ -35,12 +35,14 @@ from tenacity import retry, retry_if_exception_type
 from magnum_cluster_api import clients
 from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import image_utils, images, objects
+from magnum_cluster_api.cache import ServerGroupCache
 
 AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar", "rockylinux"]
 DEFAULT_SERVER_GROUP_POLICIES = ["soft-anti-affinity"]
 CONF = cfg.CONF
 
-SERVER_GROUP_NAME_ID_MAP = {}
+
+g_server_group_cache = ServerGroupCache()
 
 
 def get_cluster_api_cloud_config_secret_name(cluster: magnum_objects.Cluster) -> str:
@@ -514,22 +516,24 @@ def generate_api_cert_san_list(cluster: magnum_objects.Cluster):
     return "\n".join(f"- {san}" for san in additional_cert_sans_list if san)
 
 
-def get_server_group_id(name: string):
-    server_group_id = SERVER_GROUP_NAME_ID_MAP.get(name)
-    if server_group_id:
-        return server_group_id
+def get_server_group_id(
+    ctx: context.RequestContext,
+    name: string,
+    project_id: string = None,
+):
+    if g_server_group_cache.get(project_id, name):
+        return g_server_group_cache.get(project_id, name)
 
     # Check if the server group exists already
-    admin_ctx = context.get_admin_context()
-    osc = clients.get_openstack_api(admin_ctx)
-    server_groups = osc.nova().server_groups.list(all_projects=True)
+    osc = clients.get_openstack_api(ctx)
+    server_groups = osc.nova().server_groups.list()
     server_group_id_list = []
     for sg in server_groups:
         if sg.name == name:
             server_group_id_list.append(sg.id)
 
     if len(server_group_id_list) == 1:
-        SERVER_GROUP_NAME_ID_MAP[name] = server_group_id_list[0]
+        g_server_group_cache.set(project_id, name, server_group_id_list[0])
         return server_group_id_list[0]
 
     if len(server_group_id_list) > 1:
@@ -554,11 +558,7 @@ def _get_controlplane_server_group_policies(
     cluster: magnum_objects.Cluster,
 ):
     policies = cluster.labels.get("server_group_policies", "")
-    if policies:
-        policies = policies.split(",")
-    else:
-        policies = DEFAULT_SERVER_GROUP_POLICIES
-    return policies
+    return policies.split(",") or DEFAULT_SERVER_GROUP_POLICIES
 
 
 def is_node_group_different_failure_domain(
@@ -568,7 +568,6 @@ def is_node_group_different_failure_domain(
     res = get_node_group_label_as_bool(node_group, "different_failure_domain", False)
     if not res:
         res = is_controlplane_different_failure_domain(cluster)
-
     return res
 
 
@@ -626,9 +625,10 @@ def _ensure_server_group(
     name: string,
     ctx: context.RequestContext,
     policies: list(string) = None,
+    project_id: string = None,
 ):
     # Retrieve existing server group id
-    server_group_id = get_server_group_id(name)
+    server_group_id = get_server_group_id(ctx, name, project_id)
     if server_group_id:
         return server_group_id
 
@@ -636,9 +636,10 @@ def _ensure_server_group(
     osc = clients.get_openstack_api(ctx)
     if not policies:
         policies = DEFAULT_SERVER_GROUP_POLICIES
+
     # NOTE(oleks): Requires API microversion 2.15 or later for soft-affinity and soft-anti-affinity policy rules.
     server_group = osc.nova().server_groups.create(name=name, policies=policies)
-    SERVER_GROUP_NAME_ID_MAP[name] = server_group.id
+    g_server_group_cache.set(project_id, name, server_group.id)
     return server_group.id
 
 
