@@ -2611,7 +2611,9 @@ def mutate_machine_deployment(
                     },
                     {
                         "name": "ports",
-                        "value": utils.get_ports(cluster.labels.get("ports", "[]"), context),
+                        "value": utils.get_ports(
+                            cluster.labels.get("ports", "[]"), context
+                        ),
                     },
                 ],
             },
