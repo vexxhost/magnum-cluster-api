@@ -270,6 +270,14 @@ is often accomplished by deploying a driver on each node.
 
    Default value: `10.0.0.0/24`
 
+* `ports`
+
+   Ports definition list of the networks to use for the cluster.
+   This allows us to attach multiple networks to each worker.
+   For example: `[{"fixedIPs": [{"subnet": {"id": "$subnet_ID1"}}, {"subnet": {"id": "$subnet_ID2"}}]}]`
+
+   Default value: `[]`
+
 ## TODO
 
 availability_zone
