@@ -14,9 +14,11 @@ For more information, please refer to the following resources:
 
 ## Images
 
-The images are built by [`vexxhost/capo-image-elements`](https://github.com/vexxhost/capo-image-elements)
-project and published to https://static.atmosphere.dev/artifacts/magnum-cluster-api/.
-These images are built and published for the latest stable release of Kubernetes.
+The Cluster API driver for Magnum relies on specific OpenStack images containing
+all necessary dependencies for deploying Kubernetes clusters.
+
+For more information on how to build images and where to find pre-built images,
+refer to the [user guide](https://vexxhost.github.io/magnum-cluster-api/user/images/)
 
 ## Testing & Development
 
