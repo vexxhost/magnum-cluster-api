@@ -1183,6 +1183,74 @@ class ClusterClass(Base):
                             },
                         },
                         {
+                            "name": "ports",
+                            "required": False,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "network": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                    },
+                                                    "projectId": {
+                                                        "type": "string",
+                                                    },
+                                                    "tags": {
+                                                        "type": "string",
+                                                    },
+                                                },
+                                            },
+                                            "nameSuffix": {
+                                                "type": "string",
+                                            },
+                                            "adminStateUp": {
+                                                "type": "boolean",
+                                            },
+                                            "macAddress": {
+                                                "type": "string",
+                                            },
+                                            "fixedIPs": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "ipAddress": {
+                                                            "type": "string",
+                                                        },
+                                                        "subnet": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "id": {
+                                                                    "type": "string",
+                                                                },
+                                                                "name": {
+                                                                    "type": "string",
+                                                                },
+                                                                "cidr": {
+                                                                    "type": "string",
+                                                                },
+                                                                "tags": {
+                                                                    "type": "string",
+                                                                },
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        {
                             "name": "kubeletTLSCipherSuites",
                             "required": True,
                             "schema": {
@@ -1475,6 +1543,29 @@ class ClusterClass(Base):
                                                     """
                                                 ),
                                             },
+                                        },
+                                    ],
+                                }
+                            ],
+                        },
+                        {
+                            "name": "extraNetwork",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackMachineTemplate.version,
+                                        "kind": objects.OpenStackMachineTemplate.kind,
+                                        "matchResources": {
+                                            "machineDeploymentClass": {
+                                                "names": ["default-worker"],
+                                            },
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/ports",
+                                            "valueFrom": {"variable": "ports"},
                                         },
                                     ],
                                 }
@@ -2384,6 +2475,10 @@ def mutate_machine_deployment(
                         "name": "imageUUID",
                         "value": utils.get_image_uuid(node_group.image_id, context),
                     },
+                    {
+                        "name": "ports",
+                        "value": utils.get_ports(cluster.labels.get("ports", "[]"), context),
+                    },
                 ],
             },
         }
@@ -2393,7 +2488,7 @@ def mutate_machine_deployment(
 
 
 def generate_machine_deployments_for_cluster(
-    context: context.RequestContext, cluster: objects.Cluster
+    context: context.RequestContext, cluster: magnum_objects.Cluster
 ) -> list:
     machine_deployments = []
     for ng in cluster.nodegroups:
@@ -2663,6 +2758,13 @@ class Cluster(ClusterBase):
                                 "name": "imageUUID",
                                 "value": utils.get_image_uuid(
                                     self.cluster.default_ng_master.image_id,
+                                    self.context,
+                                ),
+                            },
+                            {
+                                "name": "ports",
+                                "value": utils.get_ports(
+                                    self.cluster.labels.get("ports", "[]"),
                                     self.context,
                                 ),
                             },

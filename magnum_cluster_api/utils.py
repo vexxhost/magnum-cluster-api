@@ -418,6 +418,14 @@ def get_operating_system(cluster: magnum_objects.Cluster):
     return None
 
 
+def get_ports(ports: str, ctx: context.RequestContext):
+    """Get Ports
+
+    :param ports: PortOpts list in string
+    """
+    return json.loads(ports)
+
+
 def get_image_uuid(image_ref: str, ctx: context.RequestContext):
     """Get image uuid from image ref
 
