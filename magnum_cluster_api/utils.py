@@ -39,6 +39,12 @@ from magnum_cluster_api.cache import ServerGroupCache
 
 AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar", "rockylinux"]
 DEFAULT_SERVER_GROUP_POLICIES = ["soft-anti-affinity"]
+AVAILABLE_SERVER_GROUP_POLICIES = [
+    "affinity",
+    "anti-affinity",
+    "soft-affinity",
+    "soft-anti-affinity",
+]
 CONF = cfg.CONF
 
 
@@ -547,18 +553,22 @@ def _get_node_group_server_group_policies(
     cluster: magnum_objects.Cluster,
 ):
     policies = node_group.labels.get("server_group_policies", "")
+    policies = [s for s in policies.split(",") if s in AVAILABLE_SERVER_GROUP_POLICIES]
     if policies:
-        policies = policies.split(",")
+        return policies
     else:
-        policies = _get_controlplane_server_group_policies(cluster)
-    return policies
+        return _get_controlplane_server_group_policies(cluster)
 
 
 def _get_controlplane_server_group_policies(
     cluster: magnum_objects.Cluster,
 ):
     policies = cluster.labels.get("server_group_policies", "")
-    return policies.split(",") or DEFAULT_SERVER_GROUP_POLICIES
+    policies = [s for s in policies.split(",") if s in AVAILABLE_SERVER_GROUP_POLICIES]
+    if policies:
+        return policies
+    else:
+        return DEFAULT_SERVER_GROUP_POLICIES
 
 
 def is_node_group_different_failure_domain(
@@ -607,6 +617,7 @@ def delete_controlplane_server_group(
     _delete_server_group(
         name=cluster.stack_id,
         ctx=ctx,
+        project_id=cluster.project_id,
     )
 
 
@@ -618,6 +629,7 @@ def delete_worker_server_group(
     _delete_server_group(
         name=f"{cluster.stack_id}-{node_group.name}",
         ctx=ctx,
+        project_id=cluster.project_id,
     )
 
 
@@ -646,8 +658,9 @@ def _ensure_server_group(
 def _delete_server_group(
     name: string,
     ctx: context.RequestContext,
+    project_id: string = None,
 ):
-    server_group_id = get_server_group_id(name)
+    server_group_id = get_server_group_id(ctx, name, project_id)
     if server_group_id is None:
         return
 

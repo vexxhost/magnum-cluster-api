@@ -270,6 +270,24 @@ is often accomplished by deploying a driver on each node.
 
    Default value: `10.0.0.0/24`
 
+* `different_failure_domain`
+
+    Enable [failure domain filter](https://github.com/vexxhost/nova-scheduler-filters).
+    This spreads cluster nodes across different failure domains.
+
+   Default value: `false`
+
+* `server_group_policies`
+
+    Specify the server group policies. A server group is created for each cluster node group.
+    Nodes in a node group are scheduled following the policies specified for the corresponding
+    server group.
+
+    Controlplane node group uses the cluster label while other node groups use labels at each
+    node group level. If node group label is not configured, cluster level label is applied.
+
+   Default value: `soft-anti-affinity`
+
 ## TODO
 
 availability_zone
