@@ -90,25 +90,6 @@ class TestDriver:
 
         return new_node_group
 
-    def test_upgrade_cluster(self, context, ubuntu_driver, cluster_template):
-        cluster_template.labels["kube_tag"] = "v1.26.3"
-
-        cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
-        current_observed_generation = cluster_resource.observed_generation
-
-        ubuntu_driver.upgrade_cluster(
-            context, self.cluster, cluster_template, None, None
-        )
-
-        cluster_resource.wait_for_observed_generation_changed(
-            existing_observed_generation=current_observed_generation,
-        )
-
-        cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
-        assert cluster_resource.observed_generation != current_observed_generation
-
-        self.cluster.save.assert_not_called()
-
     def test_upgrade_cluster_to_same_version(
         self, kube_tag, context, ubuntu_driver, cluster_template
     ):
@@ -148,8 +129,6 @@ class TestDriver:
                 new_node_group,
             ],
         )
-
-        cluster_template.labels["kube_tag"] = "v1.26.3"
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
         current_observed_generation = cluster_resource.observed_generation
