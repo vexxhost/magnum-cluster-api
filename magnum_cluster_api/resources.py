@@ -1359,7 +1359,7 @@ class ClusterClass(Base):
                             },
                         },
                         {
-                            "name": "isServeGroupDiffFailureDomain",
+                            "name": "isServerGroupDiffFailureDomain",
                             "required": True,
                             "schema": {
                                 "openAPIV3Schema": {
@@ -1757,9 +1757,13 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/serverGroupID",
+                                            "path": "/spec/template/spec/serverGroup",
                                             "valueFrom": {
-                                                "variable": "serverGroupId",
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    id: {{ .serverGroupId }}
+                                                    """
+                                                ),
                                             },
                                         },
                                         {
@@ -1770,8 +1774,8 @@ class ClusterClass(Base):
                                                     """\
                                                     - name: different_failure_domain
                                                       value:
-                                                        type: bool
-                                                        bool: {{ .isServerGroupDifferentFailureDomain }}
+                                                        type: Bool
+                                                        bool: {{ .isServerGroupDiffFailureDomain }}
                                                     """
                                                 ),
                                             },
@@ -1798,9 +1802,13 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/serverGroupID",
+                                            "path": "/spec/template/spec/serverGroup",
                                             "valueFrom": {
-                                                "variable": "serverGroupId",
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    id: {{ .serverGroupId }}
+                                                    """
+                                                ),
                                             },
                                         },
                                         {
@@ -1811,8 +1819,8 @@ class ClusterClass(Base):
                                                     """\
                                                     - name: different_failure_domain
                                                       value:
-                                                        type: bool
-                                                        bool: {{ .isServerGroupDifferentFailureDomain }}
+                                                        type: Bool
+                                                        bool: {{ .isServerGroupDiffFailureDomain }}
                                                     """
                                                 ),
                                             },
@@ -2505,7 +2513,7 @@ def mutate_machine_deployment(
                         ),
                     },
                     {
-                        "name": "isServeGroupDiffFailureDomain",
+                        "name": "isServerGroupDiffFailureDomain",
                         "value": utils.is_node_group_different_failure_domain(
                             node_group=node_group, cluster=cluster
                         ),
@@ -2891,7 +2899,7 @@ class Cluster(ClusterBase):
                             # NOTE(oleks): Set cluster-level variable using cluster label for controlplane.
                             #              Override this using node group label for node groups via  MachineDeployment-level variable. # noqa: E501
                             {
-                                "name": "isServeGroupDiffFailureDomain",
+                                "name": "isServerGroupDiffFailureDomain",
                                 "value": utils.is_controlplane_different_failure_domain(
                                     cluster=self.cluster
                                 ),
