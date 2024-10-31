@@ -595,6 +595,7 @@ def ensure_controlplane_server_group(
         name=cluster.stack_id,
         ctx=ctx,
         policies=_get_controlplane_server_group_policies(cluster),
+        project_id=cluster.project_id,
     )
 
 
@@ -607,6 +608,7 @@ def ensure_worker_server_group(
         name=f"{cluster.stack_id}-{node_group.name}",
         ctx=ctx,
         policies=_get_node_group_server_group_policies(node_group, cluster),
+        project_id=cluster.project_id,
     )
 
 
