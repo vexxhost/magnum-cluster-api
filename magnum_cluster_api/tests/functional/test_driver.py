@@ -95,6 +95,7 @@ class TestDriver:
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
         current_observed_generation = cluster_resource.observed_generation
+        raise KeyError(self.cluster.__dict__)
 
         ubuntu_driver.upgrade_cluster(
             context, self.cluster, cluster_template, None, None
