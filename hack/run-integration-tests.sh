@@ -29,6 +29,7 @@ SONOBUOY_ARCH=${SONOBUOY_ARCH:-amd64}
 DNS_NAMESERVER=${DNS_NAMESERVER:-1.1.1.1}
 UPGRADE_KUBE_TAG=${UPGRADE_KUBE_TAG:-KUBE_TAG}
 IMAGE_NAME="${IMAGE_OS}-kube-${KUBE_TAG}"
+UPGRADE_IMAGE_NAME="${IMAGE_OS}-kube-${UPGRADE_KUBE_TAG}"
 
 # If `BUILD_NEW_IMAGE` is true, then we use the provided artifact, otherwise
 # we download the latest promoted image.
@@ -45,6 +46,21 @@ openstack image create \
   --property os_distro=${OS_DISTRO} \
   --file=${IMAGE_NAME}.qcow2 \
   ${IMAGE_NAME}
+
+if [[ ${UPGRADE_KUBE_TAG} != ${KUBE_TAG} ]]; then
+    if [[ "${BUILD_NEW_UPGRADE_IMAGE,,}" != "true" ]]; then
+      curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/${UPGRADE_IMAGE_NAME}.qcow2
+    else
+      test -f ${UPGRADE_IMAGE_NAME}.qcow2 || exit 1
+    fi
+    # Upload Upgrade image to Glance
+    openstack image create \
+      --disk-format=qcow2 \
+      --container-format=bare \
+      --property os_distro=${OS_DISTRO} \
+      --file=${UPGRADE_IMAGE_NAME}.qcow2 \
+      ${UPGRADE_IMAGE_NAME}
+fi
 
 # Create cluster template
 openstack coe cluster template create \
@@ -64,7 +80,7 @@ openstack coe cluster template create \
 if [[ ${UPGRADE_KUBE_TAG} != ${KUBE_TAG} ]]; then
     # Create cluster template for upgrade
     openstack coe cluster template create \
-        --image $(openstack image show ${IMAGE_NAME} -c id -f value) \
+        --image $(openstack image show ${UPGRADE_IMAGE_NAME} -c id -f value) \
         --external-network public \
         --dns-nameserver ${DNS_NAMESERVER} \
         --master-lb-enabled \
@@ -111,6 +127,7 @@ for i in {1..240}; do
     echo "Cluster created"
     break
   else
+    echo "Currtny retry count: $i"
     echo "Cluster status: ${CLUSTER_STATUS}"
     sleep 5
   fi
@@ -118,25 +135,6 @@ done
 
 # Get the cluster configuration file
 eval $(openstack coe cluster config k8s-cluster)
-
-if [[ ${UPGRADE_KUBE_TAG} != ${KUBE_TAG} ]]; then
-    # Upgrade cluster
-    openstack coe cluster upgrade k8s-cluster k8s-${UPGRADE_KUBE_TAG}
-    # Wait for cluster to be "UPDATE_COMPLETE".
-    for i in {1..240}; do
-      CLUSTER_STATUS=$(openstack coe cluster show k8s-cluster -c status -f value)
-      if [[ ${CLUSTER_STATUS} == *"FAILED"* ]]; then
-        echo "Cluster failed to upgrade"
-        exit 1
-      elif [[ ${CLUSTER_STATUS} == *"UPDATE_COMPLETE"* ]]; then
-        echo "Cluster upgraded"
-        break
-      else
-        echo "Cluster status: ${CLUSTER_STATUS}"
-        sleep 5
-      fi
-    done
-fi
 
 # Download sonobuoy
 curl -LO https://github.com/vmware-tanzu/sonobuoy/releases/download/v${SONOBUOY_VERSION}/sonobuoy_${SONOBUOY_VERSION}_linux_${SONOBUOY_ARCH}.tar.gz
@@ -156,4 +154,81 @@ RESULTS_FILE=$(./sonobuoy retrieve --filename sonobuoy-results.tar.gz)
 if ! ./sonobuoy results --plugin e2e ${RESULTS_FILE} | grep -q "Status: passed"; then
   echo "Sonobuoy tests failed"
   exit 1
+fi
+
+
+if [[ ${UPGRADE_KUBE_TAG} != ${KUBE_TAG} ]]; then
+
+    openstack coe cluster delete k8s-cluster
+    # Wait for cluster to be deleted
+    set +e
+    for i in {1..60}; do
+      openstack coe cluster show k8s-cluster 2>&1
+      exit_status=$?
+      if [ $exit_status -eq 0 ]; then
+          sleep 2
+      else
+          echo "Cluster k8s-cluster deleted."
+          break
+      fi
+    done
+    set -e
+    # Create cluster
+    openstack coe cluster create \
+      --cluster-template k8s-${KUBE_TAG} \
+      --master-count 1 \
+      --node-count 1 \
+      --merge-labels \
+      --label audit_log_enabled=true \
+      k8s-cluster-upgrade
+
+    # Wait for cluster creation to be queued
+    set +e
+    for i in {1..5}; do
+      openstack coe cluster show k8s-cluster-upgrade 2>&1
+      exit_status=$?
+      if [ $exit_status -eq 0 ]; then
+          break
+      else
+          echo "Error: Cluster k8s-cluster-upgrade could not be found."
+          sleep 1
+      fi
+    done
+    set -e
+
+    # Wait for cluster to be "CREATE_COMPLETE".
+    for i in {1..240}; do
+      CLUSTER_STATUS=$(openstack coe cluster show k8s-cluster-upgrade -c status -f value)
+      if [[ ${CLUSTER_STATUS} == *"FAILED"* ]]; then
+        echo "Cluster failed to create"
+        exit 1
+      elif [[ ${CLUSTER_STATUS} == *"CREATE_COMPLETE"* ]]; then
+        echo "Cluster created"
+        break
+      else
+        echo "Currtny retry count: $i"
+        echo "Cluster status: ${CLUSTER_STATUS}"
+        sleep 5
+      fi
+    done
+
+    # Upgrade cluster
+    openstack coe cluster upgrade k8s-cluster-upgrade k8s-${UPGRADE_KUBE_TAG}
+    # Wait for cluster to be "UPDATE_COMPLETE".
+    for i in {1..240}; do
+      CLUSTER_STATUS=$(openstack coe cluster show k8s-cluster-upgrade -c status -f value)
+      if [[ ${CLUSTER_STATUS} == *"FAILED"* ]]; then
+        echo "Cluster failed to upgrade"
+        exit 1
+      elif [[ ${CLUSTER_STATUS} == *"UPDATE_COMPLETE"* ]]; then
+        echo "Cluster upgraded"
+        exit 0
+        break
+      else
+        echo "Currtny retry count: $i"
+        echo "Cluster status: ${CLUSTER_STATUS}"
+        sleep 5
+      fi
+    done
+    exit 1
 fi
