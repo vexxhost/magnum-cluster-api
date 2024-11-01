@@ -27,6 +27,7 @@ NETWORK_DRIVER=${NETWORK_DRIVER:-calico}
 SONOBUOY_VERSION=${SONOBUOY_VERSION:-0.56.16}
 SONOBUOY_ARCH=${SONOBUOY_ARCH:-amd64}
 DNS_NAMESERVER=${DNS_NAMESERVER:-1.1.1.1}
+UPGRADE_KUBE_TAG=${UPGRADE_KUBE_TAG:-KUBE_TAG}
 IMAGE_NAME="${IMAGE_OS}-kube-${KUBE_TAG}"
 
 # If `BUILD_NEW_IMAGE` is true, then we use the provided artifact, otherwise
@@ -59,6 +60,23 @@ openstack coe cluster template create \
     --label kube_tag=${KUBE_TAG} \
     --label fixed_subnet_cidr=192.168.24.0/24 \
     k8s-${KUBE_TAG};
+
+if [[ ${UPGRADE_KUBE_TAG} != ${KUBE_TAG} ]]; then
+    # Create cluster template for upgrade
+    openstack coe cluster template create \
+        --image $(openstack image show ${IMAGE_NAME} -c id -f value) \
+        --external-network public \
+        --dns-nameserver ${DNS_NAMESERVER} \
+        --master-lb-enabled \
+        --master-flavor m1.large \
+        --flavor m1.large \
+        --network-driver ${NETWORK_DRIVER} \
+        --docker-storage-driver overlay2 \
+        --coe kubernetes \
+        --label kube_tag=${UPGRADE_KUBE_TAG} \
+        --label fixed_subnet_cidr=192.168.24.0/24 \
+        k8s-${UPGRADE_KUBE_TAG};
+fi
 
 # Create cluster
 openstack coe cluster create \
@@ -100,6 +118,25 @@ done
 
 # Get the cluster configuration file
 eval $(openstack coe cluster config k8s-cluster)
+
+if [[ ${UPGRADE_KUBE_TAG} != ${KUBE_TAG} ]]; then
+    # Upgrade cluster
+    openstack coe cluster upgrade k8s-cluster k8s-${UPGRADE_KUBE_TAG}
+    # Wait for cluster to be "UPDATE_COMPLETE".
+    for i in {1..240}; do
+      CLUSTER_STATUS=$(openstack coe cluster show k8s-cluster -c status -f value)
+      if [[ ${CLUSTER_STATUS} == *"FAILED"* ]]; then
+        echo "Cluster failed to upgrade"
+        exit 1
+      elif [[ ${CLUSTER_STATUS} == *"UPDATE_COMPLETE"* ]]; then
+        echo "Cluster upgraded"
+        break
+      else
+        echo "Cluster status: ${CLUSTER_STATUS}"
+        sleep 5
+      fi
+    done
+fi
 
 # Download sonobuoy
 curl -LO https://github.com/vmware-tanzu/sonobuoy/releases/download/v${SONOBUOY_VERSION}/sonobuoy_${SONOBUOY_VERSION}_linux_${SONOBUOY_ARCH}.tar.gz

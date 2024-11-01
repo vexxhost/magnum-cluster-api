@@ -11,6 +11,7 @@
     parent: magnum-cluster-api-sonobuoy-ubuntu-2204
     vars:
       kube_tag: v1.28.11
+      upgrade_kube_tag: v1.29.6
       image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-28-11-1719601167.qcow2
 
 - job:
@@ -30,6 +31,7 @@
     parent: magnum-cluster-api-sonobuoy-ubuntu-2204
     vars:
       kube_tag: v1.29.6
+      upgrade_kube_tag: v1.30.2
       image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-29-6-1720107687.qcow2
 
 - job:
@@ -49,6 +51,7 @@
     parent: magnum-cluster-api-sonobuoy-ubuntu-2204
     vars:
       kube_tag: v1.30.2
+      upgrade_kube_tag: v1.31.1
       image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-30-2-1720107688.qcow2
 
 - job:
