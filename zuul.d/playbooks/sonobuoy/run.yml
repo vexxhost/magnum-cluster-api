@@ -24,7 +24,7 @@
       get_url:
         url: "{{ item.url }}"
         dest: "{{ zuul.project.src_dir }}/{{ image_operating_system }}-kube-{{ upgrade_kube_tag }}.qcow2"
-      register: fetch_artifact
+      register: fetch_artifact_upgrade
       loop: "{{ zuul.artifacts }}"
       when:
         - upgrade_kube_tag is defined
@@ -34,13 +34,13 @@
 
     - name: Download image for upgrade
       get_url:
-        url: "{{ image_url }}"
+        url: "{{ upgrade_image_url }}"
         dest: "{{ zuul.project.src_dir }}/{{ image_operating_system }}-kube-{{ upgrade_kube_tag }}.qcow2"
-      register: fetch_artifact
+      register: fetch_artifact_upgrade
       retries: 5
       delay: 10
       when:
-        - image_url is defined
+        - upgrade_image_url is defined
         - upgrade_kube_tag is defined
         - upgrade_kube_tag != kube_tag
 
@@ -59,6 +59,7 @@
         UPGRADE_KUBE_TAG: "{{ upgrade_kube_tag | default(kube_tag) }}"
         NODE_COUNT: 2
         BUILD_NEW_IMAGE: "{{ fetch_artifact.changed }}"
+        BUILD_NEW_UPGRADE_IMAGE: "{{ fetch_artifact_upgrade.changed }}"
         NETWORK_DRIVER: "{{ network_driver }}"
 
     - name: Copy Sonobuoy results to output folder

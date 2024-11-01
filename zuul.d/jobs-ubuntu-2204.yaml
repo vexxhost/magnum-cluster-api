@@ -1,6 +1,7 @@
 - job:
     name: magnum-cluster-api-sonobuoy-ubuntu-2204
     parent: magnum-cluster-api-sonobuoy
+    timeout: 10800
     abstract: true
     vars:
       image_operating_system: ubuntu-2204
@@ -13,6 +14,7 @@
       kube_tag: v1.28.11
       upgrade_kube_tag: v1.29.6
       image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-28-11-1719601167.qcow2
+      upgrade_image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-29-6-1720107687.qcow2
 
 - job:
     name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.11-calico
@@ -33,6 +35,7 @@
       kube_tag: v1.29.6
       upgrade_kube_tag: v1.30.2
       image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-29-6-1720107687.qcow2
+      upgrade_image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-30-2-1720107688.qcow2
 
 - job:
     name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.6-calico
@@ -53,6 +56,7 @@
       kube_tag: v1.30.2
       upgrade_kube_tag: v1.31.1
       image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-30-2-1720107688.qcow2
+      upgrade_image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-31-1-1728920853.qcow2
 
 - job:
     name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.30.2-calico
