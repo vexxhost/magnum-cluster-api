@@ -175,12 +175,11 @@ def _get_kubeadm_images(version: str):
     return output.decode().replace("k8s.gcr.io", "registry.k8s.io").splitlines()
 
 
-def _get_calico_images():
+def _get_calico_images(tag="v3.24.2"):
     return [
-        # Calico 3.24.2
-        "docker.io/calico/cni:v3.24.2",
-        "docker.io/calico/kube-controllers:v3.24.2",
-        "docker.io/calico/node:v3.24.2",
+        f"docker.io/calico/cni:{tag}",
+        f"docker.io/calico/kube-controllers:{tag}",
+        f"docker.io/calico/node:{tag}",
     ]
 
 

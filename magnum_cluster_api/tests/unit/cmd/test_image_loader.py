@@ -14,6 +14,7 @@
 
 import itertools
 import os
+from pathlib import Path
 
 import pkg_resources
 import yaml
@@ -42,8 +43,9 @@ def test__get_calico_images():
 
     calico_path = os.path.join(manifests_path, "calico")
     for file in os.listdir(calico_path):
+        calico_version = Path(file).stem
         assert _get_images_from_manifests(os.path.join(calico_path, file)) == set(
-            image_loader._get_calico_images()
+            image_loader._get_calico_images(tag=calico_version)
         )
 
 
