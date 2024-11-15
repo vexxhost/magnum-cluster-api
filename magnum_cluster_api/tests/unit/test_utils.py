@@ -137,8 +137,13 @@ class TestGenerateCloudControllerManagerConfig:
             """
         )
 
-    def test_generate_cloud_controller_manager_config_for_amphora_without_monitor(self, requests_mock):
-        self.cluster.labels = {"octavia_provider": "ovn", "octavia_lb_healthcheck": "False"}
+    def test_generate_cloud_controller_manager_config_for_amphora_without_monitor(
+        self, requests_mock
+    ):
+        self.cluster.labels = {
+            "octavia_provider": "ovn",
+            "octavia_lb_healthcheck": "False",
+        }
 
         with requests_mock as rsps:
             rsps.add(self._response_for_cloud_config_secret())
