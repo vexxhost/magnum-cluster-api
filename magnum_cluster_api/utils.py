@@ -115,6 +115,7 @@ def generate_cloud_controller_manager_config(
 
     octavia_provider = cluster.labels.get("octavia_provider", "amphora")
     octavia_lb_algorithm = cluster.labels.get("octavia_lb_algorithm")
+    octavia_lb_healthcheck = cluster.labels.get("octavia_lb_healthcheck", True)
 
     if octavia_provider == "amphora" and octavia_lb_algorithm is None:
         octavia_lb_algorithm = "ROUND_ROBIN"
@@ -137,6 +138,7 @@ def generate_cloud_controller_manager_config(
         [LoadBalancer]
         lb-provider={octavia_provider}
         lb-method={octavia_lb_algorithm}
+        create-monitor={octavia_lb_healthcheck}
         """
     )
 

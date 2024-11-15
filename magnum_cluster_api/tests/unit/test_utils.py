@@ -107,6 +107,7 @@ class TestGenerateCloudControllerManagerConfig:
             [LoadBalancer]
             lb-provider=amphora
             lb-method=ROUND_ROBIN
+            create-monitor=True
             """
         )
 
@@ -132,6 +133,33 @@ class TestGenerateCloudControllerManagerConfig:
             [LoadBalancer]
             lb-provider=amphora
             lb-method=ROUND_ROBIN
+            create-monitor=True
+            """
+        )
+
+    def test_generate_cloud_controller_manager_config_for_amphora_without_monitor(self, requests_mock):
+        self.cluster.labels = {"octavia_provider": "ovn", "octavia_lb_healthcheck": "False"}
+
+        with requests_mock as rsps:
+            rsps.add(self._response_for_cloud_config_secret())
+
+            config = utils.generate_cloud_controller_manager_config(
+                self.context, self.pykube_api, self.cluster
+            )
+
+        assert config == textwrap.dedent(
+            """\
+            [Global]
+            auth-url=http://localhost/v3
+            region=RegionOne
+            application-credential-id=fake_application_credential_id
+            application-credential-secret=fake_application_credential_secret
+            tls-insecure=false
+
+            [LoadBalancer]
+            lb-provider=ovn
+            lb-method=SOURCE_IP_PORT
+            create-monitor=False
             """
         )
 
@@ -157,6 +185,7 @@ class TestGenerateCloudControllerManagerConfig:
             [LoadBalancer]
             lb-provider=ovn
             lb-method=SOURCE_IP_PORT
+            create-monitor=True
             """
         )
 
@@ -187,6 +216,7 @@ class TestGenerateCloudControllerManagerConfig:
             [LoadBalancer]
             lb-provider=ovn
             lb-method=SOURCE_IP_PORT
+            create-monitor=True
             """
         )
 
