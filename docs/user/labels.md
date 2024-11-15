@@ -129,6 +129,13 @@ is often accomplished by deploying a driver on each node.
    Default value (`amphora` provider): `ROUND_ROBIN`
    Default value (`ovn` provider): `SOURCE_IP_PORT`
 
+* `octavia_lb_healthcheck`
+
+   The Octavia Load Balancer members can be monitored with health monitor.
+   This must be enabled when externalTrafficPolicy is set to `Local`.
+
+   Default value: `True`
+
 ## Container Networking Interface (CNI)
 
 ### Calcio
