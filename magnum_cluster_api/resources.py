@@ -298,7 +298,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                             },
                             "provisioner": "cinder.csi.openstack.org",
                             "parameters": {
-                                "type": utils.convert_to_rfc1123(vt.name),
+                                "type": vt.name,
                             },
                             "reclaimPolicy": "Delete",
                             "volumeBindingMode": "Immediate",
