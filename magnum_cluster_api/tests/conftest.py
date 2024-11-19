@@ -111,6 +111,14 @@ def mock_osc(session_mocker, image):
 
 
 @pytest.fixture(scope="session")
+def mock_get_server_group(session_mocker):
+    mock_get_server_group = session_mocker.patch(
+        "magnum_cluster_api.utils.get_server_group_id"
+    )
+    mock_get_server_group.return_value = uuidutils.generate_uuid()
+
+
+@pytest.fixture(scope="session")
 def mock_certificate() -> mock.MagicMock:
     key = rsa.generate_private_key(
         public_exponent=65537,

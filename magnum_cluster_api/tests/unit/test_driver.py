@@ -165,6 +165,7 @@ class TestDriver:
         mock_validate_cluster,
         mock_osc,
         mock_certificates,
+        mock_get_server_group,
     ):
         with requests_mock as rsps:
             rsps.add(
