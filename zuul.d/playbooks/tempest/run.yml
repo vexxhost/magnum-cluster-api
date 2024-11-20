@@ -1,0 +1,71 @@
+- hosts: all
+  tasks:
+    - name: Fetch artifact
+      get_url:
+        url: "{{ item.url }}"
+        dest: "{{ zuul.project.src_dir }}/{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
+      register: fetch_artifact
+      loop: "{{ zuul.artifacts }}"
+      when:
+        - item.name is defined
+        - item.name == "{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
+
+    - name: Download image
+      get_url:
+        url: "{{ image_url }}"
+        dest: "{{ zuul.project.src_dir }}/{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
+      register: fetch_artifact
+      retries: 5
+      delay: 10
+      when:
+        - image_url is defined
+
+    - name: Fetch artifact for upgrade
+      get_url:
+        url: "{{ item.url }}"
+        dest: "{{ zuul.project.src_dir }}/{{ image_operating_system }}-kube-{{ upgrade_kube_tag }}.qcow2"
+      register: fetch_artifact_upgrade
+      loop: "{{ zuul.artifacts }}"
+      when:
+        - upgrade_kube_tag is defined
+        - upgrade_kube_tag != kube_tag
+        - item.name is defined
+        - item.name == "{{ image_operating_system }}-kube-{{ upgrade_kube_tag }}.qcow2"
+
+    - name: Download image for upgrade
+      get_url:
+        url: "{{ upgrade_image_url }}"
+        dest: "{{ zuul.project.src_dir }}/{{ image_operating_system }}-kube-{{ upgrade_kube_tag }}.qcow2"
+      register: fetch_artifact_upgrade
+      retries: 5
+      delay: 10
+      when:
+        - upgrade_image_url is defined
+        - upgrade_kube_tag is defined
+        - upgrade_kube_tag != kube_tag
+
+    - shell: "./hack/stack.sh"
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+      environment:
+        IMAGE_OS: "{{ image_operating_system }}"
+        KUBE_TAG: "{{ kube_tag }}"
+        NETWORK_DRIVER: "{{ network_driver }}"
+
+    - shell: "./hack/run-tempest-tests.sh"
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+      environment:
+        IMAGE_OS: "{{ image_operating_system }}"
+        OS_DISTRO: "{{ image_os_distro }}"
+        KUBE_TAG: "{{ kube_tag }}"
+        UPGRADE_KUBE_TAG: "{{ upgrade_kube_tag | default(kube_tag) }}"
+        BUILD_NEW_IMAGE: "{{ fetch_artifact.changed }}"
+        BUILD_NEW_UPGRADE_IMAGE: "{{ fetch_artifact_upgrade.changed }}"
+        NETWORK_DRIVER: "{{ network_driver }}"
+
+    - name: Copy Tempest results to output folder
+      copy:
+        src: "/opt/stack/tempest/tempest.log"
+        dest: "{{ zuul_output_dir }}/artifacts/tempest.log"
+        remote_src: true
