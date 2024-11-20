@@ -18,6 +18,9 @@
 sudo mkdir -p /opt/stack
 sudo chown -R ${USER}. /opt/stack
 
+sudo mkdir -p /etc/tempest/
+sudo chown -R ${USER}. /etc/tempest/
+
 # Clone repository if not present, otherwise update
 if [ ! -f /opt/stack/stack.sh ]; then
     git clone https://git.openstack.org/openstack-dev/devstack /opt/stack
@@ -62,6 +65,7 @@ enable_plugin barbican https://opendev.org/openstack/barbican
 enable_plugin octavia https://opendev.org/openstack/octavia
 enable_plugin ovn-octavia-provider https://opendev.org/openstack/ovn-octavia-provider
 enable_service octavia o-api o-cw o-hm o-hk o-da
+enable_service tempest
 
 # Magnum
 enable_plugin magnum https://opendev.org/openstack/magnum
@@ -112,6 +116,15 @@ EOF
 # Install `magnum-cluster-api`
 pip install -U setuptools pip python-magnumclient
 $HOME/.local/bin/pip3 install -e .
+
+# install magnum-tempest-plugin with fix
+git clone https://github.com/openstack/magnum-tempest-plugin /opt/stack/magnum-tempest-plugin
+pushd /opt/stack/magnum-tempest-plugin
+git fetch https://review.opendev.org/openstack/magnum-tempest-plugin refs/changes/41/935741/1 && git checkout FETCH_HEAD
+source /opt/stack/data/venv/bin/activate
+#$HOME/.local/bin/pip3 install -e .
+pip install .
+popd
 
 # Restart Magnum to pick-up new driver
 sudo systemctl restart devstack@magnum-{api,cond}

@@ -1,0 +1,9 @@
+- hosts: all
+  tasks:
+    - name: Return built artifacts to Zuul
+      zuul_return:
+        data:
+          zuul:
+            artifacts:
+              - name: "tempest Results"
+                url: "artifacts/tempest.log"

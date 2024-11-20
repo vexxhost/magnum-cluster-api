@@ -9,4 +9,5 @@
       - magnum-cluster-api-flatcar
       - magnum-cluster-api-rockylinux-8
       - magnum-cluster-api-rockylinux-9
-      - magnum-cluster-api-ubuntu-2204
+      - magnum-cluster-api-tempest-ubuntu-2204
+      #- magnum-cluster-api-sonobuoy-ubuntu-2204
