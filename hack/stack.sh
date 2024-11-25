@@ -117,14 +117,5 @@ EOF
 pip install -U setuptools pip python-magnumclient
 $HOME/.local/bin/pip3 install -e .
 
-# install magnum-tempest-plugin with fix
-git clone https://github.com/openstack/magnum-tempest-plugin /opt/stack/magnum-tempest-plugin
-pushd /opt/stack/magnum-tempest-plugin
-git fetch https://review.opendev.org/openstack/magnum-tempest-plugin refs/changes/41/935741/1 && git checkout FETCH_HEAD
-source /opt/stack/data/venv/bin/activate
-#$HOME/.local/bin/pip3 install -e .
-pip install .
-popd
-
 # Restart Magnum to pick-up new driver
 sudo systemctl restart devstack@magnum-{api,cond}
