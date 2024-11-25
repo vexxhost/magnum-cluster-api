@@ -63,9 +63,3 @@
         BUILD_NEW_IMAGE: "{{ fetch_artifact.changed }}"
         BUILD_NEW_UPGRADE_IMAGE: "{{ fetch_artifact_upgrade.changed }}"
         NETWORK_DRIVER: "{{ network_driver }}"
-
-    - name: Copy Tempest results to output folder
-      copy:
-        src: "/opt/stack/tempest/tempest.log"
-        dest: "{{ zuul_output_dir }}/artifacts/tempest.log"
-        remote_src: true
