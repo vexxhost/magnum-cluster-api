@@ -35,7 +35,6 @@
     abstract: true
     timeout: 7200
     run: zuul.d/playbooks/tempest/run.yml
-    post-run: zuul.d/playbooks/tempest/post.yml
     nodeset:
       nodes:
         - name: ubuntu-jammy
