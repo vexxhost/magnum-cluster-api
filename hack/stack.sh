@@ -87,6 +87,8 @@ MANILA_USE_SERVICE_INSTANCE_PASSWORD=True
 [cluster_template]
 kubernetes_allowed_network_drivers = calico,cilium
 kubernetes_default_network_driver = calico
+[nova_client]
+api_version = 2.15
 EOF
 
 # Start DevStack deployment

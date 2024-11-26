@@ -26,6 +26,7 @@ from magnum import objects as magnum_objects
 from magnum.api import attr_validator
 from magnum.common import context, exception, neutron, octavia
 from magnum.common import utils as magnum_utils
+from novaclient import exceptions as nova_exception
 from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import strutils, uuidutils
@@ -34,9 +35,20 @@ from tenacity import retry, retry_if_exception_type
 from magnum_cluster_api import clients
 from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import image_utils, images, objects
+from magnum_cluster_api.cache import ServerGroupCache
 
 AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar", "rockylinux"]
+DEFAULT_SERVER_GROUP_POLICIES = ["soft-anti-affinity"]
+AVAILABLE_SERVER_GROUP_POLICIES = [
+    "affinity",
+    "anti-affinity",
+    "soft-affinity",
+    "soft-anti-affinity",
+]
 CONF = cfg.CONF
+
+
+g_server_group_cache = ServerGroupCache()
 
 
 def get_cluster_api_cloud_config_secret_name(cluster: magnum_objects.Cluster) -> str:
@@ -288,6 +300,15 @@ def get_node_group_max_node_count(
     return node_group.max_node_count
 
 
+def get_node_group_label_as_bool(
+    node_group: magnum_objects.NodeGroup,
+    key: str,
+    default: bool,
+) -> bool:
+    value = node_group.labels.get(key, default)
+    return strutils.bool_from_string(value, strict=True)
+
+
 def get_node_group_label_as_int(
     node_group: magnum_objects.NodeGroup,
     key: str,
@@ -501,3 +522,154 @@ def generate_api_cert_san_list(cluster: magnum_objects.Cluster):
 
     # Add the additional cert SANs to the template
     return "\n".join(f"- {san}" for san in additional_cert_sans_list if san)
+
+
+def get_server_group_id(
+    ctx: context.RequestContext,
+    name: string,
+    project_id: string = None,
+):
+    if g_server_group_cache.get(project_id, name):
+        return g_server_group_cache.get(project_id, name)
+
+    # Check if the server group exists already
+    osc = clients.get_openstack_api(ctx)
+    server_groups = osc.nova().server_groups.list()
+    server_group_id_list = []
+    for sg in server_groups:
+        if sg.name == name:
+            server_group_id_list.append(sg.id)
+
+    if len(server_group_id_list) == 1:
+        g_server_group_cache.set(project_id, name, server_group_id_list[0])
+        return server_group_id_list[0]
+
+    if len(server_group_id_list) > 1:
+        raise exception.Conflict(f"too many server groups with name {name} were found")
+
+    return None
+
+
+def _get_node_group_server_group_policies(
+    node_group: magnum_objects.NodeGroup,
+    cluster: magnum_objects.Cluster,
+):
+    policies = node_group.labels.get("server_group_policies", "")
+    policies = [s for s in policies.split(",") if s in AVAILABLE_SERVER_GROUP_POLICIES]
+    if policies:
+        return policies
+    else:
+        return _get_controlplane_server_group_policies(cluster)
+
+
+def _get_controlplane_server_group_policies(
+    cluster: magnum_objects.Cluster,
+):
+    policies = cluster.labels.get("server_group_policies", "")
+    policies = [s for s in policies.split(",") if s in AVAILABLE_SERVER_GROUP_POLICIES]
+    if policies:
+        return policies
+    else:
+        return DEFAULT_SERVER_GROUP_POLICIES
+
+
+def is_node_group_different_failure_domain(
+    node_group: magnum_objects.NodeGroup,
+    cluster: magnum_objects.Cluster,
+) -> bool:
+    res = get_node_group_label_as_bool(node_group, "different_failure_domain", False)
+    if not res:
+        res = is_controlplane_different_failure_domain(cluster)
+    return res
+
+
+def is_controlplane_different_failure_domain(
+    cluster: magnum_objects.Cluster,
+) -> bool:
+    return get_cluster_label_as_bool(cluster, "different_failure_domain", False)
+
+
+def ensure_controlplane_server_group(
+    ctx: context.RequestContext,
+    cluster: magnum_objects.Cluster,
+):
+    return _ensure_server_group(
+        name=cluster.stack_id,
+        ctx=ctx,
+        policies=_get_controlplane_server_group_policies(cluster),
+        project_id=cluster.project_id,
+    )
+
+
+def ensure_worker_server_group(
+    ctx: context.RequestContext,
+    cluster: magnum_objects.Cluster,
+    node_group: magnum_objects.NodeGroup,
+):
+    return _ensure_server_group(
+        name=f"{cluster.stack_id}-{node_group.name}",
+        ctx=ctx,
+        policies=_get_node_group_server_group_policies(node_group, cluster),
+        project_id=cluster.project_id,
+    )
+
+
+def delete_controlplane_server_group(
+    ctx: context.RequestContext,
+    cluster: magnum_objects.Cluster,
+):
+    _delete_server_group(
+        name=cluster.stack_id,
+        ctx=ctx,
+        project_id=cluster.project_id,
+    )
+
+
+def delete_worker_server_group(
+    ctx: context.RequestContext,
+    cluster: magnum_objects.Cluster,
+    node_group: magnum_objects.NodeGroup,
+):
+    _delete_server_group(
+        name=f"{cluster.stack_id}-{node_group.name}",
+        ctx=ctx,
+        project_id=cluster.project_id,
+    )
+
+
+def _ensure_server_group(
+    name: string,
+    ctx: context.RequestContext,
+    policies: list(string) = None,
+    project_id: string = None,
+):
+    # Retrieve existing server group id
+    server_group_id = get_server_group_id(ctx, name, project_id)
+    if server_group_id:
+        return server_group_id
+
+    # Create a new server group
+    osc = clients.get_openstack_api(ctx)
+    if not policies:
+        policies = DEFAULT_SERVER_GROUP_POLICIES
+
+    # NOTE(oleks): Requires API microversion 2.15 or later for soft-affinity and soft-anti-affinity policy rules.
+    server_group = osc.nova().server_groups.create(name=name, policies=policies)
+    g_server_group_cache.set(project_id, name, server_group.id)
+    return server_group.id
+
+
+def _delete_server_group(
+    name: string,
+    ctx: context.RequestContext,
+    project_id: string = None,
+):
+    server_group_id = get_server_group_id(ctx, name, project_id)
+    if server_group_id is None:
+        return
+
+    osc = clients.get_openstack_api(ctx)
+    try:
+        osc.nova().server_groups.delete(server_group_id)
+    except nova_exception.NotFound:
+        return
