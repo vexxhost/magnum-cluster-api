@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.23.0...v0.24.0) (2024-11-26)
+
+
+### Miscellaneous Chores
+
+* release 0.24.0 ([6766b02](https://github.com/vexxhost/magnum-cluster-api/commit/6766b02ebfb98d18cb523ab5921673f7bc43370a))
+
 ## [0.23.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.22.1...v0.23.0) (2024-10-21)
 
 
