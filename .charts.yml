@@ -1,6 +1,6 @@
 charts:
   - name: cluster-autoscaler
-    version: 9.29.1
+    version: 9.43.2
     repository:
       url: https://kubernetes.github.io/autoscaler
   - name: cilium
