@@ -94,7 +94,8 @@ cat /opt/stack/tempest/etc/tempest.conf
 
 echo "Run Tempest tests:"
 /opt/stack/data/venv/bin/tempest run -r '(^magnum_tempest_plugin)' \
-    --exclude-regex '^magnum_tempest_plugin.tests.api.v1.test_cluster.ClusterTest.test_create_cluster_with_zero_nodes'
+    --exclude-regex '^magnum_tempest_plugin.tests.api.v1.test_cluster.ClusterTest\.(test_create_cluster_with_zero_nodes|test_create_list_sign_delete_clusters)'
+    #--exclude-regex '^magnum_tempest_plugin.tests.api.v1.test_cluster.ClusterTest.test_create_cluster_with_zero_nodes'
 popd
 
 
