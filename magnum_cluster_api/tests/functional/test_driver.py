@@ -91,7 +91,7 @@ class TestDriver:
         return new_node_group
 
     def test_upgrade_cluster_to_same_version(
-        self, kube_tag, context, ubuntu_driver, cluster_template
+        self, kube_tag, context, ubuntu_driver, cluster_template, mock_get_server_group
     ):
         cluster_template.labels["kube_tag"] = kube_tag
 
@@ -116,6 +116,7 @@ class TestDriver:
         context,
         ubuntu_driver,
         cluster_template,
+        mock_get_server_group,
     ):
         new_node_group = self._create_node_group(
             context, ubuntu_driver, "high-cpu", cluster_template
