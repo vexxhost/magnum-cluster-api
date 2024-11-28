@@ -32,20 +32,32 @@ from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import encodeutils
 
-from magnum_cluster_api import clients, helm, image_utils, images, objects, utils
+from magnum_cluster_api import (
+    clients,
+    helm,
+    image_utils,
+    images,
+    json_patches,
+    objects,
+    utils,
+)
 from magnum_cluster_api.integrations import cinder, cloud_provider, manila
 
 CONF = cfg.CONF
 CALICO_TAG = "v3.24.2"
+CILIUM_TAG = "v1.15.3"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
 CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT = "300s"  # seconds
 
 PLACEHOLDER = "PLACEHOLDER"
+PLACEHOLDER_UUID = "00000000-0000-0000-0000-000000000000"
 
 AUTOSCALE_ANNOTATION_MIN = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size"
 AUTOSCALE_ANNOTATION_MAX = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"
+
+DEFAULT_POD_CIDR = "10.100.0.0/16"
 
 
 class ClusterAutoscalerHelmRelease:
@@ -91,6 +103,40 @@ class ClusterAutoscalerHelmRelease:
             release_name=self.cluster.stack_id,
             skip_missing=True,
         )
+
+
+class ClusterServerGroups:
+    def __init__(
+        self, context: context.RequestContext, cluster: magnum_objects.Cluster
+    ) -> None:
+        self.cluster = cluster
+        self.context = context
+        self.osc = clients.get_openstack_api(self.context)
+
+    def apply(self):
+        # Create a server group for controlplane
+        utils.ensure_controlplane_server_group(ctx=self.context, cluster=self.cluster)
+
+        # Create a server group per a nodegroup
+        for ng in self.cluster.nodegroups:
+            if ng.role == "master":
+                continue
+            utils.ensure_worker_server_group(
+                ctx=self.context, cluster=self.cluster, node_group=ng
+            )
+
+    def delete(self):
+        # delete controlplane server group
+        utils.delete_controlplane_server_group(ctx=self.context, cluster=self.cluster)
+
+        # Create worker server groups
+        for ng in self.cluster.nodegroups:
+            if ng.role == "master":
+                continue
+
+            utils.delete_worker_server_group(
+                ctx=self.context, cluster=self.cluster, node_group=ng
+            )
 
 
 class Base:
@@ -162,6 +208,7 @@ class ClusterResourcesConfigMap(ClusterBase):
             "magnum_cluster_api", "manifests"
         )
         calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
+        cilium_version = self.cluster.labels.get("cilium_tag", CILIUM_TAG)
 
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
 
@@ -182,14 +229,69 @@ class ClusterResourcesConfigMap(ClusterBase):
                 )
                 for manifest in glob.glob(os.path.join(manifests_path, "ccm/*.yaml"))
             },
-            **{
-                "calico.yml": image_utils.update_manifest_images(
-                    self.cluster.uuid,
-                    os.path.join(manifests_path, f"calico/{calico_version}.yaml"),
-                    repository=repository,
-                )
-            },
         }
+
+        if self.cluster.cluster_template.network_driver == "cilium":
+            data = {
+                **data,
+                **{
+                    "cilium.yml": helm.TemplateReleaseCommand(
+                        namespace="kube-system",
+                        release_name="cilium",
+                        chart_ref=os.path.join(
+                            pkg_resources.resource_filename(
+                                "magnum_cluster_api", "charts"
+                            ),
+                            "cilium/",
+                        ),
+                        values={
+                            "cni": {"chainingMode": "portmap"},
+                            "image": {
+                                "tag": cilium_version,
+                            },
+                            # NOTE(okozachenko): cilium has a limitation https://github.com/cilium/cilium/issues/9207
+                            #                    Because of that, it fails on the test
+                            #                    `Services should serve endpoints on same port and different protocols`.
+                            #                    https://github.com/kubernetes/kubernetes/pull/120069#issuecomment-2111252221
+                            "k8s": {"serviceProxyName": "cilium"},
+                            "operator": {
+                                "image": {
+                                    "tag": cilium_version,
+                                },
+                            },
+                            # NOTE(okozachenko): For users who run with kube-proxy (i.e. with Cilium's kube-proxy
+                            #                    replacement disabled), the ClusterIP service loadbalancing when a
+                            #                    request is sent from a pod running in a non-host network namespace
+                            #                    is still performed at the pod network interface (until
+                            #                    https://github.com/cilium/cilium/issues/16197 is fixed). For this
+                            #                    case the session affinity support is disabled by default.
+                            "sessionAffinity": "true",
+                            "ipam": {
+                                "operator": {
+                                    "clusterPoolIPv4PodCIDRList": [
+                                        self.cluster.labels.get(
+                                            "cilium_ipv4pool",
+                                            DEFAULT_POD_CIDR,
+                                        ),
+                                    ],
+                                },
+                            },
+                        },
+                    )(repository=repository)
+                },
+            }
+
+        if self.cluster.cluster_template.network_driver == "calico":
+            data = {
+                **data,
+                **{
+                    "calico.yml": image_utils.update_manifest_images(
+                        self.cluster.uuid,
+                        os.path.join(manifests_path, f"calico/{calico_version}.yaml"),
+                        repository=repository,
+                    )
+                },
+            }
 
         if cinder.is_enabled(self.cluster):
             volume_types = osc.cinder().volume_types.list()
@@ -230,7 +332,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                             },
                             "provisioner": "cinder.csi.openstack.org",
                             "parameters": {
-                                "type": utils.convert_to_rfc1123(vt.name),
+                                "type": vt.name,
                             },
                             "reclaimPolicy": "Delete",
                             "volumeBindingMode": "Immediate",
@@ -328,7 +430,7 @@ class ClusterResourcesConfigMap(ClusterBase):
         if utils.get_cluster_label_as_bool(self.cluster, "keystone_auth_enabled", True):
             auth_url = osc.url_for(
                 service_type="identity",
-                interface=CONF.capi_client.endpoint_type.replace("URL", ""),
+                interface="public",
             )
             data = {
                 **data,
@@ -346,7 +448,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                             "conf": {
                                 "auth_url": auth_url
                                 + ("" if auth_url.endswith("/v3") else "/v3"),
-                                "ca_file": utils.get_cloud_ca_cert(),
+                                "ca_cert": utils.get_cloud_ca_cert(),
                                 "policy": utils.get_keystone_auth_default_policy(
                                     self.cluster
                                 ),
@@ -671,7 +773,11 @@ class KubeadmControlPlaneTemplate(Base):
                                     },
                                 },
                                 "preKubeadmCommands": [
-                                    "rm /var/lib/etcd/lost+found -rf"
+                                    "rm /var/lib/etcd/lost+found -rf",
+                                    "bash /run/kubeadm/configure-kube-proxy.sh",
+                                ],
+                                "postKubeadmCommands": [
+                                    "echo PLACEHOLDER",
                                 ],
                             },
                         },
@@ -732,7 +838,13 @@ class OpenStackMachineTemplate(Base):
                 "spec": {
                     "template": {
                         "spec": {
-                            "cloudName": "default",
+                            "image": {
+                                "id": PLACEHOLDER_UUID,
+                            },
+                            "identityRef": {
+                                "name": PLACEHOLDER,
+                                "cloudName": "default",
+                            },
                             "flavor": PLACEHOLDER,
                         }
                     }
@@ -755,9 +867,13 @@ class OpenStackClusterTemplate(Base):
                 "spec": {
                     "template": {
                         "spec": {
-                            "cloudName": "default",
-                            "managedSecurityGroups": True,
-                            "allowAllInClusterTraffic": True,
+                            "identityRef": {
+                                "name": PLACEHOLDER,
+                                "cloudName": "default",
+                            },
+                            "managedSecurityGroups": {
+                                "allowAllInClusterTraffic": True,
+                            },
                         },
                     },
                 },
@@ -966,19 +1082,11 @@ class ClusterClass(Base):
                             },
                         },
                         {
-                            "name": "clusterIdentityRef",
+                            "name": "clusterIdentityRefName",
                             "required": True,
                             "schema": {
                                 "openAPIV3Schema": {
-                                    "type": "object",
-                                    "required": ["kind", "name"],
-                                    "properties": {
-                                        "kind": {
-                                            "type": "string",
-                                            "enum": [pykube.Secret.kind],
-                                        },
-                                        "name": {"type": "string"},
-                                    },
+                                    "type": "string",
                                 },
                             },
                         },
@@ -1121,6 +1229,15 @@ class ClusterClass(Base):
                             },
                         },
                         {
+                            "name": "apiServerSANs",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
                             "name": "nodeCidr",
                             "required": True,
                             "schema": {
@@ -1145,6 +1262,33 @@ class ClusterClass(Base):
                                     "type": "string",
                                     "enum": utils.AVAILABLE_OPERATING_SYSTEMS,
                                     "default": "ubuntu",
+                                },
+                            },
+                        },
+                        {
+                            "name": "enableDockerVolume",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "boolean",
+                                },
+                            },
+                        },
+                        {
+                            "name": "dockerVolumeSize",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "integer",
+                                },
+                            },
+                        },
+                        {
+                            "name": "dockerVolumeType",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
                                 },
                             },
                         },
@@ -1190,7 +1334,6 @@ class ClusterClass(Base):
                             "schema": {
                                 "openAPIV3Schema": {
                                     "type": "boolean",
-                                    "default": False,
                                 },
                             },
                         },
@@ -1203,6 +1346,24 @@ class ClusterClass(Base):
                                     "items": {
                                         "type": "string",
                                     },
+                                },
+                            },
+                        },
+                        {
+                            "name": "serverGroupId",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
+                            "name": "isServerGroupDiffFailureDomain",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "boolean",
                                 },
                             },
                         },
@@ -1363,8 +1524,8 @@ class ClusterClass(Base):
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
                                                     """\
-                                                    diskSize: {{ .bootVolume.size }}
-                                                    volumeType: {{ .bootVolume.type }}
+                                                    sizeGiB: {{ .bootVolume.size }}
+                                                    type: {{ .bootVolume.type }}
                                                     """
                                                 ),
                                             },
@@ -1594,6 +1755,31 @@ class ClusterClass(Base):
                                                 "variable": "controlPlaneFlavor",
                                             },
                                         },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/serverGroup",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    id: {{ .serverGroupId }}
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/schedulerHintAdditionalProperties",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - name: different_failure_domain
+                                                      value:
+                                                        type: Bool
+                                                        bool: {{ .isServerGroupDiffFailureDomain }}
+                                                    """
+                                                ),
+                                            },
+                                        },
                                     ],
                                 },
                                 {
@@ -1614,6 +1800,31 @@ class ClusterClass(Base):
                                                 "variable": "flavor",
                                             },
                                         },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/serverGroup",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    id: {{ .serverGroupId }}
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/schedulerHintAdditionalProperties",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - name: different_failure_domain
+                                                      value:
+                                                        type: Bool
+                                                        bool: {{ .isServerGroupDiffFailureDomain }}
+                                                    """
+                                                ),
+                                            },
+                                        },
                                     ],
                                 },
                                 {
@@ -1629,10 +1840,10 @@ class ClusterClass(Base):
                                     },
                                     "jsonPatches": [
                                         {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/identityRef",
+                                            "op": "replace",
+                                            "path": "/spec/template/spec/identityRef/name",
                                             "valueFrom": {
-                                                "variable": "clusterIdentityRef"
+                                                "variable": "clusterIdentityRefName"
                                             },
                                         },
                                         {
@@ -1641,8 +1852,8 @@ class ClusterClass(Base):
                                             "valueFrom": {"variable": "sshKeyName"},
                                         },
                                         {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/imageUUID",
+                                            "op": "replace",
+                                            "path": "/spec/template/spec/image/id",
                                             "valueFrom": {"variable": "imageUUID"},
                                         },
                                     ],
@@ -1665,9 +1876,9 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/identityRef",
+                                            "path": "/spec/template/spec/identityRef/name",
                                             "valueFrom": {
-                                                "variable": "clusterIdentityRef"
+                                                "variable": "clusterIdentityRefName"
                                             },
                                         },
                                         {
@@ -1679,14 +1890,24 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/dnsNameservers",
-                                            "valueFrom": {"variable": "dnsNameservers"},
+                                            "path": "/spec/template/spec/managedSubnets",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - dnsNameservers: {{ .dnsNameservers }}
+                                                    """
+                                                ),
+                                            },
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/externalNetworkId",
+                                            "path": "/spec/template/spec/externalNetwork",
                                             "valueFrom": {
-                                                "variable": "externalNetworkId"
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    id: {{ .externalNetworkId }}
+                                                    """
+                                                ),
                                             },
                                         },
                                     ],
@@ -1732,7 +1953,7 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/nodeCidr",
+                                            "path": "/spec/template/spec/managedSubnets/0/cidr",
                                             "valueFrom": {"variable": "nodeCidr"},
                                         },
                                     ],
@@ -1778,8 +1999,14 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/subnet/id",
-                                            "valueFrom": {"variable": "fixedSubnetId"},
+                                            "path": "/spec/template/spec/subnets",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - id: {{ .fixedSubnetId }}
+                                                    """
+                                                ),
+                                            },
                                         },
                                     ],
                                 },
@@ -1834,81 +2061,56 @@ class ClusterClass(Base):
                             ],
                         },
                         {
-                            "name": "etcdVolume",
-                            "enabledIf": "{{ if .enableEtcdVolume }}true{{end}}",
-                            "definitions": [
-                                {
-                                    "selector": {
-                                        "apiVersion": objects.KubeadmControlPlaneTemplate.version,
-                                        "kind": objects.KubeadmControlPlaneTemplate.kind,
-                                        "matchResources": {
-                                            "controlPlane": True,
-                                        },
-                                    },
-                                    "jsonPatches": [
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/diskSetup",
-                                            "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    "partitions":
-                                                      - "device": "/dev/vdb"
-                                                        "tableType": "gpt"
-                                                        "layout": True
-                                                        "overwrite": False
-                                                    "filesystems":
-                                                      - "label": "etcd_disk"
-                                                        "filesystem": "ext4"
-                                                        "device": "/dev/vdb"
-                                                        "extraOpts": ["-F", "-E", "lazy_itable_init=1,lazy_journal_init=1"] # noqa: E501
-                                                    """
-                                                ),
-                                            },
-                                        },
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/mounts",
-                                            "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    - - LABEL=etcd_disk
-                                                      - /var/lib/etcd
-                                                    """
-                                                ),
-                                            },
-                                        },
-                                    ],
-                                },
-                                {
-                                    "selector": {
-                                        "apiVersion": objects.OpenStackMachineTemplate.version,
-                                        "kind": objects.OpenStackMachineTemplate.kind,
-                                        "matchResources": {
-                                            "controlPlane": True,
-                                        },
-                                    },
-                                    "jsonPatches": [
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/additionalBlockDevices",
-                                            "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    - name: etcd
-                                                      sizeGiB: {{ .etcdVolumeSize }}
-                                                      storage:
-                                                        type: Volume
-                                                        volume:
-                                                          type: "{{ .etcdVolumeType }}"
-                                                          availabilityZone: "{{ .availabilityZone }}"
-                                                    """
-                                                ),
-                                            },
-                                        },
-                                    ],
-                                },
-                            ],
+                            "name": "etcdVolumeAndDockerVolume",
+                            "enabledIf": "{{ if and .enableEtcdVolume .enableDockerVolume }}true{{ end }}",
+                            "definitions": json_patches.Volumes(
+                                control_plane_disks=[
+                                    json_patches.DiskConfig(
+                                        type="etcd",
+                                        mount_path="/var/lib/etcd",
+                                    ),
+                                    json_patches.DiskConfig(
+                                        type="docker",
+                                        mount_path="/var/lib/containerd",
+                                    ),
+                                ],
+                                worker_disks=[
+                                    json_patches.DiskConfig(
+                                        type="docker",
+                                        mount_path="/var/lib/containerd",
+                                    )
+                                ],
+                            ).definitions,
+                        },
+                        {
+                            "name": "onlyDockerVolume",
+                            "enabledIf": "{{ if and .enableDockerVolume (not .enableEtcdVolume) }}true{{ end }}",
+                            "definitions": json_patches.Volumes(
+                                control_plane_disks=[
+                                    json_patches.DiskConfig(
+                                        type="docker",
+                                        mount_path="/var/lib/containerd",
+                                    )
+                                ],
+                                worker_disks=[
+                                    json_patches.DiskConfig(
+                                        type="docker",
+                                        mount_path="/var/lib/containerd",
+                                    )
+                                ],
+                            ).definitions,
+                        },
+                        {
+                            "name": "onlyEtcdVolume",
+                            "enabledIf": "{{ if and .enableEtcdVolume (not .enableDockerVolume) }}true{{ end }}",
+                            "definitions": json_patches.Volumes(
+                                control_plane_disks=[
+                                    json_patches.DiskConfig(
+                                        type="etcd",
+                                        mount_path="/var/lib/etcd",
+                                    )
+                                ],
+                            ).definitions,
                         },
                         {
                             "name": "keystoneAuth",
@@ -1925,18 +2127,49 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authentication-token-webhook-config-file",  # noqa: E501
-                                            "value": "/etc/kubernetes/webhooks/webhookconfig.yaml",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
+                                            "value": {
+                                                "path": "/etc/kubernetes/keystone-kustomization/kustomization.yml",
+                                                "permissions": "0644",
+                                                "owner": "root:root",
+                                                "content": textwrap.dedent(
+                                                    """\
+                                                    resources:
+                                                      - kube-apiserver.yaml
+                                                    patches:
+                                                      - target:
+                                                          group: ""
+                                                          version: v1
+                                                          kind: Pod
+                                                          name: kube-apiserver
+                                                        patch: |-
+                                                          - op: add
+                                                            path: /spec/containers/0/command/-
+                                                            value: --authentication-token-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
+                                                          - op: add
+                                                            path: /spec/containers/0/command/-
+                                                            value: --authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
+                                                          - op: add
+                                                            path: /spec/containers/0/command/-
+                                                            value: --authorization-mode=Webhook
+                                                    """
+                                                ),
+                                            },
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authorization-webhook-config-file",  # noqa: E501
-                                            "value": "/etc/kubernetes/webhooks/webhookconfig.yaml",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-",
+                                            "value": "mkdir -p /etc/kubernetes/keystone-kustomization",
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/authorization-mode",  # noqa: E501
-                                            "value": "Node,RBAC,Webhook",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-",
+                                            "value": "cp /etc/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml",  # noqa: E501
+                                        },
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-",
+                                            "value": "kubectl kustomize /etc/kubernetes/keystone-kustomization -o /etc/kubernetes/manifests/kube-apiserver.yaml",  # noqa: E501
                                         },
                                     ],
                                 }
@@ -1985,6 +2218,7 @@ class ClusterClass(Base):
                                                     - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}
                                                     - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc
                                                     - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc.cluster.local # noqa: E501
+                                                    {{ .apiServerSANs }}
                                                     """
                                                 ),
                                             },
@@ -2230,9 +2464,10 @@ def mutate_machine_deployment(
     if machine_deployment.get("name") == node_group.name:
         return machine_deployment
 
-    # At this point, this is all code that will be added for brand new machine
+    # At this point, this is all code that will be added for brand-new machine
     # deployments.  We can bring any of this code into the above block if we
     # want to change it for existing machine deployments.
+
     machine_deployment.update(
         {
             "class": "default-worker",
@@ -2270,11 +2505,23 @@ def mutate_machine_deployment(
                         "name": "imageUUID",
                         "value": utils.get_image_uuid(node_group.image_id, context),
                     },
+                    # NOTE(oleks): Override using MachineDeployment-level variables for node groups
+                    {
+                        "name": "serverGroupId",
+                        "value": utils.ensure_worker_server_group(
+                            ctx=context, cluster=cluster, node_group=node_group
+                        ),
+                    },
+                    {
+                        "name": "isServerGroupDiffFailureDomain",
+                        "value": utils.is_node_group_different_failure_domain(
+                            node_group=node_group, cluster=cluster
+                        ),
+                    },
                 ],
             },
         }
     )
-
     return machine_deployment
 
 
@@ -2305,10 +2552,17 @@ class Cluster(ClusterBase):
 
     @property
     def labels(self) -> dict:
-        cni_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
-        labels = {
-            "cni": f"calico-{cni_version}",
-        }
+        labels = {}
+        if self.cluster.cluster_template.network_driver == "calico":
+            cni_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
+            labels = {
+                "cni": f"calico-{cni_version}",
+            }
+        if self.cluster.cluster_template.network_driver == "cilium":
+            cni_version = self.cluster.labels.get("cilium_tag", CILIUM_TAG)
+            labels = {
+                "cni": f"cilium-{cni_version}",
+            }
 
         return {**super().labels, **labels}
 
@@ -2320,6 +2574,18 @@ class Cluster(ClusterBase):
     def get_object(self) -> objects.Cluster:
         osc = clients.get_openstack_api(self.context)
         default_volume_type = osc.cinder().volume_types.default()
+        pod_cidr = DEFAULT_POD_CIDR
+        if self.cluster.cluster_template.network_driver == "calico":
+            pod_cidr = self.cluster.labels.get(
+                "calico_ipv4pool",
+                DEFAULT_POD_CIDR,
+            )
+        if self.cluster.cluster_template.network_driver == "cilium":
+            pod_cidr = self.cluster.labels.get(
+                "cilium_ipv4pool",
+                DEFAULT_POD_CIDR,
+            )
+
         return objects.Cluster(
             self.api,
             {
@@ -2336,11 +2602,7 @@ class Cluster(ClusterBase):
                             "dns_cluster_domain", "cluster.local"
                         ),
                         "pods": {
-                            "cidrBlocks": [
-                                self.cluster.labels.get(
-                                    "calico_ipv4pool", "10.100.0.0/16"
-                                )
-                            ],
+                            "cidrBlocks": [pod_cidr],
                         },
                         "services": {
                             "cidrBlocks": [
@@ -2443,13 +2705,10 @@ class Cluster(ClusterBase):
                                 },
                             },
                             {
-                                "name": "clusterIdentityRef",
-                                "value": {
-                                    "kind": pykube.Secret.kind,
-                                    "name": utils.get_cluster_api_cloud_config_secret_name(
-                                        self.cluster
-                                    ),
-                                },
+                                "name": "clusterIdentityRefName",
+                                "value": utils.get_cluster_api_cloud_config_secret_name(
+                                    self.cluster
+                                ),
                             },
                             {
                                 "name": "cloudCaCert",
@@ -2545,6 +2804,10 @@ class Cluster(ClusterBase):
                                 ),
                             },
                             {
+                                "name": "apiServerSANs",
+                                "value": utils.generate_api_cert_san_list(self.cluster),
+                            },
+                            {
                                 "name": "nodeCidr",
                                 "value": self.cluster.labels.get(
                                     "fixed_subnet_cidr",
@@ -2558,6 +2821,30 @@ class Cluster(ClusterBase):
                             {
                                 "name": "operatingSystem",
                                 "value": utils.get_operating_system(self.cluster),
+                            },
+                            {
+                                "name": "enableDockerVolume",
+                                "value": utils.get_cluster_label_as_int(
+                                    self.cluster,
+                                    "docker_volume_size",
+                                    0,
+                                )
+                                > 0,
+                            },
+                            {
+                                "name": "dockerVolumeSize",
+                                "value": utils.get_cluster_label_as_int(
+                                    self.cluster,
+                                    "docker_volume_size",
+                                    0,
+                                ),
+                            },
+                            {
+                                "name": "dockerVolumeType",
+                                "value": self.cluster.labels.get(
+                                    "docker_volume_type",
+                                    default_volume_type.name,
+                                ),
                             },
                             {
                                 "name": "enableEtcdVolume",
@@ -2601,6 +2888,22 @@ class Cluster(ClusterBase):
                                     "control_plane_availability_zones", ""
                                 ).split(","),
                             },
+                            # NOTE(oleks): Set cluster-level variable using server group id for controlplane.
+                            #              Override this for node groups via  MachineDeployment-level variable.
+                            {
+                                "name": "serverGroupId",
+                                "value": utils.ensure_controlplane_server_group(
+                                    ctx=self.context, cluster=self.cluster
+                                ),
+                            },
+                            # NOTE(oleks): Set cluster-level variable using cluster label for controlplane.
+                            #              Override this using node group label for node groups via  MachineDeployment-level variable. # noqa: E501
+                            {
+                                "name": "isServerGroupDiffFailureDomain",
+                                "value": utils.is_controlplane_different_failure_domain(
+                                    cluster=self.cluster
+                                ),
+                            },
                         ],
                     },
                 },
@@ -2624,6 +2927,7 @@ def apply_cluster_from_magnum_cluster(
     """
     create_cluster_class(api)
 
+    ClusterServerGroups(context, cluster).apply()
     ClusterResourcesConfigMap(context, api, cluster).apply()
     ClusterResourceSet(api, cluster).apply()
     Cluster(context, api, cluster).apply()
@@ -2642,20 +2946,4 @@ def get_kubeadm_control_plane(
     )
     if len(kcps) == 1:
         return list(kcps)[0]
-    return None
-
-
-def get_machine_deployment(
-    api: pykube.HTTPClient,
-    cluster: magnum_objects.Cluster,
-    node_group: magnum_objects.NodeGroup,
-) -> objects.KubeadmControlPlane:
-    mds = objects.MachineDeployment.objects(api, namespace="magnum-system").filter(
-        selector={
-            "cluster.x-k8s.io/cluster-name": cluster.stack_id,
-            "topology.cluster.x-k8s.io/deployment-name": node_group.name,
-        },
-    )
-    if len(mds) == 1:
-        return list(mds)[0]
     return None

@@ -1,6 +1,8 @@
 - project:
     check:
       jobs:
+        - magnum-cluster-api-chart-vendor
+        - magnum-cluster-api-linters
         - magnum-cluster-api-unit
         - magnum-cluster-api-functional
     templates:

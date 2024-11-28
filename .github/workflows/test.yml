@@ -30,16 +30,15 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install Poetry
-        run: make poetry
+        run: pipx install poetry
 
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           cache: poetry
-          python-version: ${{ matrix.python-version }}
 
       - name: Build package
-        run: make build
+        run: poetry build
 
   install:
     runs-on: ${{ matrix.runs-on }}
@@ -60,8 +59,11 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v3
 
+      - name: Checkout project
+        uses: actions/checkout@v3
+
       - name: Install Poetry
-        run: make poetry
+        run: pipx install poetry
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -70,36 +72,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Build package
-        run: make build
+        run: poetry build
 
       - name: Install package using constraints
         run: pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} ./dist/*.whl
-
-  black:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: psf/black@stable
-
-  flake8:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-      - run: pipx install flake8
-      - uses: suo/flake8-github-action@releases/v1
-        with:
-          checkName: flake8
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  isort:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-      - uses: isort/isort-action@master

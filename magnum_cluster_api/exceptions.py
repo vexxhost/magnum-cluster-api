@@ -57,8 +57,16 @@ class ClusterMasterCountEven(Exception):
     pass
 
 
+class UnsupportedCNI(Exception):
+    pass
+
+
 class OpenstackFlavorInvalidName(exception.InvalidName):
     message = _("Expected a flavor name but received flavor id %(flavor)s.")
+
+
+class MachineInvalidName(exception.InvalidName):
+    message = _("Expected a lowercase RFC 1123 subdomain name, got %(name)s.")
 
 
 class MachineDeploymentNotFound(exception.ObjectNotFound):

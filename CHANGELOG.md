@@ -1,5 +1,93 @@
 # Changelog
 
+## [0.24.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.23.0...v0.24.0) (2024-11-26)
+
+
+### Miscellaneous Chores
+
+* release 0.24.0 ([6766b02](https://github.com/vexxhost/magnum-cluster-api/commit/6766b02ebfb98d18cb523ab5921673f7bc43370a))
+
+## [0.23.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.22.1...v0.23.0) (2024-10-21)
+
+
+### Miscellaneous Chores
+
+* release 0.23.0 ([8110c75](https://github.com/vexxhost/magnum-cluster-api/commit/8110c753e42d66baa353b3e31738bb71dd0dded2))
+
+## [0.22.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.22.0...v0.22.1) (2024-09-06)
+
+
+### Bug Fixes
+
+* include nodegroups in COMPLETE status in cluster update job ([#427](https://github.com/vexxhost/magnum-cluster-api/issues/427)) ([b50b6dc](https://github.com/vexxhost/magnum-cluster-api/commit/b50b6dc83a8f49f01aacf6fec99b670c1316a620))
+
+## [0.22.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.21.2...v0.22.0) (2024-08-07)
+
+
+### Features
+
+* update handling vendor charts and add linters ([#413](https://github.com/vexxhost/magnum-cluster-api/issues/413)) ([141d536](https://github.com/vexxhost/magnum-cluster-api/commit/141d5361db0b90542bf3c0d8e9dd777833711253))
+
+## [0.21.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.21.1...v0.21.2) (2024-07-19)
+
+
+### Bug Fixes
+
+* allow skipping node groups that are master or delete complete ([#415](https://github.com/vexxhost/magnum-cluster-api/issues/415)) ([bd32dec](https://github.com/vexxhost/magnum-cluster-api/commit/bd32dec463b0990175ba4517b4539ceb9cc75f18))
+
+## [0.21.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.21.0...v0.21.1) (2024-07-17)
+
+
+### Bug Fixes
+
+* add skips + breakout for DELETE_COMPLETE ([0e904b6](https://github.com/vexxhost/magnum-cluster-api/commit/0e904b6e256f6cfb5ddf32816707368ea6738ac2))
+
+
+### Miscellaneous Chores
+
+* release 0.21.1 ([8a16cf9](https://github.com/vexxhost/magnum-cluster-api/commit/8a16cf9330a075025d726c670746ae604a0c3a60))
+
+## [0.21.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.20.0...v0.21.0) (2024-06-28)
+
+
+### Miscellaneous Chores
+
+* release 0.21.0 ([7906dfa](https://github.com/vexxhost/magnum-cluster-api/commit/7906dfab149fb58f7abed60701f1838d93caeeff))
+
+## [0.20.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.19.2...v0.20.0) (2024-06-27)
+
+
+### Features
+
+* support additional cert sans [ATMOSPHERE-260] ([#402](https://github.com/vexxhost/magnum-cluster-api/issues/402)) ([da93f6a](https://github.com/vexxhost/magnum-cluster-api/commit/da93f6abc822579d52d88eace644c7d9bd0a8cdd))
+* support cilium cni ([#287](https://github.com/vexxhost/magnum-cluster-api/issues/287)) ([4f922d0](https://github.com/vexxhost/magnum-cluster-api/commit/4f922d0a805cea8a4b0e6e520b28d81a55b5e150))
+
+## [0.19.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.19.1...v0.19.2) (2024-06-20)
+
+
+### Bug Fixes
+
+* Add missing equal sign for mounts ([#397](https://github.com/vexxhost/magnum-cluster-api/issues/397)) ([2385424](https://github.com/vexxhost/magnum-cluster-api/commit/2385424421808083597ae282402368ece4957459))
+
+## [0.19.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.19.0...v0.19.1) (2024-06-14)
+
+
+### Bug Fixes
+
+* Stop waiting on CAPI in API ([#393](https://github.com/vexxhost/magnum-cluster-api/issues/393)) ([024a3d9](https://github.com/vexxhost/magnum-cluster-api/commit/024a3d93cc3689d1cea7281dad3270be8b4d22c5))
+
+## [0.19.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.18.0...v0.19.0) (2024-06-12)
+
+
+### Features
+
+* support docker volume type and size ([#370](https://github.com/vexxhost/magnum-cluster-api/issues/370)) ([5360349](https://github.com/vexxhost/magnum-cluster-api/commit/5360349333aa52b934b8f5cc37df859064dfed48))
+
+
+### Bug Fixes
+
+* Improve node group tracking ([#388](https://github.com/vexxhost/magnum-cluster-api/issues/388)) ([a0fbfdd](https://github.com/vexxhost/magnum-cluster-api/commit/a0fbfddfadadad736232713331665737f468e9b9))
+
 ## [0.18.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.17.1...v0.18.0) (2024-05-30)
 
 

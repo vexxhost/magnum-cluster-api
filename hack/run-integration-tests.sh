@@ -23,6 +23,7 @@ source /opt/stack/openrc
 OS_DISTRO=${OS_DISTRO:-ubuntu}
 IMAGE_OS=${IMAGE_OS:-ubuntu-2204}
 NODE_COUNT=${NODE_COUNT:-2}
+NETWORK_DRIVER=${NETWORK_DRIVER:-calico}
 SONOBUOY_VERSION=${SONOBUOY_VERSION:-0.56.16}
 SONOBUOY_ARCH=${SONOBUOY_ARCH:-amd64}
 DNS_NAMESERVER=${DNS_NAMESERVER:-1.1.1.1}
@@ -52,7 +53,7 @@ openstack coe cluster template create \
     --master-lb-enabled \
     --master-flavor m1.large \
     --flavor m1.large \
-    --network-driver calico \
+    --network-driver ${NETWORK_DRIVER} \
     --docker-storage-driver overlay2 \
     --coe kubernetes \
     --label kube_tag=${KUBE_TAG} \
@@ -112,6 +113,7 @@ RESULTS_FILE=$(./sonobuoy retrieve --filename sonobuoy-results.tar.gz)
 
 # Print results
 ./sonobuoy results ${RESULTS_FILE}
+
 
 # Fail if the Sonobuoy tests failed
 if ! ./sonobuoy results --plugin e2e ${RESULTS_FILE} | grep -q "Status: passed"; then

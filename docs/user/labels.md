@@ -22,7 +22,7 @@ specify the volume size and type using the following labels:
 `boot_volume_type`
 
 :   The volume type of the boot volume.
-    **Default value**: Default volume 
+    **Default value**: Default volume
 
 `etcd_volume_size`
 
@@ -129,6 +129,13 @@ is often accomplished by deploying a driver on each node.
    Default value (`amphora` provider): `ROUND_ROBIN`
    Default value (`ovn` provider): `SOURCE_IP_PORT`
 
+* `octavia_lb_healthcheck`
+
+   The Octavia Load Balancer members can be monitored with health monitor.
+   This must be enabled when externalTrafficPolicy is set to `Local`.
+
+   Default value: `True`
+
 ## Container Networking Interface (CNI)
 
 ### Calcio
@@ -137,8 +144,11 @@ is often accomplished by deploying a driver on each node.
 
    The version of the Calico container image to use when bootstrapping the
    cluster.
+   Please note, that in case of selecting version out of the supported range,
+   you will need to supply a manifest for it.
 
    Default value: `v3.24.2`
+   Supported values: `v3.24.2`, `v3.25.2`, `v3.26.5`, `v3.27.4`, `v3.28.2`, `v3.29.0`
 
 ## Container Storage Interface (CSI)
 
@@ -167,6 +177,11 @@ is often accomplished by deploying a driver on each node.
    Default value: `None`
 
 ## Kubernetes
+
+* `api_server_cert_sans`
+
+   Specify the additional Subject Alternative Names (SANs) for the Kubernetes API Server,
+   separated by commas.
 
 * `api_server_tls_cipher_suites`
 
@@ -264,6 +279,24 @@ is often accomplished by deploying a driver on each node.
    The CIDR of the fixed subnet to use for the cluster.
 
    Default value: `10.0.0.0/24`
+
+* `different_failure_domain`
+
+    Enable [failure domain filter](https://github.com/vexxhost/nova-scheduler-filters).
+    This spreads cluster nodes across different failure domains.
+
+   Default value: `false`
+
+* `server_group_policies`
+
+    Specify the server group policies. A server group is created for each cluster node group.
+    Nodes in a node group are scheduled following the policies specified for the corresponding
+    server group.
+
+    Controlplane node group uses the cluster label while other node groups use labels at each
+    node group level. If node group label is not configured, cluster level label is applied.
+
+   Default value: `soft-anti-affinity`
 
 ## TODO
 

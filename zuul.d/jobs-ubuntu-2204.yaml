@@ -1,11 +1,4 @@
 - job:
-    name: magnum-cluster-api-image-build-ubuntu-2204
-    parent: magnum-cluster-api-image-build
-    abstract: true
-    vars:
-      image_operating_system: ubuntu-2204
-
-- job:
     name: magnum-cluster-api-sonobuoy-ubuntu-2204
     parent: magnum-cluster-api-sonobuoy
     abstract: true
@@ -14,23 +7,90 @@
       image_os_distro: ubuntu
 
 - job:
-    name: magnum-cluster-api-image-build-ubuntu-2204-v1.27.8
-    parent: magnum-cluster-api-image-build-ubuntu-2204
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.11
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204
     vars:
-      kube_tag: v1.27.8
+      kube_tag: v1.28.11
+      image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-28-11-1719601167.qcow2
 
 - job:
-    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.8
-    parent: magnum-cluster-api-sonobuoy-ubuntu-2204
-    dependencies:
-      - name: magnum-cluster-api-image-build-ubuntu-2204-v1.27.8
-        soft: true
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.11-calico
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.11
     vars:
-      kube_tag: v1.27.8
+      network_driver: calico
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.11-cilium
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.11
+    vars:
+      network_driver: cilium
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.6
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204
+    vars:
+      kube_tag: v1.29.6
+      image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-29-6-1720107687.qcow2
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.6-calico
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.6
+    vars:
+      network_driver: calico
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.6-cilium
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.6
+    vars:
+      network_driver: cilium
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.30.2
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204
+    vars:
+      kube_tag: v1.30.2
+      image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-30-2-1720107688.qcow2
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.30.2-calico
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.30.2
+    vars:
+      network_driver: calico
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.30.2-cilium
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.30.2
+    vars:
+      network_driver: cilium
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204
+    vars:
+      kube_tag: v1.31.1
+      image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-31-1-1728920853.qcow2
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1-calico
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1
+    vars:
+      network_driver: calico
+
+- job:
+    name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1-cilium
+    parent: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1
+    vars:
+      network_driver: cilium
 
 - project-template:
     name: magnum-cluster-api-ubuntu-2204
     check:
       jobs:
-        - magnum-cluster-api-image-build-ubuntu-2204-v1.27.8
-        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.27.8
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.11-calico
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.11-cilium
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.6-calico
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.6-cilium
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.30.2-calico
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.30.2-cilium
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1-calico
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1-cilium

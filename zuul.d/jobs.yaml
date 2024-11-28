@@ -1,4 +1,14 @@
 - job:
+    name: magnum-cluster-api-chart-vendor
+    parent: chart-vendor
+    vars:
+      chart_vendor_charts_root: "magnum_cluster_api/charts"
+
+- job:
+    name: magnum-cluster-api-linters
+    parent: tox-linters
+
+- job:
     name: magnum-cluster-api-unit
     parent: tox
     pre-run: zuul.d/playbooks/unit/pre.yml

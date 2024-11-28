@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "magnum-cluster-api"  
-version = "0.18.0"
+name = "magnum-cluster-api"
+version = "0.24.0"
 description = "Cluster API driver for Magnum"
 authors = ["Mohammed Naser <mnaser@vexxhost.com>"]
 license = "Apache-2.0"
@@ -52,6 +52,9 @@ magnum-cluster-api-proxy = "magnum_cluster_api.cmd.proxy:main"
 "k8s_cluster_api_ubuntu_focal" = "magnum_cluster_api.driver:UbuntuFocalDriver"
 "k8s_cluster_api_flatcar" = "magnum_cluster_api.driver:FlatcarDriver"
 "k8s_cluster_api_rockylinux" = "magnum_cluster_api.driver:RockyLinuxDriver"
+
+[tool.poetry.plugins."oslo.config.opts"]
+magnum_cluster_api = "magnum_cluster_api.conf:list_opts"
 
 [tool.isort]
 profile = "black"

@@ -165,6 +165,7 @@ class TestDriver:
         mock_validate_cluster,
         mock_osc,
         mock_certificates,
+        mock_get_server_group,
     ):
         with requests_mock as rsps:
             rsps.add(
@@ -287,24 +288,10 @@ class TestDriver:
             )
         )
 
-        md_found = False
-        for md in after:
-            if md["name"] == self.node_group.name:
-                md_found = True
-                rsps.add(
-                    self._response_for_machine_deployment_spec(md),
-                )
-                break
-
-        if not md_found:
-            for md in before:
-                if md["name"] == self.node_group.name:
-                    rsps.add(
-                        self._response_for_machine_deployment_spec(md, deleted=True),
-                    )
-                    break
-
     def test_create_nodegroup(self, context, ubuntu_driver, requests_mock):
+        self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        self.node_group.status = fields.ClusterStatus.CREATE_IN_PROGRESS
+
         with requests_mock as rsps:
             self.setup_node_group_tests(
                 rsps,
@@ -319,8 +306,6 @@ class TestDriver:
             )
 
             ubuntu_driver.create_nodegroup(context, self.cluster, self.node_group)
-
-        self._assert_node_group_status(fields.ClusterStatus.CREATE_IN_PROGRESS)
 
     def test_update_nodegroup(self, context, ubuntu_driver, requests_mock):
         with requests_mock as rsps:
@@ -395,6 +380,9 @@ class TestDriver:
     def test_delete_nodegroup_with_multiple_node_groups(
         self, context, ubuntu_driver, requests_mock
     ):
+        self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        self.node_group.status = fields.ClusterStatus.DELETE_IN_PROGRESS
+
         with requests_mock as rsps:
             self.setup_node_group_tests(
                 rsps,
@@ -427,4 +415,5 @@ class TestDriver:
 
             ubuntu_driver.delete_nodegroup(context, self.cluster, self.node_group)
 
-        self._assert_node_group_status(fields.ClusterStatus.DELETE_IN_PROGRESS)
+        assert self.node_group.status == fields.ClusterStatus.DELETE_IN_PROGRESS
+        self.node_group.save.assert_called_once()
