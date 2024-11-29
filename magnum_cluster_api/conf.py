@@ -21,6 +21,8 @@ capi_client_group = cfg.OptGroup(
     name="capi_client", title="Options for the Cluster API client"
 )
 
+cinder_group = cfg.OptGroup(name="cinder", title="Options for the Cinder client")
+
 manila_client_group = cfg.OptGroup(
     name="manila_client", title="Options for the Manila client"
 )
@@ -98,6 +100,17 @@ capi_client_opts = [
     ),
 ]
 
+cinder_opts = [
+    cfg.BoolOpt(
+        "cross_az_attach",
+        default=True,
+        help=_(
+            "In case of multiple availability zones, allows to create and "
+            "attach volumes from random AZ to worker nodes. When set to False "
+            "Availability Zone names in Cinder and Nova should match."
+        ),
+    )
+]
 
 manila_client_opts = [
     cfg.StrOpt(
@@ -157,6 +170,7 @@ ALL_OPTS = [
     (auto_scaling_group, auto_scaling_opts),
     (capi_client_group, capi_client_opts),
     (capi_client_group, common_security_opts),
+    (cinder_group, cinder_opts),
     (manila_client_group, manila_client_opts),
     (manila_client_group, common_security_opts),
     (proxy_group, proxy_opts),
