@@ -1887,18 +1887,7 @@ class ClusterClass(Base):
                                             "valueFrom": {
                                                 "variable": "disableAPIServerFloatingIP"
                                             },
-                                        },
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/managedSubnets",
-                                            "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    - dnsNameservers: {{ .dnsNameservers }}
-                                                    """
-                                                ),
-                                            },
-                                        },
+                                        },                                        
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/externalNetwork",
@@ -1953,6 +1942,17 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
+                                            "path": "/spec/template/spec/managedSubnets",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - dnsNameservers: {{ .dnsNameservers }}
+                                                    """
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            "op": "add",
                                             "path": "/spec/template/spec/managedSubnets/0/cidr",
                                             "valueFrom": {"variable": "nodeCidr"},
                                         },
@@ -1975,11 +1975,15 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/network/name",
+                                            "path": "/spec/template/spec/network",
                                             "valueFrom": {
-                                                "variable": "fixedNetworkName"
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    filter: { name: {{ .fixedNetworkName }}
+                                                    }"""
+                                                ),
                                             },
-                                        },
+                                        },                                        
                                     ],
                                 },
                             ],
