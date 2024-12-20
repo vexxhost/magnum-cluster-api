@@ -25,6 +25,7 @@ def cluster(
     mock_validate_cluster,
     mock_osc,
     mock_certificates,
+    mock_get_server_group,
 ):
     try:
         ubuntu_driver.create_cluster(context, cluster_obj, 60)
