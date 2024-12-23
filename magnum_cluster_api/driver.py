@@ -220,6 +220,25 @@ class BaseDriver(driver.Driver):
                     cluster.save()
                     return
 
+            # Check reason if an individual machine is not ready
+            machines = objects.Machine.objects(self.k8s_api).filter(
+                namespace="magnum-system",
+                selector={
+                    "cluster.x-k8s.io/cluster-name": cluster.stack_id,
+                },
+            )
+
+            for machine in machines:
+                for cond in machine.obj["status"]["conditions"]:
+                    if (
+                        cond.get("type") == "InfrastructureReady"
+                        and cond.get("status") == "False"
+                    ):
+                        messagetext = cond.get("message")
+                        if messagetext:
+                            cluster.status_reason = messagetext
+                            cluster.save()
+
             api_endpoint = capi_cluster.obj["spec"]["controlPlaneEndpoint"]
             cluster.api_address = (
                 f"https://{api_endpoint['host']}:{api_endpoint['port']}"
