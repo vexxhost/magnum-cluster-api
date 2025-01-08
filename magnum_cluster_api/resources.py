@@ -31,6 +31,7 @@ from magnum.conductor.handlers.common import cert_manager as cert_manager_handle
 from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import encodeutils
+from oslo_utils import uuidutils
 
 from magnum_cluster_api import (
     clients,
@@ -58,6 +59,14 @@ AUTOSCALE_ANNOTATION_MIN = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-m
 AUTOSCALE_ANNOTATION_MAX = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"
 
 DEFAULT_POD_CIDR = "10.100.0.0/16"
+
+
+def get_fixed_network_id(context, network):
+    if network and not uuidutils.is_uuid_like(network):
+        return neutron.get_network(context, network, source='name',
+                           target='id', external=False)
+    else:
+        return network
 
 
 class ClusterAutoscalerHelmRelease:
@@ -1175,7 +1184,7 @@ class ClusterClass(Base):
                             },
                         },
                         {
-                            "name": "fixedNetworkName",
+                            "name": "fixedNetworkId",
                             "required": True,
                             "schema": {
                                 "openAPIV3Schema": {
@@ -1890,17 +1899,6 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/managedSubnets",
-                                            "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    - dnsNameservers: {{ .dnsNameservers }}
-                                                    """
-                                                ),
-                                            },
-                                        },
-                                        {
-                                            "op": "add",
                                             "path": "/spec/template/spec/externalNetwork",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
@@ -1940,7 +1938,7 @@ class ClusterClass(Base):
                         },
                         {
                             "name": "newNetworkConfig",
-                            "enabledIf": '{{ if eq .fixedNetworkName "" }}true{{end}}',
+                            "enabledIf": '{{ if eq .fixedNetworkId "" }}true{{end}}',
                             "definitions": [
                                 {
                                     "selector": {
@@ -1951,6 +1949,17 @@ class ClusterClass(Base):
                                         },
                                     },
                                     "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/managedSubnets",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - dnsNameservers: {{ .dnsNameservers }}
+                                                    """
+                                                ),
+                                            },
+                                        },
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/managedSubnets/0/cidr",
@@ -1962,7 +1971,7 @@ class ClusterClass(Base):
                         },
                         {
                             "name": "existingFixedNetworkNameConfig",
-                            "enabledIf": '{{ if ne .fixedNetworkName "" }}true{{end}}',
+                            "enabledIf": '{{ if ne .fixedNetworkId "" }}true{{end}}',
                             "definitions": [
                                 {
                                     "selector": {
@@ -1975,9 +1984,13 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/network/name",
+                                            "path": "/spec/template/spec/network",
                                             "valueFrom": {
-                                                "variable": "fixedNetworkName"
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    id: {{ .fixedNetworkId }}
+                                                    """
+                                                ),
                                             },
                                         },
                                     ],
@@ -2766,8 +2779,8 @@ class Cluster(ClusterBase):
                                 ),
                             },
                             {
-                                "name": "fixedNetworkName",
-                                "value": neutron.get_fixed_network_name(
+                                "name": "fixedNetworkId",
+                                "value": get_fixed_network_id(
                                     self.context, self.cluster.fixed_network
                                 )
                                 or "",
