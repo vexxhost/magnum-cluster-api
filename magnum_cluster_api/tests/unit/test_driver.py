@@ -64,7 +64,7 @@ class TestDriver:
         )
 
         mocker.patch(
-            "magnum_cluster_api.utils.validate_flavor_name",
+            "magnum_cluster_api.utils.validate_flavor",
             return_value=True,
         )
 
