@@ -393,7 +393,7 @@ def validate_flavor(
     Validate flavor
 
     - Check if a flavor with this specified name exists
-    - Check if a flavor root_gb is zero when root_vol_required is True
+    - Check if a flavor disk is zero when root_vol_required is True
     """
 
     if flavor is None:
@@ -411,8 +411,8 @@ def validate_flavor(
     if flavor_obj is None:
         raise exception.FlavorNotFound(flavor=flavor)
 
-    # check root_gb
-    if flavor_obj.root_gb == 0 and root_vol_required:
+    # check disk
+    if flavor_obj.disk == 0 and root_vol_required:
         raise mcapi_exceptions.OpenstackFlavorZeroRootVolume(flavor=flavor)
 
 
