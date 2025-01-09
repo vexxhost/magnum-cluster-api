@@ -66,7 +66,9 @@ class OpenstackFlavorInvalidName(exception.InvalidName):
 
 
 class OpenstackFlavorZeroRootVolume(exception.InvalidName):
-    message = _("Expected  root_gb of flavor %(flavor)s is non zero.")
+    message = _(
+        "Expected a non-zero root volume for flavor %(flavor)s, but the root volume is zero."
+    )
 
 
 class MachineInvalidName(exception.InvalidName):
