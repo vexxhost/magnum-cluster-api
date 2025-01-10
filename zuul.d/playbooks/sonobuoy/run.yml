@@ -15,8 +15,9 @@
         url: "{{ image_url }}"
         dest: "{{ zuul.project.src_dir }}/{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
       register: fetch_artifact
-      retries: 5
+      retries: 60
       delay: 10
+      until: fetch_artifact is succeeded
       when:
         - image_url is defined
 
