@@ -1175,7 +1175,7 @@ class ClusterClass(Base):
                             },
                         },
                         {
-                            "name": "fixedNetworkName",
+                            "name": "fixedNetworkId",
                             "required": True,
                             "schema": {
                                 "openAPIV3Schema": {
@@ -1890,17 +1890,6 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/managedSubnets",
-                                            "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    - dnsNameservers: {{ .dnsNameservers }}
-                                                    """
-                                                ),
-                                            },
-                                        },
-                                        {
-                                            "op": "add",
                                             "path": "/spec/template/spec/externalNetwork",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
@@ -1940,7 +1929,7 @@ class ClusterClass(Base):
                         },
                         {
                             "name": "newNetworkConfig",
-                            "enabledIf": '{{ if eq .fixedNetworkName "" }}true{{end}}',
+                            "enabledIf": '{{ if eq .fixedNetworkId "" }}true{{end}}',
                             "definitions": [
                                 {
                                     "selector": {
@@ -1953,16 +1942,23 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/managedSubnets/0/cidr",
-                                            "valueFrom": {"variable": "nodeCidr"},
+                                            "path": "/spec/template/spec/managedSubnets",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - cidr: {{ .nodeCidr }}
+                                                      dnsNameservers: {{ .dnsNameservers }}
+                                                    """
+                                                ),
+                                            },
                                         },
                                     ],
                                 },
                             ],
                         },
                         {
-                            "name": "existingFixedNetworkNameConfig",
-                            "enabledIf": '{{ if ne .fixedNetworkName "" }}true{{end}}',
+                            "name": "existingFixedNetworkIdConfig",
+                            "enabledIf": '{{ if ne .fixedNetworkId "" }}true{{end}}',
                             "definitions": [
                                 {
                                     "selector": {
@@ -1975,9 +1971,13 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/network/name",
+                                            "path": "/spec/template/spec/network",
                                             "valueFrom": {
-                                                "variable": "fixedNetworkName"
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    id: {{ .fixedNetworkId }}
+                                                    """
+                                                ),
                                             },
                                         },
                                     ],
@@ -2766,8 +2766,8 @@ class Cluster(ClusterBase):
                                 ),
                             },
                             {
-                                "name": "fixedNetworkName",
-                                "value": neutron.get_fixed_network_name(
+                                "name": "fixedNetworkId",
+                                "value": utils.get_fixed_network_id(
                                     self.context, self.cluster.fixed_network
                                 )
                                 or "",

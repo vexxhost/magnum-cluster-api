@@ -13,12 +13,16 @@
 # under the License.
 
 import textwrap
+from unittest import mock
 
 import pykube
 import pytest
 import responses
+from magnum.common import exception
 from magnum.tests.unit.objects import utils as magnum_test_utils  # type: ignore
 from oslo_serialization import base64, jsonutils
+from oslo_utils import uuidutils
+from oslotest import base
 
 from magnum_cluster_api import exceptions, utils
 
@@ -240,3 +244,74 @@ class TestGenerateCloudControllerManagerConfig:
                 utils.generate_cloud_controller_manager_config(
                     self.context, self.pykube_api, self.cluster
                 )
+
+
+class TestUtils(base.BaseTestCase):
+    """Test case for utils."""
+
+    @mock.patch("magnum.common.neutron.get_network")
+    def test_get_fixed_network_id_with_uuid(self, mock_get_network):
+        context = mock.Mock()
+        fixed_network = uuidutils.generate_uuid()
+
+        network = utils.get_fixed_network_id(context, fixed_network)
+
+        mock_get_network.assert_not_called()
+        self.assertEqual(fixed_network, network)
+
+    @mock.patch("magnum.common.neutron.get_network")
+    def test_get_fixed_network_id_with_name(self, mock_get_network):
+        context = mock.Mock()
+        fixed_network = "fake-network"
+
+        network_id = uuidutils.generate_uuid()
+        mock_get_network.return_value = network_id
+
+        network = utils.get_fixed_network_id(context, fixed_network)
+
+        mock_get_network.assert_called_once_with(
+            context, fixed_network, source="name", target="id", external=False
+        )
+        self.assertEqual(network_id, network)
+
+    @mock.patch("magnum.common.neutron.get_network")
+    def test_get_fixed_network_id_with_no_fixed_network(self, mock_get_network):
+        context = mock.Mock()
+
+        network = utils.get_fixed_network_id(context, None)
+
+        mock_get_network.assert_not_called()
+        self.assertEqual(None, network)
+
+    @mock.patch("magnum.common.neutron.get_network")
+    def test_get_fixed_network_id_with_missing_network(self, mock_get_network):
+        context = mock.Mock()
+        fixed_network = "fake-network"
+
+        mock_get_network.side_effect = exception.FixedNetworkNotFound(
+            network=fixed_network
+        )
+
+        self.assertRaises(
+            exception.FixedNetworkNotFound,
+            utils.get_fixed_network_id,
+            context,
+            fixed_network,
+        )
+
+    @mock.patch("magnum.common.neutron.get_network")
+    def test_get_fixed_network_id_with_multiple_networks(self, mock_get_network):
+        context = mock.Mock()
+        fixed_network = "fake-network"
+
+        mock_get_network.side_effect = exception.Conflict(
+            "Multiple networks exist with same name '%s'. Please use the "
+            "network ID instead." % fixed_network
+        )
+
+        self.assertRaises(
+            exception.Conflict,
+            utils.get_fixed_network_id,
+            context,
+            fixed_network,
+        )
