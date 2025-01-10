@@ -1890,17 +1890,6 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/managedSubnets",
-                                            "valueFrom": {
-                                                "template": textwrap.dedent(
-                                                    """\
-                                                    - dnsNameservers: {{ .dnsNameservers }}
-                                                    """
-                                                ),
-                                            },
-                                        },
-                                        {
-                                            "op": "add",
                                             "path": "/spec/template/spec/externalNetwork",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
@@ -1953,8 +1942,15 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/managedSubnets/0/cidr",
-                                            "valueFrom": {"variable": "nodeCidr"},
+                                            "path": "/spec/template/spec/managedSubnets",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    - cidr: {{ .nodeCidr }}
+                                                      dnsNameservers: {{ .dnsNameservers }}
+                                                    """
+                                                ),
+                                            },
                                         },
                                     ],
                                 },
@@ -1975,8 +1971,14 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/network/id",
-                                            "valueFrom": {"variable": "fixedNetworkId"},
+                                            "path": "/spec/template/spec/network",
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    id: {{ .fixedNetworkId }}
+                                                    """
+                                                ),
+                                            },
                                         },
                                     ],
                                 },
