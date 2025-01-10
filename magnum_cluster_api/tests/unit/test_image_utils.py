@@ -19,6 +19,7 @@ import uuid
 import pkg_resources
 import pytest
 import yaml
+from oslotest import base
 
 from magnum_cluster_api import image_utils
 
@@ -52,3 +53,31 @@ def test_update_manifest_images(glob_path):
                     assert init_container["image"].startswith(repository)
                 for container in doc["spec"]["template"]["spec"]["containers"]:
                     assert container["image"].startswith(repository)
+
+
+class ImageUtilsTestCase(base.BaseTestCase):
+    """Test cases for image_utils"""
+
+    def test_get_image_without_repository(self):
+        image_name = "docker.io/calico/cni:v3.24.2"
+        new_image_name = image_utils.get_image(image_name, None)
+
+        self.assertEqual(image_name, new_image_name)
+
+    def test_get_image_for_calico_with_docker(self):
+        image_name = "docker.io/calico/cni:v3.24.2"
+        new_image_name = image_utils.get_image(image_name, "registry.atmosphere.dev")
+
+        self.assertEqual("registry.atmosphere.dev/calico-cni:v3.24.2", new_image_name)
+
+    def test_get_image_for_calico_with_quay(self):
+        image_name = "quay.io/calico/cni:v3.24.2"
+        new_image_name = image_utils.get_image(image_name, "registry.atmosphere.dev")
+
+        self.assertEqual("registry.atmosphere.dev/calico-cni:v3.24.2", new_image_name)
+
+    def test_get_image_for_cilium(self):
+        image_name = "quay.io/cilium/cilium:v1.15.3"
+        new_image_name = image_utils.get_image(image_name, "registry.atmosphere.dev")
+
+        self.assertEqual("registry.atmosphere.dev/cilium-cilium:v1.15.3", new_image_name)
