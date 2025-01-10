@@ -1975,9 +1975,13 @@ class ClusterClass(Base):
                                     "jsonPatches": [
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/network/name",
+                                            "path": "/spec/template/spec/network/filter",
                                             "valueFrom": {
-                                                "variable": "fixedNetworkName"
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    name: {{ .fixedNetworkName }}
+                                                    """
+                                                ),
                                             },
                                         },
                                     ],
