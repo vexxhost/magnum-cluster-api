@@ -76,7 +76,7 @@ network_driver = ${NETWORK_DRIVER}
 image_id = ${IMAGE_OS}-kube-${KUBE_TAG}
 coe = kubernetes
 labels = '{"kube_tag": "${KUBE_TAG}", "fixed_subnet_cidr": "10.0.0.0/26"}'
-docker_storage_driver = overlay2
+docker_storage_driver = overlay
 
 EOF
 
