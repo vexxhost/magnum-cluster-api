@@ -5,3 +5,4 @@ dist
 site
 *.orig
 *.rej
+.tox
