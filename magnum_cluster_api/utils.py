@@ -673,3 +673,12 @@ def _delete_server_group(
         osc.nova().server_groups.delete(server_group_id)
     except nova_exception.NotFound:
         return
+
+
+def get_fixed_network_id(context, network):
+    if network and not uuidutils.is_uuid_like(network):
+        return neutron.get_network(
+            context, network, source="name", target="id", external=False
+        )
+    else:
+        return network
