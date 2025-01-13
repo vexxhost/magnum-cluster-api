@@ -14,10 +14,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-# This script will run the full functional tests for a given `KUBE_TAG`.  It
-# will download the image, create a cluster, wait for it to hit `CREATE_COMPLETE`
-# and then run `sonobuoy` against it.
-
 source /opt/stack/openrc admin admin
 
 OS_DISTRO=${OS_DISTRO:-ubuntu}
@@ -165,6 +161,26 @@ if [[ ${UPGRADE_KUBE_TAG} != ${KUBE_TAG} ]]; then
       else
         echo "Currtny retry count: $i"
         echo "Cluster status: ${CLUSTER_STATUS}"
+        sleep 5
+      fi
+    done
+
+    # Wait for kubernetes accessible and Ready.
+    for i in {1..10}; do
+      # Get the cluster configuration file
+      eval $(openstack coe cluster config k8s-cluster-upgrade)
+      Node=$(kubectl get node -o wide)
+      if [[ ${Node} == *"NotReady"* ]]; then
+        echo "Kubernetes accessible with Not Ready node."
+        echo "Node status: ${Node}"
+        sleep 5
+      elif [[ ${Node} == *"Ready"* ]]; then
+        echo "Kubernetes accessible with Ready node."
+        echo "Node status: ${Node}"
+        break
+      else
+        echo "Currtny retry count: $i"
+        echo "Node status: ${Node}"
         sleep 5
       fi
     done
