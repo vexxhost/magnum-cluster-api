@@ -94,22 +94,80 @@ echo "Run Tempest tests:"
 popd
 
 
-if [[ ${UPGRADE_KUBE_TAG} != ${KUBE_TAG} ]]; then
+# Create cluster template
+openstack coe cluster template create \
+    --image $(openstack image show ${IMAGE_NAME} -c id -f value) \
+    --external-network public \
+    --dns-nameserver ${DNS_NAMESERVER} \
+    --master-lb-enabled \
+    --master-flavor m1.large \
+    --flavor m1.large \
+    --network-driver ${NETWORK_DRIVER} \
+    --docker-storage-driver overlay2 \
+    --coe kubernetes \
+    --label kube_tag=${KUBE_TAG} \
+    --label fixed_subnet_cidr=192.168.24.0/24 \
+    k8s-${KUBE_TAG};
 
-    # Create cluster template
-    openstack coe cluster template create \
-        --image $(openstack image show ${IMAGE_NAME} -c id -f value) \
-        --external-network public \
-        --dns-nameserver ${DNS_NAMESERVER} \
-        --master-lb-enabled \
-        --master-flavor m1.large \
-        --flavor m1.large \
-        --network-driver ${NETWORK_DRIVER} \
-        --docker-storage-driver overlay2 \
-        --coe kubernetes \
-        --label kube_tag=${KUBE_TAG} \
-        --label fixed_subnet_cidr=192.168.24.0/24 \
-        k8s-${KUBE_TAG};
+# Create cluster
+openstack coe cluster create \
+  --cluster-template k8s-${KUBE_TAG} \
+  --master-count 1 \
+  --node-count 1 \
+  --merge-labels \
+  --label audit_log_enabled=true \
+  k8s-cluster-test
+
+# Wait for cluster creation to be queued
+set +e
+for i in {1..5}; do
+  openstack coe cluster show k8s-cluster-test 2>&1
+  exit_status=$?
+  if [ $exit_status -eq 0 ]; then
+      break
+  else
+      echo "Error: Cluster k8s-cluster-test could not be found."
+      sleep 1
+  fi
+done
+set -e
+
+# Wait for cluster to be "CREATE_COMPLETE".
+for i in {1..240}; do
+  CLUSTER_STATUS=$(openstack coe cluster show k8s-cluster-test -c status -f value)
+  if [[ ${CLUSTER_STATUS} == *"FAILED"* ]]; then
+    echo "Cluster failed to create"
+    exit 1
+  elif [[ ${CLUSTER_STATUS} == *"CREATE_COMPLETE"* ]]; then
+    echo "Cluster created"
+    break
+  else
+    echo "Currtny retry count: $i"
+    echo "Cluster status: ${CLUSTER_STATUS}"
+    sleep 5
+  fi
+done
+
+# Wait for kubernetes accessible and Ready.
+for i in {1..10}; do
+  # Get the cluster configuration file
+  eval $(openstack coe cluster config k8s-cluster-test)
+  Node=$(kubectl get node -o wide)
+  ready_count=$(echo $Node | grep " Ready " | wc -l)
+  tag_count=$(echo $Node | grep $KUBE_TAG | wc -l)
+  if [[ $ready_count -eq 2 && $tag_count -eq 2 ]]; then
+    echo "Kubernetes accessible with Ready node."
+    echo "Node status: ${Node}"
+    break
+  else
+    echo "Currtny retry count: $i"
+    echo "Node status: ${Node}"
+    sleep 5
+  fi
+done
+
+
+if [[ ${UPGRADE_KUBE_TAG} != ${KUBE_TAG} ]]; then
 
     # Create cluster template for upgrade
     openstack coe cluster template create \
@@ -126,37 +184,17 @@ if [[ ${UPGRADE_KUBE_TAG} != ${KUBE_TAG} ]]; then
         --label fixed_subnet_cidr=192.168.24.0/24 \
         k8s-${UPGRADE_KUBE_TAG};
 
-    # Create cluster
-    openstack coe cluster create \
-      --cluster-template k8s-${KUBE_TAG} \
-      --master-count 1 \
-      --node-count 1 \
-      --merge-labels \
-      --label audit_log_enabled=true \
-      k8s-cluster-upgrade
-
-    # Wait for cluster creation to be queued
-    set +e
-    for i in {1..5}; do
-      openstack coe cluster show k8s-cluster-upgrade 2>&1
-      exit_status=$?
-      if [ $exit_status -eq 0 ]; then
-          break
-      else
-          echo "Error: Cluster k8s-cluster-upgrade could not be found."
-          sleep 1
-      fi
-    done
-    set -e
-
-    # Wait for cluster to be "CREATE_COMPLETE".
+    # Upgrade cluster
+    openstack coe cluster upgrade k8s-cluster-test k8s-${UPGRADE_KUBE_TAG}
+    # Wait for cluster to be "UPDATE_COMPLETE".
     for i in {1..240}; do
-      CLUSTER_STATUS=$(openstack coe cluster show k8s-cluster-upgrade -c status -f value)
+      CLUSTER_STATUS=$(openstack coe cluster show k8s-cluster-test -c status -f value)
       if [[ ${CLUSTER_STATUS} == *"FAILED"* ]]; then
-        echo "Cluster failed to create"
+        echo "Cluster failed to upgrade"
         exit 1
-      elif [[ ${CLUSTER_STATUS} == *"CREATE_COMPLETE"* ]]; then
-        echo "Cluster created"
+      elif [[ ${CLUSTER_STATUS} == *"UPDATE_COMPLETE"* ]]; then
+        echo "Cluster upgraded"
+        exit 0
         break
       else
         echo "Currtny retry count: $i"
@@ -168,38 +206,17 @@ if [[ ${UPGRADE_KUBE_TAG} != ${KUBE_TAG} ]]; then
     # Wait for kubernetes accessible and Ready.
     for i in {1..10}; do
       # Get the cluster configuration file
-      eval $(openstack coe cluster config k8s-cluster-upgrade)
+      eval $(openstack coe cluster config k8s-cluster-test)
       Node=$(kubectl get node -o wide)
-      if [[ ${Node} == *"NotReady"* ]]; then
-        echo "Kubernetes accessible with Not Ready node."
-        echo "Node status: ${Node}"
-        sleep 5
-      elif [[ ${Node} == *"Ready"* ]]; then
+      ready_count=$(echo $Node | grep " Ready " | wc -l)
+      tag_count=$(echo $Node | grep $UPGRADE_KUBE_TAG | wc -l)
+      if [[ $ready_count -eq 2 && $tag_count -eq 2 ]]; then
         echo "Kubernetes accessible with Ready node."
         echo "Node status: ${Node}"
         break
       else
         echo "Currtny retry count: $i"
         echo "Node status: ${Node}"
-        sleep 5
-      fi
-    done
-
-    # Upgrade cluster
-    openstack coe cluster upgrade k8s-cluster-upgrade k8s-${UPGRADE_KUBE_TAG}
-    # Wait for cluster to be "UPDATE_COMPLETE".
-    for i in {1..240}; do
-      CLUSTER_STATUS=$(openstack coe cluster show k8s-cluster-upgrade -c status -f value)
-      if [[ ${CLUSTER_STATUS} == *"FAILED"* ]]; then
-        echo "Cluster failed to upgrade"
-        exit 1
-      elif [[ ${CLUSTER_STATUS} == *"UPDATE_COMPLETE"* ]]; then
-        echo "Cluster upgraded"
-        exit 0
-        break
-      else
-        echo "Currtny retry count: $i"
-        echo "Cluster status: ${CLUSTER_STATUS}"
         sleep 5
       fi
     done
