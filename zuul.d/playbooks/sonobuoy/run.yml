@@ -50,7 +50,7 @@
       args:
         chdir: "{{ zuul.project.src_dir }}"
 
-    - shell: "./hack/run-integration-tests.sh"
+    - shell: "./hack/run-sonobuoy-tests.sh"
       args:
         chdir: "{{ zuul.project.src_dir }}"
       environment:

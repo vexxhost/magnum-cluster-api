@@ -52,7 +52,7 @@
         KUBE_TAG: "{{ kube_tag }}"
         NETWORK_DRIVER: "{{ network_driver }}"
 
-    - shell: "./hack/run-tempest-tests.sh"
+    - shell: "./hack/run-integration-tests.sh"
       args:
         chdir: "{{ zuul.project.src_dir }}"
       environment:
