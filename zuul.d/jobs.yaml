@@ -31,10 +31,10 @@
       - magnum_cluster_api/cmd/image_builder.py
 
 - job:
-    name: magnum-cluster-api-tempest
+    name: magnum-cluster-api-integration
     abstract: true
     timeout: 7200
-    run: zuul.d/playbooks/tempest/run.yml
+    run: zuul.d/playbooks/integration/run.yml
     nodeset:
       nodes:
         - name: ubuntu-jammy

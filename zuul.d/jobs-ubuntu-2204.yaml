@@ -103,8 +103,8 @@
         - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1-cilium
 
 - job:
-    name: magnum-cluster-api-tempest-ubuntu-2204
-    parent: magnum-cluster-api-tempest
+    name: magnum-cluster-api-integration-ubuntu-2204
+    parent: magnum-cluster-api-integration
     timeout: 10800
     abstract: true
     vars:
@@ -112,8 +112,8 @@
       image_os_distro: ubuntu
 
 - job:
-    name: magnum-cluster-api-tempest-ubuntu-2204-v1.28.11
-    parent: magnum-cluster-api-tempest-ubuntu-2204
+    name: magnum-cluster-api-integration-ubuntu-2204-v1.28.11
+    parent: magnum-cluster-api-integration-ubuntu-2204
     vars:
       kube_tag: v1.28.11
       upgrade_kube_tag: v1.29.6
@@ -121,20 +121,20 @@
       upgrade_image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-29-6-1720107687.qcow2
 
 - job:
-    name: magnum-cluster-api-tempest-ubuntu-2204-v1.28.11-calico
-    parent: magnum-cluster-api-tempest-ubuntu-2204-v1.28.11
+    name: magnum-cluster-api-integration-ubuntu-2204-v1.28.11-calico
+    parent: magnum-cluster-api-integration-ubuntu-2204-v1.28.11
     vars:
       network_driver: calico
 
 - job:
-    name: magnum-cluster-api-tempest-ubuntu-2204-v1.28.11-cilium
-    parent: magnum-cluster-api-tempest-ubuntu-2204-v1.28.11
+    name: magnum-cluster-api-integration-ubuntu-2204-v1.28.11-cilium
+    parent: magnum-cluster-api-integration-ubuntu-2204-v1.28.11
     vars:
       network_driver: cilium
 
 - job:
-    name: magnum-cluster-api-tempest-ubuntu-2204-v1.29.6
-    parent: magnum-cluster-api-tempest-ubuntu-2204
+    name: magnum-cluster-api-integration-ubuntu-2204-v1.29.6
+    parent: magnum-cluster-api-integration-ubuntu-2204
     vars:
       kube_tag: v1.29.6
       upgrade_kube_tag: v1.30.2
@@ -142,20 +142,20 @@
       upgrade_image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-30-2-1720107688.qcow2
 
 - job:
-    name: magnum-cluster-api-tempest-ubuntu-2204-v1.29.6-calico
-    parent: magnum-cluster-api-tempest-ubuntu-2204-v1.29.6
+    name: magnum-cluster-api-integration-ubuntu-2204-v1.29.6-calico
+    parent: magnum-cluster-api-integration-ubuntu-2204-v1.29.6
     vars:
       network_driver: calico
 
 - job:
-    name: magnum-cluster-api-tempest-ubuntu-2204-v1.29.6-cilium
-    parent: magnum-cluster-api-tempest-ubuntu-2204-v1.29.6
+    name: magnum-cluster-api-integration-ubuntu-2204-v1.29.6-cilium
+    parent: magnum-cluster-api-integration-ubuntu-2204-v1.29.6
     vars:
       network_driver: cilium
 
 - job:
-    name: magnum-cluster-api-tempest-ubuntu-2204-v1.30.2
-    parent: magnum-cluster-api-tempest-ubuntu-2204
+    name: magnum-cluster-api-integration-ubuntu-2204-v1.30.2
+    parent: magnum-cluster-api-integration-ubuntu-2204
     vars:
       kube_tag: v1.30.2
       upgrade_kube_tag: v1.31.1
@@ -163,45 +163,45 @@
       upgrade_image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-31-1-1728920853.qcow2
 
 - job:
-    name: magnum-cluster-api-tempest-ubuntu-2204-v1.30.2-calico
-    parent: magnum-cluster-api-tempest-ubuntu-2204-v1.30.2
+    name: magnum-cluster-api-integration-ubuntu-2204-v1.30.2-calico
+    parent: magnum-cluster-api-integration-ubuntu-2204-v1.30.2
     vars:
       network_driver: calico
 
 - job:
-    name: magnum-cluster-api-tempest-ubuntu-2204-v1.30.2-cilium
-    parent: magnum-cluster-api-tempest-ubuntu-2204-v1.30.2
+    name: magnum-cluster-api-integration-ubuntu-2204-v1.30.2-cilium
+    parent: magnum-cluster-api-integration-ubuntu-2204-v1.30.2
     vars:
       network_driver: cilium
 
 - job:
-    name: magnum-cluster-api-tempest-ubuntu-2204-v1.31.1
-    parent: magnum-cluster-api-tempest-ubuntu-2204
+    name: magnum-cluster-api-integration-ubuntu-2204-v1.31.1
+    parent: magnum-cluster-api-integration-ubuntu-2204
     vars:
       kube_tag: v1.31.1
       image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-31-1-1728920853.qcow2
 
 - job:
-    name: magnum-cluster-api-tempest-ubuntu-2204-v1.31.1-calico
-    parent: magnum-cluster-api-tempest-ubuntu-2204-v1.31.1
+    name: magnum-cluster-api-integration-ubuntu-2204-v1.31.1-calico
+    parent: magnum-cluster-api-integration-ubuntu-2204-v1.31.1
     vars:
       network_driver: calico
 
 - job:
-    name: magnum-cluster-api-tempest-ubuntu-2204-v1.31.1-cilium
-    parent: magnum-cluster-api-tempest-ubuntu-2204-v1.31.1
+    name: magnum-cluster-api-integration-ubuntu-2204-v1.31.1-cilium
+    parent: magnum-cluster-api-integration-ubuntu-2204-v1.31.1
     vars:
       network_driver: cilium
 
 - project-template:
-    name: magnum-cluster-api-tempest-ubuntu-2204
+    name: magnum-cluster-api-integration-ubuntu-2204
     check:
       jobs:
-        - magnum-cluster-api-tempest-ubuntu-2204-v1.28.11-calico
-        - magnum-cluster-api-tempest-ubuntu-2204-v1.28.11-cilium
-        - magnum-cluster-api-tempest-ubuntu-2204-v1.29.6-calico
-        - magnum-cluster-api-tempest-ubuntu-2204-v1.29.6-cilium
-        - magnum-cluster-api-tempest-ubuntu-2204-v1.30.2-calico
-        - magnum-cluster-api-tempest-ubuntu-2204-v1.30.2-cilium
-        - magnum-cluster-api-tempest-ubuntu-2204-v1.31.1-calico
-        - magnum-cluster-api-tempest-ubuntu-2204-v1.31.1-cilium
+        - magnum-cluster-api-integration-ubuntu-2204-v1.28.11-calico
+        - magnum-cluster-api-integration-ubuntu-2204-v1.28.11-cilium
+        - magnum-cluster-api-integration-ubuntu-2204-v1.29.6-calico
+        - magnum-cluster-api-integration-ubuntu-2204-v1.29.6-cilium
+        - magnum-cluster-api-integration-ubuntu-2204-v1.30.2-calico
+        - magnum-cluster-api-integration-ubuntu-2204-v1.30.2-cilium
+        - magnum-cluster-api-integration-ubuntu-2204-v1.31.1-calico
+        - magnum-cluster-api-integration-ubuntu-2204-v1.31.1-cilium
