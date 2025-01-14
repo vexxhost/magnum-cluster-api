@@ -142,26 +142,30 @@ for i in {1..240}; do
     echo "Cluster created"
     break
   else
-    echo "Currtny retry count: $i"
+    echo "Current retry count: $i"
     echo "Cluster status: ${CLUSTER_STATUS}"
     sleep 5
   fi
 done
 
 # Wait for kubernetes accessible and Ready.
-for i in {1..10}; do
+for i in {1..30}; do
   # Get the cluster configuration file
   eval $(openstack coe cluster config k8s-cluster-test)
   Node=$(kubectl get node -o wide)
-  ready_count=$(echo $Node | grep " Ready " | wc -l)
-  tag_count=$(echo $Node | grep $KUBE_TAG | wc -l)
+  ready_count=$(echo $Node | grep -o " Ready " | wc -l)
+  tag_count=$(echo $Node | grep -o $KUBE_TAG | wc -l)
   if [[ $ready_count -eq 2 && $tag_count -eq 2 ]]; then
     echo "Kubernetes accessible with Ready node."
     echo "Node status: ${Node}"
     break
-  else
-    echo "Currtny retry count: $i"
+  elif [[ $i -eq 30 ]]; then
+    echo "Failed: Unable to reach ready status for nodes..."
     echo "Node status: ${Node}"
+    exit 1
+  else
+    echo "Current retry count: $i"
+    # echo "Node status: ${Node}"
     sleep 5
   fi
 done
@@ -194,29 +198,32 @@ if [[ ${UPGRADE_KUBE_TAG} != ${KUBE_TAG} ]]; then
         exit 1
       elif [[ ${CLUSTER_STATUS} == *"UPDATE_COMPLETE"* ]]; then
         echo "Cluster upgraded"
-        exit 0
         break
       else
-        echo "Currtny retry count: $i"
+        echo "Current retry count: $i"
         echo "Cluster status: ${CLUSTER_STATUS}"
         sleep 5
       fi
     done
 
     # Wait for kubernetes accessible and Ready.
-    for i in {1..10}; do
+    for i in {1..30}; do
       # Get the cluster configuration file
       eval $(openstack coe cluster config k8s-cluster-test)
       Node=$(kubectl get node -o wide)
-      ready_count=$(echo $Node | grep " Ready " | wc -l)
-      tag_count=$(echo $Node | grep $UPGRADE_KUBE_TAG | wc -l)
+      ready_count=$(echo $Node | grep -o " Ready " | wc -l)
+      tag_count=$(echo $Node | grep -o $UPGRADE_KUBE_TAG | wc -l)
       if [[ $ready_count -eq 2 && $tag_count -eq 2 ]]; then
         echo "Kubernetes accessible with Ready node."
         echo "Node status: ${Node}"
-        break
-      else
-        echo "Currtny retry count: $i"
+        exit 0
+      elif [[ $i -eq 30 ]]; then
+        echo "Failed: Unable to reach ready status for nodes..."
         echo "Node status: ${Node}"
+        exit 1
+      else
+        echo "Current retry count: $i"
+        # echo "Node status: ${Node}"
         sleep 5
       fi
     done
