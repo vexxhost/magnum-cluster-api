@@ -24,3 +24,7 @@ declare -a VERSIONS=(
 for i in "${VERSIONS[@]}"; do
   curl -q https://raw.githubusercontent.com/projectcalico/calico/${i}/manifests/calico.yaml > magnum_cluster_api/manifests/calico/${i}.yaml
 done
+
+for i in magnum_cluster_api/manifests/calico/* ; do
+    sed -i '' -e 's/docker\.io/quay\.io/g' "${i}"
+done
