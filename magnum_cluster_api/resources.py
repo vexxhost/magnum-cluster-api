@@ -296,6 +296,15 @@ class ClusterResourcesConfigMap(ClusterBase):
         if cinder.is_enabled(self.cluster):
             volume_types = osc.cinder().volume_types.list()
             default_volume_type = osc.cinder().volume_types.default()
+            # Default is set in accordance to the CSI:
+            # https://github.com/kubernetes/cloud-provider-openstack/blob/d228854cf58e7b4ed93d5e7ba68ab639450e3449/docs/cinder-csi-plugin/using-cinder-csi-plugin.md#supported-parameters
+            # If allow_availability_zone_fallback is set to False in Cinder
+            # and "nova" AZ is not present in Cinder, CSI request will fail.
+            volume_availability_zone = "nova"
+            if not CONF.cinder.cross_az_attach:
+                volume_availability_zone = self.cluster.labels.get(
+                    "availability_zone", volume_availability_zone
+                )
             data = {
                 **data,
                 **{
@@ -333,6 +342,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                             "provisioner": "cinder.csi.openstack.org",
                             "parameters": {
                                 "type": vt.name,
+                                "availability": volume_availability_zone,
                             },
                             "reclaimPolicy": "Delete",
                             "volumeBindingMode": "Immediate",
