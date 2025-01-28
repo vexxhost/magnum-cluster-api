@@ -23,6 +23,7 @@ from magnum.common import exception as magnum_exception  # type: ignore
 from magnum.conductor import scale_manager  # type: ignore
 from magnum.drivers.common import driver  # type: ignore
 from magnum.objects import fields  # type: ignore
+from packaging import version
 
 from magnum_cluster_api import (
     clients,
@@ -376,6 +377,27 @@ class BaseDriver(driver.Driver):
         This method is called synchonously by the Magnum API, therefore it will be blocking
         the Magnum API, so it should be as fast as possible.
         """
+
+        # Ensure the upgrade follows the minor/patch upgrade rule
+        current_version = version.parse(cluster.labels.get("kube_tag", ""))
+        target_version = version.parse(cluster_template.labels.get("kube_tag", ""))
+
+        if (
+            target_version.major != current_version.major
+            or target_version.minor > current_version.minor + 1
+        ):
+            raise ValueError(
+                f"Upgrade not supported: can only upgrade to the next minor version. Current: {current_version}, Target: {target_version}."
+            )
+
+        if (
+            target_version.minor == current_version.minor
+            and target_version.micro <= current_version.micro
+        ):
+            raise ValueError(
+                f"Upgrade not supported: target version {target_version} must be newer than current version {current_version}."
+            )
+
         # XXX(mnaser): The Magnum API historically only did upgrade one node group at a
         #              time.  This is a limitation of the Magnum API and not the Magnum
         #              Cluster API since doing multiple rolling upgrades was not very

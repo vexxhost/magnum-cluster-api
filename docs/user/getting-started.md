@@ -228,9 +228,10 @@ this using a few several ways, we cover a few of them in this section.
 ### Upgrading
 
 The Cluster API driver for Magnum supports upgrading Kubernetes clusters to any
-minor release in the same series or one major release ahead.  The upgrade
-process is performed in-place, meaning that the existing cluster is upgraded to
-the new version without creating a new cluster in a rolling fashion.
+patch release in the same series or one minor release ahead.  e.g. if you need to
+upgrade from Kubernetes v1.17 to v1.19, you must first upgrade to v1.18.  The
+upgrade process is performed in-place, meaning that the existing cluster is upgraded
+to the new version without creating a new cluster in a rolling fashion.
 
 !!! note
 
