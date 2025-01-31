@@ -1875,17 +1875,10 @@ class ClusterClass(Base):
                                             },
                                         },
                                         {
-                                            "op": "add",
+                                            "op": "replace",
                                             "path": "/spec/template/spec/identityRef/name",
                                             "valueFrom": {
                                                 "variable": "clusterIdentityRefName"
-                                            },
-                                        },
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/disableAPIServerFloatingIP",
-                                            "valueFrom": {
-                                                "variable": "disableAPIServerFloatingIP"
                                             },
                                         },
                                         {
@@ -1897,6 +1890,30 @@ class ClusterClass(Base):
                                                     id: {{ .externalNetworkId }}
                                                     """
                                                 ),
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            "name": "disableAPIServerFloatingIP",
+                            "enabledIf": "{{ if .disableAPIServerFloatingIP }}true{{end}}",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackClusterTemplate.version,
+                                        "kind": objects.OpenStackClusterTemplate.kind,
+                                        "matchResources": {
+                                            "infrastructureCluster": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/disableAPIServerFloatingIP",
+                                            "valueFrom": {
+                                                "variable": "disableAPIServerFloatingIP"
                                             },
                                         },
                                     ],
