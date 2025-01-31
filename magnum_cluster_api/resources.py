@@ -1883,13 +1883,6 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/disableAPIServerFloatingIP",
-                                            "valueFrom": {
-                                                "variable": "disableAPIServerFloatingIP"
-                                            },
-                                        },
-                                        {
-                                            "op": "add",
                                             "path": "/spec/template/spec/externalNetwork",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
@@ -1897,6 +1890,30 @@ class ClusterClass(Base):
                                                     id: {{ .externalNetworkId }}
                                                     """
                                                 ),
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            "name": "disableAPIServerFloatingIP",
+                            "enabledIf": "{{ if .disableAPIServerFloatingIP }}true{{end}}",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackClusterTemplate.version,
+                                        "kind": objects.OpenStackClusterTemplate.kind,
+                                        "matchResources": {
+                                            "infrastructureCluster": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/disableAPIServerFloatingIP",
+                                            "valueFrom": {
+                                                "variable": "disableAPIServerFloatingIP"
                                             },
                                         },
                                     ],
