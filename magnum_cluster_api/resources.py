@@ -1875,7 +1875,7 @@ class ClusterClass(Base):
                                             },
                                         },
                                         {
-                                            "op": "replace",
+                                            "op": "add",
                                             "path": "/spec/template/spec/identityRef/name",
                                             "valueFrom": {
                                                 "variable": "clusterIdentityRefName"
