@@ -38,6 +38,7 @@ from magnum_cluster_api import (
     image_utils,
     images,
     json_patches,
+    patches,
     objects,
     utils,
 )
@@ -1896,30 +1897,7 @@ class ClusterClass(Base):
                                 },
                             ],
                         },
-                        {
-                            "name": "disableAPIServerFloatingIP",
-                            "enabledIf": "{{ if .disableAPIServerFloatingIP }}true{{end}}",
-                            "definitions": [
-                                {
-                                    "selector": {
-                                        "apiVersion": objects.OpenStackClusterTemplate.version,
-                                        "kind": objects.OpenStackClusterTemplate.kind,
-                                        "matchResources": {
-                                            "infrastructureCluster": True,
-                                        },
-                                    },
-                                    "jsonPatches": [
-                                        {
-                                            "op": "add",
-                                            "path": "/spec/template/spec/disableAPIServerFloatingIP",
-                                            "valueFrom": {
-                                                "variable": "disableAPIServerFloatingIP"
-                                            },
-                                        },
-                                    ],
-                                },
-                            ],
-                        },
+                        patches.DISABLE_API_SERVER_FLOATING_IP.to_dict()
                         {
                             "name": "controlPlaneAvailabilityZones",
                             "enabledIf": '{{ if ne (index .controlPlaneAvailabilityZones 0) "" }}true{{end}}',
