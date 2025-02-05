@@ -38,8 +38,8 @@ from magnum_cluster_api import (
     image_utils,
     images,
     json_patches,
-    patches,
     objects,
+    patches,
     utils,
 )
 from magnum_cluster_api.integrations import cinder, cloud_provider, manila
