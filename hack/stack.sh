@@ -30,12 +30,19 @@ else
     popd
 fi
 
+# Get Magnum fix before it landed
+pushd /opt/stack
+git clone https://git.openstack.org/openstack/magnum
+cd magnum
+git fetch https://review.opendev.org/openstack/magnum refs/changes/15/940815/1 && git checkout FETCH_HEAD
+popd
+
 # Create DevStack configuration file
 cat <<EOF > /opt/stack/local.conf
 [[local|localrc]]
 # General
 GIT_BASE=https://github.com
-
+RECLONE=no
 # Secrets
 DATABASE_PASSWORD=root
 RABBIT_PASSWORD=secrete123

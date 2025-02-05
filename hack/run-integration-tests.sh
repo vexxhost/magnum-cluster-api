@@ -100,8 +100,8 @@ openstack coe cluster template create \
     --external-network public \
     --dns-nameserver ${DNS_NAMESERVER} \
     --master-lb-enabled \
-    --master-flavor m1.large \
-    --flavor m1.large \
+    --master-flavor m1.medium \
+    --flavor m1.medium \
     --network-driver ${NETWORK_DRIVER} \
     --docker-storage-driver overlay2 \
     --coe kubernetes \
@@ -179,8 +179,8 @@ if [[ ${UPGRADE_KUBE_TAG} != ${KUBE_TAG} ]]; then
         --external-network public \
         --dns-nameserver ${DNS_NAMESERVER} \
         --master-lb-enabled \
-        --master-flavor m1.large \
-        --flavor m1.large \
+        --master-flavor m1.medium \
+        --flavor m1.medium \
         --network-driver ${NETWORK_DRIVER} \
         --docker-storage-driver overlay2 \
         --coe kubernetes \
