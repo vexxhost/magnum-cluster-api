@@ -15,9 +15,8 @@
         url: "{{ image_url }}"
         dest: "{{ zuul.project.src_dir }}/{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
       register: fetch_artifact
-      retries: 60
+      retries: 5
       delay: 10
-      until: fetch_artifact is succeeded
       when:
         - image_url is defined
 
@@ -45,12 +44,15 @@
         - upgrade_kube_tag is defined
         - upgrade_kube_tag != kube_tag
 
-
     - shell: "./hack/stack.sh"
       args:
         chdir: "{{ zuul.project.src_dir }}"
+      environment:
+        IMAGE_OS: "{{ image_operating_system }}"
+        KUBE_TAG: "{{ kube_tag }}"
+        NETWORK_DRIVER: "{{ network_driver }}"
 
-    - shell: "./hack/run-sonobuoy-tests.sh"
+    - shell: "./hack/run-integration-tests.sh"
       args:
         chdir: "{{ zuul.project.src_dir }}"
       environment:
@@ -58,13 +60,6 @@
         OS_DISTRO: "{{ image_os_distro }}"
         KUBE_TAG: "{{ kube_tag }}"
         UPGRADE_KUBE_TAG: "{{ upgrade_kube_tag | default(kube_tag) }}"
-        NODE_COUNT: 2
         BUILD_NEW_IMAGE: "{{ fetch_artifact.changed }}"
         BUILD_NEW_UPGRADE_IMAGE: "{{ fetch_artifact_upgrade.changed }}"
         NETWORK_DRIVER: "{{ network_driver }}"
-
-    - name: Copy Sonobuoy results to output folder
-      copy:
-        src: "{{ zuul.project.src_dir }}/sonobuoy-results.tar.gz"
-        dest: "{{ zuul_output_dir }}/artifacts/sonobuoy-results.tar.gz"
-        remote_src: true
