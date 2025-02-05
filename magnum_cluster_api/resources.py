@@ -1897,7 +1897,7 @@ class ClusterClass(Base):
                                 },
                             ],
                         },
-                        patches.DISABLE_API_SERVER_FLOATING_IP.to_dict()
+                        patches.DISABLE_API_SERVER_FLOATING_IP.to_dict(),
                         {
                             "name": "controlPlaneAvailabilityZones",
                             "enabledIf": '{{ if ne (index .controlPlaneAvailabilityZones 0) "" }}true{{end}}',
