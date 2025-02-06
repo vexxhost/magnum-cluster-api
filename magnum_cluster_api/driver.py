@@ -386,16 +386,18 @@ class BaseDriver(driver.Driver):
             target_version.major != current_version.major
             or target_version.minor > current_version.minor + 1
         ):
-            raise ValueError(
-                f"Upgrade not supported: can only upgrade to the next minor version. Current: {current_version}, Target: {target_version}."
+            raise exceptions.ClusterUpgradeSkipsMinorVersion(
+                current_version=current_version,
+                target_version=target_version,
             )
 
         if (
             target_version.minor == current_version.minor
             and target_version.micro <= current_version.micro
         ):
-            raise ValueError(
-                f"Upgrade not supported: target version {target_version} must be newer than current version {current_version}."
+            raise exceptions.ClusterUpgradeSkipsMinorVersion(
+                current_version=current_version,
+                target_version=target_version,
             )
 
         # XXX(mnaser): The Magnum API historically only did upgrade one node group at a

@@ -71,3 +71,10 @@ class MachineDeploymentNotFound(exception.ObjectNotFound):
 
 class InvalidOctaviaLoadBalancerAlgorithm(exception.Invalid):
     message = _("Invalid value for octavia_lb_algorithm: %(octavia_lb_algorithm)s.")
+
+
+class ClusterUpgradeSkipsMinorVersion(exception.NotSupported):
+    message = _(
+        "Cluster upgrade rejected: can only upgrade to the next minor "
+        "version (current: %(current_version)s, target: %(target_version)s)."
+    )
