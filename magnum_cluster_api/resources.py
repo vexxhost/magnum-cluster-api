@@ -39,7 +39,6 @@ from magnum_cluster_api import (
     images,
     json_patches,
     objects,
-    patches,
     utils,
 )
 from magnum_cluster_api.integrations import cinder, cloud_provider, manila
@@ -1902,7 +1901,30 @@ class ClusterClass(Base):
                                 },
                             ],
                         },
-                        patches.DISABLE_API_SERVER_FLOATING_IP.to_dict(),
+                        {
+                            "name": "disableAPIServerFloatingIP",
+                            "enabledIf": "{{ if .disableAPIServerFloatingIP }}true{{end}}",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackClusterTemplate.version,
+                                        "kind": objects.OpenStackClusterTemplate.kind,
+                                        "matchResources": {
+                                            "infrastructureCluster": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/disableAPIServerFloatingIP",
+                                            "valueFrom": {
+                                                "variable": "disableAPIServerFloatingIP"
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
                         {
                             "name": "controlPlaneAvailabilityZones",
                             "enabledIf": '{{ if ne (index .controlPlaneAvailabilityZones 0) "" }}true{{end}}',
@@ -2546,7 +2568,7 @@ class Cluster(ClusterBase):
         context: context.RequestContext,
         api: pykube.HTTPClient,
         cluster: magnum_objects.Cluster,
-        namespace: str = "magnum-system"
+        namespace: str = "magnum-system",
     ):
         self.context = context
         self.api = api
@@ -2723,7 +2745,9 @@ class Cluster(ClusterBase):
                                 "name": "cloudControllerManagerConfig",
                                 "value": base64.encode_as_text(
                                     utils.generate_cloud_controller_manager_config(
-                                        self.context, self.api, self.cluster, self.namespace
+                                        self.context,
+                                        self.api,
+                                        self.cluster,
                                     )
                                 ),
                             },
