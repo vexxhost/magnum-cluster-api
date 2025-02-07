@@ -146,14 +146,35 @@ class Base:
 
     def apply(self) -> None:
         resource = self.get_object()
-        resp = resource.api.patch(
-            **resource.api_kwargs(
-                headers={
-                    "Content-Type": "application/merge-patch+json",
-                },
-                data=json.dumps(resource.obj),
+
+        # Check if resource exists
+        try:
+            existing_resource = resource.api.get(
+                **resource.api_kwargs()
             )
-        )
+            exists = existing_resource.status_code == 200
+        except pykube.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                exists = False  # Resource does not exist
+            else:
+                raise  # Other errors should be raised
+
+        if not exists:
+            # Create new resource with POST
+            resp = resource.api.post(
+                **resource.api_kwargs(
+                    headers={"Content-Type": "application/json"},
+                    data=json.dumps(resource.obj),
+                )
+            )
+        else:
+            # Update existing resource with Strategic Merge Patch
+            resp = resource.api.patch(
+                **resource.api_kwargs(
+                    headers={"Content-Type": "application/strategic-merge-patch+json"},
+                    data=json.dumps(resource.obj),
+                )
+            )
 
         resource.api.raise_for_status(resp)
         resource.set_obj(resp.json())
