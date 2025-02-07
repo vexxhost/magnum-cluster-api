@@ -241,10 +241,7 @@ class ClusterClass(NamespacedAPIObject):
 
     @property
     def variable_names(self):
-        return [
-            variable["name"]
-            for variable in self.obj["spec"]["variables"]
-        ]
+        return [variable["name"] for variable in self.obj["spec"]["variables"]]
 
 
 class Cluster(NamespacedAPIObject):
