@@ -112,6 +112,7 @@ def generate_cloud_controller_manager_config(
     ctx: context.RequestContext,
     api: pykube.HTTPClient,
     cluster: magnum_objects.Cluster,
+    namespace: str = "magnum-system",
 ) -> str:
     """
     Generate coniguration for openstack-cloud-controller-manager if it does
@@ -119,7 +120,7 @@ def generate_cloud_controller_manager_config(
     """
 
     osc = clients.get_openstack_api(ctx)
-    data = pykube.Secret.objects(api, namespace="magnum-system").get_by_name(
+    data = pykube.Secret.objects(api, namespace).get_by_name(
         get_cluster_api_cloud_config_secret_name(cluster)
     )
     clouds_yaml = base64.decode_as_text(data.obj["data"]["clouds.yaml"])
