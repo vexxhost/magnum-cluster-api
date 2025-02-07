@@ -149,7 +149,7 @@ class Base:
         resp = resource.api.patch(
             **resource.api_kwargs(
                 headers={
-                    "Content-Type": "application/apply-patch+yaml",
+                    "Content-Type": "application/merge-patch+json",
                 },
                 params={
                     "fieldManager": "atmosphere-operator",
