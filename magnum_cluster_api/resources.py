@@ -140,8 +140,9 @@ class ClusterServerGroups:
 
 
 class Base:
-    def __init__(self, api: pykube.HTTPClient):
+    def __init__(self, api: pykube.HTTPClient, namespace="magnum-system"):
         self.api = api
+        self.namespace = namespace
 
     def apply(self) -> None:
         resource = self.get_object()
@@ -167,6 +168,10 @@ class Base:
 
 
 class Namespace(Base):
+    def __init__(self, api: pykube.HTTPClient, name="magnum-system"):
+        super().__init__(api, name)
+        self.name = name
+
     def get_object(self) -> pykube.Namespace:
         return pykube.Namespace(
             self.api,
@@ -174,7 +179,7 @@ class Namespace(Base):
                 "apiVersion": pykube.Namespace.version,
                 "kind": pykube.Namespace.kind,
                 "metadata": {
-                    "name": "magnum-system",
+                    "name": self.namespace,
                 },
             },
         )
@@ -681,7 +686,7 @@ class KubeadmControlPlaneTemplate(Base):
                 "kind": objects.KubeadmControlPlaneTemplate.kind,
                 "metadata": {
                     "name": CLUSTER_CLASS_NAME,
-                    "namespace": "magnum-system",
+                    "namespace": self.namespace,
                 },
                 "spec": {
                     "template": {
@@ -796,7 +801,7 @@ class KubeadmConfigTemplate(Base):
                 "kind": objects.KubeadmConfigTemplate.kind,
                 "metadata": {
                     "name": CLUSTER_CLASS_NAME,
-                    "namespace": "magnum-system",
+                    "namespace": self.namespace,
                 },
                 "spec": {
                     "template": {
@@ -833,7 +838,7 @@ class OpenStackMachineTemplate(Base):
                 "kind": objects.OpenStackMachineTemplate.kind,
                 "metadata": {
                     "name": CLUSTER_CLASS_NAME,
-                    "namespace": "magnum-system",
+                    "namespace": self.namespace,
                 },
                 "spec": {
                     "template": {
@@ -862,7 +867,7 @@ class OpenStackClusterTemplate(Base):
                 "kind": objects.OpenStackClusterTemplate.kind,
                 "metadata": {
                     "name": CLUSTER_CLASS_NAME,
-                    "namespace": "magnum-system",
+                    "namespace": self.namespace,
                 },
                 "spec": {
                     "template": {
@@ -890,7 +895,7 @@ class ClusterClass(Base):
                 "kind": objects.ClusterClass.kind,
                 "metadata": {
                     "name": CLUSTER_CLASS_NAME,
-                    "namespace": "magnum-system",
+                    "namespace": self.namespace,
                 },
                 "spec": {
                     "controlPlane": {
@@ -1883,13 +1888,6 @@ class ClusterClass(Base):
                                         },
                                         {
                                             "op": "add",
-                                            "path": "/spec/template/spec/disableAPIServerFloatingIP",
-                                            "valueFrom": {
-                                                "variable": "disableAPIServerFloatingIP"
-                                            },
-                                        },
-                                        {
-                                            "op": "add",
                                             "path": "/spec/template/spec/externalNetwork",
                                             "valueFrom": {
                                                 "template": textwrap.dedent(
@@ -1897,6 +1895,30 @@ class ClusterClass(Base):
                                                     id: {{ .externalNetworkId }}
                                                     """
                                                 ),
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            "name": "disableAPIServerFloatingIP",
+                            "enabledIf": "{{ if .disableAPIServerFloatingIP }}true{{end}}",
+                            "definitions": [
+                                {
+                                    "selector": {
+                                        "apiVersion": objects.OpenStackClusterTemplate.version,
+                                        "kind": objects.OpenStackClusterTemplate.kind,
+                                        "matchResources": {
+                                            "infrastructureCluster": True,
+                                        },
+                                    },
+                                    "jsonPatches": [
+                                        {
+                                            "op": "add",
+                                            "path": "/spec/template/spec/disableAPIServerFloatingIP",
+                                            "valueFrom": {
+                                                "variable": "disableAPIServerFloatingIP"
                                             },
                                         },
                                     ],
@@ -2393,17 +2415,18 @@ class ClusterClass(Base):
 
 def create_cluster_class(
     api: pykube.HTTPClient,
+    namespace: str = "magnum-system",
 ) -> ClusterClass:
     """
     Create a ClusterClass and all of it's supporting resources from a Magnum
     cluster template using server-side apply.
     """
 
-    KubeadmControlPlaneTemplate(api).apply()
-    KubeadmConfigTemplate(api).apply()
-    OpenStackMachineTemplate(api).apply()
-    OpenStackClusterTemplate(api).apply()
-    ClusterClass(api).apply()
+    KubeadmControlPlaneTemplate(api, namespace).apply()
+    KubeadmConfigTemplate(api, namespace).apply()
+    OpenStackMachineTemplate(api, namespace).apply()
+    OpenStackClusterTemplate(api, namespace).apply()
+    ClusterClass(api, namespace).apply()
 
 
 def mutate_machine_deployment(
@@ -2545,10 +2568,12 @@ class Cluster(ClusterBase):
         context: context.RequestContext,
         api: pykube.HTTPClient,
         cluster: magnum_objects.Cluster,
+        namespace: str = "magnum-system",
     ):
         self.context = context
         self.api = api
         self.cluster = cluster
+        self.namespace = namespace
 
     @property
     def labels(self) -> dict:
@@ -2567,7 +2592,7 @@ class Cluster(ClusterBase):
         return {**super().labels, **labels}
 
     def get_or_none(self) -> objects.Cluster:
-        return objects.Cluster.objects(self.api, namespace="magnum-system").get_or_none(
+        return objects.Cluster.objects(self.api, namespace=self.namespace).get_or_none(
             name=self.cluster.stack_id
         )
 
@@ -2593,7 +2618,7 @@ class Cluster(ClusterBase):
                 "kind": objects.Cluster.kind,
                 "metadata": {
                     "name": self.cluster.stack_id,
-                    "namespace": "magnum-system",
+                    "namespace": self.namespace,
                     "labels": self.labels,
                 },
                 "spec": {
@@ -2720,7 +2745,9 @@ class Cluster(ClusterBase):
                                 "name": "cloudControllerManagerConfig",
                                 "value": base64.encode_as_text(
                                     utils.generate_cloud_controller_manager_config(
-                                        self.context, self.api, self.cluster
+                                        self.context,
+                                        self.api,
+                                        self.cluster,
                                     )
                                 ),
                             },

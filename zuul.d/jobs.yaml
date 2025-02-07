@@ -21,6 +21,8 @@
     pre-run: zuul.d/playbooks/functional/pre.yml
     vars:
       tox_envlist: functional
+      tox_environment:
+        KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
 
 - job:
     name: magnum-cluster-api-image-build
