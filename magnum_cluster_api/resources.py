@@ -151,10 +151,6 @@ class Base:
                 headers={
                     "Content-Type": "application/merge-patch+json",
                 },
-                params={
-                    "fieldManager": "atmosphere-operator",
-                    "force": True,
-                },
                 data=json.dumps(resource.obj),
             )
         )
