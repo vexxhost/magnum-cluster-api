@@ -162,6 +162,8 @@ class Base:
         resource.api.raise_for_status(resp)
         resource.set_obj(resp.json())
 
+        return self
+
     def delete(self) -> None:
         resource = self.get_object()
         resource.delete()
@@ -2426,7 +2428,7 @@ def create_cluster_class(
     KubeadmConfigTemplate(api, namespace).apply()
     OpenStackMachineTemplate(api, namespace).apply()
     OpenStackClusterTemplate(api, namespace).apply()
-    ClusterClass(api, namespace).apply()
+    return ClusterClass(api, namespace).apply()
 
 
 def mutate_machine_deployment(

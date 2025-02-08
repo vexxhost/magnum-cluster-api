@@ -239,6 +239,10 @@ class ClusterClass(NamespacedAPIObject):
     endpoint = "clusterclasses"
     kind = "ClusterClass"
 
+    @property
+    def variable_names(self):
+        return [variable["name"] for variable in self.obj["spec"]["variables"]]
+
 
 class Cluster(NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
