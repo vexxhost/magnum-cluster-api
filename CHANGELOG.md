@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.24.2...v0.25.0) (2025-02-08)
+
+
+### Features
+
+* set disableAPIServerFloatingIP as optional boolean ([#486](https://github.com/vexxhost/magnum-cluster-api/issues/486)) ([0b0295b](https://github.com/vexxhost/magnum-cluster-api/commit/0b0295b431899dfa848601444cf87986061fb0b4))
+
 ## [0.24.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.24.1...v0.24.2) (2025-01-13)
 
 
