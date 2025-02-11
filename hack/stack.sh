@@ -97,6 +97,12 @@ kubernetes_allowed_network_drivers = calico,cilium
 kubernetes_default_network_driver = calico
 [nova_client]
 api_version = 2.15
+
+# See bug: https://bugs.launchpad.net/nova/+bug/2091114
+# Needs discussion with Flatcar team.
+[[post-config|/etc/nova/nova-cpu.conf]]
+[workarounds]
+disable_deep_image_inspection = true
 EOF
 
 # Start DevStack deployment
