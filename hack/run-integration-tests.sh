@@ -32,7 +32,7 @@ IMAGE_NAME="${IMAGE_OS}-kube-${KUBE_TAG}"
 # If `BUILD_NEW_IMAGE` is true, then we use the provided artifact, otherwise
 # we download the latest promoted image.
 if [[ "${BUILD_NEW_IMAGE,,}" != "true" ]]; then
-  curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/${IMAGE_NAME}.qcow2
+  curl --fail -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/${IMAGE_NAME}.qcow2
 else
   test -f ${IMAGE_NAME}.qcow2 || exit 1
 fi

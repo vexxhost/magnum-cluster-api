@@ -1191,6 +1191,15 @@ class ClusterClass(Base):
                             },
                         },
                         {
+                            "name": "configureKubeProxy",
+                            "required": True,
+                            "schema": {
+                                "openAPIV3Schema": {
+                                    "type": "string",
+                                },
+                            },
+                        },
+                        {
                             "name": "fixedSubnetId",
                             "required": True,
                             "schema": {
@@ -1645,27 +1654,41 @@ class ClusterClass(Base):
                                         {
                                             "op": "add",
                                             "path": "/spec/template/spec/kubeadmConfigSpec/ignition",
-                                            "value": {
-                                                "containerLinuxConfig": {
-                                                    "additionalConfig": textwrap.dedent(
-                                                        """\
+                                            "valueFrom": {
+                                                "template": textwrap.dedent(
+                                                    """\
+                                                    containerLinuxConfig:
+                                                      additionalConfig: |
                                                         systemd:
-                                                          units:
-                                                          - name: coreos-metadata-sshkeys@.service
-                                                            enabled: true
-                                                          - name: kubeadm.service
-                                                            enabled: true
-                                                            dropins:
-                                                            - name: 10-flatcar.conf
+                                                            units:
+                                                            - name: write-configure-kube-proxy.service
+                                                              enabled: true
                                                               contents: |
                                                                 [Unit]
-                                                                Requires=containerd.service coreos-metadata.service
-                                                                After=containerd.service coreos-metadata.service
+                                                                Description=Write configure-kube-proxy.sh
+                                                                Requires=coreos-metadata.service
+                                                                After=coreos-metadata.service
                                                                 [Service]
-                                                                EnvironmentFile=/run/metadata/flatcar
-                                                        """  # noqa: E501
-                                                    ),
-                                                },
+                                                                Type=oneshot
+                                                                ExecStart=/usr/bin/mkdir -p /run/kubeadm
+                                                                ExecStart=/bin/bash -c 'echo {{ .configureKubeProxy }} | /usr/bin/base64 -d > /run/kubeadm/configure-kube-proxy.sh'
+                                                                ExecStart=/bin/chmod +x /run/kubeadm/configure-kube-proxy.sh
+                                                                [Install]
+                                                                WantedBy=multi-user.target
+                                                            - name: coreos-metadata-sshkeys@.service
+                                                              enabled: true
+                                                            - name: kubeadm.service
+                                                              enabled: true
+                                                              dropins:
+                                                              - name: 10-flatcar.conf
+                                                                contents: |
+                                                                  [Unit]
+                                                                  Requires=containerd.service coreos-metadata.service write-configure-kube-proxy.service
+                                                                  After=containerd.service coreos-metadata.service write-configure-kube-proxy.service
+                                                                  [Service]
+                                                                  EnvironmentFile=/run/metadata/flatcar
+                                                    """  # noqa: E501
+                                                ),
                                             },
                                         },
                                         {
@@ -2798,6 +2821,17 @@ class Cluster(ClusterBase):
                                 "name": "fixedNetworkId",
                                 "value": utils.get_fixed_network_id(
                                     self.context, self.cluster.fixed_network
+                                )
+                                or "",
+                            },
+                            {
+                                "name": "configureKubeProxy",
+                                "value": base64.encode_as_text(
+                                    importlib.resources.files(
+                                        "magnum_cluster_api.files.run.kubeadm"
+                                    )
+                                    .joinpath("configure-kube-proxy.sh")
+                                    .read_text()
                                 )
                                 or "",
                             },
