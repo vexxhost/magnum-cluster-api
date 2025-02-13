@@ -32,7 +32,6 @@ from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import encodeutils
 
-
 from magnum_cluster_api import (
     clients,
     helm,
@@ -149,9 +148,7 @@ class Base:
         resource = self.get_object()
 
         # Check if resource exists
-        existing_resource = resource.api.get(
-            **resource.api_kwargs()
-        )
+        existing_resource = resource.api.get(**resource.api_kwargs())
         exists = existing_resource.status_code == 200
 
         if not exists:
