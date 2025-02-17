@@ -18,6 +18,9 @@
 sudo mkdir -p /opt/stack
 sudo chown -R ${USER}. /opt/stack
 
+sudo mkdir -p /etc/tempest/
+sudo chown -R ${USER}. /etc/tempest/
+
 # Clone repository if not present, otherwise update
 if [ ! -f /opt/stack/stack.sh ]; then
     git clone https://github.com/openstack/devstack /opt/stack
@@ -70,6 +73,7 @@ enable_plugin barbican https://opendev.org/openstack/barbican
 enable_plugin octavia https://opendev.org/openstack/octavia
 enable_plugin ovn-octavia-provider https://opendev.org/openstack/ovn-octavia-provider
 enable_service octavia o-api o-cw o-hm o-hk o-da
+enable_service tempest
 
 # Magnum
 enable_plugin magnum https://opendev.org/openstack/magnum
