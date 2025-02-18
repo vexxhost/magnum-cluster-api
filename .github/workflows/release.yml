@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout project
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Run "release-please"
         uses: google-github-actions/release-please-action@v3
@@ -26,21 +26,19 @@ jobs:
 
       - name: Checkout project
         if: ${{ steps.release.outputs.release_created }}
-        uses: actions/checkout@v3
-
-      - name: Install Poetry
-        if: ${{ steps.release.outputs.release_created }}
-        run: pipx install poetry
+        uses: actions/checkout@v4
 
       - name: Setup Python
         if: ${{ steps.release.outputs.release_created }}
-        uses: actions/setup-python@v4
-        with:
-          cache: poetry
+        uses: actions/setup-python@v5
+
+      - name: Install "uv"
+        if: ${{ steps.release.outputs.release_created }}
+        uses: astral-sh/setup-uv@v5
 
       - name: Build package
         if: ${{ steps.release.outputs.release_created }}
-        run: poetry build
+        run: uv build
 
       - name: Publish package distributions to PyPI
         if: ${{ steps.release.outputs.release_created }}

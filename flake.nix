@@ -20,7 +20,7 @@
               buildInputs = with pkgs; [
                 bashInteractive
                 glibcLocales
-                poetry
+                uv
                 python311Packages.tox
               ];
             };
