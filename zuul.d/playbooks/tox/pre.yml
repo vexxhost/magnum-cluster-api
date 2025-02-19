@@ -8,3 +8,6 @@
       ansible.builtin.command: uv run python3 --version
       args:
         chdir: "{{ zuul.project.src_dir }}"
+
+  vars:
+    ensure_uv_global_symlink: true
