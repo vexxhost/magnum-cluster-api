@@ -185,9 +185,9 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
             self.api, namespace=self.namespace.name
         )
 
-        cc = objects.ClusterClass.objects(self.pykube_api, namespace=self.namespace.name).get(
-            name=resources.CLUSTER_CLASS_NAME
-        )
+        cc = objects.ClusterClass.objects(
+            self.pykube_api, namespace=self.namespace.name
+        ).get(name=resources.CLUSTER_CLASS_NAME)
 
         self.assertNotIn("extraTestVariable", cc.variable_names)
 
@@ -211,9 +211,9 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
             )
         ).cluster_class
 
-        cc = objects.ClusterClass.objects(self.pykube_api, namespace=self.namespace.name).get(
-            name=self.cluster_class_extra_var.get_object().name
-        )
+        cc = objects.ClusterClass.objects(
+            self.pykube_api, namespace=self.namespace.name
+        ).get(name=self.cluster_class_extra_var.get_object().name)
 
         self.assertIn("extraTestVariable", cc.variable_names)
         self.assertIn(
@@ -257,9 +257,9 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         )
 
         capi_cluster = fixture.cluster
-        return objects.Cluster.objects(self.pykube_api, namespace=self.namespace.name).get(
-            name=capi_cluster.get_object().name
-        )
+        return objects.Cluster.objects(
+            self.pykube_api, namespace=self.namespace.name
+        ).get(name=capi_cluster.get_object().name)
 
     def test_cluster_variable_addition(self):
         c = self._get_cluster_object()
