@@ -12,9 +12,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import pykube
-from magnum.common import clients, exception
-from manilaclient.v2 import client as manilaclient
+import pykube  # type: ignore
+from magnum.common import clients, exception  # type: ignore
+from manilaclient.v2 import client as manilaclient  # type: ignore
 
 
 class OpenStackClients(clients.OpenStackClients):

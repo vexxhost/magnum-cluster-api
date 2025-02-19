@@ -32,6 +32,10 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/setup-python@v5
 
+      - name: Setup Rust
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
       - name: Install "uv"
         if: ${{ steps.release.outputs.release_created }}
         uses: astral-sh/setup-uv@v5

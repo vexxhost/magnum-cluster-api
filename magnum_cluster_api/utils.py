@@ -18,18 +18,19 @@ import json
 import re
 import string
 import textwrap
+import typing
 
-import pykube
+import pykube  # type: ignore
 import shortuuid
 import yaml
-from magnum import objects as magnum_objects
-from magnum.api import attr_validator
-from magnum.common import context, exception, neutron, octavia
+from magnum import objects as magnum_objects  # type: ignore
+from magnum.api import attr_validator  # type: ignore
+from magnum.common import context, exception, neutron, octavia  # type: ignore
 from magnum.common import utils as magnum_utils
-from novaclient import exceptions as nova_exception
-from oslo_config import cfg
-from oslo_serialization import base64
-from oslo_utils import strutils, uuidutils
+from novaclient import exceptions as nova_exception  # type: ignore
+from oslo_config import cfg  # type: ignore
+from oslo_serialization import base64  # type: ignore
+from oslo_utils import strutils, uuidutils  # type: ignore
 from tenacity import retry, retry_if_exception_type
 
 from magnum_cluster_api import clients
@@ -526,8 +527,8 @@ def generate_api_cert_san_list(cluster: magnum_objects.Cluster):
 
 def get_server_group_id(
     ctx: context.RequestContext,
-    name: string,
-    project_id: string = None,
+    name: str,
+    project_id: typing.Optional[str] = None,
 ):
     if g_server_group_cache.get(project_id, name):
         return g_server_group_cache.get(project_id, name)
@@ -638,10 +639,10 @@ def delete_worker_server_group(
 
 
 def _ensure_server_group(
-    name: string,
+    name: str,
     ctx: context.RequestContext,
-    policies: list(string) = None,
-    project_id: string = None,
+    policies: typing.List[str] = None,
+    project_id: typing.Optional[str] = None,
 ):
     # Retrieve existing server group id
     server_group_id = get_server_group_id(ctx, name, project_id)
@@ -660,9 +661,9 @@ def _ensure_server_group(
 
 
 def _delete_server_group(
-    name: string,
+    name: str,
     ctx: context.RequestContext,
-    project_id: string = None,
+    project_id: typing.Optional[str] = None,
 ):
     server_group_id = get_server_group_id(ctx, name, project_id)
     if server_group_id is None:

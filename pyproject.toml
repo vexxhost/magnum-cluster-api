@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling>=1.24.2"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "magnum-cluster-api"
@@ -49,13 +49,14 @@ dependencies = [
   "shortuuid",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
   "fixtures>=4.1.0",
   "oslotest>=5.0.0",
   "pytest<7",
   "pytest-mock>=3.6.1",
   "responses>=0.25.0",
+  "types-PyYAML",
 ]
 
 [project.scripts]
@@ -72,9 +73,13 @@ k8s_cluster_api_rockylinux = "magnum_cluster_api.driver:RockyLinuxDriver"
 [project.entry-points."oslo.config.opts"]
 magnum_cluster_api = "magnum_cluster_api.conf:list_opts"
 
-[tool.hatch.build.targets.sdist]
-packages = ["magnum_cluster_api"]
-include = ["magnum_cluster_api/charts/**/*"]
+[tool.maturin]
+module-name = "magnum_cluster_api"
+
+[tool.uv]
+cache-keys = [{file = "pyproject.toml"}, {file = "rust/Cargo.toml"}, {file = "**/*.rs"}]
+# Uncomment to build rust code in development mode
+# config-settings = { build-args = '--profile=dev' }
 
 [tool.isort]
 profile = "black"

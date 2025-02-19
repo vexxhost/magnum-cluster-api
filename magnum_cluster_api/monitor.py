@@ -12,10 +12,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from magnum.conductor import monitors
-from magnum.objects import fields
-from oslo_log import log as logging
-from oslo_utils import strutils
+from magnum.conductor import monitors  # type: ignore
+from magnum.objects import fields  # type: ignore
+from oslo_log import log as logging  # type: ignore
+from oslo_utils import strutils  # type: ignore
 
 from magnum_cluster_api import clients, objects, utils
 

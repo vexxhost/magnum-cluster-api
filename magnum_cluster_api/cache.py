@@ -1,4 +1,4 @@
-from diskcache import Cache
+from diskcache import Cache  # type: ignore
 
 
 class ServerGroupCache(object):

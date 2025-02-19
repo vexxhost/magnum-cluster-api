@@ -15,15 +15,16 @@
 
 from __future__ import annotations
 
-import keystoneauth1
-from magnum import objects as magnum_objects
-from magnum.conductor import scale_manager
-from magnum.drivers.common import driver
-from magnum.objects import fields
+import keystoneauth1  # type: ignore
+from magnum import objects as magnum_objects  # type: ignore
+from magnum.conductor import scale_manager  # type: ignore
+from magnum.drivers.common import driver  # type: ignore
+from magnum.objects import fields  # type: ignore
 
 from magnum_cluster_api import (
     clients,
     exceptions,
+    magnum_cluster_api,
     monitor,
     objects,
     resources,
@@ -44,6 +45,7 @@ def cluster_lock_wrapper(func):
 class BaseDriver(driver.Driver):
     def __init__(self):
         self.k8s_api = clients.get_pykube_api()
+        self.kube_client = magnum_cluster_api.KubeClient()
 
     def create_cluster(
         self, context, cluster: magnum_objects.Cluster, cluster_create_timeout: int
@@ -60,7 +62,7 @@ class BaseDriver(driver.Driver):
         cluster.save()
 
         utils.validate_cluster(context, cluster)
-        resources.Namespace(self.k8s_api).apply()
+        resources.Namespace(self.kube_client).apply()
 
         return self._create_cluster(context, cluster)
 
@@ -76,23 +78,27 @@ class BaseDriver(driver.Driver):
 
         resources.CloudConfigSecret(
             context,
-            self.k8s_api,
+            self.kube_client,
             cluster,
             osc.cinder_region_name(),
             credential,
         ).apply()
 
-        resources.ApiCertificateAuthoritySecret(context, self.k8s_api, cluster).apply()
-        resources.EtcdCertificateAuthoritySecret(context, self.k8s_api, cluster).apply()
+        resources.ApiCertificateAuthoritySecret(
+            context, self.kube_client, self.k8s_api, cluster
+        ).apply()
+        resources.EtcdCertificateAuthoritySecret(
+            context, self.kube_client, self.k8s_api, cluster
+        ).apply()
         resources.FrontProxyCertificateAuthoritySecret(
-            context, self.k8s_api, cluster
+            context, self.kube_client, self.k8s_api, cluster
         ).apply()
         resources.ServiceAccountCertificateAuthoritySecret(
-            context, self.k8s_api, cluster
+            context, self.kube_client, self.k8s_api, cluster
         ).apply()
 
         resources.apply_cluster_from_magnum_cluster(
-            context, self.k8s_api, cluster, skip_auto_scaling_release=True
+            context, self.kube_client, self.k8s_api, cluster, skip_auto_scaling_release=True
         )
 
     def _get_cluster_status_reason(self, capi_cluster):
@@ -167,7 +173,9 @@ class BaseDriver(driver.Driver):
         ] + self.update_nodegroups_status(context, cluster)
         osc = clients.get_openstack_api(context)
 
-        capi_cluster = resources.Cluster(context, self.k8s_api, cluster).get_or_none()
+        capi_cluster = resources.Cluster(
+            context, self.kube_client, self.k8s_api, cluster
+        ).get_or_none()
 
         if cluster.status in (
             fields.ClusterStatus.CREATE_IN_PROGRESS,
@@ -239,16 +247,16 @@ class BaseDriver(driver.Driver):
 
             resources.CloudConfigSecret(context, self.k8s_api, cluster).delete()
             resources.ApiCertificateAuthoritySecret(
-                context, self.k8s_api, cluster
+                context, self.kube_client, self.k8s_api, cluster
             ).delete()
             resources.EtcdCertificateAuthoritySecret(
-                context, self.k8s_api, cluster
+                context, self.kube_client, self.k8s_api, cluster
             ).delete()
             resources.FrontProxyCertificateAuthoritySecret(
-                context, self.k8s_api, cluster
+                context, self.kube_client, self.k8s_api, cluster
             ).delete()
             resources.ServiceAccountCertificateAuthoritySecret(
-                context, self.k8s_api, cluster
+                context, self.kube_client, self.k8s_api, cluster
             ).delete()
             resources.ClusterServerGroups(context, cluster).delete()
 
@@ -361,7 +369,7 @@ class BaseDriver(driver.Driver):
         # NOTE(mnaser): We run a full apply on the cluster regardless of the changes, since
         #               the expectation is that running an upgrade operation will change
         #               the cluster in some way.
-        resources.apply_cluster_from_magnum_cluster(context, self.k8s_api, cluster)
+        resources.apply_cluster_from_magnum_cluster(context, self.kube_client, self.k8s_api, cluster)
 
         # NOTE(mnaser): We do not save the cluster object here because the Magnum driver
         #               will save the object that it passed to us here.
@@ -382,9 +390,9 @@ class BaseDriver(driver.Driver):
         #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/pull/990
         utils.delete_loadbalancers(context, cluster)
 
-        resources.ClusterResourceSet(self.k8s_api, cluster).delete()
-        resources.ClusterResourcesConfigMap(context, self.k8s_api, cluster).delete()
-        resources.Cluster(context, self.k8s_api, cluster).delete()
+        resources.ClusterResourceSet(self.kube_client, cluster).delete()
+        resources.ClusterResourcesConfigMap(context, self.kube_client, self.k8s_api, cluster).delete()
+        resources.Cluster(context, self.kube_client, self.k8s_api, cluster).delete()
         resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).delete()
 
     @cluster_lock_wrapper

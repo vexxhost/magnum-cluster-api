@@ -16,10 +16,10 @@ import configparser
 import copy
 import io
 
-import pykube
+import pykube  # type: ignore
 import yaml
-from magnum import objects as magnum_objects
-from oslo_serialization import base64
+from magnum import objects as magnum_objects  # type: ignore
+from oslo_serialization import base64  # type: ignore
 from tenacity import Retrying, retry_if_result, stop_after_delay, wait_fixed
 
 from magnum_cluster_api import exceptions
@@ -59,7 +59,7 @@ class NamespacedAPIObject(pykube.objects.NamespacedAPIObject):
         ):
             with attempt:
                 self.reload()
-            if not attempt.retry_state.outcome.failed:
+            if attempt.retry_state.outcome and not attempt.retry_state.outcome.failed:
                 attempt.retry_state.set_result(self.observed_generation)
 
 

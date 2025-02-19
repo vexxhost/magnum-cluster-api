@@ -13,6 +13,7 @@
 # under the License.
 
 import re
+from unittest import mock
 
 import pykube
 import pytest
@@ -166,6 +167,7 @@ class TestDriver:
         mock_osc,
         mock_certificates,
         mock_get_server_group,
+        mock_kube_client
     ):
         with requests_mock as rsps:
             rsps.add(
@@ -174,60 +176,6 @@ class TestDriver:
                     f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w+"  # noqa
                 ),
                 status=404,
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                f"http://localhost/api/{pykube.Namespace.version}/{pykube.Namespace.endpoint}/magnum-system",
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/api/{pykube.Secret.version}/namespaces/magnum-system/\\w"
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/apis/{objects.KubeadmControlPlaneTemplate.version}/namespaces/magnum-system/{objects.KubeadmControlPlaneTemplate.endpoint}/\\w+"  # noqa
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/apis/{objects.KubeadmConfigTemplate.version}/namespaces/magnum-system/{objects.KubeadmConfigTemplate.endpoint}/\\w+"  # noqa
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/apis/{objects.OpenStackMachineTemplate.version}/namespaces/magnum-system/{objects.OpenStackMachineTemplate.endpoint}/\\w+"  # noqa
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/apis/{objects.OpenStackClusterTemplate.version}/namespaces/magnum-system/{objects.OpenStackClusterTemplate.endpoint}/\\w+"  # noqa
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/apis/{objects.ClusterClass.version}/namespaces/magnum-system/{objects.ClusterClass.endpoint}/\\w+"  # noqa
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
             )
             rsps.add(
                 responses.GET,
@@ -255,24 +203,11 @@ class TestDriver:
                     }
                 },
             )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/apis/{objects.ClusterResourceSet.version}/namespaces/magnum-system/{objects.ClusterResourceSet.endpoint}/\\w+"  # noqa
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w+"  # noqa
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
 
             ubuntu_driver.create_cluster(context, self.cluster, 60)
+
+        assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
+        self.cluster.save.assert_called_once()
 
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()

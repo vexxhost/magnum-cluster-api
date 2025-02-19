@@ -12,9 +12,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from oslo_config import cfg
-from oslo_context import context
-from oslo_service import service
+from oslo_config import cfg  # type: ignore
+from oslo_context import context  # type: ignore
+from oslo_service import service  # type: ignore
 
 CONF = cfg.CONF
 

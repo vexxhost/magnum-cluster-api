@@ -18,6 +18,7 @@
               LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
 
               buildInputs = with pkgs; [
+                kind
                 bashInteractive
                 glibcLocales
                 uv

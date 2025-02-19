@@ -1113,13 +1113,14 @@ dependencies = [
     { name = "shortuuid" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
     { name = "fixtures" },
     { name = "oslotest" },
     { name = "pytest" },
     { name = "pytest-mock" },
     { name = "responses" },
+    { name = "types-pyyaml" },
 ]
 
 [package.metadata]
@@ -1127,7 +1128,6 @@ requires-dist = [
     { name = "certifi" },
     { name = "click", specifier = ">=8.0.4" },
     { name = "diskcache", specifier = ">=5.6.1" },
-    { name = "fixtures", marker = "extra == 'dev'", specifier = ">=4.1.0" },
     { name = "haproxyadmin", specifier = ">=0.2.4" },
     { name = "kubernetes", specifier = ">=24.2.0" },
     { name = "magnum", specifier = ">=15.0.0" },
@@ -1137,20 +1137,25 @@ requires-dist = [
     { name = "oslo-log", specifier = ">=4.7.0" },
     { name = "oslo-privsep", specifier = ">=2.7.0" },
     { name = "oslo-service", specifier = ">=2.8.0" },
-    { name = "oslotest", marker = "extra == 'dev'", specifier = ">=5.0.0" },
     { name = "platformdirs", specifier = ">=2.4.0" },
     { name = "pykube-ng" },
     { name = "pyroute2", specifier = ">=0.3.4" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = "<7" },
-    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.6.1" },
     { name = "python-manilaclient", specifier = ">=3.3.2" },
     { name = "requests", specifier = ">=2.27.1" },
-    { name = "responses", marker = "extra == 'dev'", specifier = ">=0.25.0" },
     { name = "semver", specifier = ">=2.0.0" },
     { name = "sherlock", specifier = ">=0.4.1" },
     { name = "shortuuid" },
 ]
-provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "fixtures", specifier = ">=4.1.0" },
+    { name = "oslotest", specifier = ">=5.0.0" },
+    { name = "pytest", specifier = "<7" },
+    { name = "pytest-mock", specifier = ">=3.6.1" },
+    { name = "responses", specifier = ">=0.25.0" },
+    { name = "types-pyyaml" },
+]
 
 [[package]]
 name = "mako"
@@ -3887,6 +3892,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/be/ba/1f744cdc819428fc6b5084ec34d9b30660f6f9daaf70eead706e3203ec3c/toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f", size = 22253 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b", size = 16588 },
+]
+
+[[package]]
+name = "types-pyyaml"
+version = "6.0.12.20241230"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9a/f9/4d566925bcf9396136c0a2e5dc7e230ff08d86fa011a69888dd184469d80/types_pyyaml-6.0.12.20241230.tar.gz", hash = "sha256:7f07622dbd34bb9c8b264fe860a17e0efcad00d50b5f27e93984909d9363498c", size = 17078 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e8/c1/48474fbead512b70ccdb4f81ba5eb4a58f69d100ba19f17c92c0c4f50ae6/types_PyYAML-6.0.12.20241230-py3-none-any.whl", hash = "sha256:fa4d32565219b68e6dee5f67534c722e53c00d1cfc09c435ef04d7353e1e96e6", size = 20029 },
 ]
 
 [[package]]

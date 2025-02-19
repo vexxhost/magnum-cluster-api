@@ -1,3 +1,5 @@
 - hosts: all
+  roles:
+    - ensure-rust
   tasks:
     - shell: "{{ zuul.project.src_dir }}/hack/setup-helm.sh"

@@ -43,6 +43,11 @@ def context():
     )
 
 
+@pytest.fixture()
+def mock_kube_client(mocker):
+    return mocker.patch("magnum_cluster_api.magnum_cluster_api.KubeClient")
+
+
 @pytest.fixture(scope="session")
 def mock_cluster_lock(session_mocker):
     session_mocker.patch("kubernetes.config.load_config")
