@@ -192,8 +192,8 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         self.assertNotIn("extraTestVariable", cc.variable_names)
 
         def mutate_cluster_class_extra_var(resource):
-            resource.obj["metadata"]["name"] += "-extra-var"
-            resource.obj["spec"]["variables"].append(
+            resource["metadata"]["name"] += "-extra-var"
+            resource["spec"]["variables"].append(
                 {
                     "name": "extraTestVariable",
                     "required": True,
