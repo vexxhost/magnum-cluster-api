@@ -5,7 +5,6 @@
 
   tasks:
     - name: Run no-op command to build module
-      ansible.builtin.command:
-        cmd: uv run python3 --version
-        args:
-          chdir: "{{ zuul.project.src_dir }}"
+      ansible.builtin.command: uv run python3 --version
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
