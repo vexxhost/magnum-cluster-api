@@ -98,7 +98,11 @@ class BaseDriver(driver.Driver):
         ).apply()
 
         resources.apply_cluster_from_magnum_cluster(
-            context, self.kube_client, self.k8s_api, cluster, skip_auto_scaling_release=True
+            context,
+            self.kube_client,
+            self.k8s_api,
+            cluster,
+            skip_auto_scaling_release=True,
         )
 
     def _get_cluster_status_reason(self, capi_cluster):
@@ -369,7 +373,9 @@ class BaseDriver(driver.Driver):
         # NOTE(mnaser): We run a full apply on the cluster regardless of the changes, since
         #               the expectation is that running an upgrade operation will change
         #               the cluster in some way.
-        resources.apply_cluster_from_magnum_cluster(context, self.kube_client, self.k8s_api, cluster)
+        resources.apply_cluster_from_magnum_cluster(
+            context, self.kube_client, self.k8s_api, cluster
+        )
 
         # NOTE(mnaser): We do not save the cluster object here because the Magnum driver
         #               will save the object that it passed to us here.
@@ -391,7 +397,9 @@ class BaseDriver(driver.Driver):
         utils.delete_loadbalancers(context, cluster)
 
         resources.ClusterResourceSet(self.kube_client, cluster).delete()
-        resources.ClusterResourcesConfigMap(context, self.kube_client, self.k8s_api, cluster).delete()
+        resources.ClusterResourcesConfigMap(
+            context, self.kube_client, self.k8s_api, cluster
+        ).delete()
         resources.Cluster(context, self.kube_client, self.k8s_api, cluster).delete()
         resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).delete()
 

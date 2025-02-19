@@ -28,7 +28,9 @@ from magnum import objects as magnum_objects  # type: ignore
 from magnum.common import context, neutron  # type: ignore
 from magnum.common.cert_manager import cert_manager  # type: ignore
 from magnum.common.x509 import operations as x509  # type: ignore
-from magnum.conductor.handlers.common import cert_manager as cert_manager_handlers  # type: ignore
+from magnum.conductor.handlers.common import (
+    cert_manager as cert_manager_handlers,  # type: ignore
+)
 from oslo_config import cfg  # type: ignore
 from oslo_serialization import base64  # type: ignore
 from oslo_utils import encodeutils  # type: ignore
