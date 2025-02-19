@@ -15,6 +15,7 @@
 import re
 from unittest import mock
 
+import openstack
 import pykube
 import pytest
 import responses
@@ -167,44 +168,137 @@ class TestDriver:
         mock_osc,
         mock_certificates,
         mock_get_server_group,
-        mock_kube_client
     ):
-        with requests_mock as rsps:
-            rsps.add(
-                responses.GET,
-                re.compile(
-                    f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w+"  # noqa
-                ),
-                status=404,
-            )
-            rsps.add(
-                responses.GET,
-                re.compile(
-                    f"http://localhost/api/{pykube.Secret.version}/namespaces/magnum-system/\\w"
-                ),
-                json={
-                    "data": {
-                        "clouds.yaml": base64.encode_as_text(
-                            jsonutils.dumps(
-                                {
-                                    "clouds": {
-                                        "default": {
-                                            "region_name": "RegionOne",
-                                            "verify": True,
-                                            "auth": {
-                                                "application_credential_id": "fake_application_credential_id",
-                                                "application_credential_secret": "fake_application_credential_secret",
-                                            },
+        with mock.patch.object(ubuntu_driver, "kube_client") as mock_kube_client:
+            with requests_mock as rsps:
+                rsps.add(
+                    responses.GET,
+                    re.compile(
+                        f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w+"  # noqa
+                    ),
+                    status=404,
+                )
+                rsps.add(
+                    responses.GET,
+                    re.compile(
+                        f"http://localhost/api/{pykube.Secret.version}/namespaces/magnum-system/\\w"
+                    ),
+                    json={
+                        "data": {
+                            "clouds.yaml": base64.encode_as_text(
+                                jsonutils.dumps(
+                                    {
+                                        "clouds": {
+                                            "default": {
+                                                "region_name": "RegionOne",
+                                                "verify": True,
+                                                "auth": {
+                                                    "application_credential_id": "fake_application_credential_id",
+                                                    "application_credential_secret": "fake_application_credential_secret",
+                                                },
+                                            }
                                         }
                                     }
-                                }
-                            )
-                        ),
-                    }
-                },
-            )
+                                )
+                            ),
+                        }
+                    },
+                )
 
-            ubuntu_driver.create_cluster(context, self.cluster, 60)
+                ubuntu_driver.create_cluster(context, self.cluster, 60)
+
+                assert mock_kube_client.create_or_update.call_args_list == [
+                    mock.call(resources.Namespace(mock_kube_client).get_resource()),
+                    mock.call(
+                        resources.CloudConfigSecret(
+                            context,
+                            mock_kube_client,
+                            self.cluster,
+                            "RegionOne",
+                            openstack.identity.v3.application_credential.ApplicationCredential(
+                                id="fake_id", secret="fake_secret"
+                            ),
+                        ).get_resource()
+                    ),
+                    mock.call(
+                        resources.ApiCertificateAuthoritySecret(
+                            context,
+                            mock_kube_client,
+                            ubuntu_driver.k8s_api,
+                            self.cluster,
+                        ).get_resource()
+                    ),
+                    mock.call(
+                        resources.EtcdCertificateAuthoritySecret(
+                            context,
+                            mock_kube_client,
+                            ubuntu_driver.k8s_api,
+                            self.cluster,
+                        ).get_resource()
+                    ),
+                    mock.call(
+                        resources.FrontProxyCertificateAuthoritySecret(
+                            context,
+                            mock_kube_client,
+                            ubuntu_driver.k8s_api,
+                            self.cluster,
+                        ).get_resource()
+                    ),
+                    mock.call(
+                        resources.ServiceAccountCertificateAuthoritySecret(
+                            context,
+                            mock_kube_client,
+                            ubuntu_driver.k8s_api,
+                            self.cluster,
+                        ).get_resource()
+                    ),
+                    mock.call(
+                        resources.KubeadmControlPlaneTemplate(
+                            mock_kube_client, "magnum-system"
+                        ).get_resource()
+                    ),
+                    mock.call(
+                        resources.KubeadmConfigTemplate(
+                            mock_kube_client, "magnum-system"
+                        ).get_resource()
+                    ),
+                    mock.call(
+                        resources.OpenStackMachineTemplate(
+                            mock_kube_client, "magnum-system"
+                        ).get_resource()
+                    ),
+                    mock.call(
+                        resources.OpenStackClusterTemplate(
+                            mock_kube_client, "magnum-system"
+                        ).get_resource()
+                    ),
+                    mock.call(
+                        resources.ClusterClass(
+                            mock_kube_client, "magnum-system"
+                        ).get_resource()
+                    ),
+                    mock.call(
+                        resources.ClusterResourcesConfigMap(
+                            context,
+                            mock_kube_client,
+                            ubuntu_driver.k8s_api,
+                            self.cluster,
+                        ).get_resource()
+                    ),
+                    mock.call(
+                        resources.ClusterResourceSet(
+                            mock_kube_client, self.cluster
+                        ).get_resource()
+                    ),
+                    mock.call(
+                        resources.Cluster(
+                            context,
+                            mock_kube_client,
+                            ubuntu_driver.k8s_api,
+                            self.cluster,
+                        ).get_resource()
+                    ),
+                ]
 
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()

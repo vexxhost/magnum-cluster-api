@@ -47,6 +47,9 @@ RABBIT_PASSWORD=secrete123
 SERVICE_PASSWORD=secrete123
 ADMIN_PASSWORD=secrete123
 
+# OSCaaS
+enable_service openstack-cli-server
+
 # Keystone
 KEYSTONE_ADMIN_ENDPOINT=true
 

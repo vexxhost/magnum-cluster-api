@@ -165,7 +165,7 @@ class Base(abc.ABC):
     def get_object(self) -> dict:
         pass
 
-    def apply(self) -> None:
+    def get_resource(self) -> dict:
         resource = self.get_object()
 
         resource["apiVersion"] = self.api_version
@@ -176,6 +176,10 @@ class Base(abc.ABC):
         if self.kind != "Namespace":
             resource["metadata"].setdefault("namespace", self.namespace)
 
+        return resource
+
+    def apply(self) -> None:
+        resource = self.get_resource()
         self.api.create_or_update(resource)
 
     def delete(self) -> None:
