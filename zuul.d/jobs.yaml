@@ -44,6 +44,7 @@
     name: magnum-cluster-api-sonobuoy
     abstract: true
     timeout: 7200
+    pre-run: zuul.d/playbooks/sonobuoy/pre.yml
     run: zuul.d/playbooks/sonobuoy/run.yml
     post-run: zuul.d/playbooks/sonobuoy/post.yml
     nodeset:
