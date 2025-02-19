@@ -45,7 +45,12 @@ def cluster_lock_wrapper(func):
 class BaseDriver(driver.Driver):
     def __init__(self):
         self.k8s_api = clients.get_pykube_api()
-        self.kube_client = magnum_cluster_api.KubeClient()
+
+    @property
+    def kube_client(self):
+        if not hasattr(self, "_kube_client"):
+            self._kube_client = magnum_cluster_api.KubeClient()
+        return self._kube_client
 
     def create_cluster(
         self, context, cluster: magnum_objects.Cluster, cluster_create_timeout: int
