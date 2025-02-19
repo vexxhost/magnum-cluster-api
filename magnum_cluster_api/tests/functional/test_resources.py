@@ -12,7 +12,13 @@ from oslo_utils import uuidutils  # type: ignore
 from oslotest import base  # type: ignore
 from tenacity import retry, retry_if_exception_type, stop_after_delay, wait_fixed
 
-from magnum_cluster_api import clients, exceptions, objects, resources
+from magnum_cluster_api import (
+    clients,
+    exceptions,
+    magnum_cluster_api,
+    objects,
+    resources,
+)
 from magnum_cluster_api.tests.functional import fixtures as mcapi_fixtures
 
 
@@ -80,7 +86,8 @@ class ResourceBaseTestCase(base.BaseTestCase):
             )
         )
 
-        self.api = clients.get_pykube_api()
+        self.api = magnum_cluster_api.KubeClient()
+        self.pykube_api = clients.get_pykube_api()
 
         alphabet = string.ascii_lowercase + string.digits
         su = shortuuid.ShortUUID(alphabet=alphabet)
@@ -124,6 +131,7 @@ class TestClusterClass(ResourceBaseTestCase):
             mcapi_fixtures.ClusterFixture(
                 self.context,
                 self.api,
+                self.pykube_api,
                 self.namespace,
                 cluster,
             )
@@ -177,7 +185,7 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
             self.api, namespace=self.namespace.name
         )
 
-        cc = objects.ClusterClass.objects(self.api, namespace=self.namespace.name).get(
+        cc = objects.ClusterClass.objects(self.pykube_api, namespace=self.namespace.name).get(
             name=resources.CLUSTER_CLASS_NAME
         )
 
@@ -203,7 +211,7 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
             )
         ).cluster_class
 
-        cc = objects.ClusterClass.objects(self.api, namespace=self.namespace.name).get(
+        cc = objects.ClusterClass.objects(self.pykube_api, namespace=self.namespace.name).get(
             name=self.cluster_class_extra_var.get_object().name
         )
 
@@ -241,6 +249,7 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
             mcapi_fixtures.ClusterFixture(
                 self.context,
                 self.api,
+                self.pykube_api,
                 self.namespace,
                 self.cluster,
                 mutate_callback=mutate_callback,
@@ -248,7 +257,7 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         )
 
         capi_cluster = fixture.cluster
-        return objects.Cluster.objects(self.api, namespace=self.namespace.name).get(
+        return objects.Cluster.objects(self.pykube_api, namespace=self.namespace.name).get(
             name=capi_cluster.get_object().name
         )
 

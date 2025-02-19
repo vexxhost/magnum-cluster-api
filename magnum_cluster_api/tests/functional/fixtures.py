@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import fixtures  # type: ignore
+import fixtures
+import pykube  # type: ignore
 
-from magnum_cluster_api import resources
+from magnum_cluster_api import magnum_cluster_api, resources
 
 
 class ClusterClassFixture(fixtures.Fixture):
@@ -32,17 +33,30 @@ class ClusterClassFixture(fixtures.Fixture):
 
 
 class ClusterFixture(fixtures.Fixture):
-    def __init__(self, context, api, namespace, magnum_cluster, mutate_callback=None):
+    def __init__(
+        self,
+        context,
+        api: magnum_cluster_api.KubeClient,
+        pykube_api: pykube.HTTPClient,
+        namespace,
+        magnum_cluster,
+        mutate_callback=None,
+    ):
         super(ClusterFixture, self).__init__()
         self.context = context
         self.api = api
+        self.pykube_api = pykube_api
         self.namespace = namespace
         self.magnum_cluster = magnum_cluster
         self.mutate_callback = mutate_callback
 
     def _setUp(self):
         self.cluster = resources.Cluster(
-            self.context, self.api, self.magnum_cluster, namespace=self.namespace.name
+            self.context,
+            self.api,
+            self.pykube_api,
+            self.magnum_cluster,
+            namespace=self.namespace.name,
         )
 
         original_get_object = self.cluster.get_object
