@@ -2,9 +2,15 @@
     check:
       jobs:
         - magnum-cluster-api-chart-vendor
-        - magnum-cluster-api-linters
-        - magnum-cluster-api-unit
-        - magnum-cluster-api-functional
+        - magnum-cluster-api-tox-linters
+        - magnum-cluster-api-tox-unit
+        - magnum-cluster-api-tox-functional
+    gate:
+      jobs:
+        - magnum-cluster-api-chart-vendor
+        - magnum-cluster-api-tox-linters
+        - magnum-cluster-api-tox-unit
+        - magnum-cluster-api-tox-functional
     templates:
       - magnum-cluster-api-flatcar
       - magnum-cluster-api-rockylinux-8
