@@ -169,7 +169,7 @@ class TestDriver:
         mock_certificates,
         mock_get_server_group,
     ):
-        with mock.patch.object(ubuntu_driver, "kube_client") as mock_kube_client:
+        with mock.patch.object(ubuntu_driver, "_kube_client") as mock_kube_client:
             with requests_mock as rsps:
                 rsps.add(
                     responses.GET,
