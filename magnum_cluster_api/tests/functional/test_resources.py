@@ -137,10 +137,10 @@ class TestClusterClass(ResourceBaseTestCase):
             )
         ).cluster
 
-        capi_cluster_obj = capi_cluster.get_object()
+        capi_cluster_obj = capi_cluster.get_resource()
         capi_cluster_variables = {
             item["name"]: item["value"]
-            for item in capi_cluster_obj.obj["spec"]["topology"]["variables"]
+            for item in capi_cluster_obj["spec"]["topology"]["variables"]
         }
 
         self.assertIn("disableAPIServerFloatingIP", capi_cluster_variables)
@@ -192,7 +192,7 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         self.assertNotIn("extraTestVariable", cc.variable_names)
 
         def mutate_cluster_class_extra_var(resource):
-            resource["metadata"] = {"name": resource.name + "-extra-var"}
+            resource["metadata"]["name"] += "-extra-var"
             resource["spec"]["variables"].append(
                 {
                     "name": "extraTestVariable",

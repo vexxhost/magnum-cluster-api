@@ -20,10 +20,10 @@ class ClusterClassFixture(fixtures.Fixture):
             self.api, namespace=self.namespace.name
         )
 
-        original_get_object = self.cluster_class.get_object
+        original_get_resource = self.cluster_class.get_resource
 
         def get_object_override():
-            resource = original_get_object()
+            resource = original_get_resource()
             if self.mutate_callback:
                 self.mutate_callback(resource)
             return resource
