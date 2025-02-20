@@ -78,3 +78,8 @@
         - magnum-cluster-api-image-build-rockylinux-8-v1.27.15
         - magnum-cluster-api-sonobuoy-rockylinux-8-v1.27.15-calico
         - magnum-cluster-api-sonobuoy-rockylinux-8-v1.27.15-cilium
+    gate:
+      jobs:
+        - magnum-cluster-api-image-build-rockylinux-8-v1.27.15
+        - magnum-cluster-api-sonobuoy-rockylinux-8-v1.27.15-calico
+        - magnum-cluster-api-sonobuoy-rockylinux-8-v1.27.15-cilium

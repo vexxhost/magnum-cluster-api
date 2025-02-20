@@ -22,8 +22,8 @@ PAUSE = "registry.k8s.io/pause:3.9"
 
 
 def get_cluster_autoscaler_image(version: str):
-    version = semver.VersionInfo.parse(version[1:])
-    config_option = f"v{version.major}_{version.minor}_image"
+    parsed_version = semver.VersionInfo.parse(version[1:])
+    config_option = f"v{parsed_version.major}_{parsed_version.minor}_image"
 
     if hasattr(CONF.auto_scaling, config_option):
         return getattr(CONF.auto_scaling, config_option)

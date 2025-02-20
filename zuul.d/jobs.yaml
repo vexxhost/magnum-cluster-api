@@ -5,19 +5,27 @@
       chart_vendor_charts_root: "magnum_cluster_api/charts"
 
 - job:
-    name: magnum-cluster-api-linters
-    parent: tox-linters
+    name: magnum-cluster-api-tox
+    parent: tox
+    abstract: true
+    pre-run: zuul.d/playbooks/tox/pre.yml
 
 - job:
-    name: magnum-cluster-api-unit
-    parent: tox
+    name: magnum-cluster-api-tox-linters
+    parent: magnum-cluster-api-tox
+    vars:
+      tox_envlist: linters
+
+- job:
+    name: magnum-cluster-api-tox-unit
+    parent: magnum-cluster-api-tox
     pre-run: zuul.d/playbooks/unit/pre.yml
     vars:
       tox_envlist: unit
 
 - job:
-    name: magnum-cluster-api-functional
-    parent: tox
+    name: magnum-cluster-api-tox-functional
+    parent: magnum-cluster-api-tox
     pre-run: zuul.d/playbooks/functional/pre.yml
     vars:
       tox_envlist: functional
@@ -36,6 +44,7 @@
     name: magnum-cluster-api-sonobuoy
     abstract: true
     timeout: 7200
+    pre-run: zuul.d/playbooks/sonobuoy/pre.yml
     run: zuul.d/playbooks/sonobuoy/run.yml
     post-run: zuul.d/playbooks/sonobuoy/post.yml
     nodeset:

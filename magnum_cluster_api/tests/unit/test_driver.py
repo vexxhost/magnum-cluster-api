@@ -13,7 +13,9 @@
 # under the License.
 
 import re
+from unittest import mock
 
+import openstack
 import pykube
 import pytest
 import responses
@@ -167,6 +169,8 @@ class TestDriver:
         mock_certificates,
         mock_get_server_group,
     ):
+        ubuntu_driver._kube_client = mock.MagicMock()
+
         with requests_mock as rsps:
             rsps.add(
                 responses.GET,
@@ -174,60 +178,6 @@ class TestDriver:
                     f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w+"  # noqa
                 ),
                 status=404,
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                f"http://localhost/api/{pykube.Namespace.version}/{pykube.Namespace.endpoint}/magnum-system",
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/api/{pykube.Secret.version}/namespaces/magnum-system/\\w"
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/apis/{objects.KubeadmControlPlaneTemplate.version}/namespaces/magnum-system/{objects.KubeadmControlPlaneTemplate.endpoint}/\\w+"  # noqa
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/apis/{objects.KubeadmConfigTemplate.version}/namespaces/magnum-system/{objects.KubeadmConfigTemplate.endpoint}/\\w+"  # noqa
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/apis/{objects.OpenStackMachineTemplate.version}/namespaces/magnum-system/{objects.OpenStackMachineTemplate.endpoint}/\\w+"  # noqa
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/apis/{objects.OpenStackClusterTemplate.version}/namespaces/magnum-system/{objects.OpenStackClusterTemplate.endpoint}/\\w+"  # noqa
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/apis/{objects.ClusterClass.version}/namespaces/magnum-system/{objects.ClusterClass.endpoint}/\\w+"  # noqa
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
             )
             rsps.add(
                 responses.GET,
@@ -255,24 +205,106 @@ class TestDriver:
                     }
                 },
             )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/apis/{objects.ClusterResourceSet.version}/namespaces/magnum-system/{objects.ClusterResourceSet.endpoint}/\\w+"  # noqa
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
-            rsps.add_callback(
-                responses.PATCH,
-                re.compile(
-                    f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w+"  # noqa
-                ),
-                match=[self.server_side_apply_matcher],
-                callback=lambda request: (200, {}, request.body),
-            )
 
             ubuntu_driver.create_cluster(context, self.cluster, 60)
+
+            assert ubuntu_driver._kube_client.create_or_update.call_args_list == [
+                mock.call(
+                    resources.Namespace(ubuntu_driver._kube_client).get_resource()
+                ),
+                mock.call(
+                    resources.CloudConfigSecret(
+                        context,
+                        ubuntu_driver._kube_client,
+                        self.cluster,
+                        "RegionOne",
+                        openstack.identity.v3.application_credential.ApplicationCredential(
+                            id="fake_id", secret="fake_secret"
+                        ),
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.ApiCertificateAuthoritySecret(
+                        context,
+                        ubuntu_driver._kube_client,
+                        ubuntu_driver.k8s_api,
+                        self.cluster,
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.EtcdCertificateAuthoritySecret(
+                        context,
+                        ubuntu_driver._kube_client,
+                        ubuntu_driver.k8s_api,
+                        self.cluster,
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.FrontProxyCertificateAuthoritySecret(
+                        context,
+                        ubuntu_driver._kube_client,
+                        ubuntu_driver.k8s_api,
+                        self.cluster,
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.ServiceAccountCertificateAuthoritySecret(
+                        context,
+                        ubuntu_driver._kube_client,
+                        ubuntu_driver.k8s_api,
+                        self.cluster,
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.KubeadmControlPlaneTemplate(
+                        ubuntu_driver._kube_client, "magnum-system"
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.KubeadmConfigTemplate(
+                        ubuntu_driver._kube_client, "magnum-system"
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.OpenStackMachineTemplate(
+                        ubuntu_driver._kube_client, "magnum-system"
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.OpenStackClusterTemplate(
+                        ubuntu_driver._kube_client, "magnum-system"
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.ClusterClass(
+                        ubuntu_driver._kube_client, "magnum-system"
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.ClusterResourcesConfigMap(
+                        context,
+                        ubuntu_driver._kube_client,
+                        ubuntu_driver.k8s_api,
+                        self.cluster,
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.ClusterResourceSet(
+                        ubuntu_driver._kube_client, self.cluster
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.Cluster(
+                        context,
+                        ubuntu_driver._kube_client,
+                        ubuntu_driver.k8s_api,
+                        self.cluster,
+                    ).get_resource()
+                ),
+            ]
+
+        assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
+        self.cluster.save.assert_called_once()
 
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()

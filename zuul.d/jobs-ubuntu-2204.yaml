@@ -94,3 +94,13 @@
         - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.30.2-cilium
         - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1-calico
         - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1-cilium
+    gate:
+      jobs:
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.11-calico
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.11-cilium
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.6-calico
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.6-cilium
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.30.2-calico
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.30.2-cilium
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1-calico
+        - magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1-cilium

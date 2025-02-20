@@ -12,7 +12,13 @@ from oslo_utils import uuidutils  # type: ignore
 from oslotest import base  # type: ignore
 from tenacity import retry, retry_if_exception_type, stop_after_delay, wait_fixed
 
-from magnum_cluster_api import clients, exceptions, objects, resources
+from magnum_cluster_api import (
+    clients,
+    exceptions,
+    magnum_cluster_api,
+    objects,
+    resources,
+)
 from magnum_cluster_api.tests.functional import fixtures as mcapi_fixtures
 
 
@@ -80,7 +86,8 @@ class ResourceBaseTestCase(base.BaseTestCase):
             )
         )
 
-        self.api = clients.get_pykube_api()
+        self.api = magnum_cluster_api.KubeClient()
+        self.pykube_api = clients.get_pykube_api()
 
         alphabet = string.ascii_lowercase + string.digits
         su = shortuuid.ShortUUID(alphabet=alphabet)
@@ -120,19 +127,20 @@ class TestClusterClass(ResourceBaseTestCase):
                 master_lb_floating_ip_enabled
             )
 
-        capi_cluster = self.useFixture(
+        capi_cluster: resources.Cluster = self.useFixture(
             mcapi_fixtures.ClusterFixture(
                 self.context,
                 self.api,
+                self.pykube_api,
                 self.namespace,
                 cluster,
             )
         ).cluster
 
-        capi_cluster_obj = capi_cluster.get_object()
+        capi_cluster_obj = capi_cluster.get_resource()
         capi_cluster_variables = {
             item["name"]: item["value"]
-            for item in capi_cluster_obj.obj["spec"]["topology"]["variables"]
+            for item in capi_cluster_obj["spec"]["topology"]["variables"]
         }
 
         self.assertIn("disableAPIServerFloatingIP", capi_cluster_variables)
@@ -146,7 +154,19 @@ class TestClusterClass(ResourceBaseTestCase):
             retry=retry_if_exception_type(exceptions.OpenStackClusterNotCreated),
         )
         def get_capi_oc():
-            return capi_cluster_obj.openstack_cluster
+            filtered_clusters = (
+                objects.OpenStackCluster.objects(
+                    self.pykube_api,
+                    namespace=self.namespace.name,
+                )
+                .filter(selector={"cluster.x-k8s.io/cluster-name": capi_cluster.name})
+                .all()
+            )
+
+            if len(filtered_clusters) == 0:
+                raise exceptions.OpenStackClusterNotCreated()
+
+            return list(filtered_clusters)[0]
 
         capi_oc = get_capi_oc()
         self.assertEqual(
@@ -177,15 +197,15 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
             self.api, namespace=self.namespace.name
         )
 
-        cc = objects.ClusterClass.objects(self.api, namespace=self.namespace.name).get(
-            name=resources.CLUSTER_CLASS_NAME
-        )
+        cc = objects.ClusterClass.objects(
+            self.pykube_api, namespace=self.namespace.name
+        ).get(name=resources.CLUSTER_CLASS_NAME)
 
         self.assertNotIn("extraTestVariable", cc.variable_names)
 
         def mutate_cluster_class_extra_var(resource):
-            resource.obj["metadata"]["name"] += "-extra-var"
-            resource.obj["spec"]["variables"].append(
+            resource["metadata"]["name"] += "-extra-var"
+            resource["spec"]["variables"].append(
                 {
                     "name": "extraTestVariable",
                     "required": True,
@@ -203,8 +223,10 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
             )
         ).cluster_class
 
-        cc = objects.ClusterClass.objects(self.api, namespace=self.namespace.name).get(
-            name=self.cluster_class_extra_var.get_object().name
+        cc = objects.ClusterClass.objects(
+            self.pykube_api, namespace=self.namespace.name
+        ).get(
+            name=self.cluster_class_extra_var.get_resource().get("metadata").get("name")
         )
 
         self.assertIn("extraTestVariable", cc.variable_names)
@@ -241,6 +263,7 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
             mcapi_fixtures.ClusterFixture(
                 self.context,
                 self.api,
+                self.pykube_api,
                 self.namespace,
                 self.cluster,
                 mutate_callback=mutate_callback,
@@ -248,15 +271,15 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         )
 
         capi_cluster = fixture.cluster
-        return objects.Cluster.objects(self.api, namespace=self.namespace.name).get(
-            name=capi_cluster.get_object().name
-        )
+        return objects.Cluster.objects(
+            self.pykube_api, namespace=self.namespace.name
+        ).get(name=capi_cluster.get_resource().get("metadata").get("name"))
 
     def test_cluster_variable_addition(self):
         c = self._get_cluster_object()
 
         self.assertEqual(
-            self.cluster_class_original.get_object().name,
+            self.cluster_class_original.get_resource().get("metadata").get("name"),
             c.obj["spec"]["topology"]["class"],
         )
         self.assertNotIn(
@@ -265,10 +288,10 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         )
 
         def mutate_cluster(resource):
-            resource.obj["spec"]["topology"][
-                "class"
-            ] = self.cluster_class_extra_var.get_object().name
-            resource.obj["spec"]["topology"]["variables"].append(
+            resource["spec"]["topology"]["class"] = (
+                self.cluster_class_extra_var.get_resource().get("metadata").get("name")
+            )
+            resource["spec"]["topology"]["variables"].append(
                 {
                     "name": "extraTestVariable",
                     "value": "test",
@@ -278,7 +301,7 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         c = self._get_cluster_object(mutate_cluster)
 
         self.assertEqual(
-            self.cluster_class_extra_var.get_object().name,
+            self.cluster_class_extra_var.get_resource().get("metadata").get("name"),
             c.obj["spec"]["topology"]["class"],
         )
         self.assertIn(
@@ -288,10 +311,10 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
 
     def test_cluster_variable_removal(self):
         def mutate_cluster(resource):
-            resource.obj["spec"]["topology"][
-                "class"
-            ] = self.cluster_class_extra_var.get_object().name
-            resource.obj["spec"]["topology"]["variables"].append(
+            resource["spec"]["topology"]["class"] = (
+                self.cluster_class_extra_var.get_resource().get("metadata").get("name")
+            )
+            resource["spec"]["topology"]["variables"].append(
                 {
                     "name": "extraTestVariable",
                     "value": "test",
@@ -301,7 +324,7 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         c = self._get_cluster_object(mutate_cluster)
 
         self.assertEqual(
-            self.cluster_class_extra_var.get_object().name,
+            self.cluster_class_extra_var.get_resource().get("metadata").get("name"),
             c.obj["spec"]["topology"]["class"],
         )
         self.assertIn(
@@ -312,7 +335,7 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         c = self._get_cluster_object()
 
         self.assertEqual(
-            self.cluster_class_original.get_object().name,
+            self.cluster_class_original.get_resource().get("metadata").get("name"),
             c.obj["spec"]["topology"]["class"],
         )
         self.assertNotIn(

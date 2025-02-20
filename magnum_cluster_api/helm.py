@@ -15,8 +15,8 @@
 import itertools
 
 import yaml
-from oslo_concurrency import processutils
-from oslo_log import log as logging
+from oslo_concurrency import processutils  # type: ignore
+from oslo_log import log as logging  # type: ignore
 
 from magnum_cluster_api import exceptions, image_utils
 
