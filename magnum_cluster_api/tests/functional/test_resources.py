@@ -127,7 +127,7 @@ class TestClusterClass(ResourceBaseTestCase):
                 master_lb_floating_ip_enabled
             )
 
-        capi_cluster = self.useFixture(
+        capi_cluster: resources.Cluster = self.useFixture(
             mcapi_fixtures.ClusterFixture(
                 self.context,
                 self.api,
@@ -154,7 +154,18 @@ class TestClusterClass(ResourceBaseTestCase):
             retry=retry_if_exception_type(exceptions.OpenStackClusterNotCreated),
         )
         def get_capi_oc():
-            return capi_cluster_obj.openstack_cluster
+            filtered_clusters = (
+                objects.OpenStackCluster.objects(
+                    self.pykube_api, namespace=self.namespace
+                )
+                .filter(selector={"cluster.x-k8s.io/cluster-name": capi_cluster.name})
+                .all()
+            )
+
+            if len(filtered_clusters) == 0:
+                raise exceptions.OpenStackClusterNotCreated()
+
+            return list(filtered_clusters)[0]
 
         capi_oc = get_capi_oc()
         self.assertEqual(

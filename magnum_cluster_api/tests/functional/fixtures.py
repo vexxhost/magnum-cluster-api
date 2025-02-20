@@ -22,13 +22,13 @@ class ClusterClassFixture(fixtures.Fixture):
 
         original_get_resource = self.cluster_class.get_resource
 
-        def get_object_override():
+        def get_resource_override():
             resource = original_get_resource()
             if self.mutate_callback:
                 self.mutate_callback(resource)
             return resource
 
-        self.cluster_class.get_object = get_object_override
+        self.cluster_class.get_resource = get_resource_override
         self.cluster_class.apply()
 
 
@@ -59,13 +59,13 @@ class ClusterFixture(fixtures.Fixture):
             namespace=self.namespace.name,
         )
 
-        original_get_object = self.cluster.get_object
+        original_get_resource = self.cluster.get_resource
 
-        def get_object_override():
-            resource = original_get_object()
+        def get_resource_override():
+            resource = original_get_resource()
             if self.mutate_callback:
                 self.mutate_callback(resource)
             return resource
 
-        self.cluster.get_object = get_object_override
+        self.cluster.get_resource = get_resource_override
         self.cluster.apply()
