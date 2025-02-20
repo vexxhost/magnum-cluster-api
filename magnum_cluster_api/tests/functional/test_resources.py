@@ -224,7 +224,9 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
 
         cc = objects.ClusterClass.objects(
             self.pykube_api, namespace=self.namespace.name
-        ).get(name=self.cluster_class_extra_var.get_object().name)
+        ).get(
+            name=self.cluster_class_extra_var.get_resource().get("metadata").get("name")
+        )
 
         self.assertIn("extraTestVariable", cc.variable_names)
         self.assertIn(
@@ -270,13 +272,13 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         capi_cluster = fixture.cluster
         return objects.Cluster.objects(
             self.pykube_api, namespace=self.namespace.name
-        ).get(name=capi_cluster.get_object().name)
+        ).get(name=capi_cluster.get_resource().get("metadata").get("name"))
 
     def test_cluster_variable_addition(self):
         c = self._get_cluster_object()
 
         self.assertEqual(
-            self.cluster_class_original.get_object().name,
+            self.cluster_class_original.get_resource().get("metadata").get("name"),
             c.obj["spec"]["topology"]["class"],
         )
         self.assertNotIn(
@@ -285,9 +287,9 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         )
 
         def mutate_cluster(resource):
-            resource.obj["spec"]["topology"][
-                "class"
-            ] = self.cluster_class_extra_var.get_object().name
+            resource.obj["spec"]["topology"]["class"] = (
+                self.cluster_class_extra_var.get_resource().get("metadata").get("name")
+            )
             resource.obj["spec"]["topology"]["variables"].append(
                 {
                     "name": "extraTestVariable",
@@ -298,7 +300,7 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         c = self._get_cluster_object(mutate_cluster)
 
         self.assertEqual(
-            self.cluster_class_extra_var.get_object().name,
+            self.cluster_class_extra_var.get_resource().get("metadata").get("name"),
             c.obj["spec"]["topology"]["class"],
         )
         self.assertIn(
@@ -308,9 +310,9 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
 
     def test_cluster_variable_removal(self):
         def mutate_cluster(resource):
-            resource.obj["spec"]["topology"][
-                "class"
-            ] = self.cluster_class_extra_var.get_object().name
+            resource.obj["spec"]["topology"]["class"] = (
+                self.cluster_class_extra_var.get_resource().get("metadata").get("name")
+            )
             resource.obj["spec"]["topology"]["variables"].append(
                 {
                     "name": "extraTestVariable",
@@ -321,7 +323,7 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         c = self._get_cluster_object(mutate_cluster)
 
         self.assertEqual(
-            self.cluster_class_extra_var.get_object().name,
+            self.cluster_class_extra_var.get_resource().get("metadata").get("name"),
             c.obj["spec"]["topology"]["class"],
         )
         self.assertIn(
@@ -332,7 +334,7 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         c = self._get_cluster_object()
 
         self.assertEqual(
-            self.cluster_class_original.get_object().name,
+            self.cluster_class_original.get_resource().get("metadata").get("name"),
             c.obj["spec"]["topology"]["class"],
         )
         self.assertNotIn(
