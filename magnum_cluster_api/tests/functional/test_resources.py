@@ -156,7 +156,7 @@ class TestClusterClass(ResourceBaseTestCase):
         def get_capi_oc():
             filtered_clusters = (
                 objects.OpenStackCluster.objects(
-                    self.pykube_api, namespace=self.namespace
+                    self.pykube_api, namespace=self.namespace.name,
                 )
                 .filter(selector={"cluster.x-k8s.io/cluster-name": capi_cluster.name})
                 .all()
@@ -287,10 +287,10 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         )
 
         def mutate_cluster(resource):
-            resource.obj["spec"]["topology"]["class"] = (
+            resource["spec"]["topology"]["class"] = (
                 self.cluster_class_extra_var.get_resource().get("metadata").get("name")
             )
-            resource.obj["spec"]["topology"]["variables"].append(
+            resource["spec"]["topology"]["variables"].append(
                 {
                     "name": "extraTestVariable",
                     "value": "test",
