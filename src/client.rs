@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use backoff::{future::retry, ExponentialBackoff};
 use kube::{
     api::{Api, ApiResource, DynamicObject, GroupVersionKind, PostParams},
     Client, Config, ResourceExt,
@@ -55,9 +56,10 @@ impl KubeClient {
         let api_resource = ApiResource::from_gvk(gvk);
 
         let client = self.client.to_owned();
-        let api: Api<DynamicObject> = match namespace {
-            Some(ns) => Api::namespaced_with(client, ns, &api_resource),
-            None => Api::all_with(client, &api_resource),
+        let api: Api<DynamicObject> = if api_resource.kind == "Namespace" {
+            Api::all_with(client, &api_resource)
+        } else {
+            Api::namespaced_with(client, namespace.unwrap(), &api_resource)
         };
 
         api
@@ -91,7 +93,7 @@ impl KubeClient {
 
     #[pyo3(signature = (manifest))]
     fn create_or_update(&self, manifest: &Bound<'_, PyDict>) -> PyResult<()> {
-        let mut object: DynamicObject = pythonize::depythonize(manifest)?;
+        let object: DynamicObject = pythonize::depythonize(manifest)?;
 
         let name = object
             .metadata
@@ -110,12 +112,25 @@ impl KubeClient {
 
         GLOBAL_RUNTIME.block_on(async move {
             match api.get(&name).await {
-                Ok(server_object) => {
-                    object.metadata.resource_version = server_object.resource_version();
+                Ok(..) => {
+                    retry(ExponentialBackoff::default(), || async {
+                        let mut new_object = object.clone();
 
-                    api.replace(&name, &Default::default(), &object)
-                        .await
-                        .map_err(|e| KubeClientError::ApiError(e))?;
+                        let server_object = api.get(&name).await?;
+                        new_object.metadata.resource_version = server_object.resource_version();
+
+                        match api.replace(&name, &Default::default(), &new_object).await {
+                            Ok(result) => Ok(result),
+                            Err(e) => match e {
+                                kube::Error::Api(ref err) if err.code == 409 => {
+                                    Err(backoff::Error::transient(e))
+                                }
+                                _ => Err(backoff::Error::Permanent(e)),
+                            },
+                        }
+                    })
+                    .await
+                    .map_err(|e| KubeClientError::ApiError(e))?;
                 }
                 Err(kube::Error::Api(ref err)) if err.code == 404 => {
                     api.create(&PostParams::default(), &object)

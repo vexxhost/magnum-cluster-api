@@ -180,7 +180,7 @@ class Base(abc.ABC):
 
         return resource
 
-    def apply(self) -> None:
+    def apply(self):
         resource = self.get_resource()
         self.api.create_or_update(resource)
 
@@ -2504,7 +2504,11 @@ def create_cluster_class(
     KubeadmConfigTemplate(api, namespace).apply()
     OpenStackMachineTemplate(api, namespace).apply()
     OpenStackClusterTemplate(api, namespace).apply()
-    return ClusterClass(api, namespace).apply()
+
+    cc = ClusterClass(api, namespace)
+    cc.apply()
+
+    return cc
 
 
 def mutate_machine_deployment(
