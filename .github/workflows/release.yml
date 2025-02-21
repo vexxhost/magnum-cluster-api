@@ -28,9 +28,10 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/checkout@v4
 
+      # NOTE(mnaser): Switch back to upstream when https://github.com/PyO3/maturin-action/pull/322 is merged
       - name: Build package
         if: ${{ steps.release.outputs.release_created }}
-        uses: PyO3/maturin-action@v1
+        uses: vexxhost/maturin-action@fix-trusted-publishing
         with:
           command: publish
           args: --non-interactive
