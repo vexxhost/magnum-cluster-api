@@ -34,7 +34,7 @@ jobs:
 
       - name: Build package
         if: ${{ steps.release.outputs.release_created }}
-        uses: PyO3/maturin-action@v1
+        uses: vexxhost/maturin-action@add-missing-env
         with:
           command: publish
           args: --non-interactive
