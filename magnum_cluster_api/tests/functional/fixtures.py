@@ -9,16 +9,14 @@ from magnum_cluster_api import magnum_cluster_api, resources
 
 
 class ClusterClassFixture(fixtures.Fixture):
-    def __init__(self, api, namespace, mutate_callback=None):
+    def __init__(self, api, namespace: str, mutate_callback=None):
         super(ClusterClassFixture, self).__init__()
         self.api = api
         self.namespace = namespace
         self.mutate_callback = mutate_callback
 
     def _setUp(self):
-        self.cluster_class = resources.ClusterClass(
-            self.api, namespace=self.namespace.name
-        )
+        self.cluster_class = resources.ClusterClass(self.api, namespace=self.namespace)
 
         original_get_resource = self.cluster_class.get_resource
 
@@ -38,7 +36,7 @@ class ClusterFixture(fixtures.Fixture):
         context,
         api: magnum_cluster_api.KubeClient,
         pykube_api: pykube.HTTPClient,
-        namespace,
+        namespace: str,
         magnum_cluster,
         mutate_callback=None,
     ):
@@ -56,7 +54,7 @@ class ClusterFixture(fixtures.Fixture):
             self.api,
             self.pykube_api,
             self.magnum_cluster,
-            namespace=self.namespace.name,
+            namespace=self.namespace,
         )
 
         original_get_resource = self.cluster.get_resource

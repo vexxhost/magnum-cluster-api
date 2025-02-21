@@ -69,12 +69,6 @@ class EndpointSlice(NamespacedAPIObject):
     kind = "EndpointSlice"
 
 
-class ClusterResourceSet(NamespacedAPIObject):
-    version = "addons.cluster.x-k8s.io/v1beta1"
-    endpoint = "clusterresourcesets"
-    kind = "ClusterResourceSet"
-
-
 class OpenStackMachineTemplate(NamespacedAPIObject):
     version = "infrastructure.cluster.x-k8s.io/v1beta1"
     endpoint = "openstackmachinetemplates"

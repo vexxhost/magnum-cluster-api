@@ -190,23 +190,6 @@ class Base(abc.ABC):
         )
 
 
-class Namespace(Base):
-    @property
-    def api_version(self) -> str:
-        return "v1"
-
-    @property
-    def kind(self) -> str:
-        return "Namespace"
-
-    @property
-    def name(self) -> str:
-        return self.namespace
-
-    def get_object(self) -> dict:
-        return {}
-
-
 class ClusterBase(Base):
     def __init__(
         self, api: magnum_cluster_api.KubeClient, cluster: magnum_objects.Cluster
@@ -516,33 +499,6 @@ class ClusterResourcesConfigMap(ClusterBase):
         cr_cm = self.get_or_none()
         if cr_cm:
             cr_cm.delete()
-
-
-class ClusterResourceSet(ClusterBase):
-    @property
-    def api_version(self) -> str:
-        return "addons.cluster.x-k8s.io/v1beta1"
-
-    @property
-    def kind(self) -> str:
-        return "ClusterResourceSet"
-
-    def get_object(self) -> dict:
-        return {
-            "spec": {
-                "clusterSelector": {
-                    "matchLabels": {
-                        "cluster-uuid": self.cluster.uuid,
-                    },
-                },
-                "resources": [
-                    {
-                        "name": self.cluster.uuid,
-                        "kind": "ConfigMap",
-                    },
-                ],
-            },
-        }
 
 
 class CertificateAuthoritySecret(ClusterBase):
@@ -3042,7 +2998,6 @@ def apply_cluster_from_magnum_cluster(
 
     ClusterServerGroups(context, cluster).apply()
     ClusterResourcesConfigMap(context, api, pykube_api, cluster).apply()
-    ClusterResourceSet(api, cluster).apply()
     Cluster(context, api, pykube_api, cluster).apply()
 
     if not skip_auto_scaling_release and utils.get_auto_scaling_enabled(cluster):

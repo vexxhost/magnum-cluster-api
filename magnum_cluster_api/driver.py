@@ -67,7 +67,9 @@ class BaseDriver(driver.Driver):
         cluster.save()
 
         utils.validate_cluster(context, cluster)
-        resources.Namespace(self.kube_client).apply()
+
+        magnum_cluster = magnum_cluster_api.MagnumCluster(cluster, namespace="magnum-system")
+        magnum_cluster.create()
 
         return self._create_cluster(context, cluster)
 
@@ -405,7 +407,6 @@ class BaseDriver(driver.Driver):
         #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/pull/990
         utils.delete_loadbalancers(context, cluster)
 
-        resources.ClusterResourceSet(self.kube_client, cluster).delete()
         resources.ClusterResourcesConfigMap(
             context, self.kube_client, self.k8s_api, cluster
         ).delete()

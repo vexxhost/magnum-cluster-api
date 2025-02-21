@@ -210,9 +210,6 @@ class TestDriver:
 
             assert ubuntu_driver._kube_client.create_or_update.call_args_list == [
                 mock.call(
-                    resources.Namespace(ubuntu_driver._kube_client).get_resource()
-                ),
-                mock.call(
                     resources.CloudConfigSecret(
                         context,
                         ubuntu_driver._kube_client,
@@ -286,11 +283,6 @@ class TestDriver:
                         ubuntu_driver._kube_client,
                         ubuntu_driver.k8s_api,
                         self.cluster,
-                    ).get_resource()
-                ),
-                mock.call(
-                    resources.ClusterResourceSet(
-                        ubuntu_driver._kube_client, self.cluster
                     ).get_resource()
                 ),
                 mock.call(

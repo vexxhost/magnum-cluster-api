@@ -190,6 +190,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "cluster-api-rs"
+version = "1.9.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "576cb6af65b9efcb0712e0e261aa50127a4b3467f85d51c1c5199cc1b6bc062c"
+dependencies = [
+ "k8s-openapi",
+ "kube",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "concurrent-queue"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -767,6 +780,7 @@ checksum = "2c75b990324f09bef15e791606b7b7a296d02fc88a344f6eba9390970a870ad5"
 dependencies = [
  "base64 0.22.1",
  "chrono",
+ "schemars",
  "serde",
  "serde-value",
  "serde_json",
@@ -910,9 +924,10 @@ name = "magnum-cluster-api"
 version = "0.1.0"
 dependencies = [
  "backoff",
+ "cluster-api-rs",
  "k8s-openapi",
  "kube",
- "kube-core",
+ "maplit",
  "once_cell",
  "pyo3",
  "pythonize",
@@ -920,6 +935,12 @@ dependencies = [
  "thiserror 2.0.11",
  "tokio",
 ]
+
+[[package]]
+name = "maplit"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
 
 [[package]]
 name = "memchr"

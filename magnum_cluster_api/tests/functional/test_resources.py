@@ -91,17 +91,22 @@ class ResourceBaseTestCase(base.BaseTestCase):
 
         alphabet = string.ascii_lowercase + string.digits
         su = shortuuid.ShortUUID(alphabet=alphabet)
-        name = "test-%s" % (su.random(length=5))
 
-        self.namespace = resources.Namespace(self.api, name)
-        self.namespace.apply()
-        self.addCleanup(self.namespace.delete)
+        self.namespace_name = "test-%s" % (su.random(length=5))
+        self.namespace = self.api.create_or_update({
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {
+                "name": self.namespace_name,
+            },
+        })
+        self.addCleanup(self.api.delete, "v1", "Namespace", self.namespace_name)
 
 
 class TestClusterClass(ResourceBaseTestCase):
     def setUp(self):
         super(TestClusterClass, self).setUp()
-        resources.create_cluster_class(self.api, namespace=self.namespace.name)
+        resources.create_cluster_class(self.api, namespace=self.namespace_name)
 
     def _test_disable_api_server_floating_ip(
         self,
@@ -132,7 +137,7 @@ class TestClusterClass(ResourceBaseTestCase):
                 self.context,
                 self.api,
                 self.pykube_api,
-                self.namespace,
+                self.namespace_name,
                 cluster,
             )
         ).cluster
@@ -157,7 +162,7 @@ class TestClusterClass(ResourceBaseTestCase):
             filtered_clusters = (
                 objects.OpenStackCluster.objects(
                     self.pykube_api,
-                    namespace=self.namespace.name,
+                    namespace=self.namespace_name,
                 )
                 .filter(selector={"cluster.x-k8s.io/cluster-name": capi_cluster.name})
                 .all()
@@ -194,11 +199,11 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
         super(TestClusterVariableManipulation, self).setUp()
 
         self.cluster_class_original = resources.create_cluster_class(
-            self.api, namespace=self.namespace.name
+            self.api, namespace=self.namespace_name
         )
 
         cc = objects.ClusterClass.objects(
-            self.pykube_api, namespace=self.namespace.name
+            self.pykube_api, namespace=self.namespace_name
         ).get(name=resources.CLUSTER_CLASS_NAME)
 
         self.assertNotIn("extraTestVariable", cc.variable_names)
@@ -219,12 +224,12 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
 
         self.cluster_class_extra_var = self.useFixture(
             mcapi_fixtures.ClusterClassFixture(
-                self.api, self.namespace, mutate_callback=mutate_cluster_class_extra_var
+                self.api, self.namespace_name, mutate_callback=mutate_cluster_class_extra_var
             )
         ).cluster_class
 
         cc = objects.ClusterClass.objects(
-            self.pykube_api, namespace=self.namespace.name
+            self.pykube_api, namespace=self.namespace_name
         ).get(
             name=self.cluster_class_extra_var.get_resource().get("metadata").get("name")
         )
@@ -264,7 +269,7 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
                 self.context,
                 self.api,
                 self.pykube_api,
-                self.namespace,
+                self.namespace_name,
                 self.cluster,
                 mutate_callback=mutate_callback,
             )
@@ -272,7 +277,7 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
 
         capi_cluster = fixture.cluster
         return objects.Cluster.objects(
-            self.pykube_api, namespace=self.namespace.name
+            self.pykube_api, namespace=self.namespace_name
         ).get(name=capi_cluster.get_resource().get("metadata").get("name"))
 
     def test_cluster_variable_addition(self):
