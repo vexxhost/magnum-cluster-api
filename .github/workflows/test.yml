@@ -33,7 +33,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --release
+          args: --release --sdist
 
   install:
     runs-on: ${{ matrix.runs-on }}
@@ -58,7 +58,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --release --out dist
+          args: --release --out dist --sdist
 
       - name: Setup Python
         uses: actions/setup-python@v5

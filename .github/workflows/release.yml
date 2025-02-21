@@ -32,9 +32,4 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         uses: PyO3/maturin-action@v1
         with:
-          command: build
-          args: --release --out dist
-
-      - name: Publish package distributions to PyPI
-        if: ${{ steps.release.outputs.release_created }}
-        uses: pypa/gh-action-pypi-publish@release/v1
+          command: publish
