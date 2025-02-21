@@ -34,6 +34,7 @@ jobs:
         with:
           command: publish
           args: --non-interactive --skip-existing
+          manylinux: '2_28'
           target: x86_64
 
       - name: Build package (aarch64)
@@ -42,4 +43,5 @@ jobs:
         with:
           command: publish
           args: --non-interactive --skip-existing
+          manylinux: '2_28'
           target: aarch64
