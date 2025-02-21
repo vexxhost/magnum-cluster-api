@@ -30,7 +30,7 @@ jobs:
 
       - name: Build package
         if: ${{ steps.release.outputs.release_created }}
-        uses: vexxhost/maturin-action@a2fa464020d494752f967a70f2f98e6469291cc0
+        uses: vexxhost/maturin-action@1fd4380c3940bda702f839c74df45c5b1392dbcc
         with:
           command: publish
           args: --non-interactive
