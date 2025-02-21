@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.4](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.3...v0.25.4) (2025-02-21)
+
+
+### Bug Fixes
+
+* Solve trusted publishing ([f7f665c](https://github.com/vexxhost/magnum-cluster-api/commit/f7f665c76cc35fa2fed8048c131ca47c5d9e146e))
+
 ## [0.25.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.2...v0.25.3) (2025-02-21)
 
 
