@@ -47,13 +47,18 @@ jobs:
       - name: Repair Wheel with Auditwheel
         if: ${{ steps.release.outputs.release_created }}
         run: |
+          apt-get install patchelf -y
           pip install auditwheel
           auditwheel repair dist/*.whl --plat manylinux_2_34_x86_64 -w dist/
 
-      # - name: Build package in Manylinux Container
+      # - name: Build package in maturin Container
       #   run: |
-      #     docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
-      #         /bin/bash -c "cd /io && pip install uv build && uv build"
+      #     docker run --rm \
+      #       -v "$(pwd):/io" \
+      #       -w /io \
+      #       ghcr.io/pyo3/maturin \
+      #       build --release \
+      #       -o /io/dist
 
       - name: Publish package distributions to PyPI
         if: ${{ steps.release.outputs.release_created }}
