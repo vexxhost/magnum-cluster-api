@@ -58,7 +58,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --release
+          args: --release --out dist
 
       - name: Setup Python
         uses: actions/setup-python@v5
