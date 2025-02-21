@@ -18,6 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        target: [x86_64, aarch64]
         include:
           - runs-on: ubuntu-latest
             python-version: "3.8"
@@ -35,6 +36,7 @@ jobs:
           command: build
           manylinux: auto
           args: --release --sdist
+          target: ${{ matrix.target }}
 
   install:
     runs-on: ${{ matrix.runs-on }}
