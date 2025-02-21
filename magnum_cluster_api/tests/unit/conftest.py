@@ -64,3 +64,8 @@ def requests_mock(session_mocker, kubeconfig):
     return responses.RequestsMock(
         target="pykube.http.KubernetesHTTPAdapter._do_send",
     )
+
+
+@pytest.fixture(scope="session")
+def mock_magnum_cluster(session_mocker):
+    return session_mocker.patch("magnum_cluster_api.magnum_cluster_api.MagnumCluster")
