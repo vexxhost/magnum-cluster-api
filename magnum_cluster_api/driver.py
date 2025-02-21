@@ -68,7 +68,9 @@ class BaseDriver(driver.Driver):
 
         utils.validate_cluster(context, cluster)
 
-        magnum_cluster = magnum_cluster_api.MagnumCluster(cluster, namespace="magnum-system")
+        magnum_cluster = magnum_cluster_api.MagnumCluster(
+            cluster, namespace="magnum-system"
+        )
         magnum_cluster.create()
 
         return self._create_cluster(context, cluster)

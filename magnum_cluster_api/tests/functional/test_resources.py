@@ -93,13 +93,15 @@ class ResourceBaseTestCase(base.BaseTestCase):
         su = shortuuid.ShortUUID(alphabet=alphabet)
 
         self.namespace_name = "test-%s" % (su.random(length=5))
-        self.namespace = self.api.create_or_update({
-            "apiVersion": "v1",
-            "kind": "Namespace",
-            "metadata": {
-                "name": self.namespace_name,
-            },
-        })
+        self.namespace = self.api.create_or_update(
+            {
+                "apiVersion": "v1",
+                "kind": "Namespace",
+                "metadata": {
+                    "name": self.namespace_name,
+                },
+            }
+        )
         self.addCleanup(self.api.delete, "v1", "Namespace", self.namespace_name)
 
 
@@ -224,7 +226,9 @@ class TestClusterVariableManipulation(ResourceBaseTestCase):
 
         self.cluster_class_extra_var = self.useFixture(
             mcapi_fixtures.ClusterClassFixture(
-                self.api, self.namespace_name, mutate_callback=mutate_cluster_class_extra_var
+                self.api,
+                self.namespace_name,
+                mutate_callback=mutate_cluster_class_extra_var,
             )
         ).cluster_class
 
