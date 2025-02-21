@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.0...v0.25.1) (2025-02-21)
+
+
+### Bug Fixes
+
+* Use PyO3/maturin-action ([#496](https://github.com/vexxhost/magnum-cluster-api/issues/496)) ([5d3b5c0](https://github.com/vexxhost/magnum-cluster-api/commit/5d3b5c035c90ed8cf98512f45021ae5a539c1a56))
+
 ## [0.25.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.24.2...v0.25.0) (2025-02-20)
 
 
