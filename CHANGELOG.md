@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.1...v0.25.2) (2025-02-21)
+
+
+### Bug Fixes
+
+* Run maturin publish ([#498](https://github.com/vexxhost/magnum-cluster-api/issues/498)) ([95f4c71](https://github.com/vexxhost/magnum-cluster-api/commit/95f4c71270a436cc1ab97df77f0293c8109f941f))
+
 ## [0.25.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.0...v0.25.1) (2025-02-21)
 
 
