@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build package
-        uses: PyO3/maturin-action@v1
+        uses: vexxhost/maturin-action@a2fa464020d494752f967a70f2f98e6469291cc0
         with:
           command: build
           args: --release --sdist
@@ -55,7 +55,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build package
-        uses: PyO3/maturin-action@v1
+        uses: vexxhost/maturin-action@a2fa464020d494752f967a70f2f98e6469291cc0
         with:
           command: build
           args: --release --out dist --sdist
