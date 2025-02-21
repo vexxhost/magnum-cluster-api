@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.6](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.5...v0.25.6) (2025-02-21)
+
+
+### Bug Fixes
+
+* add missing env ([c5e6737](https://github.com/vexxhost/magnum-cluster-api/commit/c5e6737b29b82351a592f3e80f060491bf51e330))
+
 ## [0.25.5](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.4...v0.25.5) (2025-02-21)
 
 
