@@ -13,10 +13,6 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: write
-      pull-requests: write
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -34,7 +30,7 @@ jobs:
 
       - name: Build package
         if: ${{ steps.release.outputs.release_created }}
-        uses: vexxhost/maturin-action@add-missing-env
+        uses: vexxhost/maturin-action@a2fa464020d494752f967a70f2f98e6469291cc0
         with:
           command: publish
           args: --non-interactive
