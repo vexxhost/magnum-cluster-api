@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.8](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.7...v0.25.8) (2025-02-21)
+
+
+### Bug Fixes
+
+* Solve build problems ([#506](https://github.com/vexxhost/magnum-cluster-api/issues/506)) ([00110bd](https://github.com/vexxhost/magnum-cluster-api/commit/00110bdf2bb87199ae645e898e11e28d134dddf5))
+
 ## [0.25.7](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.6...v0.25.7) (2025-02-21)
 
 
