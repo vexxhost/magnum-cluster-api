@@ -33,6 +33,7 @@ jobs:
         uses: vexxhost/maturin-action@a2fa464020d494752f967a70f2f98e6469291cc0
         with:
           command: build
+          manylinux: auto
           args: --release --sdist
 
   install:
@@ -58,6 +59,7 @@ jobs:
         uses: vexxhost/maturin-action@a2fa464020d494752f967a70f2f98e6469291cc0
         with:
           command: build
+          manylinux: auto
           args: --release --out dist --sdist
 
       - name: Setup Python
