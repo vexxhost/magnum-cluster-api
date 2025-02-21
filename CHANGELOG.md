@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.8...v0.26.0) (2025-02-21)
+
+
+### Features
+
+* Add aarch64 builds ([#508](https://github.com/vexxhost/magnum-cluster-api/issues/508)) ([11300c6](https://github.com/vexxhost/magnum-cluster-api/commit/11300c6f203b511693482c3bf6fe506136952d86))
+
 ## [0.25.8](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.7...v0.25.8) (2025-02-21)
 
 
