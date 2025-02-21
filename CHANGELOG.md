@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.5](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.4...v0.25.5) (2025-02-21)
+
+
+### Bug Fixes
+
+* Double-up permissions for release ([5b2aa1a](https://github.com/vexxhost/magnum-cluster-api/commit/5b2aa1a93e5dfccc227cdfb1fa4fbedeba2fdbd3))
+
 ## [0.25.4](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.3...v0.25.4) (2025-02-21)
 
 
