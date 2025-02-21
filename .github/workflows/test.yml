@@ -29,17 +29,11 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-
-      - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-
-      - name: Install "uv"
-        uses: astral-sh/setup-uv@v5
-
       - name: Build package
-        run: uv build
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --release
 
   install:
     runs-on: ${{ matrix.runs-on }}
@@ -60,19 +54,16 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v4
 
+      - name: Build package
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --release
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-
-      - name: Install "uv"
-        uses: astral-sh/setup-uv@v5
-
-      - name: Build package
-        run: uv build
 
       - name: Install package using constraints
         run: pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} ./dist/*.whl

@@ -28,21 +28,12 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        if: ${{ steps.release.outputs.release_created }}
-        uses: actions/setup-python@v5
-
-      - name: Setup Rust
-        if: ${{ steps.release.outputs.release_created }}
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-
-      - name: Install "uv"
-        if: ${{ steps.release.outputs.release_created }}
-        uses: astral-sh/setup-uv@v5
-
       - name: Build package
         if: ${{ steps.release.outputs.release_created }}
-        run: uv build
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --release
 
       - name: Publish package distributions to PyPI
         if: ${{ steps.release.outputs.release_created }}
