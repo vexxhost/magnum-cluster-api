@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.25.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.24.2...v0.25.0) (2025-02-20)
+
+
+### Features
+
+* set disableAPIServerFloatingIP as optional boolean ([#486](https://github.com/vexxhost/magnum-cluster-api/issues/486)) ([0b0295b](https://github.com/vexxhost/magnum-cluster-api/commit/0b0295b431899dfa848601444cf87986061fb0b4))
+* Switch to kube-rs + avoid SSA ([#492](https://github.com/vexxhost/magnum-cluster-api/issues/492)) ([41c969d](https://github.com/vexxhost/magnum-cluster-api/commit/41c969d44cfc44a46d3948014a81de35ce60f214))
+
 ## [0.24.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.24.1...v0.24.2) (2025-01-13)
 
 
