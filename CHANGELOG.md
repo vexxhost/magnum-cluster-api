@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.2...v0.25.3) (2025-02-21)
+
+
+### Bug Fixes
+
+* add --non-interactive ([ce365c9](https://github.com/vexxhost/magnum-cluster-api/commit/ce365c9c0bd8379f8e0e90bde60c54ee3b831d92))
+
 ## [0.25.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.1...v0.25.2) (2025-02-21)
 
 
