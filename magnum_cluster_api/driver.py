@@ -246,12 +246,16 @@ class BaseDriver(driver.Driver):
 
             # NOTE(mnaser): We delete the application credentials at this stage
             #               to make sure CAPI doesn't lose access to OpenStack.
+            # NOTE(maximmonin): Keystone policy may forbid extraction of project
+            #                   application credentials with admin rights.
             try:
                 osc.keystone().client.application_credentials.find(
                     name=cluster.uuid,
                     user=cluster.user_id,
                 ).delete()
             except keystoneauth1.exceptions.http.NotFound:
+                pass
+            except keystoneauth1.exceptions.http.Forbidden:
                 pass
 
             resources.CloudConfigSecret(context, self.k8s_api, cluster).delete()
