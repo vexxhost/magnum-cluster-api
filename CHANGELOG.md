@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.7](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.6...v0.25.7) (2025-02-21)
+
+
+### Bug Fixes
+
+* Use pinned GitHub action ([03c5db6](https://github.com/vexxhost/magnum-cluster-api/commit/03c5db6fee97909ff2061c8e5d89bf787c4b52a2))
+
 ## [0.25.6](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.5...v0.25.6) (2025-02-21)
 
 
