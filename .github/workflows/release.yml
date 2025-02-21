@@ -28,9 +28,20 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/checkout@v4
 
-      - name: Build package
+      - name: Build package (x86_64)
         if: ${{ steps.release.outputs.release_created }}
         uses: vexxhost/maturin-action@1fd4380c3940bda702f839c74df45c5b1392dbcc
         with:
           command: publish
-          args: --non-interactive
+          args: --non-interactive --skip-existing
+          manylinux: '2_28'
+          target: x86_64
+
+      - name: Build package (aarch64)
+        if: ${{ steps.release.outputs.release_created }}
+        uses: vexxhost/maturin-action@1fd4380c3940bda702f839c74df45c5b1392dbcc
+        with:
+          command: publish
+          args: --non-interactive --skip-existing
+          manylinux: '2_28'
+          target: aarch64
