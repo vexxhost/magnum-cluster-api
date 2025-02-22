@@ -1081,7 +1081,7 @@ wheels = [
 
 [[package]]
 name = "magnum-cluster-api"
-version = "0.24.2"
+version = "0.26.0"
 source = { editable = "." }
 dependencies = [
     { name = "certifi" },

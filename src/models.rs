@@ -90,6 +90,7 @@ impl From<&MagnumCluster> for ClusterResourceSet {
         ClusterResourceSet {
             metadata: ObjectMeta {
                 name: Some(cluster.uuid.to_owned()),
+                namespace: Some(cluster.namespace.to_owned()),
                 ..Default::default()
             },
             spec: ClusterResourceSetSpec {
@@ -107,5 +108,55 @@ impl From<&MagnumCluster> for ClusterResourceSet {
             },
             status: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cluster_api_rs::capi_clusterresourceset::{
+        ClusterResourceSet, ClusterResourceSetResourcesKind,
+    };
+    use k8s_openapi::api::core::v1::Namespace;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_namespace_conversion() {
+        let cluster = MagnumCluster {
+            uuid: "sample-uuid".to_owned(),
+            namespace: "sample-namespace".to_owned(),
+        };
+
+        let namespace = Namespace::from(&cluster);
+
+        assert_eq!(namespace.metadata.name, Some("sample-namespace".to_owned()),);
+    }
+
+    #[test]
+    fn test_cluster_resource_set_conversion() {
+        let cluster = MagnumCluster {
+            uuid: "sample-uuid".to_owned(),
+            namespace: "sample-namespace".to_owned(),
+        };
+
+        let crs = ClusterResourceSet::from(&cluster);
+
+        assert_eq!(crs.metadata.namespace, Some(cluster.namespace.clone()));
+        assert_eq!(crs.metadata.name, Some(cluster.uuid.clone()));
+
+        assert_eq!(
+            crs.spec.cluster_selector.match_labels,
+            Some(btreemap! {
+                "cluster-uuid".to_owned() => cluster.uuid.clone(),
+            }),
+        );
+
+        assert_eq!(
+            crs.spec.resources,
+            Some(vec![ClusterResourceSetResources {
+                kind: ClusterResourceSetResourcesKind::ConfigMap,
+                name: cluster.uuid.clone(),
+            }])
+        );
     }
 }
