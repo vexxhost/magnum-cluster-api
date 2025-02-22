@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod test;
 
+mod audit_log;
 mod openid_connect;
 
 use cluster_api_rs::capi_clusterclass::{ClusterClassPatches, ClusterClassVariables};

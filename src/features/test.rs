@@ -33,17 +33,19 @@ impl ToRenderedPatchOperation for ClusterClassPatchesDefinitionsJsonPatches {
     fn to_rendered_patch<T: Into<gtmpl::Value>>(self, values: T) -> PatchOperation {
         let value = match self.value_from {
             Some(value_from) => value_from.to_rendered_value(values),
-            None => self.value.expect("value should be present").to_string(),
+            None => self.value.expect("value should be present").into(),
         };
+
+        println!("value: {}", value);
 
         match self.op.as_str() {
             "add" => json_patch::PatchOperation::Add(AddOperation {
                 path: PointerBuf::parse(&self.path).unwrap(),
-                value: value.into(),
+                value: value,
             }),
             "replace" => json_patch::PatchOperation::Replace(ReplaceOperation {
                 path: PointerBuf::parse(&self.path).unwrap(),
-                value: value.into(),
+                value: value,
             }),
             "remove" => json_patch::PatchOperation::Remove(RemoveOperation {
                 path: PointerBuf::parse(&self.path).unwrap(),
@@ -54,12 +56,12 @@ impl ToRenderedPatchOperation for ClusterClassPatchesDefinitionsJsonPatches {
 }
 
 pub trait ToRenderedValue {
-    fn to_rendered_value<T: Into<Value>>(self, values: T) -> String;
+    fn to_rendered_value<T: Into<Value>>(self, values: T) -> serde_json::Value;
 }
 
 impl ToRenderedValue for ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-    fn to_rendered_value<T: Into<Value>>(self, values: T) -> String {
-        let template = match self.template {
+    fn to_rendered_value<T: Into<Value>>(self, values: T) -> serde_json::Value {
+        let template = match self.template.clone() {
             Some(template) => template,
             None => match self.variable {
                 Some(variable) => format!("{{{{ .{} }}}}", variable),
@@ -67,7 +69,15 @@ impl ToRenderedValue for ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
             },
         };
 
-        gtmpl::template(&template, values).expect("template rendering should succeed")
+        let rendered_value =
+            gtmpl::template(&template, values).expect("template rendering should succeed");
+
+        match self.template {
+            Some(_) => {
+                serde_yaml::from_str(&rendered_value).expect("rendered value should be valid YAML")
+            }
+            None => serde_json::Value::String(rendered_value),
+        }
     }
 }
 

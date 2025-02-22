@@ -8,37 +8,38 @@ use cluster_api_rs::capi_clusterclass::{
 use maplit::btreemap;
 use serde_json::json;
 
-pub struct OpenIdConnect {}
+pub struct AuditLog {}
 
-impl ClusterFeature for OpenIdConnect {
+impl ClusterFeature for AuditLog {
     fn variables(&self) -> Vec<ClusterClassVariables> {
-        let default_string_schema = ClusterClassVariablesSchemaOpenApiv3Schema {
+        // TODO: refactor these two to somewhere generic
+        let bool_schema = ClusterClassVariablesSchemaOpenApiv3Schema {
+            r#type: Some("boolean".into()),
+            ..Default::default()
+        };
+        let string_schema = ClusterClassVariablesSchemaOpenApiv3Schema {
             r#type: Some("string".into()),
             ..Default::default()
         };
 
         vec![ClusterClassVariables {
-            name: "openidConnect".into(),
+            name: "auditLog".into(),
             metadata: None,
             required: true,
             schema: ClusterClassVariablesSchema {
                 open_apiv3_schema: ClusterClassVariablesSchemaOpenApiv3Schema {
                     r#type: Some("object".into()),
                     required: Some(vec![
-                        "issuerUrl".into(),
-                        "clientId".into(),
-                        "usernameClaim".into(),
-                        "usernamePrefix".into(),
-                        "groupsClaim".into(),
-                        "groupsPrefix".into(),
+                        "enabled".into(),
+                        "maxAge".into(),
+                        "maxBackup".into(),
+                        "maxSize".into(),
                     ]),
                     properties: Some(json!(btreemap! {
-                        "issuerUrl".to_string() => default_string_schema.clone(),
-                        "clientId".to_string() => default_string_schema.clone(),
-                        "usernameClaim".to_string() => default_string_schema.clone(),
-                        "usernamePrefix".to_string() => default_string_schema.clone(),
-                        "groupsClaim".to_string() => default_string_schema.clone(),
-                        "groupsPrefix".to_string() => default_string_schema.clone(),
+                        "enabled".to_string() => bool_schema.clone(),
+                        "maxAge".to_string() => string_schema.clone(),
+                        "maxBackup".to_string() => string_schema.clone(),
+                        "maxSize".to_string() => string_schema.clone(),
                     })),
                     ..Default::default()
                 },
@@ -49,8 +50,8 @@ impl ClusterFeature for OpenIdConnect {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![
             ClusterClassPatches {
-                name: "openidConnect".into(),
-                enabled_if: Some("{{ if .openidConnect.issuerUrl }}true{{end}}".into()),
+                name: "auditLog".into(),
+                enabled_if: Some("{{ if .auditLog.enabled }}true{{end}}".into()),
                 definitions: Some(vec![
                     ClusterClassPatchesDefinitions {
                         selector: ClusterClassPatchesDefinitionsSelector {
@@ -65,60 +66,76 @@ impl ClusterFeature for OpenIdConnect {
                         json_patches: vec![
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
-                                path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-issuer-url".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-log-path".into(),
+                                value: Some("/var/log/audit/kube-apiserver-audit.log".into()),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-log-maxage".into(),
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                    variable: Some("openidConnect.issuerUrl".into()),
+                                    variable: Some("auditLog.maxAge".into()),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
-                                path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-client-id".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-log-maxbackup".into(),
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                    variable: Some("openidConnect.clientId".into()),
+                                    variable: Some("auditLog.maxBackup".into()),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
-                                path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-username-claim".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-log-maxsize".into(),
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                    variable: Some("openidConnect.usernameClaim".into()),
+                                    variable: Some("auditLog.maxSize".into()),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
-                                path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-username-prefix".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-policy-file".into(),
+                                value: Some("/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml".into()),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-".into(),
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                    variable: Some("openidConnect.usernamePrefix".into()),
+                                    template: Some(
+                                        serde_yaml::to_string(&btreemap! {
+                                            "name" => "audit-policy",
+                                            "hostPath" => "/etc/kubernetes/audit-policy",
+                                            "mountPath" => "/etc/kubernetes/audit-policy",
+                                        }).unwrap(),
+                                    ),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
-                                path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-claim".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-".into(),
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                    variable: Some("openidConnect.groupsClaim".into()),
-                                    ..Default::default()
-                                }),
-                                ..Default::default()
-                            },
-                            ClusterClassPatchesDefinitionsJsonPatches {
-                                op: "add".into(),
-                                path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-prefix".into(),
-                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                    variable: Some("openidConnect.groupsPrefix".into()),
+                                    template: Some(
+                                        serde_yaml::to_string(&btreemap! {
+                                            "name" => "audit-logs",
+                                            "hostPath" => "/var/log/kubernetes/audit",
+                                            "mountPath" => "/var/log/audit",
+                                        }).unwrap(),
+                                    ),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
                             },
                         ],
                     }
+
                 ]),
                 ..Default::default()
             }
@@ -135,19 +152,22 @@ mod tests {
             KubeadmControlPlaneTemplateTemplate, KubeadmControlPlaneTemplateTemplateSpec,
             KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec,
             KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration,
-            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
+            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer,
+            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
         },
-        features::test::{assert_subset_of_btreemap, ApplyPatch, ClusterClassPatchEnabled, ToPatch},
+        features::test::{
+            assert_subset_of_btreemap, ApplyPatch, ClusterClassPatchEnabled, ToPatch,
+        },
     };
     use maplit::hashmap;
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn test_disabled_if_issuer_is_empty() {
-        let feature = OpenIdConnect {};
+    fn test_disabled() {
+        let feature = AuditLog {};
         let values = hashmap! {
-            "openidConnect".to_string() => hashmap! {
-                "issuerUrl".to_string() => "",
+            "auditLog".to_string() => hashmap! {
+                "enabled".to_string() => false,
             }
         };
 
@@ -159,11 +179,11 @@ mod tests {
     }
 
     #[test]
-    fn test_enabled_if_issuer_is_set() {
-        let feature = OpenIdConnect {};
+    fn test_enabled() {
+        let feature = AuditLog {};
         let values = hashmap! {
-            "openidConnect".to_string() => hashmap! {
-                "issuerUrl".to_string() => "https://example.com",
+            "auditLog".to_string() => hashmap! {
+                "enabled".to_string() => true,
             }
         };
 
@@ -176,15 +196,13 @@ mod tests {
 
     #[test]
     fn test_apply_patches() {
-        let feature = OpenIdConnect {};
+        let feature = AuditLog {};
         let values = hashmap! {
-            "openidConnect".to_string() => hashmap! {
-                "issuerUrl".to_string() => "https://example.com",
-                "clientId".to_string() => "client-id",
-                "usernameClaim".to_string() => "email",
-                "usernamePrefix".to_string() => "email:",
-                "groupsClaim".to_string() => "groups",
-                "groupsPrefix".to_string() => "groups:",
+            "auditLog".to_string() => hashmap! {
+                "enabled".into() => "true".to_string(),
+                "maxAge".into() => "30".to_string(),
+                "maxBackup".into() => "10".to_string(),
+                "maxSize".into() => "100".to_string(),
             }
         };
 
@@ -244,26 +262,42 @@ mod tests {
                 kcpt.apply_patch(&p);
             });
 
+        let api_server = kcpt
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .cluster_configuration
+            .expect("cluster_configuration should be set")
+            .api_server
+            .expect("api_server should be set");
+
         assert_subset_of_btreemap(
             &btreemap! {
-                "oidc-issuer-url".to_string() => values["openidConnect"]["issuerUrl"].to_string(),
-                "oidc-client-id".to_string() => values["openidConnect"]["clientId"].to_string(),
-                "oidc-username-claim".to_string() => values["openidConnect"]["usernameClaim"].to_string(),
-                "oidc-username-prefix".to_string() => values["openidConnect"]["usernamePrefix"].to_string(),
-                "oidc-groups-claim".to_string() => values["openidConnect"]["groupsClaim"].to_string(),
-                "oidc-groups-prefix".to_string() => values["openidConnect"]["groupsPrefix"].to_string(),
+                "audit-log-path".to_string() => "/var/log/audit/kube-apiserver-audit.log".to_string(),
+                "audit-log-maxage".to_string() => values["auditLog"]["maxAge"].to_string(),
+                "audit-log-maxbackup".to_string() => values["auditLog"]["maxBackup"].to_string(),
+                "audit-log-maxsize".to_string() => values["auditLog"]["maxSize"].to_string(),
+                "audit-policy-file".to_string() => "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml".to_string(),
             },
-            &kcpt
-                .spec
-                .template
-                .spec
-                .kubeadm_config_spec
-                .cluster_configuration
-                .expect("cluster_configuration should be set")
-                .api_server
-                .expect("api_server should be set")
-                .extra_args
-                .expect("extra_args should be set"),
+            &api_server.extra_args.expect("extra_args should be set"),
         );
+
+        let extra_volumes = api_server
+            .extra_volumes
+            .expect("extra_volumes should be set");
+
+        assert!(extra_volumes.contains(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes {
+            name: "audit-policy".to_string(),
+            host_path: "/etc/kubernetes/audit-policy".to_string(),
+            mount_path: "/etc/kubernetes/audit-policy".to_string(),
+            ..Default::default()
+        }));
+        assert!(extra_volumes.contains(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes {
+            name: "audit-logs".to_string(),
+            host_path: "/var/log/kubernetes/audit".to_string(),
+            mount_path: "/var/log/audit".to_string(),
+            ..Default::default()
+        }));
     }
 }

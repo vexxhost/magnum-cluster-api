@@ -16,6 +16,7 @@ cluster-api-rs = "1.9.5"
 maplit = "1.0.2"
 schemars = "0.8.21"
 serde = "1.0.218"
+serde_yaml = "0.9.34"
 
 [dependencies.pyo3]
 version = "0.23.1"
