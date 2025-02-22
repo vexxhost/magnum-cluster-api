@@ -8,9 +8,9 @@ use cluster_api_rs::capi_clusterclass::{
 use maplit::btreemap;
 use serde_json::json;
 
-pub struct AuditLog {}
+pub struct Feature {}
 
-impl ClusterFeature for AuditLog {
+impl ClusterFeature for Feature {
     fn variables(&self) -> Vec<ClusterClassVariables> {
         // TODO: refactor these two to somewhere generic
         let bool_schema = ClusterClassVariablesSchemaOpenApiv3Schema {
@@ -164,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_disabled() {
-        let feature = AuditLog {};
+        let feature = Feature {};
         let values = hashmap! {
             "auditLog".to_string() => hashmap! {
                 "enabled".to_string() => false,
@@ -180,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_enabled() {
-        let feature = AuditLog {};
+        let feature = Feature {};
         let values = hashmap! {
             "auditLog".to_string() => hashmap! {
                 "enabled".to_string() => true,
@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_apply_patches() {
-        let feature = AuditLog {};
+        let feature = Feature {};
         let values = hashmap! {
             "auditLog".to_string() => hashmap! {
                 "enabled".into() => "true".to_string(),

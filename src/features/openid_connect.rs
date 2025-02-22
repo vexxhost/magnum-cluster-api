@@ -8,9 +8,9 @@ use cluster_api_rs::capi_clusterclass::{
 use maplit::btreemap;
 use serde_json::json;
 
-pub struct OpenIdConnect {}
+pub struct Feature {}
 
-impl ClusterFeature for OpenIdConnect {
+impl ClusterFeature for Feature {
     fn variables(&self) -> Vec<ClusterClassVariables> {
         let default_string_schema = ClusterClassVariablesSchemaOpenApiv3Schema {
             r#type: Some("string".into()),
@@ -144,7 +144,7 @@ mod tests {
 
     #[test]
     fn test_disabled_if_issuer_is_empty() {
-        let feature = OpenIdConnect {};
+        let feature = Feature {};
         let values = hashmap! {
             "openidConnect".to_string() => hashmap! {
                 "issuerUrl".to_string() => "",
@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn test_enabled_if_issuer_is_set() {
-        let feature = OpenIdConnect {};
+        let feature = Feature {};
         let values = hashmap! {
             "openidConnect".to_string() => hashmap! {
                 "issuerUrl".to_string() => "https://example.com",
@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_apply_patches() {
-        let feature = OpenIdConnect {};
+        let feature = Feature {};
         let values = hashmap! {
             "openidConnect".to_string() => hashmap! {
                 "issuerUrl".to_string() => "https://example.com",
