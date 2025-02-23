@@ -1,12 +1,13 @@
 #[cfg(test)]
 mod test;
 
+mod api_server_load_balancer;
 mod audit_log;
 mod keystone_auth;
 mod openid_connect;
 
 use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassVariables, ClusterClassVariablesSchemaOpenApiv3Schema,
+    ClusterClassPatches, ClusterClassVariables, ClusterClassVariablesSchema,
 };
 use schemars::{gen::SchemaGenerator, JsonSchema};
 
@@ -15,12 +16,12 @@ pub trait ClusterFeature {
     fn patches(&self) -> Vec<ClusterClassPatches>;
 }
 
-pub trait ClusterClassVariablesSchemaOpenApiv3SchemaExt {
+pub trait ClusterClassVariablesSchemaExt {
     fn from_object<T: JsonSchema>() -> Self;
     fn from_root_schema(root_schema: schemars::schema::RootSchema) -> Self;
 }
 
-impl ClusterClassVariablesSchemaOpenApiv3SchemaExt for ClusterClassVariablesSchemaOpenApiv3Schema {
+impl ClusterClassVariablesSchemaExt for ClusterClassVariablesSchema {
     fn from_object<T: JsonSchema>() -> Self {
         let gen = SchemaGenerator::default();
         let schema = gen.into_root_schema_for::<T>();
@@ -29,6 +30,9 @@ impl ClusterClassVariablesSchemaOpenApiv3SchemaExt for ClusterClassVariablesSche
 
     fn from_root_schema(root_schema: schemars::schema::RootSchema) -> Self {
         let json_schema = serde_json::to_string(&root_schema).unwrap();
-        serde_json::from_str(&json_schema).unwrap()
+
+        ClusterClassVariablesSchema {
+            open_apiv3_schema: serde_json::from_str(&json_schema).unwrap(),
+        }
     }
 }

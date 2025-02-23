@@ -1,10 +1,17 @@
-use crate::cluster_api::kubeadmcontrolplanetemplates::{
-    KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateSpec,
-    KubeadmControlPlaneTemplateTemplate, KubeadmControlPlaneTemplateTemplateSpec,
-    KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec,
-    KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration,
-    KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer,
-    KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
+use crate::cluster_api::{
+    kubeadmcontrolplanetemplates::{
+        KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateSpec,
+        KubeadmControlPlaneTemplateTemplate, KubeadmControlPlaneTemplateTemplateSpec,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
+    },
+    openstackclustertemplates::{
+        OpenStackClusterTemplate, OpenStackClusterTemplateSpec, OpenStackClusterTemplateTemplate,
+        OpenStackClusterTemplateTemplateSpec, OpenStackClusterTemplateTemplateSpecIdentityRef,
+        OpenStackClusterTemplateTemplateSpecManagedSecurityGroups,
+    },
 };
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitionsJsonPatches,
@@ -29,7 +36,7 @@ use std::{collections::BTreeMap, sync::LazyLock};
 /// value must be convertible into a [`gtmpl::Value`] and be clonable so that
 /// it can be reused during the conversion process.
 pub trait ToPatch {
-    fn to_patch<T: ToGtmplValue>(self, values: T) -> Patch;
+    fn to_patch<T: Serialize + ToGtmplValue>(self, values: &T) -> Patch;
 }
 
 /// Implements the [`ToPatch`] trait for a vector of patch definitions.
@@ -39,10 +46,10 @@ pub trait ToPatch {
 /// each one individually via [`ClusterClassPatchesDefinitionsJsonPatches::to_rendered_patch`],
 /// and then collects the results into a single [`Patch`].
 impl ToPatch for Vec<ClusterClassPatchesDefinitionsJsonPatches> {
-    fn to_patch<T: ToGtmplValue>(self, values: T) -> Patch {
+    fn to_patch<T: Serialize + ToGtmplValue>(self, values: &T) -> Patch {
         Patch(
             self.into_iter()
-                .map(|patch| patch.to_rendered_patch(values.to_gtmpl_value()))
+                .map(|patch| patch.to_rendered_patch(values))
                 .collect(),
         )
     }
@@ -56,7 +63,7 @@ impl ToPatch for Vec<ClusterClassPatchesDefinitionsJsonPatches> {
 /// value—convertible into a  [`gtmpl::Value`]—to resolve any templated content
 /// in the patch.
 pub trait ToRenderedPatchOperation {
-    fn to_rendered_patch<T: Into<gtmpl::Value>>(self, values: T) -> PatchOperation;
+    fn to_rendered_patch<T: Serialize + ToGtmplValue>(self, values: &T) -> PatchOperation;
 }
 
 /// Implements [`ToRenderedPatchOperation`] for [`ClusterClassPatchesDefinitionsJsonPatches`].
@@ -78,7 +85,7 @@ pub trait ToRenderedPatchOperation {
 ///
 /// This method will panic if an unsupported patch operation is encountered.
 impl ToRenderedPatchOperation for ClusterClassPatchesDefinitionsJsonPatches {
-    fn to_rendered_patch<T: Into<gtmpl::Value>>(self, values: T) -> PatchOperation {
+    fn to_rendered_patch<T: Serialize + ToGtmplValue>(self, values: &T) -> PatchOperation {
         let value = match self.value_from {
             Some(value_from) => value_from.to_rendered_value(values),
             None => self.value.expect("value should be present").into(),
@@ -109,7 +116,7 @@ impl ToRenderedPatchOperation for ClusterClassPatchesDefinitionsJsonPatches {
 /// parameters.  This is useful for dynamically generating configuration values
 /// or patch contents.
 pub trait ToRenderedValue {
-    fn to_rendered_value<T: Into<Value>>(self, values: T) -> serde_json::Value;
+    fn to_rendered_value<T: Serialize + ToGtmplValue>(self, values: &T) -> serde_json::Value;
 }
 
 /// Implements [`ToRenderedValue`] for [`ClusterClassPatchesDefinitionsJsonPatchesValueFrom`].
@@ -133,7 +140,25 @@ pub trait ToRenderedValue {
 ///      as YAML to obtain a [`serde_json::Value`].
 ///    - If no template was provided, the rendered output is wrapped in a JSON string.
 impl ToRenderedValue for ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-    fn to_rendered_value<T: Into<Value>>(self, values: T) -> serde_json::Value {
+    fn to_rendered_value<T: Serialize + ToGtmplValue>(self, values: &T) -> serde_json::Value {
+        if self.variable.is_some() {
+            let variable = self.variable.as_ref().unwrap();
+
+            if !variable.contains('.') {
+                let json =
+                    serde_json::to_value(values).expect("serialization to json should succeed");
+
+                if let serde_json::Value::Object(map) = json {
+                    if let Some(value) = map.get(variable) {
+                        return value.clone();
+                    }
+                }
+
+                unimplemented!("variable should be present in values");
+            }
+        }
+
+        let values = values.to_gtmpl_value();
         let template = match self.template.clone() {
             Some(template) => template,
             None => match self.variable {
@@ -303,3 +328,31 @@ pub static KCPT_WIP: LazyLock<KubeadmControlPlaneTemplate> = LazyLock::new(|| {
     }
 }
 });
+
+/// This is a static instance of the `OpenStackClusterTemplate` that is
+/// used as a default for testing, since we have not yet migrated the
+/// resource into the Rust API.
+pub static OCT_WIP: LazyLock<OpenStackClusterTemplate> =
+    LazyLock::new(|| OpenStackClusterTemplate {
+        metadata: Default::default(),
+        spec: OpenStackClusterTemplateSpec {
+            template: OpenStackClusterTemplateTemplate {
+                spec: OpenStackClusterTemplateTemplateSpec {
+                    identity_ref: OpenStackClusterTemplateTemplateSpecIdentityRef {
+                        name: "PLACEHOLDER".into(),
+                        cloud_name: "default".into(),
+                        ..Default::default()
+                    },
+                    managed_security_groups: Some(
+                        OpenStackClusterTemplateTemplateSpecManagedSecurityGroups {
+                            allow_all_in_cluster_traffic: true,
+                            ..Default::default()
+                        },
+                    ),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    });

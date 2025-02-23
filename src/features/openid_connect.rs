@@ -1,13 +1,10 @@
 use super::ClusterFeature;
-use crate::{
-    cluster_api::kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate,
-    features::ClusterClassVariablesSchemaOpenApiv3SchemaExt,
-};
+use crate::{cluster_api::kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate, features::ClusterClassVariablesSchemaExt};
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
     ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
     ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
-    ClusterClassVariablesSchema, ClusterClassVariablesSchemaOpenApiv3Schema,
+    ClusterClassVariablesSchema,
 };
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
@@ -42,10 +39,7 @@ impl ClusterFeature for Feature {
             name: "openidConnect".into(),
             metadata: None,
             required: true,
-            schema: ClusterClassVariablesSchema {
-                open_apiv3_schema: ClusterClassVariablesSchemaOpenApiv3Schema::from_object::<Config>(
-                ),
-            },
+            schema: ClusterClassVariablesSchema::from_object::<Config>(),
         }]
     }
 
@@ -215,7 +209,7 @@ mod tests {
             .expect("definitions should be set")
             .into_iter()
             .for_each(|definition| {
-                let p = definition.json_patches.clone().to_patch(values.clone());
+                let p = definition.json_patches.clone().to_patch(&values);
                 kcpt.apply_patch(&p);
             });
 

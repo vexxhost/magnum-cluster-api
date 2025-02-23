@@ -1,14 +1,11 @@
 use super::ClusterFeature;
-use crate::{
-    cluster_api::kubeadmcontrolplanetemplates::{
-        KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles,
-    },
-    features::ClusterClassVariablesSchemaOpenApiv3SchemaExt,
-};
+use crate::{cluster_api::kubeadmcontrolplanetemplates::{
+    KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles,
+}, features::ClusterClassVariablesSchemaExt};
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
     ClusterClassPatchesDefinitionsSelector, ClusterClassPatchesDefinitionsSelectorMatchResources,
-    ClusterClassVariables, ClusterClassVariablesSchema, ClusterClassVariablesSchemaOpenApiv3Schema,
+    ClusterClassVariables, ClusterClassVariablesSchema,
 };
 use json_patch::{AddOperation, PatchOperation};
 use jsonptr::PointerBuf;
@@ -50,10 +47,7 @@ impl ClusterFeature for Feature {
             name: "enableKeystoneAuth".into(),
             metadata: None,
             required: true,
-            schema: ClusterClassVariablesSchema {
-                open_apiv3_schema: ClusterClassVariablesSchemaOpenApiv3Schema::from_object::<Config>(
-                ),
-            },
+            schema: ClusterClassVariablesSchema::from_object::<Config>(),
         }]
     }
 
@@ -196,7 +190,7 @@ mod tests {
             .unwrap()
             .iter()
             .for_each(|definition| {
-                let p = definition.json_patches.clone().to_patch(values.clone());
+                let p = definition.json_patches.clone().to_patch(&values);
                 kcpt.apply_patch(&p);
             });
 
