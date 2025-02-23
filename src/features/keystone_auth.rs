@@ -240,7 +240,7 @@ mod tests {
         let mut pod: Pod = serde_yaml::from_reader(fd).expect("pod should be set");
         let kustomize: Kustomize =
             serde_yaml::from_str(file.content.as_ref().unwrap()).expect("kustomize should be set");
-        let patch: Patch =
+        let patch =
             serde_yaml::from_str(&kustomize.patches[0].patch).expect("patch should be set");
         pod.apply_patch(&patch);
 
