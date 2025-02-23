@@ -1,13 +1,7 @@
 use super::ClusterFeature;
 use crate::{
-    cluster_api::{
-        kubeadmcontrolplanetemplates::{
-            KubeadmControlPlaneTemplate,
-            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles,
-        },
-        openstackmachinetemplates::{
-            OpenStackMachineTemplate, OpenStackMachineTemplateTemplateSpecServerGroup,
-        },
+    cluster_api::openstackmachinetemplates::{
+        OpenStackMachineTemplate, OpenStackMachineTemplateTemplateSpecServerGroup,
     },
     features::ClusterClassVariablesSchemaExt,
 };
@@ -19,12 +13,9 @@ use cluster_api_rs::capi_clusterclass::{
     ClusterClassVariables, ClusterClassVariablesSchema,
 };
 use indoc::indoc;
-use json_patch::{AddOperation, PatchOperation};
-use jsonptr::PointerBuf;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
