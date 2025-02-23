@@ -34,7 +34,8 @@ impl ClusterFeature for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
             name: "apiServerLoadBalancer".into(),
-            definitions: Some(vec![ClusterClassPatchesDefinitions {
+            definitions: Some(vec![
+                ClusterClassPatchesDefinitions {
                 selector: ClusterClassPatchesDefinitionsSelector {
                     api_version: OpenStackClusterTemplate::api_resource().api_version,
                     kind: OpenStackClusterTemplate::api_resource().kind,

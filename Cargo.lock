@@ -967,6 +967,7 @@ dependencies = [
  "backoff",
  "cluster-api-rs",
  "gtmpl",
+ "indoc",
  "json-patch",
  "jsonptr",
  "k8s-openapi",

@@ -11,7 +11,7 @@ use crate::cluster_api::{
         OpenStackClusterTemplate, OpenStackClusterTemplateSpec, OpenStackClusterTemplateTemplate,
         OpenStackClusterTemplateTemplateSpec, OpenStackClusterTemplateTemplateSpecIdentityRef,
         OpenStackClusterTemplateTemplateSpecManagedSecurityGroups,
-    },
+    }, openstackmachinetemplates::{OpenStackMachineTemplate, OpenStackMachineTemplateSpec, OpenStackMachineTemplateTemplate, OpenStackMachineTemplateTemplateSpec, OpenStackMachineTemplateTemplateSpecIdentityRef, OpenStackMachineTemplateTemplateSpecImage},
 };
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitionsJsonPatches,
@@ -353,11 +353,36 @@ pub static OCT_WIP: LazyLock<OpenStackClusterTemplate> =
         },
     });
 
+pub static OMT_WIP: LazyLock<OpenStackMachineTemplate> =
+    LazyLock::new(|| OpenStackMachineTemplate {
+        metadata: Default::default(),
+        spec: OpenStackMachineTemplateSpec {
+            template: OpenStackMachineTemplateTemplate {
+                spec: OpenStackMachineTemplateTemplateSpec {
+                    image: OpenStackMachineTemplateTemplateSpecImage {
+                        id: Some("00000000-0000-0000-0000-000000000000".to_string()),
+                        ..Default::default()
+                    },
+                    identity_ref: Some(OpenStackMachineTemplateTemplateSpecIdentityRef {
+                        name: "PLACEHOLDER".to_string(),
+                        cloud_name: "default".to_string(),
+                        ..Default::default()
+                    }),
+                    flavor: Some("PLACEHOLDER".to_string()),
+                    ..Default::default()
+                }
+            }
+        }
+    });
+
+
 /// This is a static instance of the `TestClusterResources` that is used for
 /// testing purposes.
 pub struct TestClusterResources {
     pub kubeadm_control_plane_template: KubeadmControlPlaneTemplate,
     pub openstack_cluster_template: OpenStackClusterTemplate,
+    pub control_plane_openstack_machine_template: OpenStackMachineTemplate,
+    pub worker_openstack_machine_template: OpenStackMachineTemplate,
 }
 
 impl TestClusterResources {
@@ -365,6 +390,8 @@ impl TestClusterResources {
         Self {
             kubeadm_control_plane_template: KCPT_WIP.clone(),
             openstack_cluster_template: OCT_WIP.clone(),
+            control_plane_openstack_machine_template: OMT_WIP.clone(),
+            worker_openstack_machine_template: OMT_WIP.clone(),
         }
     }
 
@@ -394,6 +421,24 @@ impl TestClusterResources {
                         }
                         ("infrastructure.cluster.x-k8s.io/v1beta1", "OpenStackClusterTemplate") => {
                             self.openstack_cluster_template.apply_patch(&patch);
+                        }
+                        (
+                            "infrastructure.cluster.x-k8s.io/v1beta1",
+                            "OpenStackMachineTemplate",
+                        ) => {
+                            let match_resources = &definition.selector.match_resources;
+
+                            if match_resources.control_plane.unwrap_or(false) {
+                                self.control_plane_openstack_machine_template.apply_patch(&patch);
+                            }
+
+                            if match_resources.machine_deployment_class.is_some() {
+                                self.worker_openstack_machine_template.apply_patch(&patch);
+                            }
+
+                            if !match_resources.control_plane.unwrap_or(false) && match_resources.machine_deployment_class.is_none() {
+                                unimplemented!("Unsupported match resources: {:?}", match_resources);
+                            }
                         }
                         _ => unimplemented!(
                             "Unsupported resource type: {}/{}",

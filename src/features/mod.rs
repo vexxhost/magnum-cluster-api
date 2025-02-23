@@ -2,9 +2,10 @@
 mod test;
 
 mod audit_log;
-mod cluster_config;
+mod api_server_load_balancer;
 mod keystone_auth;
 mod openid_connect;
+mod server_groups;
 
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassVariables, ClusterClassVariablesSchema,

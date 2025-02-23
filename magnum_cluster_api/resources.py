@@ -1013,17 +1013,45 @@ class ClusterClass(Base):
                 },
                 "variables": [
                     {
-                        "name": "apiServerLoadBalancer",
+                        "name": "apiServerTLSCipherSuites",
+                        "required": True,
+                        "schema": {
+                            "openAPIV3Schema": {
+                                "type": "string",
+                            },
+                        },
+                    },
+                    {
+                        "name": "openidConnect",
                         "required": True,
                         "schema": {
                             "openAPIV3Schema": {
                                 "type": "object",
-                                "required": ["enabled"],
+                                "required": [
+                                    "issuerUrl",
+                                    "clientId",
+                                    "usernameClaim",
+                                    "usernamePrefix",
+                                    "groupsClaim",
+                                    "groupsPrefix",
+                                ],
                                 "properties": {
-                                    "enabled": {
-                                        "type": "boolean",
+                                    "issuerUrl": {
+                                        "type": "string",
                                     },
-                                    "provider": {
+                                    "clientId": {
+                                        "type": "string",
+                                    },
+                                    "usernameClaim": {
+                                        "type": "string",
+                                    },
+                                    "usernamePrefix": {
+                                        "type": "string",
+                                    },
+                                    "groupsClaim": {
+                                        "type": "string",
+                                    },
+                                    "groupsPrefix": {
                                         "type": "string",
                                     },
                                 },
@@ -1031,11 +1059,31 @@ class ClusterClass(Base):
                         },
                     },
                     {
-                        "name": "apiServerTLSCipherSuites",
+                        "name": "auditLog",
                         "required": True,
                         "schema": {
                             "openAPIV3Schema": {
-                                "type": "string",
+                                "type": "object",
+                                "required": [
+                                    "enabled",
+                                    "maxAge",
+                                    "maxBackup",
+                                    "maxSize",
+                                ],
+                                "properties": {
+                                    "enabled": {
+                                        "type": "boolean",
+                                    },
+                                    "maxAge": {
+                                        "type": "string",
+                                    },
+                                    "maxBackup": {
+                                        "type": "string",
+                                    },
+                                    "maxSize": {
+                                        "type": "string",
+                                    },
+                                },
                             },
                         },
                     },
@@ -1305,6 +1353,15 @@ class ClusterClass(Base):
                         },
                     },
                     {
+                        "name": "enableKeystoneAuth",
+                        "required": True,
+                        "schema": {
+                            "openAPIV3Schema": {
+                                "type": "boolean",
+                            },
+                        },
+                    },
+                    {
                         "name": "controlPlaneAvailabilityZones",
                         "required": True,
                         "schema": {
@@ -1316,26 +1373,141 @@ class ClusterClass(Base):
                             },
                         },
                     },
-                    {
-                        "name": "serverGroupId",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
-                        "name": "isServerGroupDiffFailureDomain",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "boolean",
-                            },
-                        },
-                    },
                 ],
                 "patches": [
+                    {
+                        "name": "auditLog",
+                        "enabledIf": "{{ if .auditLog.enabled }}true{{end}}",
+                        "definitions": [
+                            {
+                                "selector": {
+                                    "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                    "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                    "matchResources": {
+                                        "controlPlane": True,
+                                    },
+                                },
+                                "jsonPatches": [
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-log-path",  # noqa: E501
+                                        "value": "/var/log/audit/kube-apiserver-audit.log",
+                                    },
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-log-maxage",  # noqa: E501
+                                        "valueFrom": {
+                                            "variable": "auditLog.maxAge",
+                                        },
+                                    },
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-log-maxbackup",  # noqa: E501
+                                        "valueFrom": {
+                                            "variable": "auditLog.maxBackup",
+                                        },
+                                    },
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-log-maxsize",  # noqa: E501
+                                        "valueFrom": {
+                                            "variable": "auditLog.maxSize",
+                                        },
+                                    },
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/audit-policy-file",  # noqa: E501
+                                        "value": "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml",
+                                    },
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-",  # noqa: E501
+                                        "valueFrom": {
+                                            "template": textwrap.dedent(
+                                                """\
+                                                    name: audit-policy
+                                                    hostPath: /etc/kubernetes/audit-policy
+                                                    mountPath: /etc/kubernetes/audit-policy
+                                                    """
+                                            ),
+                                        },
+                                    },
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-",  # noqa: E501
+                                        "valueFrom": {
+                                            "template": textwrap.dedent(
+                                                """\
+                                                    name: audit-logs
+                                                    hostPath: /var/log/kubernetes/audit
+                                                    mountPath: /var/log/audit
+                                                    """
+                                            ),
+                                        },
+                                    },
+                                ],
+                            }
+                        ],
+                    },
+                    {
+                        "name": "openidConnect",
+                        "enabledIf": "{{ if .openidConnect.issuerUrl }}true{{end}}",
+                        "definitions": [
+                            {
+                                "selector": {
+                                    "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                    "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                    "matchResources": {
+                                        "controlPlane": True,
+                                    },
+                                },
+                                "jsonPatches": [
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-issuer-url",  # noqa: E501
+                                        "valueFrom": {
+                                            "variable": "openidConnect.issuerUrl",
+                                        },
+                                    },
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-client-id",  # noqa: E501
+                                        "valueFrom": {
+                                            "variable": "openidConnect.clientId",
+                                        },
+                                    },
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-username-claim",  # noqa: E501
+                                        "valueFrom": {
+                                            "variable": "openidConnect.usernameClaim",
+                                        },
+                                    },
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-username-prefix",  # noqa: E501
+                                        "valueFrom": {
+                                            "variable": "openidConnect.usernamePrefix",
+                                        },
+                                    },
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-claim",  # noqa: E501
+                                        "valueFrom": {
+                                            "variable": "openidConnect.groupsClaim",
+                                        },
+                                    },
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/oidc-groups-prefix",  # noqa: E501
+                                        "valueFrom": {
+                                            "variable": "openidConnect.groupsPrefix",
+                                        },
+                                    },
+                                ],
+                            }
+                        ],
+                    },
                     {
                         "name": "bootVolume",
                         "enabledIf": "{{ if gt .bootVolume.size 0.0 }}true{{end}}",
@@ -1589,31 +1761,6 @@ class ClusterClass(Base):
                                             "variable": "controlPlaneFlavor",
                                         },
                                     },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/serverGroup",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    id: {{ .serverGroupId }}
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/schedulerHintAdditionalProperties",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    - name: different_failure_domain
-                                                      value:
-                                                        type: Bool
-                                                        bool: {{ .isServerGroupDiffFailureDomain }}
-                                                    """
-                                            ),
-                                        },
-                                    },
                                 ],
                             },
                             {
@@ -1632,17 +1779,6 @@ class ClusterClass(Base):
                                         "path": "/spec/template/spec/flavor",
                                         "valueFrom": {
                                             "variable": "flavor",
-                                        },
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/serverGroup",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    id: {{ .serverGroupId }}
-                                                    """
-                                            ),
                                         },
                                     },
                                     {
@@ -1701,13 +1837,6 @@ class ClusterClass(Base):
                                     },
                                 },
                                 "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/apiServerLoadBalancer",
-                                        "valueFrom": {
-                                            "variable": "apiServerLoadBalancer"
-                                        },
-                                    },
                                     {
                                         "op": "add",
                                         "path": "/spec/template/spec/identityRef/name",
@@ -1962,6 +2091,69 @@ class ClusterClass(Base):
                                 )
                             ],
                         ).definitions,
+                    },
+                    {
+                        "name": "keystoneAuth",
+                        "enabledIf": "{{ if .enableKeystoneAuth }}true{{end}}",
+                        "definitions": [
+                            {
+                                "selector": {
+                                    "apiVersion": objects.KubeadmControlPlaneTemplate.version,
+                                    "kind": objects.KubeadmControlPlaneTemplate.kind,
+                                    "matchResources": {
+                                        "controlPlane": True,
+                                    },
+                                },
+                                "jsonPatches": [
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
+                                        "value": {
+                                            "path": "/etc/kubernetes/keystone-kustomization/kustomization.yml",
+                                            "permissions": "0644",
+                                            "owner": "root:root",
+                                            "content": textwrap.dedent(
+                                                """\
+                                                    resources:
+                                                      - kube-apiserver.yaml
+                                                    patches:
+                                                      - target:
+                                                          group: ""
+                                                          version: v1
+                                                          kind: Pod
+                                                          name: kube-apiserver
+                                                        patch: |-
+                                                          - op: add
+                                                            path: /spec/containers/0/command/-
+                                                            value: --authentication-token-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
+                                                          - op: add
+                                                            path: /spec/containers/0/command/-
+                                                            value: --authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
+                                                          - op: add
+                                                            path: /spec/containers/0/command/-
+                                                            value: --authorization-mode=Webhook
+                                                    """
+                                            ),
+                                        },
+                                    },
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-",
+                                        "value": "mkdir -p /etc/kubernetes/keystone-kustomization",
+                                    },
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-",
+                                        "value": "cp /etc/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml",  # noqa: E501
+                                    },
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-",
+                                        "value": "kubectl kustomize /etc/kubernetes/keystone-kustomization -o /etc/kubernetes/manifests/kube-apiserver.yaml",  # noqa: E501
+                                    },
+                                ],
+                            }
+                        ],
                     },
                     {
                         "name": "controlPlaneConfig",

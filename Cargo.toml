@@ -20,6 +20,7 @@ serde_yaml = "0.9.34"
 json-patch = "3.0.1"
 jsonptr = "^0.6.0"
 serde_gtmpl = { path = "crates/serde_gtmpl" }
+indoc = "2.0.5"
 
 [dependencies.pyo3]
 version = "0.23.1"
