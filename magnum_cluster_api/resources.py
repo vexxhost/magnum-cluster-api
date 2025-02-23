@@ -1013,6 +1013,24 @@ class ClusterClass(Base):
                 },
                 "variables": [
                     {
+                        "name": "apiServerLoadBalancer",
+                        "required": True,
+                        "schema": {
+                            "openAPIV3Schema": {
+                                "type": "object",
+                                "required": ["enabled"],
+                                "properties": {
+                                    "enabled": {
+                                        "type": "boolean",
+                                    },
+                                    "provider": {
+                                        "type": "string",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    {
                         "name": "apiServerTLSCipherSuites",
                         "required": True,
                         "schema": {
@@ -1683,6 +1701,13 @@ class ClusterClass(Base):
                                     },
                                 },
                                 "jsonPatches": [
+                                    {
+                                        "op": "add",
+                                        "path": "/spec/template/spec/apiServerLoadBalancer",
+                                        "valueFrom": {
+                                            "variable": "apiServerLoadBalancer"
+                                        },
+                                    },
                                     {
                                         "op": "add",
                                         "path": "/spec/template/spec/identityRef/name",
