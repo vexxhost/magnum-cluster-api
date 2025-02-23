@@ -1,50 +1,46 @@
-use crate::cluster_api::kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes;
-
 use super::ClusterFeature;
+use crate::{
+    cluster_api::kubeadmcontrolplanetemplates::{
+        KubeadmControlPlaneTemplate,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
+    },
+    features::ClusterClassVariablesSchemaOpenApiv3SchemaExt,
+};
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
     ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
     ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
     ClusterClassVariablesSchema, ClusterClassVariablesSchemaOpenApiv3Schema,
 };
-use maplit::btreemap;
-use serde_json::json;
+use kube::CustomResourceExt;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+pub struct Config {
+    pub enabled: bool,
+
+    #[serde(rename = "maxAge")]
+    pub max_age: String,
+
+    #[serde(rename = "maxBackup")]
+    pub max_backup: String,
+
+    #[serde(rename = "maxSize")]
+    pub max_size: String,
+}
 
 pub struct Feature {}
 
 impl ClusterFeature for Feature {
     fn variables(&self) -> Vec<ClusterClassVariables> {
-        // TODO: refactor these two to somewhere generic
-        let bool_schema = ClusterClassVariablesSchemaOpenApiv3Schema {
-            r#type: Some("boolean".into()),
-            ..Default::default()
-        };
-        let string_schema = ClusterClassVariablesSchemaOpenApiv3Schema {
-            r#type: Some("string".into()),
-            ..Default::default()
-        };
-
         vec![ClusterClassVariables {
             name: "auditLog".into(),
             metadata: None,
             required: true,
             schema: ClusterClassVariablesSchema {
-                open_apiv3_schema: ClusterClassVariablesSchemaOpenApiv3Schema {
-                    r#type: Some("object".into()),
-                    required: Some(vec![
-                        "enabled".into(),
-                        "maxAge".into(),
-                        "maxBackup".into(),
-                        "maxSize".into(),
-                    ]),
-                    properties: Some(json!(btreemap! {
-                        "enabled".to_string() => bool_schema.clone(),
-                        "maxAge".to_string() => string_schema.clone(),
-                        "maxBackup".to_string() => string_schema.clone(),
-                        "maxSize".to_string() => string_schema.clone(),
-                    })),
-                    ..Default::default()
-                },
+                open_apiv3_schema: ClusterClassVariablesSchemaOpenApiv3Schema::from_object::<Config>(
+                ),
             },
         }]
     }
@@ -57,9 +53,8 @@ impl ClusterFeature for Feature {
                 definitions: Some(vec![
                     ClusterClassPatchesDefinitions {
                         selector: ClusterClassPatchesDefinitionsSelector {
-                            // TODO: detect this from the kubeadmcontrolplanetemplates module
-                            api_version: "controlplane.cluster.x-k8s.io/v1beta1".into(),
-                            kind: "KubeadmControlPlaneTemplate".into(),
+                            api_version: KubeadmControlPlaneTemplate::api_resource().api_version,
+                            kind: KubeadmControlPlaneTemplate::api_resource().kind,
                             match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
                                 control_plane: Some(true),
                                 ..Default::default()
@@ -151,28 +146,30 @@ impl ClusterFeature for Feature {
 mod tests {
     use super::*;
     use crate::{
-        cluster_api::kubeadmcontrolplanetemplates::{
-            KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateSpec,
-            KubeadmControlPlaneTemplateTemplate, KubeadmControlPlaneTemplateTemplateSpec,
-            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec,
-            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration,
-            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer,
-            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
-        },
+        cluster_api::kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
         features::test::{
-            assert_subset_of_btreemap, ApplyPatch, ClusterClassPatchEnabled, ToPatch,
+            assert_subset_of_btreemap, ApplyPatch, ClusterClassPatchEnabled, ToPatch, KCPT_WIP,
         },
     };
-    use maplit::hashmap;
+    use maplit::btreemap;
     use pretty_assertions::assert_eq;
+
+    #[derive(Clone, Serialize, Deserialize)]
+    pub struct Values {
+        #[serde(rename = "auditLog")]
+        audit_log: Config,
+    }
 
     #[test]
     fn test_disabled() {
         let feature = Feature {};
-        let values = hashmap! {
-            "auditLog".to_string() => hashmap! {
-                "enabled".to_string() => false,
-            }
+        let values = Values {
+            audit_log: Config {
+                enabled: false,
+                max_age: "30".to_string(),
+                max_backup: "10".to_string(),
+                max_size: "100".to_string(),
+            },
         };
 
         let patches = feature.patches();
@@ -185,10 +182,13 @@ mod tests {
     #[test]
     fn test_enabled() {
         let feature = Feature {};
-        let values = hashmap! {
-            "auditLog".to_string() => hashmap! {
-                "enabled".to_string() => true,
-            }
+        let values = Values {
+            audit_log: Config {
+                enabled: true,
+                max_age: "30".to_string(),
+                max_backup: "10".to_string(),
+                max_size: "100".to_string(),
+            },
         };
 
         let patches = feature.patches();
@@ -201,13 +201,13 @@ mod tests {
     #[test]
     fn test_apply_patches() {
         let feature = Feature {};
-        let values = hashmap! {
-            "auditLog".to_string() => hashmap! {
-                "enabled".into() => "true".to_string(),
-                "maxAge".into() => "30".to_string(),
-                "maxBackup".into() => "10".to_string(),
-                "maxSize".into() => "100".to_string(),
-            }
+        let values = Values {
+            audit_log: Config {
+                enabled: true,
+                max_age: "30".to_string(),
+                max_backup: "10".to_string(),
+                max_size: "100".to_string(),
+            },
         };
 
         let patches = feature.patches();
@@ -216,44 +216,7 @@ mod tests {
 
         assert_eq!(is_enabled, true);
 
-        // TODO: move this out since this is generic/standard
-        let mut kcpt = KubeadmControlPlaneTemplate {
-            metadata: Default::default(),
-            spec: KubeadmControlPlaneTemplateSpec {
-                template: KubeadmControlPlaneTemplateTemplate {
-                    spec: KubeadmControlPlaneTemplateTemplateSpec {
-                        kubeadm_config_spec: KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec {
-                            cluster_configuration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration {
-                                api_server: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer {
-                                    extra_args: Some({
-                                        btreemap! {
-                                            "cloud-provider".to_string() => "external".to_string(),
-                                            "profiling".to_string() => "false".to_string(),
-                                        }
-                                    }),
-                                    // Note(oleks): Add this as default as a workaround of the json patch limitation # noqa: E501
-                                    // https://cluster-api.sigs.k8s.io/tasks/experimental-features/cluster-class/write-clusterclass#json-patches-tips--tricks
-                                    extra_volumes: Some(vec![
-                                        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes {
-                                            name: "webhooks".to_string(),
-                                            host_path: "/etc/kubernetes/webhooks".to_string(),
-                                            mount_path: "/etc/kubernetes/webhooks".to_string(),
-                                            ..Default::default()
-                                        }
-                                    ]),
-                                    ..Default::default()
-                                }),
-                                ..Default::default()
-                            }),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-                ..Default::default()
-            }
-        };
+        let mut kcpt = KCPT_WIP.clone();
 
         // TODO: create a trait that will take kcp, etc and apply the patches
         patch
@@ -279,9 +242,9 @@ mod tests {
         assert_subset_of_btreemap(
             &btreemap! {
                 "audit-log-path".to_string() => "/var/log/audit/kube-apiserver-audit.log".to_string(),
-                "audit-log-maxage".to_string() => values["auditLog"]["maxAge"].to_string(),
-                "audit-log-maxbackup".to_string() => values["auditLog"]["maxBackup"].to_string(),
-                "audit-log-maxsize".to_string() => values["auditLog"]["maxSize"].to_string(),
+                "audit-log-maxage".to_string() => values.audit_log.max_age.to_string(),
+                "audit-log-maxbackup".to_string() => values.audit_log.max_backup.to_string(),
+                "audit-log-maxsize".to_string() => values.audit_log.max_size.to_string(),
                 "audit-policy-file".to_string() => "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml".to_string(),
             },
             &api_server.extra_args.expect("extra_args should be set"),

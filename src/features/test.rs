@@ -1,3 +1,11 @@
+use crate::cluster_api::kubeadmcontrolplanetemplates::{
+    KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateSpec,
+    KubeadmControlPlaneTemplateTemplate, KubeadmControlPlaneTemplateTemplateSpec,
+    KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec,
+    KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration,
+    KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer,
+    KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
+};
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitionsJsonPatches,
     ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
@@ -6,10 +14,12 @@ use gtmpl::Value;
 use json_patch::{patch, AddOperation, Patch, PatchOperation, RemoveOperation, ReplaceOperation};
 use jsonptr::PointerBuf;
 use kube::Resource;
+use maplit::btreemap;
 use pretty_assertions::assert_eq;
 use serde::{de::DeserializeOwned, Serialize};
+use serde_gtmpl::ToGtmplValue;
 use serde_json::json;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::LazyLock};
 
 /// A trait for converting a value into a [`Patch`] using provided template
 /// values.
@@ -19,7 +29,7 @@ use std::collections::BTreeMap;
 /// value must be convertible into a [`gtmpl::Value`] and be clonable so that
 /// it can be reused during the conversion process.
 pub trait ToPatch {
-    fn to_patch<T: Into<gtmpl::Value> + Clone>(self, values: T) -> Patch;
+    fn to_patch<T: ToGtmplValue>(self, values: T) -> Patch;
 }
 
 /// Implements the [`ToPatch`] trait for a vector of patch definitions.
@@ -29,10 +39,10 @@ pub trait ToPatch {
 /// each one individually via [`ClusterClassPatchesDefinitionsJsonPatches::to_rendered_patch`],
 /// and then collects the results into a single [`Patch`].
 impl ToPatch for Vec<ClusterClassPatchesDefinitionsJsonPatches> {
-    fn to_patch<T: Into<gtmpl::Value> + Clone>(self, values: T) -> Patch {
+    fn to_patch<T: ToGtmplValue>(self, values: T) -> Patch {
         Patch(
             self.into_iter()
-                .map(|patch| patch.to_rendered_patch(values.clone().into()))
+                .map(|patch| patch.to_rendered_patch(values.to_gtmpl_value()))
                 .collect(),
         )
     }
@@ -179,7 +189,7 @@ impl<T: Resource + Serialize + DeserializeOwned> ApplyPatch for T {
 /// Implementors of this trait provide a mechanism to determine if a particular
 /// patch should be applied.
 pub trait ClusterClassPatchEnabled {
-    fn is_enabled<T: Into<Value>>(&self, values: T) -> bool;
+    fn is_enabled<T: ToGtmplValue>(&self, values: T) -> bool;
 }
 
 /// Implements [`ClusterClassPatchEnabled`] for [`ClusterClassPatches`].
@@ -189,14 +199,14 @@ pub trait ClusterClassPatchEnabled {
 /// with the provided values using `gtmpl::template`. If the rendered output
 /// is equal to `"true"`, the patch is considered enabled.
 impl ClusterClassPatchEnabled for ClusterClassPatches {
-    fn is_enabled<T: Into<Value>>(&self, values: T) -> bool {
+    fn is_enabled<T: ToGtmplValue>(&self, values: T) -> bool {
         let enabled_if = self
             .enabled_if
             .as_deref()
             .expect("enabled_if should be set");
 
-        let output =
-            gtmpl::template(enabled_if, values).expect("template rendering should succeed");
+        let output = gtmpl::template(enabled_if, values.to_gtmpl_value())
+            .expect("template rendering should succeed");
 
         output == "true"
     }
@@ -247,3 +257,49 @@ pub fn assert_subset_of_btreemap<
 
     assert_eq!(needle_with_options, extracted_haystack);
 }
+
+/// This is a static instance of the `KubeadmControlPlaneTemplate` that is
+/// used as a default for testing, since we have not yet migrated the
+/// resource into the Rust API.
+pub static KCPT_WIP: LazyLock<KubeadmControlPlaneTemplate> = LazyLock::new(|| {
+    KubeadmControlPlaneTemplate {
+    metadata: Default::default(),
+    spec: KubeadmControlPlaneTemplateSpec {
+        template: KubeadmControlPlaneTemplateTemplate {
+            spec: KubeadmControlPlaneTemplateTemplateSpec {
+                kubeadm_config_spec: KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec {
+                    cluster_configuration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration {
+                        api_server: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer {
+                            extra_args: Some({
+                                btreemap! {
+                                    "cloud-provider".to_string() => "external".to_string(),
+                                    "profiling".to_string() => "false".to_string(),
+                                }
+                            }),
+                            // Note(oleks): Add this as default as a workaround of the json patch limitation # noqa: E501
+                            // https://cluster-api.sigs.k8s.io/tasks/experimental-features/cluster-class/write-clusterclass#json-patches-tips--tricks
+                            extra_volumes: Some(vec![
+                                KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes {
+                                    name: "webhooks".to_string(),
+                                    host_path: "/etc/kubernetes/webhooks".to_string(),
+                                    mount_path: "/etc/kubernetes/webhooks".to_string(),
+                                    ..Default::default()
+                                }
+                            ]),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }),
+                    files: Some(vec![]),
+                    pre_kubeadm_commands: Some(vec![]),
+                    post_kubeadm_commands: Some(vec![]),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+});

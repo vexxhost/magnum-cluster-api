@@ -19,6 +19,7 @@ serde = "1.0.218"
 serde_yaml = "0.9.34"
 json-patch = "3.0.1"
 jsonptr = "^0.6.0"
+serde_gtmpl = { path = "crates/serde_gtmpl" }
 
 [dependencies.pyo3]
 version = "0.23.1"
@@ -27,3 +28,6 @@ features = ["abi3-py38", "extension-module"]
 [dev-dependencies]
 gtmpl = "0.7.1"
 pretty_assertions = "1.4.1"
+
+[workspace]
+members = [ "crates/serde_gtmpl" ]

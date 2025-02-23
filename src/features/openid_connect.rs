@@ -1,47 +1,50 @@
 use super::ClusterFeature;
+use crate::{
+    cluster_api::kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate,
+    features::ClusterClassVariablesSchemaOpenApiv3SchemaExt,
+};
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
     ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
     ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
     ClusterClassVariablesSchema, ClusterClassVariablesSchemaOpenApiv3Schema,
 };
-use maplit::btreemap;
-use serde_json::json;
+use kube::CustomResourceExt;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+pub struct Config {
+    #[serde(rename = "issuerUrl")]
+    pub issuer_url: String,
+
+    #[serde(rename = "clientId")]
+    pub client_id: String,
+
+    #[serde(rename = "usernameClaim")]
+    pub username_claim: String,
+
+    #[serde(rename = "usernamePrefix")]
+    pub username_prefix: String,
+
+    #[serde(rename = "groupsClaim")]
+    pub groups_claim: String,
+
+    #[serde(rename = "groupsPrefix")]
+    pub groups_prefix: String,
+}
 
 pub struct Feature {}
 
 impl ClusterFeature for Feature {
     fn variables(&self) -> Vec<ClusterClassVariables> {
-        let default_string_schema = ClusterClassVariablesSchemaOpenApiv3Schema {
-            r#type: Some("string".into()),
-            ..Default::default()
-        };
-
         vec![ClusterClassVariables {
             name: "openidConnect".into(),
             metadata: None,
             required: true,
             schema: ClusterClassVariablesSchema {
-                open_apiv3_schema: ClusterClassVariablesSchemaOpenApiv3Schema {
-                    r#type: Some("object".into()),
-                    required: Some(vec![
-                        "issuerUrl".into(),
-                        "clientId".into(),
-                        "usernameClaim".into(),
-                        "usernamePrefix".into(),
-                        "groupsClaim".into(),
-                        "groupsPrefix".into(),
-                    ]),
-                    properties: Some(json!(btreemap! {
-                        "issuerUrl".to_string() => default_string_schema.clone(),
-                        "clientId".to_string() => default_string_schema.clone(),
-                        "usernameClaim".to_string() => default_string_schema.clone(),
-                        "usernamePrefix".to_string() => default_string_schema.clone(),
-                        "groupsClaim".to_string() => default_string_schema.clone(),
-                        "groupsPrefix".to_string() => default_string_schema.clone(),
-                    })),
-                    ..Default::default()
-                },
+                open_apiv3_schema: ClusterClassVariablesSchemaOpenApiv3Schema::from_object::<Config>(
+                ),
             },
         }]
     }
@@ -54,9 +57,8 @@ impl ClusterFeature for Feature {
                 definitions: Some(vec![
                     ClusterClassPatchesDefinitions {
                         selector: ClusterClassPatchesDefinitionsSelector {
-                            // TODO: detect this from the kubeadmcontrolplanetemplates module
-                            api_version: "controlplane.cluster.x-k8s.io/v1beta1".into(),
-                            kind: "KubeadmControlPlaneTemplate".into(),
+                            api_version: KubeadmControlPlaneTemplate::api_resource().api_version,
+                            kind: KubeadmControlPlaneTemplate::api_resource().kind,
                             match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
                                 control_plane: Some(true),
                                 ..Default::default()
@@ -129,26 +131,31 @@ impl ClusterFeature for Feature {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        cluster_api::kubeadmcontrolplanetemplates::{
-            KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateSpec,
-            KubeadmControlPlaneTemplateTemplate, KubeadmControlPlaneTemplateTemplateSpec,
-            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec,
-            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration,
-            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
-        },
-        features::test::{assert_subset_of_btreemap, ApplyPatch, ClusterClassPatchEnabled, ToPatch},
+    use crate::features::test::KCPT_WIP;
+    use crate::features::test::{
+        assert_subset_of_btreemap, ApplyPatch, ClusterClassPatchEnabled, ToPatch,
     };
-    use maplit::hashmap;
+    use maplit::btreemap;
     use pretty_assertions::assert_eq;
+
+    #[derive(Clone, Serialize, Deserialize)]
+    pub struct Values {
+        #[serde(rename = "openidConnect")]
+        openid_connect: Config,
+    }
 
     #[test]
     fn test_disabled_if_issuer_is_empty() {
         let feature = Feature {};
-        let values = hashmap! {
-            "openidConnect".to_string() => hashmap! {
-                "issuerUrl".to_string() => "",
-            }
+        let values = Values {
+            openid_connect: Config {
+                issuer_url: "".to_string(),
+                client_id: "client-id".to_string(),
+                username_claim: "email".to_string(),
+                username_prefix: "email:".to_string(),
+                groups_claim: "groups".to_string(),
+                groups_prefix: "groups:".to_string(),
+            },
         };
 
         let patches = feature.patches();
@@ -161,10 +168,15 @@ mod tests {
     #[test]
     fn test_enabled_if_issuer_is_set() {
         let feature = Feature {};
-        let values = hashmap! {
-            "openidConnect".to_string() => hashmap! {
-                "issuerUrl".to_string() => "https://example.com",
-            }
+        let values = Values {
+            openid_connect: Config {
+                issuer_url: "https://example.com".to_string(),
+                client_id: "client-id".to_string(),
+                username_claim: "email".to_string(),
+                username_prefix: "email:".to_string(),
+                groups_claim: "groups".to_string(),
+                groups_prefix: "groups:".to_string(),
+            },
         };
 
         let patches = feature.patches();
@@ -177,15 +189,15 @@ mod tests {
     #[test]
     fn test_apply_patches() {
         let feature = Feature {};
-        let values = hashmap! {
-            "openidConnect".to_string() => hashmap! {
-                "issuerUrl".to_string() => "https://example.com",
-                "clientId".to_string() => "client-id",
-                "usernameClaim".to_string() => "email",
-                "usernamePrefix".to_string() => "email:",
-                "groupsClaim".to_string() => "groups",
-                "groupsPrefix".to_string() => "groups:",
-            }
+        let values = Values {
+            openid_connect: Config {
+                issuer_url: "https://example.com".to_string(),
+                client_id: "client-id".to_string(),
+                username_claim: "email".to_string(),
+                username_prefix: "email:".to_string(),
+                groups_claim: "groups".to_string(),
+                groups_prefix: "groups:".to_string(),
+            },
         };
 
         let patches = feature.patches();
@@ -194,44 +206,7 @@ mod tests {
 
         assert_eq!(is_enabled, true);
 
-        // TODO: move this out since this is generic/standard
-        let mut kcpt = KubeadmControlPlaneTemplate {
-            metadata: Default::default(),
-            spec: KubeadmControlPlaneTemplateSpec {
-                template: KubeadmControlPlaneTemplateTemplate {
-                    spec: KubeadmControlPlaneTemplateTemplateSpec {
-                        kubeadm_config_spec: KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec {
-                            cluster_configuration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration {
-                                api_server: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer {
-                                    extra_args: Some({
-                                        btreemap! {
-                                            "cloud-provider".to_string() => "external".to_string(),
-                                            "profiling".to_string() => "false".to_string(),
-                                        }
-                                    }),
-                                    // Note(oleks): Add this as default as a workaround of the json patch limitation # noqa: E501
-                                    // https://cluster-api.sigs.k8s.io/tasks/experimental-features/cluster-class/write-clusterclass#json-patches-tips--tricks
-                                    extra_volumes: Some(vec![
-                                        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes {
-                                            name: "webhooks".to_string(),
-                                            host_path: "/etc/kubernetes/webhooks".to_string(),
-                                            mount_path: "/etc/kubernetes/webhooks".to_string(),
-                                            ..Default::default()
-                                        }
-                                    ]),
-                                    ..Default::default()
-                                }),
-                                ..Default::default()
-                            }),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-                ..Default::default()
-            }
-        };
+        let mut kcpt = KCPT_WIP.clone();
 
         // TODO: create a trait that will take kcp, etc and apply the patches
         patch
@@ -246,12 +221,12 @@ mod tests {
 
         assert_subset_of_btreemap(
             &btreemap! {
-                "oidc-issuer-url".to_string() => values["openidConnect"]["issuerUrl"].to_string(),
-                "oidc-client-id".to_string() => values["openidConnect"]["clientId"].to_string(),
-                "oidc-username-claim".to_string() => values["openidConnect"]["usernameClaim"].to_string(),
-                "oidc-username-prefix".to_string() => values["openidConnect"]["usernamePrefix"].to_string(),
-                "oidc-groups-claim".to_string() => values["openidConnect"]["groupsClaim"].to_string(),
-                "oidc-groups-prefix".to_string() => values["openidConnect"]["groupsPrefix"].to_string(),
+                "oidc-issuer-url".to_string() => values.openid_connect.issuer_url.to_string(),
+                "oidc-client-id".to_string() => values.openid_connect.client_id.to_string(),
+                "oidc-username-claim".to_string() => values.openid_connect.username_claim.to_string(),
+                "oidc-username-prefix".to_string() => values.openid_connect.username_prefix.to_string(),
+                "oidc-groups-claim".to_string() => values.openid_connect.groups_claim.to_string(),
+                "oidc-groups-prefix".to_string() => values.openid_connect.groups_prefix.to_string(),
             },
             &kcpt
                 .spec

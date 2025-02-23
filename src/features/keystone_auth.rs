@@ -1,5 +1,10 @@
 use super::ClusterFeature;
-use crate::cluster_api::kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles;
+use crate::{
+    cluster_api::kubeadmcontrolplanetemplates::{
+        KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles,
+    },
+    features::ClusterClassVariablesSchemaOpenApiv3SchemaExt,
+};
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
     ClusterClassPatchesDefinitionsSelector, ClusterClassPatchesDefinitionsSelectorMatchResources,
@@ -7,6 +12,8 @@ use cluster_api_rs::capi_clusterclass::{
 };
 use json_patch::{AddOperation, PatchOperation};
 use jsonptr::PointerBuf;
+use kube::CustomResourceExt;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -30,6 +37,11 @@ struct KustomizePatch {
     patch: String,
 }
 
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
+#[schemars(with = "bool")]
+pub struct Config(pub bool);
+
 pub struct Feature {}
 
 impl ClusterFeature for Feature {
@@ -39,10 +51,8 @@ impl ClusterFeature for Feature {
             metadata: None,
             required: true,
             schema: ClusterClassVariablesSchema {
-                open_apiv3_schema: ClusterClassVariablesSchemaOpenApiv3Schema {
-                    r#type: Some("boolean".into()),
-                    ..Default::default()
-                },
+                open_apiv3_schema: ClusterClassVariablesSchemaOpenApiv3Schema::from_object::<Config>(
+                ),
             },
         }]
     }
@@ -53,9 +63,8 @@ impl ClusterFeature for Feature {
             enabled_if: Some("{{ if .enableKeystoneAuth }}true{{end}}".into()),
             definitions: Some(vec![ClusterClassPatchesDefinitions {
                 selector: ClusterClassPatchesDefinitionsSelector {
-                    // TODO: point to CRD
-                    api_version: "controlplane.cluster.x-k8s.io/v1beta1".into(),
-                    kind: "KubeadmControlPlaneTemplate".into(),
+                    api_version: KubeadmControlPlaneTemplate::api_resource().api_version,
+                    kind: KubeadmControlPlaneTemplate::api_resource().kind,
                     match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
                         control_plane: Some(true),
                         ..Default::default()
@@ -130,23 +139,21 @@ mod tests {
     use std::fs::File;
 
     use super::*;
-    use crate::{
-        cluster_api::kubeadmcontrolplanetemplates::{
-            KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateSpec,
-            KubeadmControlPlaneTemplateTemplate, KubeadmControlPlaneTemplateTemplateSpec,
-            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec,
-        },
-        features::test::{ApplyPatch, ClusterClassPatchEnabled, ToPatch},
-    };
+    use crate::features::test::{ApplyPatch, ClusterClassPatchEnabled, ToPatch, KCPT_WIP};
     use k8s_openapi::api::core::v1::Pod;
-    use maplit::hashmap;
     use pretty_assertions::assert_eq;
+
+    #[derive(Clone, Serialize, Deserialize)]
+    pub struct Values {
+        #[serde(rename = "enableKeystoneAuth")]
+        enable_keystone_auth: Config,
+    }
 
     #[test]
     fn test_disabled() {
         let feature = Feature {};
-        let values = hashmap! {
-            "enableKeystoneAuth".to_string() => false,
+        let values = Values {
+            enable_keystone_auth: Config(false),
         };
 
         let patches = feature.patches();
@@ -159,8 +166,8 @@ mod tests {
     #[test]
     fn test_enabled() {
         let feature = Feature {};
-        let values = hashmap! {
-            "enableKeystoneAuth".to_string() => true,
+        let values = Values {
+            enable_keystone_auth: Config(true),
         };
 
         let patches = feature.patches();
@@ -173,33 +180,15 @@ mod tests {
     #[test]
     fn test_apply_patches() {
         let feature = Feature {};
-        let values = hashmap! {
-            "enableKeystoneAuth".to_string() => "true".to_string(),
+        let values = Values {
+            enable_keystone_auth: Config(true),
         };
 
         let patches = feature.patches();
         let patch = patches.get(0).expect("patch should be set");
         assert_eq!(patch.is_enabled(values.clone()), true);
 
-        let mut kcpt = KubeadmControlPlaneTemplate {
-            metadata: Default::default(),
-            spec: KubeadmControlPlaneTemplateSpec {
-                template: KubeadmControlPlaneTemplateTemplate {
-                    spec: KubeadmControlPlaneTemplateTemplateSpec {
-                        kubeadm_config_spec:
-                            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec {
-                                files: Some(vec![]),
-                                pre_kubeadm_commands: Some(vec![]),
-                                post_kubeadm_commands: Some(vec![]),
-                                ..Default::default()
-                            },
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-        };
+        let mut kcpt = KCPT_WIP.clone();
 
         patch
             .definitions
@@ -240,8 +229,7 @@ mod tests {
         let mut pod: Pod = serde_yaml::from_reader(fd).expect("pod should be set");
         let kustomize: Kustomize =
             serde_yaml::from_str(file.content.as_ref().unwrap()).expect("kustomize should be set");
-        let patch =
-            serde_yaml::from_str(&kustomize.patches[0].patch).expect("patch should be set");
+        let patch = serde_yaml::from_str(&kustomize.patches[0].patch).expect("patch should be set");
         pod.apply_patch(&patch);
 
         let args = pod.spec.expect("pod to have spec").containers[0]

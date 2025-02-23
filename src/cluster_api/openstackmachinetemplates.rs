@@ -589,10 +589,10 @@ pub struct OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalProperties
 
 /// Value is the value of the scheduler hint property, which can be of various types
 /// (e.g., bool, string, int). The type is indicated by the Value.Type field.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, JsonSchema)]
 pub enum OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalPropertiesValueType {
     Bool,
-    String,
+    #[default] String,
     Number,
 }
 
@@ -661,4 +661,3 @@ pub struct OpenStackMachineTemplateTemplateSpecServerMetadata {
     /// Value is the server metadata value
     pub value: String,
 }
-
