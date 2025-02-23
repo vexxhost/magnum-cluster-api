@@ -17,6 +17,8 @@ maplit = "1.0.2"
 schemars = "0.8.21"
 serde = "1.0.218"
 serde_yaml = "0.9.34"
+json-patch = "3.0.1"
+jsonptr = "^0.6.0"
 
 [dependencies.pyo3]
 version = "0.23.1"
@@ -24,6 +26,4 @@ features = ["abi3-py38", "extension-module"]
 
 [dev-dependencies]
 gtmpl = "0.7.1"
-json-patch = "3.0.1"
-jsonptr = "^0.6.0"
 pretty_assertions = "1.4.1"

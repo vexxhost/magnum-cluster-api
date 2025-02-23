@@ -1305,15 +1305,6 @@ class ClusterClass(Base):
                         },
                     },
                     {
-                        "name": "enableKeystoneAuth",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "boolean",
-                            },
-                        },
-                    },
-                    {
                         "name": "controlPlaneAvailabilityZones",
                         "required": True,
                         "schema": {
@@ -1971,69 +1962,6 @@ class ClusterClass(Base):
                                 )
                             ],
                         ).definitions,
-                    },
-                    {
-                        "name": "keystoneAuth",
-                        "enabledIf": "{{ if .enableKeystoneAuth }}true{{end}}",
-                        "definitions": [
-                            {
-                                "selector": {
-                                    "apiVersion": objects.KubeadmControlPlaneTemplate.version,
-                                    "kind": objects.KubeadmControlPlaneTemplate.kind,
-                                    "matchResources": {
-                                        "controlPlane": True,
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
-                                        "value": {
-                                            "path": "/etc/kubernetes/keystone-kustomization/kustomization.yml",
-                                            "permissions": "0644",
-                                            "owner": "root:root",
-                                            "content": textwrap.dedent(
-                                                """\
-                                                    resources:
-                                                      - kube-apiserver.yaml
-                                                    patches:
-                                                      - target:
-                                                          group: ""
-                                                          version: v1
-                                                          kind: Pod
-                                                          name: kube-apiserver
-                                                        patch: |-
-                                                          - op: add
-                                                            path: /spec/containers/0/command/-
-                                                            value: --authentication-token-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
-                                                          - op: add
-                                                            path: /spec/containers/0/command/-
-                                                            value: --authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
-                                                          - op: add
-                                                            path: /spec/containers/0/command/-
-                                                            value: --authorization-mode=Webhook
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-",
-                                        "value": "mkdir -p /etc/kubernetes/keystone-kustomization",
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-",
-                                        "value": "cp /etc/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml",  # noqa: E501
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-",
-                                        "value": "kubectl kustomize /etc/kubernetes/keystone-kustomization -o /etc/kubernetes/manifests/kube-apiserver.yaml",  # noqa: E501
-                                    },
-                                ],
-                            }
-                        ],
                     },
                     {
                         "name": "controlPlaneConfig",

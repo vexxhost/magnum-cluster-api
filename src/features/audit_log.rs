@@ -1,3 +1,5 @@
+use crate::cluster_api::kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes;
+
 use super::ClusterFeature;
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
@@ -108,10 +110,11 @@ impl ClusterFeature for Feature {
                                 path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-".into(),
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                                     template: Some(
-                                        serde_yaml::to_string(&btreemap! {
-                                            "name" => "audit-policy",
-                                            "hostPath" => "/etc/kubernetes/audit-policy",
-                                            "mountPath" => "/etc/kubernetes/audit-policy",
+                                        serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes {
+                                            name: "audit-policy".to_string(),
+                                            host_path: "/etc/kubernetes/audit-policy".to_string(),
+                                            mount_path: "/etc/kubernetes/audit-policy".to_string(),
+                                            ..Default::default()
                                         }).unwrap(),
                                     ),
                                     ..Default::default()
@@ -123,10 +126,11 @@ impl ClusterFeature for Feature {
                                 path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-".into(),
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                                     template: Some(
-                                        serde_yaml::to_string(&btreemap! {
-                                            "name" => "audit-logs",
-                                            "hostPath" => "/var/log/kubernetes/audit",
-                                            "mountPath" => "/var/log/audit",
+                                        serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes {
+                                            name: "audit-logs".to_string(),
+                                            host_path: "/var/log/kubernetes/audit".to_string(),
+                                            mount_path: "/var/log/audit".to_string(),
+                                            ..Default::default()
                                         }).unwrap(),
                                     ),
                                     ..Default::default()
