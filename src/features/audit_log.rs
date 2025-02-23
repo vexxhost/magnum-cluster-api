@@ -1,8 +1,11 @@
 use super::ClusterFeature;
-use crate::{cluster_api::kubeadmcontrolplanetemplates::{
-    KubeadmControlPlaneTemplate,
-    KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
-}, features::ClusterClassVariablesSchemaExt};
+use crate::{
+    cluster_api::kubeadmcontrolplanetemplates::{
+        KubeadmControlPlaneTemplate,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
+    },
+    features::ClusterClassVariablesSchemaExt,
+};
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
     ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
@@ -141,9 +144,7 @@ mod tests {
     use super::*;
     use crate::{
         cluster_api::kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
-        features::test::{
-            assert_subset_of_btreemap, ApplyPatch, ClusterClassPatchEnabled, ToPatch, KCPT_WIP,
-        },
+        features::test::TestClusterResources,
     };
     use maplit::btreemap;
     use pretty_assertions::assert_eq;
@@ -167,29 +168,27 @@ mod tests {
         };
 
         let patches = feature.patches();
-        let patch = patches.get(0).expect("patch should be set");
-        let is_enabled = patch.is_enabled(values);
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
 
-        assert_eq!(is_enabled, false);
-    }
+        let api_server = resources
+            .kubeadm_control_plane_template
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .cluster_configuration
+            .expect("cluster_configuration should be set")
+            .api_server
+            .expect("api_server should be set");
 
-    #[test]
-    fn test_enabled() {
-        let feature = Feature {};
-        let values = Values {
-            audit_log: Config {
-                enabled: true,
-                max_age: "30".to_string(),
-                max_backup: "10".to_string(),
-                max_size: "100".to_string(),
+        assert_eq!(
+            &btreemap! {
+                "cloud-provider".to_string() => "external".to_string(),
+                "profiling".to_string() => "false".to_string(),
             },
-        };
-
-        let patches = feature.patches();
-        let patch = patches.get(0).expect("patch should be set");
-        let is_enabled = patch.is_enabled(values);
-
-        assert_eq!(is_enabled, true);
+            &api_server.extra_args.expect("extra_args should be set"),
+        );
     }
 
     #[test]
@@ -205,25 +204,11 @@ mod tests {
         };
 
         let patches = feature.patches();
-        let patch = patches.get(0).expect("patch should be set");
-        let is_enabled = patch.is_enabled(values.clone());
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
 
-        assert_eq!(is_enabled, true);
-
-        let mut kcpt = KCPT_WIP.clone();
-
-        // TODO: create a trait that will take kcp, etc and apply the patches
-        patch
-            .definitions
-            .as_ref()
-            .expect("definitions should be set")
-            .into_iter()
-            .for_each(|definition| {
-                let p = definition.json_patches.clone().to_patch(&values);
-                kcpt.apply_patch(&p);
-            });
-
-        let api_server = kcpt
+        let api_server = resources
+            .kubeadm_control_plane_template
             .spec
             .template
             .spec
@@ -233,13 +218,15 @@ mod tests {
             .api_server
             .expect("api_server should be set");
 
-        assert_subset_of_btreemap(
+        assert_eq!(
             &btreemap! {
-                "audit-log-path".to_string() => "/var/log/audit/kube-apiserver-audit.log".to_string(),
                 "audit-log-maxage".to_string() => values.audit_log.max_age.to_string(),
                 "audit-log-maxbackup".to_string() => values.audit_log.max_backup.to_string(),
                 "audit-log-maxsize".to_string() => values.audit_log.max_size.to_string(),
+                "audit-log-path".to_string() => "/var/log/audit/kube-apiserver-audit.log".to_string(),
                 "audit-policy-file".to_string() => "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml".to_string(),
+                "cloud-provider".to_string() => "external".to_string(),
+                "profiling".to_string() => "false".to_string(),
             },
             &api_server.extra_args.expect("extra_args should be set"),
         );

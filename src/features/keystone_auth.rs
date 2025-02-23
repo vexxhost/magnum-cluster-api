@@ -1,7 +1,10 @@
 use super::ClusterFeature;
-use crate::{cluster_api::kubeadmcontrolplanetemplates::{
-    KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles,
-}, features::ClusterClassVariablesSchemaExt};
+use crate::{
+    cluster_api::kubeadmcontrolplanetemplates::{
+        KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles,
+    },
+    features::ClusterClassVariablesSchemaExt,
+};
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
     ClusterClassPatchesDefinitionsSelector, ClusterClassPatchesDefinitionsSelectorMatchResources,
@@ -130,12 +133,11 @@ impl ClusterFeature for Feature {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
-
     use super::*;
-    use crate::features::test::{ApplyPatch, ClusterClassPatchEnabled, ToPatch, KCPT_WIP};
+    use crate::features::test::{ApplyPatch, TestClusterResources};
     use k8s_openapi::api::core::v1::Pod;
     use pretty_assertions::assert_eq;
+    use std::fs::File;
 
     #[derive(Clone, Serialize, Deserialize)]
     pub struct Values {
@@ -151,24 +153,19 @@ mod tests {
         };
 
         let patches = feature.patches();
-        let patch = patches.get(0).expect("patch should be set");
-        let is_enabled = patch.is_enabled(values);
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
 
-        assert_eq!(is_enabled, false);
-    }
+        let files = resources
+            .kubeadm_control_plane_template
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .files
+            .expect("files should be set");
 
-    #[test]
-    fn test_enabled() {
-        let feature = Feature {};
-        let values = Values {
-            enable_keystone_auth: Config(true),
-        };
-
-        let patches = feature.patches();
-        let patch = patches.get(0).expect("patch should be set");
-        let is_enabled = patch.is_enabled(values);
-
-        assert_eq!(is_enabled, true);
+        assert!(files.is_empty());
     }
 
     #[test]
@@ -179,22 +176,11 @@ mod tests {
         };
 
         let patches = feature.patches();
-        let patch = patches.get(0).expect("patch should be set");
-        assert_eq!(patch.is_enabled(values.clone()), true);
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
 
-        let mut kcpt = KCPT_WIP.clone();
-
-        patch
-            .definitions
-            .as_ref()
-            .unwrap()
-            .iter()
-            .for_each(|definition| {
-                let p = definition.json_patches.clone().to_patch(&values);
-                kcpt.apply_patch(&p);
-            });
-
-        let files = kcpt
+        let files = resources
+            .kubeadm_control_plane_template
             .spec
             .template
             .spec
@@ -237,7 +223,8 @@ mod tests {
         ));
         assert!(args.contains(&"--authentication-mode=Webhook".to_string()));
 
-        let pre_cmds = kcpt
+        let pre_cmds = resources
+            .kubeadm_control_plane_template
             .spec
             .template
             .spec
@@ -246,7 +233,8 @@ mod tests {
             .expect("pre commands should be set");
         assert!(pre_cmds.contains(&"mkdir -p /etc/kubernetes/keystone-kustomization".to_string()));
 
-        let post_cmds = kcpt
+        let post_cmds = resources
+            .kubeadm_control_plane_template
             .spec
             .template
             .spec

@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test;
 
-mod api_server_load_balancer;
 mod audit_log;
+mod cluster_config;
 mod keystone_auth;
 mod openid_connect;
 

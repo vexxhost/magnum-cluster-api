@@ -60,9 +60,8 @@ impl ClusterFeature for Feature {
 
 #[cfg(test)]
 mod tests {
-    use crate::features::test::{ApplyPatch, ToPatch, OCT_WIP};
-
     use super::*;
+    use crate::features::test::TestClusterResources;
 
     #[derive(Clone, Serialize, Deserialize)]
     pub struct Values {
@@ -81,22 +80,12 @@ mod tests {
         };
 
         let patches = feature.patches();
-        let patch = patches.get(0).expect("patch should be set");
 
-        let mut oct = OCT_WIP.clone();
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
 
-        // TODO: create a trait that will take kcp, etc and apply the patches
-        patch
-            .definitions
-            .as_ref()
-            .expect("definitions should be set")
-            .into_iter()
-            .for_each(|definition| {
-                let p = definition.json_patches.clone().to_patch(&values);
-                oct.apply_patch(&p);
-            });
-
-        let api_server_load_balancer = oct
+        let api_server_load_balancer = resources
+            .openstack_cluster_template
             .spec
             .template
             .spec
@@ -104,6 +93,9 @@ mod tests {
             .expect("apiServerLoadBalancer should be set");
 
         assert_eq!(api_server_load_balancer.enabled, true);
-        assert_eq!(api_server_load_balancer.provider, Some("amphora".to_string()));
+        assert_eq!(
+            api_server_load_balancer.provider,
+            Some("amphora".to_string())
+        );
     }
 }

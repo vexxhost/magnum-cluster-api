@@ -17,7 +17,6 @@ use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitionsJsonPatches,
     ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
 };
-use gtmpl::Value;
 use json_patch::{patch, AddOperation, Patch, PatchOperation, RemoveOperation, ReplaceOperation};
 use jsonptr::PointerBuf;
 use kube::Resource;
@@ -214,7 +213,7 @@ impl<T: Resource + Serialize + DeserializeOwned> ApplyPatch for T {
 /// Implementors of this trait provide a mechanism to determine if a particular
 /// patch should be applied.
 pub trait ClusterClassPatchEnabled {
-    fn is_enabled<T: ToGtmplValue>(&self, values: T) -> bool;
+    fn is_enabled<T: ToGtmplValue>(&self, values: &T) -> bool;
 }
 
 /// Implements [`ClusterClassPatchEnabled`] for [`ClusterClassPatches`].
@@ -224,16 +223,13 @@ pub trait ClusterClassPatchEnabled {
 /// with the provided values using `gtmpl::template`. If the rendered output
 /// is equal to `"true"`, the patch is considered enabled.
 impl ClusterClassPatchEnabled for ClusterClassPatches {
-    fn is_enabled<T: ToGtmplValue>(&self, values: T) -> bool {
-        let enabled_if = self
-            .enabled_if
-            .as_deref()
-            .expect("enabled_if should be set");
+    fn is_enabled<T: ToGtmplValue>(&self, values: &T) -> bool {
+        self.enabled_if.as_deref().map_or(true, |enabled_if| {
+            let output = gtmpl::template(enabled_if, values.to_gtmpl_value())
+                .expect("template rendering should succeed");
 
-        let output = gtmpl::template(enabled_if, values.to_gtmpl_value())
-            .expect("template rendering should succeed");
-
-        output == "true"
+            output == "true"
+        })
     }
 }
 
@@ -356,3 +352,56 @@ pub static OCT_WIP: LazyLock<OpenStackClusterTemplate> =
             ..Default::default()
         },
     });
+
+/// This is a static instance of the `TestClusterResources` that is used for
+/// testing purposes.
+pub struct TestClusterResources {
+    pub kubeadm_control_plane_template: KubeadmControlPlaneTemplate,
+    pub openstack_cluster_template: OpenStackClusterTemplate,
+}
+
+impl TestClusterResources {
+    pub fn new() -> Self {
+        Self {
+            kubeadm_control_plane_template: KCPT_WIP.clone(),
+            openstack_cluster_template: OCT_WIP.clone(),
+        }
+    }
+
+    pub fn apply_patches<T: Serialize + DeserializeOwned + ToGtmplValue>(
+        &mut self,
+        patches: &Vec<ClusterClassPatches>,
+        values: &T,
+    ) {
+        patches
+            .iter()
+            .filter(|p| p.is_enabled(values))
+            .for_each(|p| {
+                let definitions = p.definitions.as_ref().expect("definitions should be set");
+
+                definitions.iter().for_each(|definition| {
+                    let patch = definition.json_patches.clone().to_patch(values);
+
+                    match (
+                        definition.selector.api_version.as_str(),
+                        definition.selector.kind.as_str(),
+                    ) {
+                        (
+                            "controlplane.cluster.x-k8s.io/v1beta1",
+                            "KubeadmControlPlaneTemplate",
+                        ) => {
+                            self.kubeadm_control_plane_template.apply_patch(&patch);
+                        }
+                        ("infrastructure.cluster.x-k8s.io/v1beta1", "OpenStackClusterTemplate") => {
+                            self.openstack_cluster_template.apply_patch(&patch);
+                        }
+                        _ => unimplemented!(
+                            "Unsupported resource type: {}/{}",
+                            definition.selector.api_version,
+                            definition.selector.kind
+                        ),
+                    }
+                })
+            });
+    }
+}

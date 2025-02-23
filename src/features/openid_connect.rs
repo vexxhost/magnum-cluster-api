@@ -1,5 +1,8 @@
 use super::ClusterFeature;
-use crate::{cluster_api::kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate, features::ClusterClassVariablesSchemaExt};
+use crate::{
+    cluster_api::kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate,
+    features::ClusterClassVariablesSchemaExt,
+};
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
     ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
@@ -125,10 +128,7 @@ impl ClusterFeature for Feature {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test::KCPT_WIP;
-    use crate::features::test::{
-        assert_subset_of_btreemap, ApplyPatch, ClusterClassPatchEnabled, ToPatch,
-    };
+    use crate::features::test::TestClusterResources;
     use maplit::btreemap;
     use pretty_assertions::assert_eq;
 
@@ -153,31 +153,27 @@ mod tests {
         };
 
         let patches = feature.patches();
-        let patch = patches.get(0).expect("patch should be set");
-        let is_enabled = patch.is_enabled(values);
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
 
-        assert_eq!(is_enabled, false);
-    }
-
-    #[test]
-    fn test_enabled_if_issuer_is_set() {
-        let feature = Feature {};
-        let values = Values {
-            openid_connect: Config {
-                issuer_url: "https://example.com".to_string(),
-                client_id: "client-id".to_string(),
-                username_claim: "email".to_string(),
-                username_prefix: "email:".to_string(),
-                groups_claim: "groups".to_string(),
-                groups_prefix: "groups:".to_string(),
+        assert_eq!(
+            &btreemap! {
+                "cloud-provider".to_string() => "external".to_string(),
+                "profiling".to_string() => "false".to_string(),
             },
-        };
-
-        let patches = feature.patches();
-        let patch = patches.get(0).expect("patch should be set");
-        let is_enabled = patch.is_enabled(values);
-
-        assert_eq!(is_enabled, true);
+            &resources
+                .kubeadm_control_plane_template
+                .spec
+                .template
+                .spec
+                .kubeadm_config_spec
+                .cluster_configuration
+                .expect("cluster_configuration should be set")
+                .api_server
+                .expect("api_server should be set")
+                .extra_args
+                .expect("extra_args should be set"),
+        );
     }
 
     #[test]
@@ -195,34 +191,22 @@ mod tests {
         };
 
         let patches = feature.patches();
-        let patch = patches.get(0).expect("patch should be set");
-        let is_enabled = patch.is_enabled(values.clone());
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
 
-        assert_eq!(is_enabled, true);
-
-        let mut kcpt = KCPT_WIP.clone();
-
-        // TODO: create a trait that will take kcp, etc and apply the patches
-        patch
-            .definitions
-            .as_ref()
-            .expect("definitions should be set")
-            .into_iter()
-            .for_each(|definition| {
-                let p = definition.json_patches.clone().to_patch(&values);
-                kcpt.apply_patch(&p);
-            });
-
-        assert_subset_of_btreemap(
+        assert_eq!(
             &btreemap! {
-                "oidc-issuer-url".to_string() => values.openid_connect.issuer_url.to_string(),
+                "cloud-provider".to_string() => "external".to_string(),
                 "oidc-client-id".to_string() => values.openid_connect.client_id.to_string(),
-                "oidc-username-claim".to_string() => values.openid_connect.username_claim.to_string(),
-                "oidc-username-prefix".to_string() => values.openid_connect.username_prefix.to_string(),
                 "oidc-groups-claim".to_string() => values.openid_connect.groups_claim.to_string(),
                 "oidc-groups-prefix".to_string() => values.openid_connect.groups_prefix.to_string(),
+                "oidc-issuer-url".to_string() => values.openid_connect.issuer_url.to_string(),
+                "oidc-username-claim".to_string() => values.openid_connect.username_claim.to_string(),
+                "oidc-username-prefix".to_string() => values.openid_connect.username_prefix.to_string(),
+                "profiling".to_string() => "false".to_string(),
             },
-            &kcpt
+            &resources
+                .kubeadm_control_plane_template
                 .spec
                 .template
                 .spec
