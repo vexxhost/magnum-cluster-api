@@ -1022,15 +1022,6 @@ class ClusterClass(Base):
                         },
                     },
                     {
-                        "name": "clusterIdentityRefName",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
                         "name": "dnsNameservers",
                         "required": True,
                         "schema": {
@@ -1071,15 +1062,6 @@ class ClusterClass(Base):
                     },
                     {
                         "name": "imageRepository",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
-                        "name": "imageUUID",
                         "required": True,
                         "schema": {
                             "openAPIV3Schema": {
@@ -1387,32 +1369,6 @@ class ClusterClass(Base):
                         "definitions": [
                             {
                                 "selector": {
-                                    "apiVersion": objects.OpenStackMachineTemplate.version,
-                                    "kind": objects.OpenStackMachineTemplate.kind,
-                                    "matchResources": {
-                                        "controlPlane": True,
-                                        "machineDeploymentClass": {
-                                            "names": ["default-worker"],
-                                        },
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "replace",
-                                        "path": "/spec/template/spec/identityRef/name",
-                                        "valueFrom": {
-                                            "variable": "clusterIdentityRefName"
-                                        },
-                                    },
-                                    {
-                                        "op": "replace",
-                                        "path": "/spec/template/spec/image/id",
-                                        "valueFrom": {"variable": "imageUUID"},
-                                    },
-                                ],
-                            },
-                            {
-                                "selector": {
                                     "apiVersion": objects.OpenStackClusterTemplate.version,
                                     "kind": objects.OpenStackClusterTemplate.kind,
                                     "matchResources": {
@@ -1420,13 +1376,6 @@ class ClusterClass(Base):
                                     },
                                 },
                                 "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/identityRef/name",
-                                        "valueFrom": {
-                                            "variable": "clusterIdentityRefName"
-                                        },
-                                    },
                                     {
                                         "op": "add",
                                         "path": "/spec/template/spec/externalNetwork",
