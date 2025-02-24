@@ -1049,15 +1049,6 @@ class ClusterClass(Base):
                         },
                     },
                     {
-                        "name": "controlPlaneFlavor",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
                         "name": "dnsNameservers",
                         "required": True,
                         "schema": {
@@ -1089,15 +1080,6 @@ class ClusterClass(Base):
                     },
                     {
                         "name": "fixedSubnetId",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
-                        "name": "flavor",
                         "required": True,
                         "schema": {
                             "openAPIV3Schema": {
@@ -1429,44 +1411,6 @@ class ClusterClass(Base):
                     {
                         "name": "clusterConfig",
                         "definitions": [
-                            {
-                                "selector": {
-                                    "apiVersion": objects.OpenStackMachineTemplate.version,
-                                    "kind": objects.OpenStackMachineTemplate.kind,
-                                    "matchResources": {
-                                        "controlPlane": True,
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/flavor",
-                                        "valueFrom": {
-                                            "variable": "controlPlaneFlavor",
-                                        },
-                                    },
-                                ],
-                            },
-                            {
-                                "selector": {
-                                    "apiVersion": objects.OpenStackMachineTemplate.version,
-                                    "kind": objects.OpenStackMachineTemplate.kind,
-                                    "matchResources": {
-                                        "machineDeploymentClass": {
-                                            "names": ["default-worker"],
-                                        },
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/flavor",
-                                        "valueFrom": {
-                                            "variable": "flavor",
-                                        },
-                                    },
-                                ],
-                            },
                             {
                                 "selector": {
                                     "apiVersion": objects.OpenStackMachineTemplate.version,

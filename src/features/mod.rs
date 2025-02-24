@@ -6,6 +6,7 @@ mod audit_log;
 mod boot_volume;
 mod containerd_config;
 mod disable_api_server_floating_ip;
+mod flavors;
 mod keystone_auth;
 mod openid_connect;
 mod server_groups;
