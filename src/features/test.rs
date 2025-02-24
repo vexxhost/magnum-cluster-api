@@ -174,6 +174,8 @@ impl ToRenderedValue for ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
         let rendered_value =
             gtmpl::template(&template, values).expect("template rendering should succeed");
 
+        println!("{}", rendered_value);
+
         match self.template {
             Some(_) => {
                 serde_yaml::from_str(&rendered_value).expect("rendered value should be valid YAML")
@@ -429,31 +431,6 @@ pub static KCT: LazyLock<KubeadmConfigTemplate> = LazyLock::new(|| KubeadmConfig
         },
     },
 });
-
-// return {
-//     "spec": {
-//         "template": {
-//             "spec": {
-//                 "files": [
-//                     {
-//                         "path": "/etc/kubernetes/.placeholder",
-//                         "permissions": "0644",
-//                         "content": base64.encode_as_text(PLACEHOLDER),
-//                         "encoding": "base64",
-//                     },
-//                 ],
-//                 "joinConfiguration": {
-//                     "nodeRegistration": {
-//                         "name": "{{ local_hostname }}",
-//                         "kubeletExtraArgs": {
-//                             "cloud-provider": "external",
-//                         },
-//                     },
-//                 },
-//             },
-//         },
-//     },
-// }
 
 /// This is a static instance of the `TestClusterResources` that is used for
 /// testing purposes.

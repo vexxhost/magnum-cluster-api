@@ -15,6 +15,7 @@ mod keystone_auth;
 mod openid_connect;
 mod image_repository;
 mod operating_system;
+mod networks;
 mod server_groups;
 mod ssh_key;
 mod control_plane_availablity_zones;

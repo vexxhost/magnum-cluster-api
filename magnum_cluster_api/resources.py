@@ -1013,45 +1013,6 @@ class ClusterClass(Base):
                 },
                 "variables": [
                     {
-                        "name": "dnsNameservers",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                    },
-                    {
-                        "name": "fixedNetworkId",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
-                        "name": "fixedSubnetId",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
-                        "name": "nodeCidr",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
                         "name": "enableDockerVolume",
                         "required": True,
                         "schema": {
@@ -1116,91 +1077,6 @@ class ClusterClass(Base):
                     },
                 ],
                 "patches": [
-                    {
-                        "name": "newNetworkConfig",
-                        "enabledIf": '{{ if eq .fixedNetworkId "" }}true{{end}}',
-                        "definitions": [
-                            {
-                                "selector": {
-                                    "apiVersion": objects.OpenStackClusterTemplate.version,
-                                    "kind": objects.OpenStackClusterTemplate.kind,
-                                    "matchResources": {
-                                        "infrastructureCluster": True,
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/managedSubnets",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    - cidr: {{ .nodeCidr }}
-                                                      dnsNameservers: {{ .dnsNameservers }}
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                    {
-                        "name": "existingFixedNetworkIdConfig",
-                        "enabledIf": '{{ if ne .fixedNetworkId "" }}true{{end}}',
-                        "definitions": [
-                            {
-                                "selector": {
-                                    "apiVersion": objects.OpenStackClusterTemplate.version,
-                                    "kind": objects.OpenStackClusterTemplate.kind,
-                                    "matchResources": {
-                                        "infrastructureCluster": True,
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/network",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    id: {{ .fixedNetworkId }}
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                    {
-                        "name": "existingFixedSubnetIdConfig",
-                        "enabledIf": '{{ if ne .fixedSubnetId "" }}true{{end}}',
-                        "definitions": [
-                            {
-                                "selector": {
-                                    "apiVersion": objects.OpenStackClusterTemplate.version,
-                                    "kind": objects.OpenStackClusterTemplate.kind,
-                                    "matchResources": {
-                                        "infrastructureCluster": True,
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/subnets",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    - id: {{ .fixedSubnetId }}
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                ],
-                            },
-                        ],
-                    },
                     {
                         "name": "etcdVolumeAndDockerVolume",
                         "enabledIf": "{{ if and .enableEtcdVolume .enableDockerVolume }}true{{ end }}",
