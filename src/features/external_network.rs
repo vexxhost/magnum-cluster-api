@@ -1,19 +1,15 @@
 use super::ClusterFeature;
 use crate::{
-    cluster_api::{
-        openstackclustertemplates::{
-            OpenStackClusterTemplate, OpenStackClusterTemplateTemplateSpecExternalNetwork,
-        },
-        openstackmachinetemplates::OpenStackMachineTemplate,
+    cluster_api::openstackclustertemplates::{
+        OpenStackClusterTemplate, OpenStackClusterTemplateTemplateSpecExternalNetwork,
     },
     features::ClusterClassVariablesSchemaExt,
 };
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
     ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
-    ClusterClassPatchesDefinitionsSelectorMatchResources,
-    ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
-    ClusterClassVariables, ClusterClassVariablesSchema,
+    ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
+    ClusterClassVariablesSchema,
 };
 use kube::CustomResourceExt;
 use schemars::JsonSchema;

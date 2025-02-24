@@ -3,7 +3,6 @@ use crate::{
     cluster_api::{
         kubeadmconfigtemplates::KubeadmConfigTemplate,
         kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate,
-        openstackclustertemplates::OpenStackClusterTemplate,
     },
     features::ClusterClassVariablesSchemaExt,
 };
@@ -14,6 +13,7 @@ use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
     ClusterClassVariables, ClusterClassVariablesSchema,
 };
+use indoc::indoc;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -22,6 +22,11 @@ use serde::{Deserialize, Serialize};
 #[serde(transparent)]
 #[schemars(with = "string")]
 pub struct ApiServerTLSCipherSuitesConfig(pub String);
+
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
+#[schemars(with = "string")]
+pub struct ApiServerSANsConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
@@ -41,6 +46,12 @@ impl ClusterFeature for Feature {
                 ),
             },
             ClusterClassVariables {
+                name: "apiServerSANs".into(),
+                metadata: None,
+                required: true,
+                schema: ClusterClassVariablesSchema::from_object::<ApiServerSANsConfig>(),
+            },
+            ClusterClassVariables {
                 name: "kubeletTLSCipherSuites".into(),
                 metadata: None,
                 required: true,
@@ -51,7 +62,7 @@ impl ClusterFeature for Feature {
 
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
-            name: "kubeletTLSCipherSuites".into(),
+            name: "TLSCipherSuites".into(),
             definitions: Some(vec![
                 ClusterClassPatchesDefinitions {
                     selector: ClusterClassPatchesDefinitionsSelector {
@@ -87,6 +98,23 @@ impl ClusterFeature for Feature {
                             value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                                 variable: Some("kubeletTLSCipherSuites".into()),
                                 ..Default::default()
+                            }),
+                            ..Default::default()
+                        },
+                        // NOTE(mnaser): The reason we have all these extra SANs is to enable us to use the
+                        //               magnum-cluster-api-proxy successfully within the Kubernetes cluster.
+                        ClusterClassPatchesDefinitionsJsonPatches {
+                            op: "add".into(),
+                            path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/certSANs".into(),
+                            value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                template: Some(indoc!("
+                                - {{ .builtin.cluster.name }}
+                                - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}
+                                - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc
+                                - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc.cluster.local # noqa: E501
+                                {{ .apiServerSANs }}").to_string(),
+                            ),
+                            ..Default::default()
                             }),
                             ..Default::default()
                         }
@@ -134,6 +162,9 @@ mod tests {
 
         #[serde(rename = "kubeletTLSCipherSuites")]
         kubelet_tls_cipher_suites: KubeletTLSCipherSuitesConfig,
+
+        #[serde(rename = "apiServerSANs")]
+        api_server_sans: ApiServerSANsConfig,
     }
 
     #[test]
@@ -142,6 +173,9 @@ mod tests {
         let values = Values {
             api_server_tls_cipher_suites: ApiServerTLSCipherSuitesConfig("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305".into()),
             kubelet_tls_cipher_suites: KubeletTLSCipherSuitesConfig("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305".into()),
+            api_server_sans: ApiServerSANsConfig(indoc!(
+                "
+                - foo.cluster.name").into()),
         };
 
         let patches = feature.patches();
@@ -156,10 +190,15 @@ mod tests {
             .spec
             .kubeadm_config_spec;
 
+        let cluster_configuration = kubeadm_config_spec
+            .cluster_configuration
+            .expect("cluster configuration should be set");
+
+        // /spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/certSANs
+
         assert_eq!(
-            kubeadm_config_spec
-                .cluster_configuration
-                .expect("cluster configuration should be set")
+            cluster_configuration
+                .clone()
                 .api_server
                 .expect("api server should be set")
                 .extra_args
@@ -195,6 +234,21 @@ mod tests {
                 "cloud-provider".to_string() => "external".to_string(),
                 "tls-cipher-suites".to_string() => values.kubelet_tls_cipher_suites.0.clone()
             }
+        );
+        assert_eq!(
+            cluster_configuration
+                .clone()
+                .api_server
+                .expect("api server should be set")
+                .cert_sa_ns
+                .expect("cert sans should be set"),
+            vec![
+                "kube-abcde".to_string(),
+                "kube-abcde.magnum-system".to_string(),
+                "kube-abcde.magnum-system.svc".to_string(),
+                "kube-abcde.magnum-system.svc.cluster.local".to_string(),
+                "foo.cluster.name".to_string()
+            ]
         );
 
         assert_eq!(

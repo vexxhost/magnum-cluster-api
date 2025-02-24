@@ -13,9 +13,10 @@ mod cluster_identity;
 mod external_network;
 mod keystone_auth;
 mod openid_connect;
+mod image_repository;
 mod server_groups;
 mod ssh_key;
-mod tls_cipher_suites;
+mod tls;
 
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassVariables, ClusterClassVariablesSchema,

@@ -1013,15 +1013,6 @@ class ClusterClass(Base):
                 },
                 "variables": [
                     {
-                        "name": "apiServerTLSCipherSuites",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
                         "name": "dnsNameservers",
                         "required": True,
                         "schema": {
@@ -1044,24 +1035,6 @@ class ClusterClass(Base):
                     },
                     {
                         "name": "fixedSubnetId",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
-                        "name": "imageRepository",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
-                        "name": "apiServerSANs",
                         "required": True,
                         "schema": {
                             "openAPIV3Schema": {
@@ -1465,54 +1438,6 @@ class ClusterClass(Base):
                         ],
                     },
                     {
-                        "name": "customImageRepository",
-                        "enabledIf": '{{ if ne .imageRepository "" }}true{{end}}',
-                        "definitions": [
-                            {
-                                "selector": {
-                                    "apiVersion": objects.KubeadmControlPlaneTemplate.version,
-                                    "kind": objects.KubeadmControlPlaneTemplate.kind,
-                                    "matchResources": {
-                                        "controlPlane": True,
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/imageRepository",  # noqa: E501
-                                        "valueFrom": {
-                                            "variable": "imageRepository",
-                                        },
-                                    },
-                                ],
-                            },
-                            {
-                                "selector": {
-                                    "apiVersion": objects.KubeadmConfigTemplate.version,
-                                    "kind": objects.KubeadmConfigTemplate.kind,
-                                    "matchResources": {
-                                        "machineDeploymentClass": {
-                                            "names": ["default-worker"],
-                                        }
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/clusterConfiguration",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    imageRepository: "{{ .imageRepository }}"
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                    {
                         "name": "etcdVolumeAndDockerVolume",
                         "enabledIf": "{{ if and .enableEtcdVolume .enableDockerVolume }}true{{ end }}",
                         "definitions": json_patches.Volumes(
@@ -1563,37 +1488,6 @@ class ClusterClass(Base):
                                 )
                             ],
                         ).definitions,
-                    },
-                    {
-                        "name": "controlPlaneConfig",
-                        "definitions": [
-                            {
-                                "selector": {
-                                    "apiVersion": objects.KubeadmControlPlaneTemplate.version,
-                                    "kind": objects.KubeadmControlPlaneTemplate.kind,
-                                    "matchResources": {
-                                        "controlPlane": True,
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/certSANs",  # noqa: E501
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    - {{ .builtin.cluster.name }}
-                                                    - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}
-                                                    - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc
-                                                    - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc.cluster.local # noqa: E501
-                                                    {{ .apiServerSANs }}
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                ],
-                            },
-                        ],
                     },
                 ],
             },

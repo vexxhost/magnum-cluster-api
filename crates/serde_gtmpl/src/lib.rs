@@ -26,12 +26,32 @@ fn json_to_gtmpl_value(json: &serde_json::Value) -> gtmpl_value::Value {
             .map(json_to_gtmpl_value)
             .collect::<Vec<_>>()
             .into(),
-        serde_json::Value::Object(map) => gtmpl_value::Value::Object(
-            map.iter()
+        serde_json::Value::Object(map) => {
+            let mut object = map.iter()
                 .map(|(k, v)| (k.clone(), json_to_gtmpl_value(v)))
-                .collect::<std::collections::HashMap<_, _>>()
-                .into(),
-        ),
+                .collect::<std::collections::HashMap<_, _>>();
+
+            // XXX(mnaser): This is stinky, but we only use this in test anyways.
+            object.insert(
+                "builtin".to_string(),
+                gtmpl_value::Value::Object(
+                    vec![
+                        ("cluster".to_string(), gtmpl_value::Value::Object(
+                            vec![
+                                ("name".to_string(), gtmpl_value::Value::String("kube-abcde".to_string())),
+                                ("namespace".to_string(), gtmpl_value::Value::String("magnum-system".to_string())),
+                            ]
+                            .into_iter()
+                            .collect(),
+                        )),
+                    ]
+                    .into_iter()
+                    .collect(),
+                ),
+            );
+
+            gtmpl_value::Value::Object(object.into())
+        }
     }
 }
 

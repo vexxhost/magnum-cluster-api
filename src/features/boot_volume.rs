@@ -1,9 +1,6 @@
 use super::ClusterFeature;
 use crate::{
-    cluster_api::{
-        openstackclustertemplates::OpenStackClusterTemplate,
-        openstackmachinetemplates::OpenStackMachineTemplate,
-    },
+    cluster_api::openstackmachinetemplates::OpenStackMachineTemplate,
     features::ClusterClassVariablesSchemaExt,
 };
 use cluster_api_rs::capi_clusterclass::{
