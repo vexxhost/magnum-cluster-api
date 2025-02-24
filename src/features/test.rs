@@ -5,16 +5,7 @@ use crate::cluster_api::{
         KubeadmConfigTemplateTemplateSpecFilesEncoding, KubeadmConfigTemplateTemplateSpecJoinConfiguration, KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistration,
     },
     kubeadmcontrolplanetemplates::{
-        KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateSpec,
-        KubeadmControlPlaneTemplateTemplate, KubeadmControlPlaneTemplateTemplateSpec,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfiguration,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfigurationNodeRegistration,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfiguration,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfigurationNodeRegistration,
+        KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateSpec, KubeadmControlPlaneTemplateTemplate, KubeadmControlPlaneTemplateTemplateSpec, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFormat, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfiguration, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfigurationNodeRegistration, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfiguration, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfigurationNodeRegistration
     },
     openstackclustertemplates::{
         OpenStackClusterTemplate, OpenStackClusterTemplateSpec, OpenStackClusterTemplateTemplate,
@@ -326,6 +317,7 @@ pub static KCPT_WIP: LazyLock<KubeadmControlPlaneTemplate> = LazyLock::new(|| {
                         ..Default::default()
                     }),
                     files: Some(vec![]),
+                    format: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFormat::CloudConfig),
                     init_configuration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfiguration {
                         node_registration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfigurationNodeRegistration {
                             name: Some("{{ local_hostname }}".to_string()),

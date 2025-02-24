@@ -742,6 +742,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
+name = "ignition-config"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af04fbe2010de0eb96c19c2117f8bfacd2d6f4eee5b874995bede2957c99d6f2"
+dependencies = [
+ "anyhow",
+ "semver",
+ "serde",
+ "serde_ignored",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -968,6 +982,7 @@ dependencies = [
  "base64 0.22.1",
  "cluster-api-rs",
  "gtmpl",
+ "ignition-config",
  "indoc",
  "json-patch",
  "jsonptr",
@@ -1556,6 +1571,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "semver"
+version = "1.0.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f79dfe2d285b0488816f30e700a7438c5a73d816b5b7d3ac72fbc48b0d185e03"
+
+[[package]]
 name = "serde"
 version = "1.0.218"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1603,6 +1624,15 @@ dependencies = [
  "gtmpl_value",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "serde_ignored"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8e319a36d1b52126a0d608f24e93b2d81297091818cd70625fcf50a15d84ddf"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

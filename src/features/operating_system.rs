@@ -4,11 +4,15 @@ use crate::{
         kubeadmconfigtemplates::{
             KubeadmConfigTemplate, KubeadmConfigTemplateTemplateSpecFiles,
             KubeadmConfigTemplateTemplateSpecFilesEncoding,
+            KubeadmConfigTemplateTemplateSpecFormat,
         },
         kubeadmcontrolplanetemplates::{
             KubeadmControlPlaneTemplate,
             KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles,
             KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding,
+            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFormat,
+            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecIgnition,
+            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecIgnitionContainerLinuxConfig,
         },
     },
     features::ClusterClassVariablesSchemaExt,
@@ -20,9 +24,12 @@ use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
     ClusterClassVariables, ClusterClassVariablesSchema,
 };
+use ignition_config::v3_5::{Dropin, Systemd, Unit};
+use indoc::indoc;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
@@ -130,6 +137,175 @@ impl ClusterFeature for Feature {
                     },
                 ]),
                 ..Default::default()
+            },
+            ClusterClassPatches {
+                name: "flatcar".into(),
+                enabled_if: Some(r#"{{ if eq .operatingSystem "flatcar" }}true{{end}}"#.into()),
+                definitions: Some(vec![
+                    ClusterClassPatchesDefinitions {
+                        selector: ClusterClassPatchesDefinitionsSelector {
+                            api_version: KubeadmControlPlaneTemplate::api_resource().api_version,
+                            kind: KubeadmControlPlaneTemplate::api_resource().kind,
+                            match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                                control_plane: Some(true),
+                                ..Default::default()
+                            },
+                        },
+                        json_patches: vec![
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-".into(),
+                                value: Some(indoc!(r#"
+                                bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                bash -c "test -f /tmp/containerd-bootstrap || (touch /tmp/containerd-bootstrap && systemctl daemon-reload && systemctl restart containerd)"
+                                "#).into()),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "replace".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/format".into(),
+                                value: Some(json!(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFormat::Ignition)),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/ignition".into(),
+                                value: Some(json!(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecIgnition {
+                                    container_linux_config: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecIgnitionContainerLinuxConfig {
+                                        additional_config: Some(serde_yaml::to_string(
+                                            &Systemd {
+                                                units: Some(vec![
+                                                    Unit {
+                                                        name: "coreos-metadata-sshkeys@.service".into(),
+                                                        enabled: Some(true),
+                                                        dropins: None,
+                                                        contents: None,
+                                                        mask: None,
+                                                    },
+                                                    Unit {
+                                                        name: "kubeadm.service".into(),
+                                                        enabled: Some(true),
+                                                        dropins: Some(vec![
+                                                            Dropin {
+                                                                name: "10-flatcar.conf".into(),
+                                                                contents: Some(
+                                                                    indoc!(r#"
+                                                                    [Unit]
+                                                                    Requires=containerd.service coreos-metadata.service
+                                                                    After=containerd.service coreos-metadata.service
+                                                                    [Service]
+                                                                    EnvironmentFile=/run/metadata/flatcar
+                                                                    "#).into(),
+                                                                ),
+                                                            },
+                                                        ]),
+                                                        contents: None,
+                                                        mask: None,
+                                                    }
+                                                ]),
+                                            }
+                                        ).unwrap()),
+                                        ..Default::default()
+                                    }),
+                                })),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "replace".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/initConfiguration/nodeRegistration/name".into(),
+                                value: Some("__REPLACE_NODE_NAME__".into()),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "replace".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/joinConfiguration/nodeRegistration/name".into(),
+                                value: Some("__REPLACE_NODE_NAME__".into()),
+                                ..Default::default()
+                            },
+                        ],
+                    },
+                    ClusterClassPatchesDefinitions {
+                        selector: ClusterClassPatchesDefinitionsSelector {
+                            api_version: KubeadmConfigTemplate::api_resource().api_version,
+                            kind: KubeadmConfigTemplate::api_resource().kind,
+                            match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                                machine_deployment_class: Some(ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass {
+                                    names: Some(vec!["default-worker".to_string()])
+                                }),
+                                ..Default::default()
+                            },
+                        },
+                        json_patches: vec![
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/preKubeadmCommands".into(),
+                                value: Some(vec![
+                                    indoc!(r#"
+                                        bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                                        bash -c "test -f /tmp/containerd-bootstrap || (touch /tmp/containerd-bootstrap && systemctl daemon-reload && systemctl restart containerd)"
+                                    "#)
+                                ].into()),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/format".into(),
+                                value: Some(json!(KubeadmConfigTemplateTemplateSpecFormat::Ignition)),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/ignition".into(),
+                                value: Some(json!(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecIgnition {
+                                    container_linux_config: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecIgnitionContainerLinuxConfig {
+                                        additional_config: Some(serde_yaml::to_string(
+                                            &Systemd {
+                                                units: Some(vec![
+                                                    Unit {
+                                                        name: "coreos-metadata-sshkeys@.service".into(),
+                                                        enabled: Some(true),
+                                                        dropins: None,
+                                                        contents: None,
+                                                        mask: None,
+                                                    },
+                                                    Unit {
+                                                        name: "kubeadm.service".into(),
+                                                        enabled: Some(true),
+                                                        dropins: Some(vec![
+                                                            Dropin {
+                                                                name: "10-flatcar.conf".into(),
+                                                                contents: Some(
+                                                                    indoc!(r#"
+                                                                    [Unit]
+                                                                    Requires=containerd.service coreos-metadata.service
+                                                                    After=containerd.service coreos-metadata.service
+                                                                    [Service]
+                                                                    EnvironmentFile=/run/metadata/flatcar
+                                                                    "#).into(),
+                                                                ),
+                                                            },
+                                                        ]),
+                                                        contents: None,
+                                                        mask: None,
+                                                    }
+                                                ]),
+                                            }
+                                        ).unwrap()),
+                                        ..Default::default()
+                                    }),
+                                })),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "replace".into(),
+                                path: "/spec/template/spec/joinConfiguration/nodeRegistration/name".into(),
+                                value: Some("__REPLACE_NODE_NAME__".into()),
+                                ..Default::default()
+                            },
+                        ],
+                    },
+                ]),
+                ..Default::default()
             }
         ]
     }
@@ -216,6 +392,220 @@ mod tests {
         assert_eq!(
             kct_proxy_file.content,
             Some(values.apt_proxy_config.0.clone())
+        );
+    }
+
+    #[test]
+    fn test_apply_patches_for_flatcar() {
+        let feature = Feature {};
+        let values = Values {
+            operating_system: OperatingSystem::Flatcar,
+            apt_proxy_config: AptProxyConfig(base64::encode("")),
+        };
+
+        let patches = feature.patches();
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
+
+        assert_eq!(
+            resources
+                .kubeadm_control_plane_template
+                .spec
+                .template
+                .spec
+                .kubeadm_config_spec
+                .pre_kubeadm_commands,
+            Some(vec![
+                indoc!(r#"
+                bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                bash -c "test -f /tmp/containerd-bootstrap || (touch /tmp/containerd-bootstrap && systemctl daemon-reload && systemctl restart containerd)"
+                "#)
+                .into()
+            ])
+        );
+
+        assert_eq!(
+            resources
+                .kubeadm_control_plane_template
+                .spec
+                .template
+                .spec
+                .kubeadm_config_spec
+                .format,
+            Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFormat::Ignition)
+        );
+
+        assert_eq!(
+            resources
+                .kubeadm_control_plane_template
+                .spec
+                .template
+                .spec
+                .kubeadm_config_spec
+                .ignition
+                .expect("ignition should be set")
+                .container_linux_config
+                .expect("container linux config should be set")
+                .additional_config
+                .expect("additional config should be set"),
+            serde_yaml::to_string(&Systemd {
+                units: Some(vec![
+                    Unit {
+                        name: "coreos-metadata-sshkeys@.service".into(),
+                        enabled: Some(true),
+                        dropins: None,
+                        contents: None,
+                        mask: None,
+                    },
+                    Unit {
+                        name: "kubeadm.service".into(),
+                        enabled: Some(true),
+                        dropins: Some(vec![Dropin {
+                            name: "10-flatcar.conf".into(),
+                            contents: Some(
+                                indoc!(
+                                    r#"
+                                    [Unit]
+                                    Requires=containerd.service coreos-metadata.service
+                                    After=containerd.service coreos-metadata.service
+                                    [Service]
+                                    EnvironmentFile=/run/metadata/flatcar
+                                    "#
+                                )
+                                .into(),
+                            ),
+                        },]),
+                        contents: None,
+                        mask: None,
+                    }
+                ]),
+            })
+            .unwrap()
+        );
+
+        assert_eq!(
+            resources
+                .kubeadm_control_plane_template
+                .spec
+                .template
+                .spec
+                .kubeadm_config_spec
+                .init_configuration
+                .expect("init configuration should be set")
+                .node_registration
+                .expect("node registration should be set")
+                .name,
+            Some("__REPLACE_NODE_NAME__".into())
+        );
+
+        assert_eq!(
+            resources
+                .kubeadm_control_plane_template
+                .spec
+                .template
+                .spec
+                .kubeadm_config_spec
+                .join_configuration
+                .expect("join configuration should be set")
+                .node_registration
+                .expect("node registration should be set")
+                .name,
+            Some("__REPLACE_NODE_NAME__".into())
+        );
+
+        assert_eq!(
+            resources
+                .kubeadm_config_template
+                .clone()
+                .spec
+                .template
+                .spec
+                .expect("spec should be set")
+                .pre_kubeadm_commands,
+            Some(vec![
+                indoc!(r#"
+                    bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
+                    bash -c "test -f /tmp/containerd-bootstrap || (touch /tmp/containerd-bootstrap && systemctl daemon-reload && systemctl restart containerd)"
+                "#)
+                .into()
+            ])
+        );
+
+        assert_eq!(
+            resources
+                .kubeadm_config_template
+                .clone()
+                .spec
+                .template
+                .spec
+                .expect("spec should be set")
+                .format,
+            Some(KubeadmConfigTemplateTemplateSpecFormat::Ignition)
+        );
+
+        assert_eq!(
+            resources
+                .kubeadm_config_template
+                .clone()
+                .spec
+                .template
+                .spec
+                .expect("spec should be set")
+                .ignition
+                .expect("ignition should be set")
+                .container_linux_config
+                .expect("container linux config should be set")
+                .additional_config
+                .expect("additional config should be set"),
+            serde_yaml::to_string(&Systemd {
+                units: Some(vec![
+                    Unit {
+                        name: "coreos-metadata-sshkeys@.service".into(),
+                        enabled: Some(true),
+                        dropins: None,
+                        contents: None,
+                        mask: None,
+                    },
+                    Unit {
+                        name: "kubeadm.service".into(),
+                        enabled: Some(true),
+                        dropins: Some(vec![Dropin {
+                            name: "10-flatcar.conf".into(),
+                            contents: Some(
+                                indoc!(
+                                    r#"
+                                    [Unit]
+                                    Requires=containerd.service coreos-metadata.service
+                                    After=containerd.service coreos-metadata.service
+                                    [Service]
+                                    EnvironmentFile=/run/metadata/flatcar
+                                    "#
+                                )
+                                .into(),
+                            ),
+                        },]),
+                        contents: None,
+                        mask: None,
+                    }
+                ]),
+            })
+            .unwrap()
+        );
+
+        assert_eq!(
+            resources
+                .kubeadm_config_template
+                .clone()
+                .spec
+                .template
+                .spec
+                .expect("spec should be set")
+                .join_configuration
+                .expect("join configuration should be set")
+                .node_registration
+                .expect("node registration should be set")
+                .name,
+            Some("__REPLACE_NODE_NAME__".into())
         );
     }
 }
