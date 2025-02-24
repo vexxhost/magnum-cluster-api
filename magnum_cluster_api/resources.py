@@ -2048,7 +2048,10 @@ class ClusterClass(Base):
                                             "template": textwrap.dedent(
                                                 """\
                                                     - cidr: {{ .nodeCidr }}
-                                                      dnsNameservers: {{ .dnsNameservers }}
+                                                      dnsNameservers:
+                                                     {{- range .dnsNameservers }}
+                                                        - {{ . }}
+                                                     {{- end }}
                                                     """
                                             ),
                                         },
