@@ -1034,15 +1034,6 @@ class ClusterClass(Base):
                         },
                     },
                     {
-                        "name": "externalNetworkId",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
                         "name": "fixedNetworkId",
                         "required": True,
                         "schema": {
@@ -1359,33 +1350,6 @@ class ClusterClass(Base):
                                         "op": "replace",
                                         "path": "/spec/template/spec/joinConfiguration/nodeRegistration/name",
                                         "value": "__REPLACE_NODE_NAME__",
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                    {
-                        "name": "clusterConfig",
-                        "definitions": [
-                            {
-                                "selector": {
-                                    "apiVersion": objects.OpenStackClusterTemplate.version,
-                                    "kind": objects.OpenStackClusterTemplate.kind,
-                                    "matchResources": {
-                                        "infrastructureCluster": True,
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/externalNetwork",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    id: {{ .externalNetworkId }}
-                                                    """
-                                            ),
-                                        },
                                     },
                                 ],
                             },

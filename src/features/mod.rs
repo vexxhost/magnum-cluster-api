@@ -10,6 +10,7 @@ mod disable_api_server_floating_ip;
 mod images;
 mod flavors;
 mod cluster_identity;
+mod external_network;
 mod keystone_auth;
 mod openid_connect;
 mod server_groups;
