@@ -1,16 +1,31 @@
 use crate::cluster_api::{
-    kubeadmconfigtemplates::{KubeadmConfigTemplate, KubeadmConfigTemplateSpec, KubeadmConfigTemplateTemplate, KubeadmConfigTemplateTemplateSpec, KubeadmConfigTemplateTemplateSpecFiles, KubeadmConfigTemplateTemplateSpecFilesEncoding}, kubeadmcontrolplanetemplates::{
+    kubeadmconfigtemplates::{
+        KubeadmConfigTemplate, KubeadmConfigTemplateSpec, KubeadmConfigTemplateTemplate,
+        KubeadmConfigTemplateTemplateSpec, KubeadmConfigTemplateTemplateSpecFiles,
+        KubeadmConfigTemplateTemplateSpecFilesEncoding, KubeadmConfigTemplateTemplateSpecJoinConfiguration, KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistration,
+    },
+    kubeadmcontrolplanetemplates::{
         KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateSpec,
         KubeadmControlPlaneTemplateTemplate, KubeadmControlPlaneTemplateTemplateSpec,
         KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec,
         KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration,
         KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer,
         KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
-    }, openstackclustertemplates::{
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfiguration,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfigurationNodeRegistration,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfiguration,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfigurationNodeRegistration,
+    },
+    openstackclustertemplates::{
         OpenStackClusterTemplate, OpenStackClusterTemplateSpec, OpenStackClusterTemplateTemplate,
         OpenStackClusterTemplateTemplateSpec, OpenStackClusterTemplateTemplateSpecIdentityRef,
         OpenStackClusterTemplateTemplateSpecManagedSecurityGroups,
-    }, openstackmachinetemplates::{OpenStackMachineTemplate, OpenStackMachineTemplateSpec, OpenStackMachineTemplateTemplate, OpenStackMachineTemplateTemplateSpec, OpenStackMachineTemplateTemplateSpecIdentityRef, OpenStackMachineTemplateTemplateSpecImage}
+    },
+    openstackmachinetemplates::{
+        OpenStackMachineTemplate, OpenStackMachineTemplateSpec, OpenStackMachineTemplateTemplate,
+        OpenStackMachineTemplateTemplateSpec, OpenStackMachineTemplateTemplateSpecIdentityRef,
+        OpenStackMachineTemplateTemplateSpecImage,
+    },
 };
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitionsJsonPatches,
@@ -311,6 +326,26 @@ pub static KCPT_WIP: LazyLock<KubeadmControlPlaneTemplate> = LazyLock::new(|| {
                         ..Default::default()
                     }),
                     files: Some(vec![]),
+                    init_configuration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfiguration {
+                        node_registration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfigurationNodeRegistration {
+                            name: Some("{{ local_hostname }}".to_string()),
+                            kubelet_extra_args: Some(btreemap! {
+                                "cloud-provider".to_string() => "external".to_string(),
+                            }),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }),
+                    join_configuration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfiguration {
+                        node_registration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfigurationNodeRegistration {
+                            name: Some("{{ local_hostname }}".to_string()),
+                            kubelet_extra_args: Some(btreemap! {
+                                "cloud-provider".to_string() => "external".to_string(),
+                            }),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }),
                     pre_kubeadm_commands: Some(vec![]),
                     post_kubeadm_commands: Some(vec![]),
                     ..Default::default()
@@ -369,59 +404,64 @@ pub static OMT_WIP: LazyLock<OpenStackMachineTemplate> =
                     }),
                     flavor: Some("PLACEHOLDER".to_string()),
                     ..Default::default()
-                }
-            }
-        }
+                },
+            },
+        },
     });
 
-pub static KCT: LazyLock<KubeadmConfigTemplate> =
-    LazyLock::new(|| KubeadmConfigTemplate {
-        metadata: Default::default(),
-        spec: KubeadmConfigTemplateSpec {
-            template: KubeadmConfigTemplateTemplate {
-                spec: Some(KubeadmConfigTemplateTemplateSpec {
-                    files: Some(vec![
-                        KubeadmConfigTemplateTemplateSpecFiles {
-                            path: "/etc/kubernetes/.placeholder".to_string(),
-                            permissions: Some("0644".to_string()),
-                            content: Some(base64::encode("PLACEHOLDER")),
-                            encoding: Some(KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64),
-                            ..Default::default()
-                        }
-                    ]),
+pub static KCT: LazyLock<KubeadmConfigTemplate> = LazyLock::new(|| KubeadmConfigTemplate {
+    metadata: Default::default(),
+    spec: KubeadmConfigTemplateSpec {
+        template: KubeadmConfigTemplateTemplate {
+            spec: Some(KubeadmConfigTemplateTemplateSpec {
+                files: Some(vec![KubeadmConfigTemplateTemplateSpecFiles {
+                    path: "/etc/kubernetes/.placeholder".to_string(),
+                    permissions: Some("0644".to_string()),
+                    content: Some(base64::encode("PLACEHOLDER")),
+                    encoding: Some(KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64),
+                    ..Default::default()
+                }]),
+                join_configuration: Some(KubeadmConfigTemplateTemplateSpecJoinConfiguration {
+                    node_registration: Some(KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistration {
+                        name: Some("{{ local_hostname }}".to_string()),
+                        kubelet_extra_args: Some(btreemap! {
+                            "cloud-provider".to_string() => "external".to_string(),
+                        }),
+                        ..Default::default()
+                    }),
                     ..Default::default()
                 }),
                 ..Default::default()
-            }
-        }
-    });
+            }),
+            ..Default::default()
+        },
+    },
+});
 
-
-    // return {
-    //     "spec": {
-    //         "template": {
-    //             "spec": {
-    //                 "files": [
-    //                     {
-    //                         "path": "/etc/kubernetes/.placeholder",
-    //                         "permissions": "0644",
-    //                         "content": base64.encode_as_text(PLACEHOLDER),
-    //                         "encoding": "base64",
-    //                     },
-    //                 ],
-    //                 "joinConfiguration": {
-    //                     "nodeRegistration": {
-    //                         "name": "{{ local_hostname }}",
-    //                         "kubeletExtraArgs": {
-    //                             "cloud-provider": "external",
-    //                         },
-    //                     },
-    //                 },
-    //             },
-    //         },
-    //     },
-    // }
-
+// return {
+//     "spec": {
+//         "template": {
+//             "spec": {
+//                 "files": [
+//                     {
+//                         "path": "/etc/kubernetes/.placeholder",
+//                         "permissions": "0644",
+//                         "content": base64.encode_as_text(PLACEHOLDER),
+//                         "encoding": "base64",
+//                     },
+//                 ],
+//                 "joinConfiguration": {
+//                     "nodeRegistration": {
+//                         "name": "{{ local_hostname }}",
+//                         "kubeletExtraArgs": {
+//                             "cloud-provider": "external",
+//                         },
+//                     },
+//                 },
+//             },
+//         },
+//     },
+// }
 
 /// This is a static instance of the `TestClusterResources` that is used for
 /// testing purposes.
@@ -471,28 +511,28 @@ impl TestClusterResources {
                         ("infrastructure.cluster.x-k8s.io/v1beta1", "OpenStackClusterTemplate") => {
                             self.openstack_cluster_template.apply_patch(&patch);
                         }
-                        (
-                            "infrastructure.cluster.x-k8s.io/v1beta1",
-                            "OpenStackMachineTemplate",
-                        ) => {
+                        ("infrastructure.cluster.x-k8s.io/v1beta1", "OpenStackMachineTemplate") => {
                             let match_resources = &definition.selector.match_resources;
 
                             if match_resources.control_plane.unwrap_or(false) {
-                                self.control_plane_openstack_machine_template.apply_patch(&patch);
+                                self.control_plane_openstack_machine_template
+                                    .apply_patch(&patch);
                             }
 
                             if match_resources.machine_deployment_class.is_some() {
                                 self.worker_openstack_machine_template.apply_patch(&patch);
                             }
 
-                            if !match_resources.control_plane.unwrap_or(false) && match_resources.machine_deployment_class.is_none() {
-                                unimplemented!("Unsupported match resources: {:?}", match_resources);
+                            if !match_resources.control_plane.unwrap_or(false)
+                                && match_resources.machine_deployment_class.is_none()
+                            {
+                                unimplemented!(
+                                    "Unsupported match resources: {:?}",
+                                    match_resources
+                                );
                             }
                         }
-                        (
-                            "bootstrap.cluster.x-k8s.io/v1beta1",
-                            "KubeadmConfigTemplate",
-                        ) => {
+                        ("bootstrap.cluster.x-k8s.io/v1beta1", "KubeadmConfigTemplate") => {
                             self.kubeadm_config_template.apply_patch(&patch);
                         }
                         _ => unimplemented!(

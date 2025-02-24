@@ -9,6 +9,7 @@ mod disable_api_server_floating_ip;
 mod keystone_auth;
 mod openid_connect;
 mod server_groups;
+mod tls_cipher_suites;
 
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassVariables, ClusterClassVariablesSchema,

@@ -1124,15 +1124,6 @@ class ClusterClass(Base):
                         },
                     },
                     {
-                        "name": "kubeletTLSCipherSuites",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
                         "name": "apiServerSANs",
                         "required": True,
                         "schema": {
@@ -1761,27 +1752,6 @@ class ClusterClass(Base):
                                 "jsonPatches": [
                                     {
                                         "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/tls-cipher-suites",  # noqa: E501
-                                        "valueFrom": {
-                                            "variable": "apiServerTLSCipherSuites",
-                                        },
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/initConfiguration/nodeRegistration/kubeletExtraArgs/tls-cipher-suites",  # noqa: E501
-                                        "valueFrom": {
-                                            "variable": "kubeletTLSCipherSuites",
-                                        },
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/joinConfiguration/nodeRegistration/kubeletExtraArgs/tls-cipher-suites",  # noqa: E501
-                                        "valueFrom": {
-                                            "variable": "kubeletTLSCipherSuites",
-                                        },
-                                    },
-                                    {
-                                        "op": "add",
                                         "path": "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/certSANs",  # noqa: E501
                                         "valueFrom": {
                                             "template": textwrap.dedent(
@@ -1866,31 +1836,6 @@ class ClusterClass(Base):
                                                     encoding: "base64"
                                                     """
                                             ),
-                                        },
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                    {
-                        "name": "workerConfig",
-                        "definitions": [
-                            {
-                                "selector": {
-                                    "apiVersion": objects.KubeadmConfigTemplate.version,
-                                    "kind": objects.KubeadmConfigTemplate.kind,
-                                    "matchResources": {
-                                        "machineDeploymentClass": {
-                                            "names": ["default-worker"],
-                                        }
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/joinConfiguration/nodeRegistration/kubeletExtraArgs/tls-cipher-suites",  # noqa: E501
-                                        "valueFrom": {
-                                            "variable": "kubeletTLSCipherSuites",
                                         },
                                     },
                                 ],
