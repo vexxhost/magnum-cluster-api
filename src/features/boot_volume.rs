@@ -77,6 +77,7 @@ mod tests {
         cluster_api::openstackmachinetemplates::OpenStackMachineTemplateTemplateSpecRootVolume,
         features::test::TestClusterResources,
     };
+    use pretty_assertions::assert_eq;
 
     #[derive(Clone, Serialize, Deserialize)]
     pub struct Values {

@@ -178,6 +178,7 @@ impl ClusterFeature for Feature {
 mod tests {
     use super::*;
     use crate::features::test::TestClusterResources;
+    use pretty_assertions::assert_eq;
 
     #[derive(Clone, Serialize, Deserialize)]
     pub struct Values {

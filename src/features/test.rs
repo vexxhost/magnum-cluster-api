@@ -1,11 +1,24 @@
 use crate::cluster_api::{
     kubeadmconfigtemplates::{
         KubeadmConfigTemplate, KubeadmConfigTemplateSpec, KubeadmConfigTemplateTemplate,
-        KubeadmConfigTemplateTemplateSpec, KubeadmConfigTemplateTemplateSpecFiles,
-        KubeadmConfigTemplateTemplateSpecFilesEncoding, KubeadmConfigTemplateTemplateSpecJoinConfiguration, KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistration,
+        KubeadmConfigTemplateTemplateSpec, KubeadmConfigTemplateTemplateSpecDiskSetup,
+        KubeadmConfigTemplateTemplateSpecFiles, KubeadmConfigTemplateTemplateSpecFilesEncoding,
+        KubeadmConfigTemplateTemplateSpecJoinConfiguration,
+        KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistration,
     },
     kubeadmcontrolplanetemplates::{
-        KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateSpec, KubeadmControlPlaneTemplateTemplate, KubeadmControlPlaneTemplateTemplateSpec, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFormat, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfiguration, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfigurationNodeRegistration, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfiguration, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfigurationNodeRegistration
+        KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateSpec,
+        KubeadmControlPlaneTemplateTemplate, KubeadmControlPlaneTemplateTemplateSpec,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetup,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFormat,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfiguration,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfigurationNodeRegistration,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfiguration,
+        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfigurationNodeRegistration,
     },
     openstackclustertemplates::{
         OpenStackClusterTemplate, OpenStackClusterTemplateSpec, OpenStackClusterTemplateTemplate,
@@ -174,8 +187,6 @@ impl ToRenderedValue for ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
         let rendered_value =
             gtmpl::template(&template, values).expect("template rendering should succeed");
 
-        println!("{}", rendered_value);
-
         match self.template {
             Some(_) => {
                 serde_yaml::from_str(&rendered_value).expect("rendered value should be valid YAML")
@@ -318,6 +329,10 @@ pub static KCPT_WIP: LazyLock<KubeadmControlPlaneTemplate> = LazyLock::new(|| {
                         }),
                         ..Default::default()
                     }),
+                    disk_setup: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetup {
+                        filesystems: Some(vec![]),
+                        partitions: Some(vec![]),
+                    }),
                     files: Some(vec![]),
                     format: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFormat::CloudConfig),
                     init_configuration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfiguration {
@@ -340,6 +355,7 @@ pub static KCPT_WIP: LazyLock<KubeadmControlPlaneTemplate> = LazyLock::new(|| {
                         }),
                         ..Default::default()
                     }),
+                    mounts: Some(vec![]),
                     pre_kubeadm_commands: Some(vec![]),
                     post_kubeadm_commands: Some(vec![]),
                     ..Default::default()
@@ -387,16 +403,17 @@ pub static OMT_WIP: LazyLock<OpenStackMachineTemplate> =
         spec: OpenStackMachineTemplateSpec {
             template: OpenStackMachineTemplateTemplate {
                 spec: OpenStackMachineTemplateTemplateSpec {
-                    image: OpenStackMachineTemplateTemplateSpecImage {
-                        id: Some("00000000-0000-0000-0000-000000000000".to_string()),
-                        ..Default::default()
-                    },
+                    additional_block_devices: Some(vec![]),
+                    flavor: Some("PLACEHOLDER".to_string()),
                     identity_ref: Some(OpenStackMachineTemplateTemplateSpecIdentityRef {
                         name: "PLACEHOLDER".to_string(),
                         cloud_name: "default".to_string(),
                         ..Default::default()
                     }),
-                    flavor: Some("PLACEHOLDER".to_string()),
+                    image: OpenStackMachineTemplateTemplateSpecImage {
+                        id: Some("00000000-0000-0000-0000-000000000000".to_string()),
+                        ..Default::default()
+                    },
                     ..Default::default()
                 },
             },
@@ -408,6 +425,10 @@ pub static KCT: LazyLock<KubeadmConfigTemplate> = LazyLock::new(|| KubeadmConfig
     spec: KubeadmConfigTemplateSpec {
         template: KubeadmConfigTemplateTemplate {
             spec: Some(KubeadmConfigTemplateTemplateSpec {
+                disk_setup: Some(KubeadmConfigTemplateTemplateSpecDiskSetup {
+                    filesystems: Some(vec![]),
+                    partitions: Some(vec![]),
+                }),
                 files: Some(vec![KubeadmConfigTemplateTemplateSpecFiles {
                     path: "/etc/kubernetes/.placeholder".to_string(),
                     permissions: Some("0644".to_string()),
@@ -416,15 +437,18 @@ pub static KCT: LazyLock<KubeadmConfigTemplate> = LazyLock::new(|| KubeadmConfig
                     ..Default::default()
                 }]),
                 join_configuration: Some(KubeadmConfigTemplateTemplateSpecJoinConfiguration {
-                    node_registration: Some(KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistration {
-                        name: Some("{{ local_hostname }}".to_string()),
-                        kubelet_extra_args: Some(btreemap! {
-                            "cloud-provider".to_string() => "external".to_string(),
-                        }),
-                        ..Default::default()
-                    }),
+                    node_registration: Some(
+                        KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistration {
+                            name: Some("{{ local_hostname }}".to_string()),
+                            kubelet_extra_args: Some(btreemap! {
+                                "cloud-provider".to_string() => "external".to_string(),
+                            }),
+                            ..Default::default()
+                        },
+                    ),
                     ..Default::default()
                 }),
+                mounts: Some(vec![]),
                 ..Default::default()
             }),
             ..Default::default()
