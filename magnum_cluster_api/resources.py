@@ -1052,17 +1052,6 @@ class ClusterClass(Base):
                         },
                     },
                     {
-                        "name": "operatingSystem",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                                "enum": utils.AVAILABLE_OPERATING_SYSTEMS,
-                                "default": "ubuntu",
-                            },
-                        },
-                    },
-                    {
                         "name": "enableDockerVolume",
                         "required": True,
                         "schema": {
@@ -1127,66 +1116,6 @@ class ClusterClass(Base):
                     },
                 ],
                 "patches": [
-                    {
-                        "name": "ubuntu",
-                        "enabledIf": '{{ if eq .operatingSystem "ubuntu" }}true{{end}}',
-                        "definitions": [
-                            {
-                                "selector": {
-                                    "apiVersion": objects.KubeadmControlPlaneTemplate.version,
-                                    "kind": objects.KubeadmControlPlaneTemplate.kind,
-                                    "matchResources": {
-                                        "controlPlane": True,
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    path: "/etc/apt/apt.conf.d/90proxy"
-                                                    owner: "root:root"
-                                                    permissions: "0644"
-                                                    content: "{{ .aptProxyConfig }}"
-                                                    encoding: "base64"
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                ],
-                            },
-                            {
-                                "selector": {
-                                    "apiVersion": objects.KubeadmConfigTemplate.version,
-                                    "kind": objects.KubeadmConfigTemplate.kind,
-                                    "matchResources": {
-                                        "machineDeploymentClass": {
-                                            "names": ["default-worker"],
-                                        }
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/files/-",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    path: "/etc/apt/apt.conf.d/90proxy"
-                                                    owner: "root:root"
-                                                    permissions: "0644"
-                                                    content: "{{ .aptProxyConfig }}"
-                                                    encoding: "base64"
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                ],
-                            },
-                        ],
-                    },
                     {
                         "name": "flatcar",
                         "enabledIf": '{{ if eq .operatingSystem "flatcar" }}true{{end}}',
