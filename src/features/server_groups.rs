@@ -20,12 +20,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
 #[schemars(with = "string")]
-pub struct ConfigServerGroupID(pub String);
+pub struct ServerGroupIDConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
 #[schemars(with = "bool")]
-pub struct ConfigDifferentFailureDomain(pub bool);
+pub struct DifferentFailureDomainConfig(pub bool);
 
 pub struct Feature {}
 
@@ -36,13 +36,13 @@ impl ClusterFeature for Feature {
                 name: "serverGroupId".into(),
                 metadata: None,
                 required: true,
-                schema: ClusterClassVariablesSchema::from_object::<ConfigServerGroupID>(),
+                schema: ClusterClassVariablesSchema::from_object::<ServerGroupIDConfig>(),
             },
             ClusterClassVariables {
                 name: "isServerGroupDiffFailureDomain".into(),
                 metadata: None,
                 required: true,
-                schema: ClusterClassVariablesSchema::from_object::<ConfigDifferentFailureDomain>(),
+                schema: ClusterClassVariablesSchema::from_object::<DifferentFailureDomainConfig>(),
             },
         ]
     }
@@ -161,18 +161,18 @@ mod tests {
     #[derive(Clone, Serialize, Deserialize)]
     pub struct Values {
         #[serde(rename = "serverGroupId")]
-        server_group_id: ConfigServerGroupID,
+        server_group_id: ServerGroupIDConfig,
 
         #[serde(rename = "isServerGroupDiffFailureDomain")]
-        is_server_group_diff_failure_domain: ConfigDifferentFailureDomain,
+        is_server_group_diff_failure_domain: DifferentFailureDomainConfig,
     }
 
     #[test]
     fn test_apply_patches() {
         let feature = Feature {};
         let values = Values {
-            server_group_id: ConfigServerGroupID("server-group-1".to_string()),
-            is_server_group_diff_failure_domain: ConfigDifferentFailureDomain(true),
+            server_group_id: ServerGroupIDConfig("server-group-1".to_string()),
+            is_server_group_diff_failure_domain: DifferentFailureDomainConfig(true),
         };
 
         let patches = feature.patches();
@@ -214,8 +214,8 @@ mod tests {
     fn test_apply_patches_with_failure_domain_disabled() {
         let feature = Feature {};
         let values = Values {
-            server_group_id: ConfigServerGroupID("server-group-1".to_string()),
-            is_server_group_diff_failure_domain: ConfigDifferentFailureDomain(false),
+            server_group_id: ServerGroupIDConfig("server-group-1".to_string()),
+            is_server_group_diff_failure_domain: DifferentFailureDomainConfig(false),
         };
 
         let patches = feature.patches();

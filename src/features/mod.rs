@@ -1,8 +1,11 @@
 #[cfg(test)]
 mod test;
 
-mod audit_log;
 mod api_server_load_balancer;
+mod audit_log;
+mod boot_volume;
+mod containerd_config;
+mod disable_api_server_floating_ip;
 mod keystone_auth;
 mod openid_connect;
 mod server_groups;

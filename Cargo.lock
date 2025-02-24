@@ -965,6 +965,7 @@ name = "magnum-cluster-api"
 version = "0.1.0"
 dependencies = [
  "backoff",
+ "base64 0.22.1",
  "cluster-api-rs",
  "gtmpl",
  "indoc",

@@ -1022,24 +1022,6 @@ class ClusterClass(Base):
                         },
                     },
                     {
-                        "name": "bootVolume",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "object",
-                                "required": ["size"],
-                                "properties": {
-                                    "size": {
-                                        "type": "integer",
-                                    },
-                                    "type": {
-                                        "type": "string",
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    {
                         "name": "clusterIdentityRefName",
                         "required": True,
                         "schema": {
@@ -1067,47 +1049,11 @@ class ClusterClass(Base):
                         },
                     },
                     {
-                        "name": "systemdProxyConfig",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
-                        "name": "aptProxyConfig",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
-                        "name": "containerdConfig",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
                         "name": "controlPlaneFlavor",
                         "required": True,
                         "schema": {
                             "openAPIV3Schema": {
                                 "type": "string",
-                            },
-                        },
-                    },
-                    {
-                        "name": "disableAPIServerFloatingIP",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "boolean",
                             },
                         },
                     },
@@ -1287,15 +1233,6 @@ class ClusterClass(Base):
                         },
                     },
                     {
-                        "name": "enableKeystoneAuth",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "boolean",
-                            },
-                        },
-                    },
-                    {
                         "name": "controlPlaneAvailabilityZones",
                         "required": True,
                         "schema": {
@@ -1309,38 +1246,6 @@ class ClusterClass(Base):
                     },
                 ],
                 "patches": [
-                    {
-                        "name": "bootVolume",
-                        "enabledIf": "{{ if gt .bootVolume.size 0.0 }}true{{end}}",
-                        "definitions": [
-                            {
-                                "selector": {
-                                    "apiVersion": objects.OpenStackMachineTemplate.version,
-                                    "kind": objects.OpenStackMachineTemplate.kind,
-                                    "matchResources": {
-                                        "controlPlane": True,
-                                        "machineDeploymentClass": {
-                                            "names": ["default-worker"],
-                                        },
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/rootVolume",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    sizeGiB: {{ .bootVolume.size }}
-                                                    type: {{ .bootVolume.type }}
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                ],
-                            }
-                        ],
-                    },
                     {
                         "name": "ubuntu",
                         "enabledIf": '{{ if eq .operatingSystem "ubuntu" }}true{{end}}',
@@ -1369,11 +1274,6 @@ class ClusterClass(Base):
                                             ),
                                         },
                                     },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-",
-                                        "value": "systemctl daemon-reload && systemctl restart containerd",
-                                    },
                                 ],
                             },
                             {
@@ -1401,14 +1301,6 @@ class ClusterClass(Base):
                                                     """
                                             ),
                                         },
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/preKubeadmCommands",
-                                        "value": [
-                                            "systemctl daemon-reload",
-                                            "systemctl restart containerd",
-                                        ],
                                     },
                                 ],
                             },
@@ -1647,30 +1539,6 @@ class ClusterClass(Base):
                         ],
                     },
                     {
-                        "name": "disableAPIServerFloatingIP",
-                        "enabledIf": "{{ if .disableAPIServerFloatingIP }}true{{end}}",
-                        "definitions": [
-                            {
-                                "selector": {
-                                    "apiVersion": objects.OpenStackClusterTemplate.version,
-                                    "kind": objects.OpenStackClusterTemplate.kind,
-                                    "matchResources": {
-                                        "infrastructureCluster": True,
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/disableAPIServerFloatingIP",
-                                        "valueFrom": {
-                                            "variable": "disableAPIServerFloatingIP"
-                                        },
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                    {
                         "name": "controlPlaneAvailabilityZones",
                         "enabledIf": '{{ if ne (index .controlPlaneAvailabilityZones 0) "" }}true{{end}}',
                         "definitions": [
@@ -1880,69 +1748,6 @@ class ClusterClass(Base):
                         ).definitions,
                     },
                     {
-                        "name": "keystoneAuth",
-                        "enabledIf": "{{ if .enableKeystoneAuth }}true{{end}}",
-                        "definitions": [
-                            {
-                                "selector": {
-                                    "apiVersion": objects.KubeadmControlPlaneTemplate.version,
-                                    "kind": objects.KubeadmControlPlaneTemplate.kind,
-                                    "matchResources": {
-                                        "controlPlane": True,
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
-                                        "value": {
-                                            "path": "/etc/kubernetes/keystone-kustomization/kustomization.yml",
-                                            "permissions": "0644",
-                                            "owner": "root:root",
-                                            "content": textwrap.dedent(
-                                                """\
-                                                    resources:
-                                                      - kube-apiserver.yaml
-                                                    patches:
-                                                      - target:
-                                                          group: ""
-                                                          version: v1
-                                                          kind: Pod
-                                                          name: kube-apiserver
-                                                        patch: |-
-                                                          - op: add
-                                                            path: /spec/containers/0/command/-
-                                                            value: --authentication-token-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
-                                                          - op: add
-                                                            path: /spec/containers/0/command/-
-                                                            value: --authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml # noqa: E501
-                                                          - op: add
-                                                            path: /spec/containers/0/command/-
-                                                            value: --authorization-mode=Webhook
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-",
-                                        "value": "mkdir -p /etc/kubernetes/keystone-kustomization",
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-",
-                                        "value": "cp /etc/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml",  # noqa: E501
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-",
-                                        "value": "kubectl kustomize /etc/kubernetes/keystone-kustomization -o /etc/kubernetes/manifests/kube-apiserver.yaml",  # noqa: E501
-                                    },
-                                ],
-                            }
-                        ],
-                    },
-                    {
                         "name": "controlPlaneConfig",
                         "definitions": [
                             {
@@ -1996,21 +1801,6 @@ class ClusterClass(Base):
                                         "valueFrom": {
                                             "template": textwrap.dedent(
                                                 """\
-                                                    path: "/etc/containerd/config.toml"
-                                                    owner: "root:root"
-                                                    permissions: "0644"
-                                                    content: "{{ .containerdConfig }}"
-                                                    encoding: "base64"
-                                                    """
-                                            )
-                                        },
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
                                                     path: "/etc/kubernetes/cloud.conf"
                                                     owner: "root:root"
                                                     permissions: "0600"
@@ -2030,21 +1820,6 @@ class ClusterClass(Base):
                                                     owner: "root:root"
                                                     permissions: "0600"
                                                     content: "{{ .cloudCaCert }}"
-                                                    encoding: "base64"
-                                                    """
-                                            )
-                                        },
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    path: "/etc/systemd/system/containerd.service.d/proxy.conf"
-                                                    owner: "root:root"
-                                                    permissions: "0644"
-                                                    content: "{{ .systemdProxyConfig }}"
                                                     encoding: "base64"
                                                     """
                                             )
@@ -2088,36 +1863,6 @@ class ClusterClass(Base):
                                                     owner: "root:root"
                                                     permissions: "0600"
                                                     content: "{{ .cloudCaCert }}"
-                                                    encoding: "base64"
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/files/-",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    path: "/etc/containerd/config.toml"
-                                                    owner: "root:root"
-                                                    permissions: "0644"
-                                                    content: "{{ .containerdConfig }}"
-                                                    encoding: "base64"
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/files/-",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    path: "/etc/systemd/system/containerd.service.d/proxy.conf"
-                                                    owner: "root:root"
-                                                    permissions: "0644"
-                                                    content: "{{ .systemdProxyConfig }}"
                                                     encoding: "base64"
                                                     """
                                             ),

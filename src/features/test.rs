@@ -1,17 +1,16 @@
 use crate::cluster_api::{
-    kubeadmcontrolplanetemplates::{
+    kubeadmconfigtemplates::{KubeadmConfigTemplate, KubeadmConfigTemplateSpec, KubeadmConfigTemplateTemplate, KubeadmConfigTemplateTemplateSpec, KubeadmConfigTemplateTemplateSpecFiles, KubeadmConfigTemplateTemplateSpecFilesEncoding}, kubeadmcontrolplanetemplates::{
         KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateSpec,
         KubeadmControlPlaneTemplateTemplate, KubeadmControlPlaneTemplateTemplateSpec,
         KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec,
         KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration,
         KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer,
         KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
-    },
-    openstackclustertemplates::{
+    }, openstackclustertemplates::{
         OpenStackClusterTemplate, OpenStackClusterTemplateSpec, OpenStackClusterTemplateTemplate,
         OpenStackClusterTemplateTemplateSpec, OpenStackClusterTemplateTemplateSpecIdentityRef,
         OpenStackClusterTemplateTemplateSpecManagedSecurityGroups,
-    }, openstackmachinetemplates::{OpenStackMachineTemplate, OpenStackMachineTemplateSpec, OpenStackMachineTemplateTemplate, OpenStackMachineTemplateTemplateSpec, OpenStackMachineTemplateTemplateSpecIdentityRef, OpenStackMachineTemplateTemplateSpecImage},
+    }, openstackmachinetemplates::{OpenStackMachineTemplate, OpenStackMachineTemplateSpec, OpenStackMachineTemplateTemplate, OpenStackMachineTemplateTemplateSpec, OpenStackMachineTemplateTemplateSpecIdentityRef, OpenStackMachineTemplateTemplateSpecImage}
 };
 use cluster_api_rs::capi_clusterclass::{
     ClusterClassPatches, ClusterClassPatchesDefinitionsJsonPatches,
@@ -375,22 +374,72 @@ pub static OMT_WIP: LazyLock<OpenStackMachineTemplate> =
         }
     });
 
+pub static KCT: LazyLock<KubeadmConfigTemplate> =
+    LazyLock::new(|| KubeadmConfigTemplate {
+        metadata: Default::default(),
+        spec: KubeadmConfigTemplateSpec {
+            template: KubeadmConfigTemplateTemplate {
+                spec: Some(KubeadmConfigTemplateTemplateSpec {
+                    files: Some(vec![
+                        KubeadmConfigTemplateTemplateSpecFiles {
+                            path: "/etc/kubernetes/.placeholder".to_string(),
+                            permissions: Some("0644".to_string()),
+                            content: Some(base64::encode("PLACEHOLDER")),
+                            encoding: Some(KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64),
+                            ..Default::default()
+                        }
+                    ]),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }
+        }
+    });
+
+
+    // return {
+    //     "spec": {
+    //         "template": {
+    //             "spec": {
+    //                 "files": [
+    //                     {
+    //                         "path": "/etc/kubernetes/.placeholder",
+    //                         "permissions": "0644",
+    //                         "content": base64.encode_as_text(PLACEHOLDER),
+    //                         "encoding": "base64",
+    //                     },
+    //                 ],
+    //                 "joinConfiguration": {
+    //                     "nodeRegistration": {
+    //                         "name": "{{ local_hostname }}",
+    //                         "kubeletExtraArgs": {
+    //                             "cloud-provider": "external",
+    //                         },
+    //                     },
+    //                 },
+    //             },
+    //         },
+    //     },
+    // }
+
 
 /// This is a static instance of the `TestClusterResources` that is used for
 /// testing purposes.
 pub struct TestClusterResources {
+    pub control_plane_openstack_machine_template: OpenStackMachineTemplate,
+    pub kubeadm_config_template: KubeadmConfigTemplate,
     pub kubeadm_control_plane_template: KubeadmControlPlaneTemplate,
     pub openstack_cluster_template: OpenStackClusterTemplate,
-    pub control_plane_openstack_machine_template: OpenStackMachineTemplate,
     pub worker_openstack_machine_template: OpenStackMachineTemplate,
 }
 
 impl TestClusterResources {
     pub fn new() -> Self {
         Self {
+            control_plane_openstack_machine_template: OMT_WIP.clone(),
+            kubeadm_config_template: KCT.clone(),
             kubeadm_control_plane_template: KCPT_WIP.clone(),
             openstack_cluster_template: OCT_WIP.clone(),
-            control_plane_openstack_machine_template: OMT_WIP.clone(),
             worker_openstack_machine_template: OMT_WIP.clone(),
         }
     }
@@ -439,6 +488,12 @@ impl TestClusterResources {
                             if !match_resources.control_plane.unwrap_or(false) && match_resources.machine_deployment_class.is_none() {
                                 unimplemented!("Unsupported match resources: {:?}", match_resources);
                             }
+                        }
+                        (
+                            "bootstrap.cluster.x-k8s.io/v1beta1",
+                            "KubeadmConfigTemplate",
+                        ) => {
+                            self.kubeadm_config_template.apply_patch(&patch);
                         }
                         _ => unimplemented!(
                             "Unsupported resource type: {}/{}",
