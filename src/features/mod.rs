@@ -16,6 +16,7 @@ mod openid_connect;
 mod image_repository;
 mod server_groups;
 mod ssh_key;
+mod control_plane_availablity_zones;
 mod tls;
 
 use cluster_api_rs::capi_clusterclass::{

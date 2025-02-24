@@ -1125,18 +1125,6 @@ class ClusterClass(Base):
                             },
                         },
                     },
-                    {
-                        "name": "controlPlaneAvailabilityZones",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string",
-                                },
-                            },
-                        },
-                    },
                 ],
                 "patches": [
                     {
@@ -1323,30 +1311,6 @@ class ClusterClass(Base):
                                         "op": "replace",
                                         "path": "/spec/template/spec/joinConfiguration/nodeRegistration/name",
                                         "value": "__REPLACE_NODE_NAME__",
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                    {
-                        "name": "controlPlaneAvailabilityZones",
-                        "enabledIf": '{{ if ne (index .controlPlaneAvailabilityZones 0) "" }}true{{end}}',
-                        "definitions": [
-                            {
-                                "selector": {
-                                    "apiVersion": objects.OpenStackClusterTemplate.version,
-                                    "kind": objects.OpenStackClusterTemplate.kind,
-                                    "matchResources": {
-                                        "infrastructureCluster": True,
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/controlPlaneAvailabilityZones",
-                                        "valueFrom": {
-                                            "variable": "controlPlaneAvailabilityZones"
-                                        },
                                     },
                                 ],
                             },
