@@ -1031,24 +1031,6 @@ class ClusterClass(Base):
                         },
                     },
                     {
-                        "name": "cloudCaCert",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
-                        "name": "cloudControllerManagerConfig",
-                        "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
                         "name": "dnsNameservers",
                         "required": True,
                         "schema": {
@@ -1117,14 +1099,6 @@ class ClusterClass(Base):
                     {
                         "name": "nodeCidr",
                         "required": True,
-                        "schema": {
-                            "openAPIV3Schema": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                    {
-                        "name": "sshKeyName",
                         "schema": {
                             "openAPIV3Schema": {
                                 "type": "string",
@@ -1431,11 +1405,6 @@ class ClusterClass(Base):
                                         },
                                     },
                                     {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/sshKeyName",
-                                        "valueFrom": {"variable": "sshKeyName"},
-                                    },
-                                    {
                                         "op": "replace",
                                         "path": "/spec/template/spec/image/id",
                                         "valueFrom": {"variable": "imageUUID"},
@@ -1705,79 +1674,6 @@ class ClusterClass(Base):
                                                     - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc
                                                     - {{ .builtin.cluster.name }}.{{ .builtin.cluster.namespace }}.svc.cluster.local # noqa: E501
                                                     {{ .apiServerSANs }}
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    path: "/etc/kubernetes/cloud.conf"
-                                                    owner: "root:root"
-                                                    permissions: "0600"
-                                                    content: "{{ .cloudControllerManagerConfig }}"
-                                                    encoding: "base64"
-                                                    """
-                                            )
-                                        },
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/kubeadmConfigSpec/files/-",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    path: "/etc/kubernetes/cloud_ca.crt"
-                                                    owner: "root:root"
-                                                    permissions: "0600"
-                                                    content: "{{ .cloudCaCert }}"
-                                                    encoding: "base64"
-                                                    """
-                                            )
-                                        },
-                                    },
-                                ],
-                            },
-                            {
-                                "selector": {
-                                    "apiVersion": objects.KubeadmConfigTemplate.version,
-                                    "kind": objects.KubeadmConfigTemplate.kind,
-                                    "matchResources": {
-                                        "machineDeploymentClass": {
-                                            "names": ["default-worker"],
-                                        }
-                                    },
-                                },
-                                "jsonPatches": [
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/files/-",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    path: "/etc/kubernetes/cloud.conf"
-                                                    owner: "root:root"
-                                                    permissions: "0600"
-                                                    content: "{{ .cloudControllerManagerConfig }}"
-                                                    encoding: "base64"
-                                                    """
-                                            ),
-                                        },
-                                    },
-                                    {
-                                        "op": "add",
-                                        "path": "/spec/template/spec/files/-",
-                                        "valueFrom": {
-                                            "template": textwrap.dedent(
-                                                """\
-                                                    path: "/etc/kubernetes/cloud_ca.crt"
-                                                    owner: "root:root"
-                                                    permissions: "0600"
-                                                    content: "{{ .cloudCaCert }}"
-                                                    encoding: "base64"
                                                     """
                                             ),
                                         },

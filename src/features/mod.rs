@@ -4,12 +4,14 @@ mod test;
 mod api_server_load_balancer;
 mod audit_log;
 mod boot_volume;
+mod cloud_controller_manager;
 mod containerd_config;
 mod disable_api_server_floating_ip;
 mod flavors;
 mod keystone_auth;
 mod openid_connect;
 mod server_groups;
+mod ssh_key;
 mod tls_cipher_suites;
 
 use cluster_api_rs::capi_clusterclass::{
