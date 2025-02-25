@@ -1,14 +1,18 @@
 use super::ClusterFeature;
 use crate::{
-    cluster_api::openstackmachinetemplates::OpenStackMachineTemplate,
+    cluster_api::{
+        clusterclasses::{
+            ClusterClassPatches, ClusterClassPatchesDefinitions,
+            ClusterClassPatchesDefinitionsJsonPatches,
+            ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
+            ClusterClassPatchesDefinitionsSelector,
+            ClusterClassPatchesDefinitionsSelectorMatchResources,
+            ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
+            ClusterClassVariables, ClusterClassVariablesSchema,
+        },
+        openstackmachinetemplates::OpenStackMachineTemplate,
+    },
     features::ClusterClassVariablesSchemaExt,
-};
-use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
-    ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
-    ClusterClassPatchesDefinitionsSelectorMatchResources,
-    ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
-    ClusterClassVariables, ClusterClassVariablesSchema,
 };
 use indoc::indoc;
 use kube::CustomResourceExt;
@@ -45,7 +49,7 @@ impl ClusterFeature for Feature {
                         control_plane: Some(true),
                         machine_deployment_class: Some(
                             ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass {
-                                names: Some(vec!["control-plane".into()]),
+                                names: Some(vec!["default-worker".into()]),
                                 ..Default::default()
                             }
                         ),
@@ -108,8 +112,22 @@ mod tests {
                 .spec
                 .root_volume,
             Some(OpenStackMachineTemplateTemplateSpecRootVolume {
-                r#type: Some(values.boot_volume.r#type),
-                size_gi_b: values.boot_volume.size,
+                r#type: Some(values.clone().boot_volume.r#type),
+                size_gi_b: values.clone().boot_volume.size,
+                ..Default::default()
+            })
+        );
+
+        assert_eq!(
+            resources
+                .worker_openstack_machine_template
+                .spec
+                .template
+                .spec
+                .root_volume,
+            Some(OpenStackMachineTemplateTemplateSpecRootVolume {
+                r#type: Some(values.clone().boot_volume.r#type),
+                size_gi_b: values.clone().boot_volume.size,
                 ..Default::default()
             })
         );

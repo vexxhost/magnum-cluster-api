@@ -196,19 +196,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cluster-api-rs"
-version = "1.9.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "576cb6af65b9efcb0712e0e261aa50127a4b3467f85d51c1c5199cc1b6bc062c"
-dependencies = [
- "k8s-openapi",
- "kube",
- "schemars",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "concurrent-queue"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -980,7 +967,6 @@ version = "0.1.0"
 dependencies = [
  "backoff",
  "base64 0.22.1",
- "cluster-api-rs",
  "gtmpl",
  "ignition-config",
  "indoc",

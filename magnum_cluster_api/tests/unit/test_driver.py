@@ -254,31 +254,6 @@ class TestDriver:
                     ).get_resource()
                 ),
                 mock.call(
-                    resources.KubeadmControlPlaneTemplate(
-                        ubuntu_driver._kube_client, "magnum-system"
-                    ).get_resource()
-                ),
-                mock.call(
-                    resources.KubeadmConfigTemplate(
-                        ubuntu_driver._kube_client, "magnum-system"
-                    ).get_resource()
-                ),
-                mock.call(
-                    resources.OpenStackMachineTemplate(
-                        ubuntu_driver._kube_client, "magnum-system"
-                    ).get_resource()
-                ),
-                mock.call(
-                    resources.OpenStackClusterTemplate(
-                        ubuntu_driver._kube_client, "magnum-system"
-                    ).get_resource()
-                ),
-                mock.call(
-                    resources.ClusterClass(
-                        ubuntu_driver._kube_client, "magnum-system"
-                    ).get_resource()
-                ),
-                mock.call(
                     resources.ClusterResourcesConfigMap(
                         context,
                         ubuntu_driver._kube_client,

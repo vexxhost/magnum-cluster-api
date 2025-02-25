@@ -1,14 +1,18 @@
 use super::ClusterFeature;
 use crate::{
-    cluster_api::kubeadmcontrolplanetemplates::{
-        KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles,
+    cluster_api::{
+        clusterclasses::{
+            ClusterClassPatches, ClusterClassPatchesDefinitions,
+            ClusterClassPatchesDefinitionsJsonPatches, ClusterClassPatchesDefinitionsSelector,
+            ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
+            ClusterClassVariablesSchema,
+        },
+        kubeadmcontrolplanetemplates::{
+            KubeadmControlPlaneTemplate,
+            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles,
+        },
     },
     features::ClusterClassVariablesSchemaExt,
-};
-use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
-    ClusterClassPatchesDefinitionsSelector, ClusterClassPatchesDefinitionsSelectorMatchResources,
-    ClusterClassVariables, ClusterClassVariablesSchema,
 };
 use json_patch::{AddOperation, PatchOperation};
 use jsonptr::PointerBuf;
@@ -39,7 +43,6 @@ struct KustomizePatch {
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "bool")]
 pub struct Config(pub bool);
 
 pub struct Feature {}
@@ -96,7 +99,7 @@ impl ClusterFeature for Feature {
                                             }),
                                             PatchOperation::Add(AddOperation {
                                                 path: PointerBuf::parse("/spec/containers/0/command/-").unwrap(),
-                                                value: "--authentication-mode=Webhook".into(),
+                                                value: "--authorization-mode=Webhook".into(),
                                             }),
                                         ]).unwrap(),
                                     },
@@ -165,7 +168,12 @@ mod tests {
             .files
             .expect("files should be set");
 
-        assert!(files.is_empty());
+        assert_eq!(
+            files
+                .iter()
+                .find(|f| f.path == "/etc/kubernetes/keystone-kustomization/kustomization.yml"),
+            None
+        );
     }
 
     #[test]
@@ -221,7 +229,7 @@ mod tests {
             &"--authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml"
                 .to_string()
         ));
-        assert!(args.contains(&"--authentication-mode=Webhook".to_string()));
+        assert!(args.contains(&"--authorization-mode=Webhook".to_string()));
 
         let pre_cmds = resources
             .kubeadm_control_plane_template

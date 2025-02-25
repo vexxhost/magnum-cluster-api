@@ -1,6 +1,15 @@
 use super::ClusterFeature;
 use crate::{
     cluster_api::{
+        clusterclasses::{
+            ClusterClassPatches, ClusterClassPatchesDefinitions,
+            ClusterClassPatchesDefinitionsJsonPatches,
+            ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
+            ClusterClassPatchesDefinitionsSelector,
+            ClusterClassPatchesDefinitionsSelectorMatchResources,
+            ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
+            ClusterClassVariables, ClusterClassVariablesSchema,
+        },
         kubeadmconfigtemplates::{
             KubeadmConfigTemplate, KubeadmConfigTemplateTemplateSpecFiles,
             KubeadmConfigTemplateTemplateSpecFilesEncoding,
@@ -17,14 +26,7 @@ use crate::{
     },
     features::ClusterClassVariablesSchemaExt,
 };
-use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
-    ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
-    ClusterClassPatchesDefinitionsSelectorMatchResources,
-    ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
-    ClusterClassVariables, ClusterClassVariablesSchema,
-};
-use ignition_config::v3_5::{Dropin, Systemd, Unit};
+use ignition_config::v3_5::{Config, Dropin, Systemd, Unit};
 use indoc::indoc;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
@@ -36,11 +38,15 @@ use serde_json::json;
 pub enum OperatingSystem {
     Ubuntu,
     Flatcar,
+    RockyLinux,
 }
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
+pub struct OperatingSystemConfig(pub OperatingSystem);
+
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
 pub struct AptProxyConfig(pub String);
 
 pub struct Feature {}
@@ -52,7 +58,7 @@ impl ClusterFeature for Feature {
                 name: "operatingSystem".into(),
                 metadata: None,
                 required: true,
-                schema: ClusterClassVariablesSchema::from_object::<OperatingSystem>(),
+                schema: ClusterClassVariablesSchema::from_object::<OperatingSystemConfig>(),
             },
             ClusterClassVariables {
                 name: "aptProxyConfig".into(),
@@ -172,8 +178,8 @@ impl ClusterFeature for Feature {
                                 path: "/spec/template/spec/kubeadmConfigSpec/ignition".into(),
                                 value: Some(json!(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecIgnition {
                                     container_linux_config: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecIgnitionContainerLinuxConfig {
-                                        additional_config: Some(serde_yaml::to_string(
-                                            &Systemd {
+                                        additional_config: Some(serde_yaml::to_string(&Config {
+                                            systemd: Some(Systemd {
                                                 units: Some(vec![
                                                     Unit {
                                                         name: "coreos-metadata-sshkeys@.service".into(),
@@ -203,8 +209,9 @@ impl ClusterFeature for Feature {
                                                         mask: None,
                                                     }
                                                 ]),
-                                            }
-                                        ).unwrap()),
+                                            }),
+                                            ..Default::default()
+                                        }).unwrap()),
                                         ..Default::default()
                                     }),
                                 })),
@@ -258,8 +265,8 @@ impl ClusterFeature for Feature {
                                 path: "/spec/template/spec/ignition".into(),
                                 value: Some(json!(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecIgnition {
                                     container_linux_config: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecIgnitionContainerLinuxConfig {
-                                        additional_config: Some(serde_yaml::to_string(
-                                            &Systemd {
+                                        additional_config: Some(serde_yaml::to_string(&Config {
+                                            systemd: Some(Systemd {
                                                 units: Some(vec![
                                                     Unit {
                                                         name: "coreos-metadata-sshkeys@.service".into(),
@@ -289,8 +296,9 @@ impl ClusterFeature for Feature {
                                                         mask: None,
                                                     }
                                                 ]),
-                                            }
-                                        ).unwrap()),
+                                            }),
+                                            ..Default::default()
+                                        }).unwrap()),
                                         ..Default::default()
                                     }),
                                 })),
@@ -321,7 +329,7 @@ mod tests {
     #[derive(Clone, Serialize, Deserialize)]
     pub struct Values {
         #[serde(rename = "operatingSystem")]
-        operating_system: OperatingSystem,
+        operating_system: OperatingSystemConfig,
 
         #[serde(rename = "aptProxyConfig")]
         apt_proxy_config: AptProxyConfig,
@@ -331,7 +339,7 @@ mod tests {
     fn test_apply_patches_for_ubuntu() {
         let feature = Feature {};
         let values = Values {
-            operating_system: OperatingSystem::Ubuntu,
+            operating_system: OperatingSystemConfig(OperatingSystem::Ubuntu),
             apt_proxy_config: AptProxyConfig(base64::encode(indoc!(
                 "
                 Acquire::http::Proxy \"http://proxy.example.com\";
@@ -399,7 +407,7 @@ mod tests {
     fn test_apply_patches_for_flatcar() {
         let feature = Feature {};
         let values = Values {
-            operating_system: OperatingSystem::Flatcar,
+            operating_system: OperatingSystemConfig(OperatingSystem::Flatcar),
             apt_proxy_config: AptProxyConfig(base64::encode("")),
         };
 
@@ -416,6 +424,8 @@ mod tests {
                 .kubeadm_config_spec
                 .pre_kubeadm_commands,
             Some(vec![
+                "rm /var/lib/etcd/lost+found -rf".to_string(),
+                "bash /run/kubeadm/configure-kube-proxy.sh".to_string(),
                 indoc!(r#"
                 bash -c "sed -i 's/__REPLACE_NODE_NAME__/$(hostname -s)/g' /etc/kubeadm.yml"
                 bash -c "test -f /tmp/containerd-bootstrap || (touch /tmp/containerd-bootstrap && systemctl daemon-reload && systemctl restart containerd)"
@@ -448,37 +458,40 @@ mod tests {
                 .expect("container linux config should be set")
                 .additional_config
                 .expect("additional config should be set"),
-            serde_yaml::to_string(&Systemd {
-                units: Some(vec![
-                    Unit {
-                        name: "coreos-metadata-sshkeys@.service".into(),
-                        enabled: Some(true),
-                        dropins: None,
-                        contents: None,
-                        mask: None,
-                    },
-                    Unit {
-                        name: "kubeadm.service".into(),
-                        enabled: Some(true),
-                        dropins: Some(vec![Dropin {
-                            name: "10-flatcar.conf".into(),
-                            contents: Some(
-                                indoc!(
-                                    r#"
+            serde_yaml::to_string(&Config {
+                systemd: Some(Systemd {
+                    units: Some(vec![
+                        Unit {
+                            name: "coreos-metadata-sshkeys@.service".into(),
+                            enabled: Some(true),
+                            dropins: None,
+                            contents: None,
+                            mask: None,
+                        },
+                        Unit {
+                            name: "kubeadm.service".into(),
+                            enabled: Some(true),
+                            dropins: Some(vec![Dropin {
+                                name: "10-flatcar.conf".into(),
+                                contents: Some(
+                                    indoc!(
+                                        r#"
                                     [Unit]
                                     Requires=containerd.service coreos-metadata.service
                                     After=containerd.service coreos-metadata.service
                                     [Service]
                                     EnvironmentFile=/run/metadata/flatcar
                                     "#
-                                )
-                                .into(),
-                            ),
-                        },]),
-                        contents: None,
-                        mask: None,
-                    }
-                ]),
+                                    )
+                                    .into(),
+                                ),
+                            },]),
+                            contents: None,
+                            mask: None,
+                        }
+                    ]),
+                }),
+                ..Default::default()
             })
             .unwrap()
         );
@@ -557,37 +570,40 @@ mod tests {
                 .expect("container linux config should be set")
                 .additional_config
                 .expect("additional config should be set"),
-            serde_yaml::to_string(&Systemd {
-                units: Some(vec![
-                    Unit {
-                        name: "coreos-metadata-sshkeys@.service".into(),
-                        enabled: Some(true),
-                        dropins: None,
-                        contents: None,
-                        mask: None,
-                    },
-                    Unit {
-                        name: "kubeadm.service".into(),
-                        enabled: Some(true),
-                        dropins: Some(vec![Dropin {
-                            name: "10-flatcar.conf".into(),
-                            contents: Some(
-                                indoc!(
-                                    r#"
-                                    [Unit]
-                                    Requires=containerd.service coreos-metadata.service
-                                    After=containerd.service coreos-metadata.service
-                                    [Service]
-                                    EnvironmentFile=/run/metadata/flatcar
-                                    "#
-                                )
-                                .into(),
-                            ),
-                        },]),
-                        contents: None,
-                        mask: None,
-                    }
-                ]),
+            serde_yaml::to_string(&Config {
+                systemd: Some(Systemd {
+                    units: Some(vec![
+                        Unit {
+                            name: "coreos-metadata-sshkeys@.service".into(),
+                            enabled: Some(true),
+                            dropins: None,
+                            contents: None,
+                            mask: None,
+                        },
+                        Unit {
+                            name: "kubeadm.service".into(),
+                            enabled: Some(true),
+                            dropins: Some(vec![Dropin {
+                                name: "10-flatcar.conf".into(),
+                                contents: Some(
+                                    indoc!(
+                                        r#"
+                                        [Unit]
+                                        Requires=containerd.service coreos-metadata.service
+                                        After=containerd.service coreos-metadata.service
+                                        [Service]
+                                        EnvironmentFile=/run/metadata/flatcar
+                                        "#
+                                    )
+                                    .into(),
+                                ),
+                            },]),
+                            contents: None,
+                            mask: None,
+                        }
+                    ]),
+                }),
+                ..Default::default()
             })
             .unwrap()
         );

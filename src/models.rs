@@ -1,7 +1,11 @@
-use crate::client;
-use cluster_api_rs::capi_clusterresourceset::{
-    ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
-    ClusterResourceSetResourcesKind, ClusterResourceSetSpec,
+use crate::{
+    builder::ClusterClassBuilder,
+    client,
+    cluster_api::clusterresourcesets::{
+        ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
+        ClusterResourceSetResourcesKind, ClusterResourceSetSpec,
+    },
+    features,
 };
 use k8s_openapi::api::core::v1::Namespace;
 use kube::core::ObjectMeta;
@@ -39,12 +43,56 @@ impl MagnumCluster {
         })
     }
 
-    fn create(&self) -> PyResult<()> {
+    fn create_or_update(&self) -> PyResult<()> {
         let client = client::KubeClient::new()?;
 
+        let metadata = ObjectMeta {
+            name: Some("test".to_string()),
+            namespace: Some(self.namespace.clone()),
+            ..Default::default()
+        };
+
+        let mut openstack_cluster_template = features::OPENSTACK_CLUSTER_TEMPLATE.clone();
+        openstack_cluster_template.metadata = metadata.clone();
+
+        let mut openstack_machine_template = features::OPENSTACK_MACHINE_TEMPLATE.clone();
+        openstack_machine_template.metadata = metadata.clone();
+
+        let mut kubeadm_control_plane_template = features::KUBEADM_CONTROL_PLANE_TEMPLATE.clone();
+        kubeadm_control_plane_template.metadata = metadata.clone();
+
+        let mut kubeadm_config_template = features::KUBEADM_CONFIG_TEMPLATE.clone();
+        kubeadm_config_template.metadata = metadata.clone();
+
+        let cluster_class = ClusterClassBuilder::default(metadata.clone());
+
         GLOBAL_RUNTIME.block_on(async move {
+            // TODO: get rid of the unwraps here
             client
                 .create_or_update_cluster_resource(Namespace::from(self))
+                .await
+                .unwrap();
+            client
+                .create_or_update_namespaced_resource(&self.namespace, openstack_cluster_template)
+                .await
+                .unwrap();
+            client
+                .create_or_update_namespaced_resource(&self.namespace, openstack_machine_template)
+                .await
+                .unwrap();
+            client
+                .create_or_update_namespaced_resource(
+                    &self.namespace,
+                    kubeadm_control_plane_template,
+                )
+                .await
+                .unwrap();
+            client
+                .create_or_update_namespaced_resource(&self.namespace, kubeadm_config_template)
+                .await
+                .unwrap();
+            client
+                .create_or_update_namespaced_resource(&self.namespace, cluster_class)
                 .await
                 .unwrap();
             client
@@ -114,7 +162,7 @@ impl From<&MagnumCluster> for ClusterResourceSet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cluster_api_rs::capi_clusterresourceset::{
+    use crate::cluster_api::clusterresourcesets::{
         ClusterResourceSet, ClusterResourceSetResourcesKind,
     };
     use k8s_openapi::api::core::v1::Namespace;

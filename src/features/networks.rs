@@ -1,16 +1,20 @@
 use super::ClusterFeature;
 use crate::{
-    cluster_api::openstackclustertemplates::{
-        OpenStackClusterTemplate, OpenStackClusterTemplateTemplateSpecManagedSubnets,
-        OpenStackClusterTemplateTemplateSpecNetwork, OpenStackClusterTemplateTemplateSpecSubnets,
+    cluster_api::{
+        clusterclasses::{
+            ClusterClassPatches, ClusterClassPatchesDefinitions,
+            ClusterClassPatchesDefinitionsJsonPatches,
+            ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
+            ClusterClassPatchesDefinitionsSelector,
+            ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
+            ClusterClassVariablesSchema,
+        },
+        openstackclustertemplates::{
+            OpenStackClusterTemplate, OpenStackClusterTemplateTemplateSpecNetwork,
+            OpenStackClusterTemplateTemplateSpecSubnets,
+        },
     },
     features::ClusterClassVariablesSchemaExt,
-};
-use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
-    ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
-    ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
-    ClusterClassVariablesSchema,
 };
 use indoc::indoc;
 use kube::CustomResourceExt;
@@ -19,22 +23,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct NodeCIDRConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "Vec<String>")]
 pub struct DNSNameserversConfig(pub Vec<String>);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct FixedNetworkIDConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct FixedSubnetIDConfig(pub String);
 
 pub struct Feature {}
@@ -177,7 +177,10 @@ impl ClusterFeature for Feature {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test::TestClusterResources;
+    use crate::{
+        cluster_api::openstackclustertemplates::OpenStackClusterTemplateTemplateSpecManagedSubnets,
+        features::test::TestClusterResources,
+    };
     use pretty_assertions::assert_eq;
 
     #[derive(Clone, Serialize, Deserialize)]

@@ -1,6 +1,15 @@
 use super::ClusterFeature;
 use crate::{
     cluster_api::{
+        clusterclasses::{
+            ClusterClassPatches, ClusterClassPatchesDefinitions,
+            ClusterClassPatchesDefinitionsJsonPatches,
+            ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
+            ClusterClassPatchesDefinitionsSelector,
+            ClusterClassPatchesDefinitionsSelectorMatchResources,
+            ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
+            ClusterClassVariables, ClusterClassVariablesSchema,
+        },
         kubeadmconfigtemplates::{
             KubeadmConfigTemplate, KubeadmConfigTemplateTemplateSpecFiles,
             KubeadmConfigTemplateTemplateSpecFilesEncoding,
@@ -13,25 +22,16 @@ use crate::{
     },
     features::ClusterClassVariablesSchemaExt,
 };
-use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
-    ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
-    ClusterClassPatchesDefinitionsSelectorMatchResources,
-    ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
-    ClusterClassVariables, ClusterClassVariablesSchema,
-};
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct ContainerdConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct SystemdProxyConfig(pub String);
 
 pub struct Feature {}
@@ -50,7 +50,7 @@ impl ClusterFeature for Feature {
                 metadata: None,
                 required: true,
                 schema: ClusterClassVariablesSchema::from_object::<SystemdProxyConfig>(),
-            }
+            },
         ]
     }
 
@@ -239,7 +239,11 @@ mod tests {
                 .kubeadm_config_spec
                 .pre_kubeadm_commands
                 .expect("pre commands should be set"),
-            vec!["systemctl daemon-reload && systemctl restart containerd"]
+            vec![
+                "rm /var/lib/etcd/lost+found -rf",
+                "bash /run/kubeadm/configure-kube-proxy.sh",
+                "systemctl daemon-reload && systemctl restart containerd"
+            ]
         );
 
         let kcpt_files = kcpt_spec
@@ -270,10 +274,7 @@ mod tests {
             .iter()
             .find(|f| f.path == "/etc/containerd/config.toml")
             .expect("file should be set");
-        assert_eq!(
-            kcpt_containerd_file.path,
-            "/etc/containerd/config.toml"
-        );
+        assert_eq!(kcpt_containerd_file.path, "/etc/containerd/config.toml");
         assert_eq!(kcpt_containerd_file.owner.as_deref(), Some("root:root"));
         assert_eq!(kcpt_containerd_file.permissions.as_deref(), Some("0644"));
         assert_eq!(
@@ -324,10 +325,7 @@ mod tests {
             .iter()
             .find(|f| f.path == "/etc/containerd/config.toml")
             .expect("file should be set");
-        assert_eq!(
-            kct_containerd_file.path,
-            "/etc/containerd/config.toml"
-        );
+        assert_eq!(kct_containerd_file.path, "/etc/containerd/config.toml");
         assert_eq!(kct_containerd_file.owner.as_deref(), Some("root:root"));
         assert_eq!(kct_containerd_file.permissions.as_deref(), Some("0644"));
         assert_eq!(

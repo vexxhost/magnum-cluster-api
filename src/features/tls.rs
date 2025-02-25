@@ -1,17 +1,19 @@
 use super::ClusterFeature;
 use crate::{
     cluster_api::{
+        clusterclasses::{
+            ClusterClassPatches, ClusterClassPatchesDefinitions,
+            ClusterClassPatchesDefinitionsJsonPatches,
+            ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
+            ClusterClassPatchesDefinitionsSelector,
+            ClusterClassPatchesDefinitionsSelectorMatchResources,
+            ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
+            ClusterClassVariables, ClusterClassVariablesSchema,
+        },
         kubeadmconfigtemplates::KubeadmConfigTemplate,
         kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate,
     },
     features::ClusterClassVariablesSchemaExt,
-};
-use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
-    ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
-    ClusterClassPatchesDefinitionsSelectorMatchResources,
-    ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
-    ClusterClassVariables, ClusterClassVariablesSchema,
 };
 use indoc::indoc;
 use kube::CustomResourceExt;
@@ -20,17 +22,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct ApiServerTLSCipherSuitesConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct ApiServerSANsConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct KubeletTLSCipherSuitesConfig(pub String);
 
 pub struct Feature {}

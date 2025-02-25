@@ -1,16 +1,20 @@
 use super::ClusterFeature;
 use crate::{
-    cluster_api::openstackmachinetemplates::{
-        OpenStackMachineTemplate, OpenStackMachineTemplateTemplateSpecServerGroup,
+    cluster_api::{
+        clusterclasses::{
+            ClusterClassPatches, ClusterClassPatchesDefinitions,
+            ClusterClassPatchesDefinitionsJsonPatches,
+            ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
+            ClusterClassPatchesDefinitionsSelector,
+            ClusterClassPatchesDefinitionsSelectorMatchResources,
+            ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
+            ClusterClassVariables, ClusterClassVariablesSchema,
+        },
+        openstackmachinetemplates::{
+            OpenStackMachineTemplate, OpenStackMachineTemplateTemplateSpecServerGroup,
+        },
     },
     features::ClusterClassVariablesSchemaExt,
-};
-use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
-    ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
-    ClusterClassPatchesDefinitionsSelectorMatchResources,
-    ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
-    ClusterClassVariables, ClusterClassVariablesSchema,
 };
 use indoc::indoc;
 use kube::CustomResourceExt;
@@ -19,12 +23,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct ServerGroupIDConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "bool")]
 pub struct DifferentFailureDomainConfig(pub bool);
 
 pub struct Feature {}
@@ -57,48 +59,6 @@ impl ClusterFeature for Feature {
                         kind: OpenStackMachineTemplate::api_resource().kind,
                         match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
                             control_plane: Some(true),
-                            ..Default::default()
-                        },
-                    },
-                    json_patches: vec![
-                        ClusterClassPatchesDefinitionsJsonPatches {
-                            op: "add".into(),
-                            path: "/spec/template/spec/serverGroup".into(),
-                            value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                template: Some(
-                                    serde_yaml::to_string(
-                                        &OpenStackMachineTemplateTemplateSpecServerGroup {
-                                            id: Some("{{ .serverGroupId }}".to_string()),
-                                            ..Default::default()
-                                        },
-                                    )
-                                    .unwrap(),
-                                ),
-                                ..Default::default()
-                            }),
-                            ..Default::default()
-                        },
-                        ClusterClassPatchesDefinitionsJsonPatches {
-                            op: "add".into(),
-                            path: "/spec/template/spec/schedulerHintAdditionalProperties".into(),
-                            value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                template: Some(indoc!("
-                                    - name: different_failure_domain
-                                      value:
-                                        type: Bool
-                                        bool: {{ .isServerGroupDiffFailureDomain }}").to_string(),
-                                ),
-                                ..Default::default()
-                            }),
-                            ..Default::default()
-                        }
-                    ],
-                },
-                ClusterClassPatchesDefinitions {
-                    selector: ClusterClassPatchesDefinitionsSelector {
-                        api_version: OpenStackMachineTemplate::api_resource().api_version,
-                        kind: OpenStackMachineTemplate::api_resource().kind,
-                        match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
                             machine_deployment_class: Some(ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass {
                                 names: Some(vec!["default-worker".to_string()])
                             }),

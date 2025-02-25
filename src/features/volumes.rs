@@ -1,6 +1,15 @@
 use super::ClusterFeature;
 use crate::{
     cluster_api::{
+        clusterclasses::{
+            ClusterClassPatches, ClusterClassPatchesDefinitions,
+            ClusterClassPatchesDefinitionsJsonPatches,
+            ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
+            ClusterClassPatchesDefinitionsSelector,
+            ClusterClassPatchesDefinitionsSelectorMatchResources,
+            ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
+            ClusterClassVariables, ClusterClassVariablesSchema,
+        },
         kubeadmconfigtemplates::{
             KubeadmConfigTemplate, KubeadmConfigTemplateTemplateSpecDiskSetupFilesystems,
             KubeadmConfigTemplateTemplateSpecDiskSetupPartitions,
@@ -14,13 +23,6 @@ use crate::{
     },
     features::ClusterClassVariablesSchemaExt,
 };
-use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
-    ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
-    ClusterClassPatchesDefinitionsSelectorMatchResources,
-    ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
-    ClusterClassVariables, ClusterClassVariablesSchema,
-};
 use indoc::indoc;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
@@ -28,22 +30,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "bool")]
 pub struct EnableVolumeConfig(pub bool);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "integer")]
 pub struct VolumeSizeConfig(pub i64);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct VolumeTypeConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct AvailabilityZoneConfig(pub String);
 
 pub struct Feature {}

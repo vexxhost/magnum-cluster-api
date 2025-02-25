@@ -1,15 +1,19 @@
 use super::ClusterFeature;
 use crate::{
-    cluster_api::openstackclustertemplates::{
-        OpenStackClusterTemplate, OpenStackClusterTemplateTemplateSpecExternalNetwork,
+    cluster_api::{
+        clusterclasses::{
+            ClusterClassPatches, ClusterClassPatchesDefinitions,
+            ClusterClassPatchesDefinitionsJsonPatches,
+            ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
+            ClusterClassPatchesDefinitionsSelector,
+            ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
+            ClusterClassVariablesSchema,
+        },
+        openstackclustertemplates::{
+            OpenStackClusterTemplate, OpenStackClusterTemplateTemplateSpecExternalNetwork,
+        },
     },
     features::ClusterClassVariablesSchemaExt,
-};
-use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
-    ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
-    ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
-    ClusterClassVariablesSchema,
 };
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
@@ -17,7 +21,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct Config(pub String);
 
 pub struct Feature {}

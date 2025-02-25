@@ -1,13 +1,17 @@
 use super::ClusterFeature;
 use crate::{
-    cluster_api::kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate,
+    cluster_api::{
+        clusterclasses::{
+            ClusterClassPatches, ClusterClassPatchesDefinitions,
+            ClusterClassPatchesDefinitionsJsonPatches,
+            ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
+            ClusterClassPatchesDefinitionsSelector,
+            ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
+            ClusterClassVariablesSchema,
+        },
+        kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate,
+    },
     features::ClusterClassVariablesSchemaExt,
-};
-use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
-    ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
-    ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
-    ClusterClassVariablesSchema,
 };
 use kube::CustomResourceExt;
 use schemars::JsonSchema;

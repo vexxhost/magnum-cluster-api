@@ -1,13 +1,17 @@
 use super::ClusterFeature;
 use crate::{
-    cluster_api::openstackclustertemplates::OpenStackClusterTemplate,
+    cluster_api::{
+        clusterclasses::{
+            ClusterClassPatches, ClusterClassPatchesDefinitions,
+            ClusterClassPatchesDefinitionsJsonPatches,
+            ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
+            ClusterClassPatchesDefinitionsSelector,
+            ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
+            ClusterClassVariablesSchema,
+        },
+        openstackclustertemplates::OpenStackClusterTemplate,
+    },
     features::ClusterClassVariablesSchemaExt,
-};
-use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
-    ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
-    ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
-    ClusterClassVariablesSchema,
 };
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
@@ -34,8 +38,7 @@ impl ClusterFeature for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
             name: "apiServerLoadBalancer".into(),
-            definitions: Some(vec![
-                ClusterClassPatchesDefinitions {
+            definitions: Some(vec![ClusterClassPatchesDefinitions {
                 selector: ClusterClassPatchesDefinitionsSelector {
                     api_version: OpenStackClusterTemplate::api_resource().api_version,
                     kind: OpenStackClusterTemplate::api_resource().kind,

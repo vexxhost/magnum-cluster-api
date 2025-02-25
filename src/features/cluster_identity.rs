@@ -1,14 +1,19 @@
 use super::ClusterFeature;
 use crate::{
-    cluster_api::{openstackclustertemplates::OpenStackClusterTemplate, openstackmachinetemplates::OpenStackMachineTemplate},
+    cluster_api::{
+        clusterclasses::{
+            ClusterClassPatches, ClusterClassPatchesDefinitions,
+            ClusterClassPatchesDefinitionsJsonPatches,
+            ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
+            ClusterClassPatchesDefinitionsSelector,
+            ClusterClassPatchesDefinitionsSelectorMatchResources,
+            ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
+            ClusterClassVariables, ClusterClassVariablesSchema,
+        },
+        openstackclustertemplates::OpenStackClusterTemplate,
+        openstackmachinetemplates::OpenStackMachineTemplate,
+    },
     features::ClusterClassVariablesSchemaExt,
-};
-use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
-    ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
-    ClusterClassPatchesDefinitionsSelectorMatchResources,
-    ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
-    ClusterClassVariables, ClusterClassVariablesSchema,
 };
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
@@ -16,21 +21,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct Config(pub String);
 
 pub struct Feature {}
 
 impl ClusterFeature for Feature {
     fn variables(&self) -> Vec<ClusterClassVariables> {
-        vec![
-            ClusterClassVariables {
-                name: "clusterIdentityRefName".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<Config>(),
-            },
-        ]
+        vec![ClusterClassVariables {
+            name: "clusterIdentityRefName".into(),
+            metadata: None,
+            required: true,
+            schema: ClusterClassVariablesSchema::from_object::<Config>(),
+        }]
     }
 
     fn patches(&self) -> Vec<ClusterClassPatches> {

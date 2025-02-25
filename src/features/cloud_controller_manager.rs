@@ -1,6 +1,15 @@
 use super::ClusterFeature;
 use crate::{
     cluster_api::{
+        clusterclasses::{
+            ClusterClassPatches, ClusterClassPatchesDefinitions,
+            ClusterClassPatchesDefinitionsJsonPatches,
+            ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
+            ClusterClassPatchesDefinitionsSelector,
+            ClusterClassPatchesDefinitionsSelectorMatchResources,
+            ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
+            ClusterClassVariables, ClusterClassVariablesSchema,
+        },
         kubeadmconfigtemplates::{
             KubeadmConfigTemplate, KubeadmConfigTemplateTemplateSpecFiles,
             KubeadmConfigTemplateTemplateSpecFilesEncoding,
@@ -13,25 +22,16 @@ use crate::{
     },
     features::ClusterClassVariablesSchemaExt,
 };
-use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
-    ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
-    ClusterClassPatchesDefinitionsSelectorMatchResources,
-    ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
-    ClusterClassVariables, ClusterClassVariablesSchema,
-};
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct CloudCACertificatesConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[schemars(with = "string")]
 pub struct CloudControllerManagerConfig(pub String);
 
 pub struct Feature {}
@@ -229,20 +229,14 @@ mod tests {
             .iter()
             .find(|f| f.path == "/etc/kubernetes/cloud_ca.crt")
             .expect("file should be set");
-        assert_eq!(
-            kcpt_ca_file.path,
-            "/etc/kubernetes/cloud_ca.crt"
-        );
+        assert_eq!(kcpt_ca_file.path, "/etc/kubernetes/cloud_ca.crt");
         assert_eq!(kcpt_ca_file.owner.as_deref(), Some("root:root"));
         assert_eq!(kcpt_ca_file.permissions.as_deref(), Some("0600"));
         assert_eq!(
             kcpt_ca_file.encoding,
             Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64)
         );
-        assert_eq!(
-            kcpt_ca_file.content,
-            Some(values.cloud_ca_cert.0.clone())
-        );
+        assert_eq!(kcpt_ca_file.content, Some(values.cloud_ca_cert.0.clone()));
 
         let kcpt_ccm_file = kcpt_files
             .iter()
@@ -273,20 +267,14 @@ mod tests {
             .iter()
             .find(|f| f.path == "/etc/kubernetes/cloud_ca.crt")
             .expect("file should be set");
-        assert_eq!(
-            kct_ca_file.path,
-            "/etc/kubernetes/cloud_ca.crt"
-        );
+        assert_eq!(kct_ca_file.path, "/etc/kubernetes/cloud_ca.crt");
         assert_eq!(kct_ca_file.owner.as_deref(), Some("root:root"));
         assert_eq!(kct_ca_file.permissions.as_deref(), Some("0600"));
         assert_eq!(
             kct_ca_file.encoding,
             Some(KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64)
         );
-        assert_eq!(
-            kct_ca_file.content,
-            Some(values.cloud_ca_cert.0.clone())
-        );
+        assert_eq!(kct_ca_file.content, Some(values.cloud_ca_cert.0.clone()));
 
         let kct_ccm_file = kct_files
             .iter()

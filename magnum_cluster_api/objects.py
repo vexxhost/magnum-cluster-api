@@ -69,28 +69,10 @@ class EndpointSlice(NamespacedAPIObject):
     kind = "EndpointSlice"
 
 
-class OpenStackMachineTemplate(NamespacedAPIObject):
-    version = "infrastructure.cluster.x-k8s.io/v1beta1"
-    endpoint = "openstackmachinetemplates"
-    kind = "OpenStackMachineTemplate"
-
-
-class KubeadmConfigTemplate(NamespacedAPIObject):
-    version = "bootstrap.cluster.x-k8s.io/v1beta1"
-    endpoint = "kubeadmconfigtemplates"
-    kind = "KubeadmConfigTemplate"
-
-
 class KubeadmControlPlane(NamespacedAPIObject):
     version = "controlplane.cluster.x-k8s.io/v1beta1"
     endpoint = "kubeadmcontrolplanes"
     kind = "KubeadmControlPlane"
-
-
-class KubeadmControlPlaneTemplate(NamespacedAPIObject):
-    version = "controlplane.cluster.x-k8s.io/v1beta1"
-    endpoint = "kubeadmcontrolplanetemplates"
-    kind = "KubeadmControlPlaneTemplate"
 
 
 class MachineDeployment(NamespacedAPIObject):
@@ -148,12 +130,6 @@ class Machine(NamespacedAPIObject):
     version = "cluster.x-k8s.io/v1beta1"
     endpoint = "machines"
     kind = "Machine"
-
-
-class OpenStackClusterTemplate(NamespacedAPIObject):
-    version = "infrastructure.cluster.x-k8s.io/v1beta1"
-    endpoint = "openstackclustertemplates"
-    kind = "OpenStackClusterTemplate"
 
 
 class OpenStackCluster(NamespacedAPIObject):
@@ -226,16 +202,6 @@ class OpenStackCluster(NamespacedAPIObject):
         config.write(fd)
 
         return fd.getvalue()
-
-
-class ClusterClass(NamespacedAPIObject):
-    version = "cluster.x-k8s.io/v1beta1"
-    endpoint = "clusterclasses"
-    kind = "ClusterClass"
-
-    @property
-    def variable_names(self):
-        return [variable["name"] for variable in self.obj["spec"]["variables"]]
 
 
 class Cluster(NamespacedAPIObject):

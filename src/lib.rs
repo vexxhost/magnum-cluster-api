@@ -2,6 +2,7 @@ mod client;
 mod models;
 mod cluster_api;
 mod features;
+mod builder;
 
 use pyo3::{prelude::*, Bound};
 

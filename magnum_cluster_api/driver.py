@@ -68,11 +68,6 @@ class BaseDriver(driver.Driver):
 
         utils.validate_cluster(context, cluster)
 
-        magnum_cluster = magnum_cluster_api.MagnumCluster(
-            cluster, namespace="magnum-system"
-        )
-        magnum_cluster.create()
-
         return self._create_cluster(context, cluster)
 
     @cluster_lock_wrapper
@@ -105,6 +100,11 @@ class BaseDriver(driver.Driver):
         resources.ServiceAccountCertificateAuthoritySecret(
             context, self.kube_client, self.k8s_api, cluster
         ).apply()
+
+        magnum_cluster = magnum_cluster_api.MagnumCluster(
+            cluster, namespace="magnum-system"
+        )
+        magnum_cluster.create_or_update()
 
         resources.apply_cluster_from_magnum_cluster(
             context,
@@ -386,6 +386,10 @@ class BaseDriver(driver.Driver):
         # NOTE(mnaser): We run a full apply on the cluster regardless of the changes, since
         #               the expectation is that running an upgrade operation will change
         #               the cluster in some way.
+        magnum_cluster = magnum_cluster_api.MagnumCluster(
+            cluster, namespace="magnum-system"
+        )
+        magnum_cluster.create_or_update()
         resources.apply_cluster_from_magnum_cluster(
             context, self.kube_client, self.k8s_api, cluster
         )

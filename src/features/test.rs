@@ -1,49 +1,25 @@
-use crate::cluster_api::{
-    kubeadmconfigtemplates::{
-        KubeadmConfigTemplate, KubeadmConfigTemplateSpec, KubeadmConfigTemplateTemplate,
-        KubeadmConfigTemplateTemplateSpec, KubeadmConfigTemplateTemplateSpecDiskSetup,
-        KubeadmConfigTemplateTemplateSpecFiles, KubeadmConfigTemplateTemplateSpecFilesEncoding,
-        KubeadmConfigTemplateTemplateSpecJoinConfiguration,
-        KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistration,
-    },
-    kubeadmcontrolplanetemplates::{
-        KubeadmControlPlaneTemplate, KubeadmControlPlaneTemplateSpec,
-        KubeadmControlPlaneTemplateTemplate, KubeadmControlPlaneTemplateTemplateSpec,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetup,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFormat,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfiguration,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfigurationNodeRegistration,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfiguration,
-        KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfigurationNodeRegistration,
-    },
-    openstackclustertemplates::{
-        OpenStackClusterTemplate, OpenStackClusterTemplateSpec, OpenStackClusterTemplateTemplate,
-        OpenStackClusterTemplateTemplateSpec, OpenStackClusterTemplateTemplateSpecIdentityRef,
-        OpenStackClusterTemplateTemplateSpecManagedSecurityGroups,
-    },
-    openstackmachinetemplates::{
-        OpenStackMachineTemplate, OpenStackMachineTemplateSpec, OpenStackMachineTemplateTemplate,
-        OpenStackMachineTemplateTemplateSpec, OpenStackMachineTemplateTemplateSpecIdentityRef,
-        OpenStackMachineTemplateTemplateSpecImage,
-    },
+use super::{
+    KUBEADM_CONFIG_TEMPLATE, KUBEADM_CONTROL_PLANE_TEMPLATE, OPENSTACK_CLUSTER_TEMPLATE,
+    OPENSTACK_MACHINE_TEMPLATE,
 };
-use cluster_api_rs::capi_clusterclass::{
-    ClusterClassPatches, ClusterClassPatchesDefinitionsJsonPatches,
-    ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
+use crate::cluster_api::{
+    clusterclasses::{
+        ClusterClassPatches, ClusterClassPatchesDefinitionsJsonPatches,
+        ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
+    },
+    kubeadmconfigtemplates::KubeadmConfigTemplate,
+    kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate,
+    openstackclustertemplates::OpenStackClusterTemplate,
+    openstackmachinetemplates::OpenStackMachineTemplate,
 };
 use json_patch::{patch, AddOperation, Patch, PatchOperation, RemoveOperation, ReplaceOperation};
 use jsonptr::PointerBuf;
 use kube::Resource;
-use maplit::btreemap;
 use pretty_assertions::assert_eq;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_gtmpl::ToGtmplValue;
 use serde_json::json;
-use std::{collections::BTreeMap, sync::LazyLock};
+use std::collections::BTreeMap;
 
 /// A trait for converting a value into a [`Patch`] using provided template
 /// values.
@@ -297,165 +273,6 @@ pub fn assert_subset_of_btreemap<
     assert_eq!(needle_with_options, extracted_haystack);
 }
 
-/// This is a static instance of the `KubeadmControlPlaneTemplate` that is
-/// used as a default for testing, since we have not yet migrated the
-/// resource into the Rust API.
-pub static KCPT_WIP: LazyLock<KubeadmControlPlaneTemplate> = LazyLock::new(|| {
-    KubeadmControlPlaneTemplate {
-    metadata: Default::default(),
-    spec: KubeadmControlPlaneTemplateSpec {
-        template: KubeadmControlPlaneTemplateTemplate {
-            spec: KubeadmControlPlaneTemplateTemplateSpec {
-                kubeadm_config_spec: KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec {
-                    cluster_configuration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfiguration {
-                        api_server: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer {
-                            extra_args: Some({
-                                btreemap! {
-                                    "cloud-provider".to_string() => "external".to_string(),
-                                    "profiling".to_string() => "false".to_string(),
-                                }
-                            }),
-                            // Note(oleks): Add this as default as a workaround of the json patch limitation # noqa: E501
-                            // https://cluster-api.sigs.k8s.io/tasks/experimental-features/cluster-class/write-clusterclass#json-patches-tips--tricks
-                            extra_volumes: Some(vec![
-                                KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes {
-                                    name: "webhooks".to_string(),
-                                    host_path: "/etc/kubernetes/webhooks".to_string(),
-                                    mount_path: "/etc/kubernetes/webhooks".to_string(),
-                                    ..Default::default()
-                                }
-                            ]),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    disk_setup: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetup {
-                        filesystems: Some(vec![]),
-                        partitions: Some(vec![]),
-                    }),
-                    files: Some(vec![]),
-                    format: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFormat::CloudConfig),
-                    init_configuration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfiguration {
-                        node_registration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecInitConfigurationNodeRegistration {
-                            name: Some("{{ local_hostname }}".to_string()),
-                            kubelet_extra_args: Some(btreemap! {
-                                "cloud-provider".to_string() => "external".to_string(),
-                            }),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    join_configuration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfiguration {
-                        node_registration: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfigurationNodeRegistration {
-                            name: Some("{{ local_hostname }}".to_string()),
-                            kubelet_extra_args: Some(btreemap! {
-                                "cloud-provider".to_string() => "external".to_string(),
-                            }),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    mounts: Some(vec![]),
-                    pre_kubeadm_commands: Some(vec![]),
-                    post_kubeadm_commands: Some(vec![]),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        ..Default::default()
-    }
-}
-});
-
-/// This is a static instance of the `OpenStackClusterTemplate` that is
-/// used as a default for testing, since we have not yet migrated the
-/// resource into the Rust API.
-pub static OCT_WIP: LazyLock<OpenStackClusterTemplate> =
-    LazyLock::new(|| OpenStackClusterTemplate {
-        metadata: Default::default(),
-        spec: OpenStackClusterTemplateSpec {
-            template: OpenStackClusterTemplateTemplate {
-                spec: OpenStackClusterTemplateTemplateSpec {
-                    identity_ref: OpenStackClusterTemplateTemplateSpecIdentityRef {
-                        name: "PLACEHOLDER".into(),
-                        cloud_name: "default".into(),
-                        ..Default::default()
-                    },
-                    managed_security_groups: Some(
-                        OpenStackClusterTemplateTemplateSpecManagedSecurityGroups {
-                            allow_all_in_cluster_traffic: true,
-                            ..Default::default()
-                        },
-                    ),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-    });
-
-pub static OMT_WIP: LazyLock<OpenStackMachineTemplate> =
-    LazyLock::new(|| OpenStackMachineTemplate {
-        metadata: Default::default(),
-        spec: OpenStackMachineTemplateSpec {
-            template: OpenStackMachineTemplateTemplate {
-                spec: OpenStackMachineTemplateTemplateSpec {
-                    additional_block_devices: Some(vec![]),
-                    flavor: Some("PLACEHOLDER".to_string()),
-                    identity_ref: Some(OpenStackMachineTemplateTemplateSpecIdentityRef {
-                        name: "PLACEHOLDER".to_string(),
-                        cloud_name: "default".to_string(),
-                        ..Default::default()
-                    }),
-                    image: OpenStackMachineTemplateTemplateSpecImage {
-                        id: Some("00000000-0000-0000-0000-000000000000".to_string()),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-            },
-        },
-    });
-
-pub static KCT: LazyLock<KubeadmConfigTemplate> = LazyLock::new(|| KubeadmConfigTemplate {
-    metadata: Default::default(),
-    spec: KubeadmConfigTemplateSpec {
-        template: KubeadmConfigTemplateTemplate {
-            spec: Some(KubeadmConfigTemplateTemplateSpec {
-                disk_setup: Some(KubeadmConfigTemplateTemplateSpecDiskSetup {
-                    filesystems: Some(vec![]),
-                    partitions: Some(vec![]),
-                }),
-                files: Some(vec![KubeadmConfigTemplateTemplateSpecFiles {
-                    path: "/etc/kubernetes/.placeholder".to_string(),
-                    permissions: Some("0644".to_string()),
-                    content: Some(base64::encode("PLACEHOLDER")),
-                    encoding: Some(KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64),
-                    ..Default::default()
-                }]),
-                join_configuration: Some(KubeadmConfigTemplateTemplateSpecJoinConfiguration {
-                    node_registration: Some(
-                        KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistration {
-                            name: Some("{{ local_hostname }}".to_string()),
-                            kubelet_extra_args: Some(btreemap! {
-                                "cloud-provider".to_string() => "external".to_string(),
-                            }),
-                            ..Default::default()
-                        },
-                    ),
-                    ..Default::default()
-                }),
-                mounts: Some(vec![]),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
-    },
-});
-
 /// This is a static instance of the `TestClusterResources` that is used for
 /// testing purposes.
 pub struct TestClusterResources {
@@ -469,11 +286,11 @@ pub struct TestClusterResources {
 impl TestClusterResources {
     pub fn new() -> Self {
         Self {
-            control_plane_openstack_machine_template: OMT_WIP.clone(),
-            kubeadm_config_template: KCT.clone(),
-            kubeadm_control_plane_template: KCPT_WIP.clone(),
-            openstack_cluster_template: OCT_WIP.clone(),
-            worker_openstack_machine_template: OMT_WIP.clone(),
+            control_plane_openstack_machine_template: OPENSTACK_MACHINE_TEMPLATE.clone(),
+            kubeadm_config_template: KUBEADM_CONFIG_TEMPLATE.clone(),
+            kubeadm_control_plane_template: KUBEADM_CONTROL_PLANE_TEMPLATE.clone(),
+            openstack_cluster_template: OPENSTACK_CLUSTER_TEMPLATE.clone(),
+            worker_openstack_machine_template: OPENSTACK_MACHINE_TEMPLATE.clone(),
         }
     }
 
@@ -512,8 +329,14 @@ impl TestClusterResources {
                                     .apply_patch(&patch);
                             }
 
-                            if match_resources.machine_deployment_class.is_some() {
-                                self.worker_openstack_machine_template.apply_patch(&patch);
+                            if let Some(machine_deployment_class) =
+                                &match_resources.machine_deployment_class
+                            {
+                                if let Some(names) = &machine_deployment_class.names {
+                                    if names.contains(&"default-worker".to_string()) {
+                                        self.worker_openstack_machine_template.apply_patch(&patch);
+                                    }
+                                }
                             }
 
                             if !match_resources.control_plane.unwrap_or(false)
