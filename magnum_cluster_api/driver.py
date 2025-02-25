@@ -258,7 +258,7 @@ class BaseDriver(driver.Driver):
             except keystoneauth1.exceptions.http.Forbidden:
                 pass
 
-            resources.CloudConfigSecret(context, self.k8s_api, cluster).delete()
+            resources.CloudConfigSecret(context, self.kube_client, cluster).delete()
             resources.ApiCertificateAuthoritySecret(
                 context, self.kube_client, self.k8s_api, cluster
             ).delete()
