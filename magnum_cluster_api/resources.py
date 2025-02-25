@@ -185,7 +185,9 @@ class Base(abc.ABC):
         self.api.create_or_update(resource)
 
     def delete(self) -> None:
-        self.api.delete(self.api_version, self.kind, self.name, namespace=self.name)
+        self.api.delete(
+            self.api_version, self.kind, self.name, namespace=self.namespace
+        )
 
 
 class Namespace(Base):
