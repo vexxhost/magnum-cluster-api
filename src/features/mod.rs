@@ -1,27 +1,6 @@
 #[cfg(test)]
 mod test;
 
-pub mod api_server_load_balancer;
-pub mod audit_log;
-pub mod boot_volume;
-pub mod cloud_controller_manager;
-pub mod cluster_identity;
-pub mod containerd_config;
-pub mod control_plane_availablity_zones;
-pub mod disable_api_server_floating_ip;
-pub mod external_network;
-pub mod flavors;
-pub mod image_repository;
-pub mod images;
-pub mod keystone_auth;
-pub mod networks;
-pub mod openid_connect;
-pub mod operating_system;
-pub mod server_groups;
-pub mod ssh_key;
-pub mod tls;
-pub mod volumes;
-
 use crate::cluster_api::{
     clusterclasses::{ClusterClassPatches, ClusterClassVariables, ClusterClassVariablesSchema},
     kubeadmconfigtemplates::{
@@ -63,9 +42,31 @@ use crate::cluster_api::{
         OpenStackMachineTemplateTemplateSpecImage,
     },
 };
+use base64::prelude::*;
 use maplit::btreemap;
 use schemars::{gen::SchemaGenerator, JsonSchema};
 use std::sync::LazyLock;
+
+pub mod api_server_load_balancer;
+pub mod audit_log;
+pub mod boot_volume;
+pub mod cloud_controller_manager;
+pub mod cluster_identity;
+pub mod containerd_config;
+pub mod control_plane_availablity_zones;
+pub mod disable_api_server_floating_ip;
+pub mod external_network;
+pub mod flavors;
+pub mod image_repository;
+pub mod images;
+pub mod keystone_auth;
+pub mod networks;
+pub mod openid_connect;
+pub mod operating_system;
+pub mod server_groups;
+pub mod ssh_key;
+pub mod tls;
+pub mod volumes;
 
 pub trait ClusterFeature {
     fn variables(&self) -> Vec<ClusterClassVariables>;
@@ -161,7 +162,7 @@ pub static KUBEADM_CONTROL_PLANE_TEMPLATE: LazyLock<KubeadmControlPlaneTemplate>
                                 path: "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml".to_string(),
                                 permissions: Some("0600".to_string()),
                                 content: Some(
-                                    base64::encode(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/audit/policy.yaml")))
+                                    BASE64_STANDARD.encode(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/audit/policy.yaml")))
                                 ),
                                 encoding: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64),
                                 ..Default::default()
@@ -171,7 +172,7 @@ pub static KUBEADM_CONTROL_PLANE_TEMPLATE: LazyLock<KubeadmControlPlaneTemplate>
                                 permissions: Some("0644".to_string()),
                                 owner: Some("root:root".to_string()),
                                 content: Some(
-                                    base64::encode(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/keystone-auth/webhook.yaml")))
+                                    BASE64_STANDARD.encode(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/keystone-auth/webhook.yaml")))
                                 ),
                                 encoding: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64),
                                 ..Default::default()
@@ -180,7 +181,7 @@ pub static KUBEADM_CONTROL_PLANE_TEMPLATE: LazyLock<KubeadmControlPlaneTemplate>
                                 path: "/run/kubeadm/configure-kube-proxy.sh".to_string(),
                                 permissions: Some("0755".to_string()),
                                 content: Some(
-                                    base64::encode(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/kubeadm/configure-kube-proxy.sh")))
+                                    BASE64_STANDARD.encode(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/kubeadm/configure-kube-proxy.sh")))
                                 ),
                                 encoding: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64),
                                 ..Default::default()
@@ -242,7 +243,7 @@ pub static KUBEADM_CONFIG_TEMPLATE: LazyLock<KubeadmConfigTemplate> =
                     files: Some(vec![KubeadmConfigTemplateTemplateSpecFiles {
                         path: "/etc/kubernetes/.placeholder".to_string(),
                         permissions: Some("0644".to_string()),
-                        content: Some(base64::encode("PLACEHOLDER")),
+                        content: Some(BASE64_STANDARD.encode("PLACEHOLDER")),
                         encoding: Some(KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64),
                         ..Default::default()
                     }]),

@@ -188,6 +188,7 @@ mod tests {
     use crate::features::test::TestClusterResources;
     use indoc::indoc;
     use pretty_assertions::assert_eq;
+    use base64::prelude::*;
 
     #[derive(Clone, Serialize, Deserialize)]
     pub struct Values {
@@ -202,7 +203,7 @@ mod tests {
     fn test_apply_patches() {
         let feature = Feature {};
         let values = Values {
-            containerd_config: ContainerdConfig(base64::encode(indoc! {r#"
+            containerd_config: ContainerdConfig(BASE64_STANDARD.encode(indoc! {r#"
                 # Use config version 2 to enable new configuration fields.
                 # Config file is parsed as version 1 by default.
                 version = 2
@@ -217,7 +218,7 @@ mod tests {
                 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
                     SystemdCgroup = true
             "#})),
-            systemd_proxy_config: SystemdProxyConfig(base64::encode(indoc! {r#"
+            systemd_proxy_config: SystemdProxyConfig(BASE64_STANDARD.encode(indoc! {r#"
                 [Service]
                 Environment="http_proxy=http://proxy.internal:3128"
                 Environment="HTTP_PROXY=http://proxy.internal:3128"

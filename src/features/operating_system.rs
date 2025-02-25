@@ -323,6 +323,7 @@ impl ClusterFeature for Feature {
 mod tests {
     use super::*;
     use crate::features::test::TestClusterResources;
+    use base64::prelude::*;
     use indoc::indoc;
     use pretty_assertions::assert_eq;
 
@@ -340,7 +341,7 @@ mod tests {
         let feature = Feature {};
         let values = Values {
             operating_system: OperatingSystemConfig(OperatingSystem::Ubuntu),
-            apt_proxy_config: AptProxyConfig(base64::encode(indoc!(
+            apt_proxy_config: AptProxyConfig(BASE64_STANDARD.encode(indoc!(
                 "
                 Acquire::http::Proxy \"http://proxy.example.com\";
                 Acquire::https::Proxy \"http://proxy.example.com\";
@@ -408,7 +409,7 @@ mod tests {
         let feature = Feature {};
         let values = Values {
             operating_system: OperatingSystemConfig(OperatingSystem::Flatcar),
-            apt_proxy_config: AptProxyConfig(base64::encode("")),
+            apt_proxy_config: AptProxyConfig(BASE64_STANDARD.encode("")),
         };
 
         let patches = feature.patches();

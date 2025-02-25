@@ -174,6 +174,7 @@ impl ClusterFeature for Feature {
 mod tests {
     use super::*;
     use crate::features::test::TestClusterResources;
+    use base64::prelude::*;
     use indoc::indoc;
     use pretty_assertions::assert_eq;
 
@@ -190,15 +191,16 @@ mod tests {
     fn test_apply_patches() {
         let feature = Feature {};
         let values = Values {
-            cloud_ca_cert: CloudCACertificatesConfig(base64::encode(indoc!(
+            cloud_ca_cert: CloudCACertificatesConfig(BASE64_STANDARD.encode(indoc!(
                 r#"
                 -----BEGIN CERTIFICATE-----
                 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzZz5z5z5z5z5z5z5z5z
                 -----END CERTIFICATE-----
                 "#
             ))),
-            cloud_controller_manager_config: CloudControllerManagerConfig(base64::encode(indoc!(
-                r#"
+            cloud_controller_manager_config: CloudControllerManagerConfig(BASE64_STANDARD.encode(
+                indoc!(
+                    r#"
                 [Global]
                 auth-url=https://auth.vexxhost.net
                 region=sjc1
@@ -211,7 +213,8 @@ mod tests {
                 lb-method=ROUND_ROBIN
                 create-monitor=true
                 "#,
-            ))),
+                ),
+            )),
         };
 
         let patches = feature.patches();
