@@ -50,7 +50,7 @@ fn json_to_gtmpl_value(json: &serde_json::Value) -> gtmpl_value::Value {
                 ),
             );
 
-            gtmpl_value::Value::Object(object.into())
+            gtmpl_value::Value::Object(object)
         }
     }
 }

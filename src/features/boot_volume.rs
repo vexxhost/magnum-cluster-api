@@ -50,7 +50,6 @@ impl ClusterFeature for Feature {
                         machine_deployment_class: Some(
                             ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass {
                                 names: Some(vec!["default-worker".into()]),
-                                ..Default::default()
                             }
                         ),
                         ..Default::default()

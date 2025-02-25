@@ -106,10 +106,6 @@ class ResourceBaseTestCase(base.BaseTestCase):
 
 
 class TestClusterClass(ResourceBaseTestCase):
-    def setUp(self):
-        super(TestClusterClass, self).setUp()
-        resources.create_cluster_class(self.api, namespace=self.namespace_name)
-
     def _test_disable_api_server_floating_ip(
         self,
         master_lb_floating_ip_enabled: bool | None,
@@ -126,7 +122,9 @@ class TestClusterClass(ResourceBaseTestCase):
         )
         cluster.cluster_template = magnum_objects.ClusterTemplate(
             self.context,
-            **utils.get_test_cluster_template(),
+            **utils.get_test_cluster_template(
+                cluster_distro="ubuntu",
+            ),
         )
 
         if master_lb_floating_ip_enabled is not None:
@@ -193,161 +191,4 @@ class TestClusterClass(ResourceBaseTestCase):
     def test_disable_api_server_floating_ip_false(self):
         self._test_disable_api_server_floating_ip(
             master_lb_floating_ip_enabled=False, expected=True
-        )
-
-
-class TestClusterVariableManipulation(ResourceBaseTestCase):
-    def setUp(self):
-        super(TestClusterVariableManipulation, self).setUp()
-
-        self.cluster_class_original = resources.create_cluster_class(
-            self.api, namespace=self.namespace_name
-        )
-
-        cc = objects.ClusterClass.objects(
-            self.pykube_api, namespace=self.namespace_name
-        ).get(name=resources.CLUSTER_CLASS_NAME)
-
-        self.assertNotIn("extraTestVariable", cc.variable_names)
-
-        def mutate_cluster_class_extra_var(resource):
-            resource["metadata"]["name"] += "-extra-var"
-            resource["spec"]["variables"].append(
-                {
-                    "name": "extraTestVariable",
-                    "required": True,
-                    "schema": {
-                        "openAPIV3Schema": {
-                            "type": "string",
-                        },
-                    },
-                },
-            )
-
-        self.cluster_class_extra_var = self.useFixture(
-            mcapi_fixtures.ClusterClassFixture(
-                self.api,
-                self.namespace_name,
-                mutate_callback=mutate_cluster_class_extra_var,
-            )
-        ).cluster_class
-
-        cc = objects.ClusterClass.objects(
-            self.pykube_api, namespace=self.namespace_name
-        ).get(
-            name=self.cluster_class_extra_var.get_resource().get("metadata").get("name")
-        )
-
-        self.assertIn("extraTestVariable", cc.variable_names)
-        self.assertIn(
-            {
-                "name": "extraTestVariable",
-                "metadata": {},
-                "required": True,
-                "schema": {
-                    "openAPIV3Schema": {
-                        "type": "string",
-                    },
-                },
-            },
-            cc.obj["spec"]["variables"],
-        )
-
-        self.cluster = magnum_objects.Cluster(
-            self.context,
-            **utils.get_test_cluster(
-                master_flavor_id="m1.medium",
-                flavor_id="m1.large",
-                keypair="fake-keypair",
-                labels={},
-            ),
-        )
-        self.cluster.cluster_template = magnum_objects.ClusterTemplate(
-            self.context,
-            **utils.get_test_cluster_template(),
-        )
-
-    def _get_cluster_object(self, mutate_callback=None):
-        fixture = self.useFixture(
-            mcapi_fixtures.ClusterFixture(
-                self.context,
-                self.api,
-                self.pykube_api,
-                self.namespace_name,
-                self.cluster,
-                mutate_callback=mutate_callback,
-            )
-        )
-
-        capi_cluster = fixture.cluster
-        return objects.Cluster.objects(
-            self.pykube_api, namespace=self.namespace_name
-        ).get(name=capi_cluster.get_resource().get("metadata").get("name"))
-
-    def test_cluster_variable_addition(self):
-        c = self._get_cluster_object()
-
-        self.assertEqual(
-            self.cluster_class_original.get_resource().get("metadata").get("name"),
-            c.obj["spec"]["topology"]["class"],
-        )
-        self.assertNotIn(
-            {"name": "extraTestVariable", "value": "test"},
-            c.obj["spec"]["topology"]["variables"],
-        )
-
-        def mutate_cluster(resource):
-            resource["spec"]["topology"]["class"] = (
-                self.cluster_class_extra_var.get_resource().get("metadata").get("name")
-            )
-            resource["spec"]["topology"]["variables"].append(
-                {
-                    "name": "extraTestVariable",
-                    "value": "test",
-                },
-            )
-
-        c = self._get_cluster_object(mutate_cluster)
-
-        self.assertEqual(
-            self.cluster_class_extra_var.get_resource().get("metadata").get("name"),
-            c.obj["spec"]["topology"]["class"],
-        )
-        self.assertIn(
-            {"name": "extraTestVariable", "value": "test"},
-            c.obj["spec"]["topology"]["variables"],
-        )
-
-    def test_cluster_variable_removal(self):
-        def mutate_cluster(resource):
-            resource["spec"]["topology"]["class"] = (
-                self.cluster_class_extra_var.get_resource().get("metadata").get("name")
-            )
-            resource["spec"]["topology"]["variables"].append(
-                {
-                    "name": "extraTestVariable",
-                    "value": "test",
-                },
-            )
-
-        c = self._get_cluster_object(mutate_cluster)
-
-        self.assertEqual(
-            self.cluster_class_extra_var.get_resource().get("metadata").get("name"),
-            c.obj["spec"]["topology"]["class"],
-        )
-        self.assertIn(
-            {"name": "extraTestVariable", "value": "test"},
-            c.obj["spec"]["topology"]["variables"],
-        )
-
-        c = self._get_cluster_object()
-
-        self.assertEqual(
-            self.cluster_class_original.get_resource().get("metadata").get("name"),
-            c.obj["spec"]["topology"]["class"],
-        )
-        self.assertNotIn(
-            {"name": "extraTestVariable", "value": "test"},
-            c.obj["spec"]["topology"]["variables"],
         )

@@ -15,11 +15,9 @@ use crate::cluster_api::{
 use json_patch::{patch, AddOperation, Patch, PatchOperation, RemoveOperation, ReplaceOperation};
 use jsonptr::PointerBuf;
 use kube::Resource;
-use pretty_assertions::assert_eq;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_gtmpl::ToGtmplValue;
 use serde_json::json;
-use std::collections::BTreeMap;
 
 /// A trait for converting a value into a [`Patch`] using provided template
 /// values.
@@ -225,52 +223,6 @@ impl ClusterClassPatchEnabled for ClusterClassPatches {
             output == "true"
         })
     }
-}
-
-/// Asserts that every key-value pair in the `needle` map is present in the
-/// `haystack` map.
-///
-/// This function checks that `needle` is a subset of `haystack` by iterating
-/// over the keys in `needle` and extracting the corresponding values from
-/// `haystack`. It then compares the extracted subset (with values wrapped in
-/// `Some`) to `needle` (with its values also wrapped in `Some`).
-///
-/// # Example
-///
-/// ```rust
-/// use std::collections::BTreeMap;
-///
-/// // Example maps
-/// let mut needle = BTreeMap::new();
-/// needle.insert("a", 1);
-///
-/// let mut haystack = BTreeMap::new();
-/// haystack.insert("a", 1);
-/// haystack.insert("b", 2);
-///
-/// // This assertion will pass since all key-value pairs in `needle` are in `haystack`.
-/// assert_subset_of_btreemap(&needle, &haystack);
-/// ```
-pub fn assert_subset_of_btreemap<
-    K: Ord + std::fmt::Debug + Clone,
-    V: PartialEq + std::fmt::Debug + Clone,
->(
-    needle: &BTreeMap<K, V>,
-    haystack: &BTreeMap<K, V>,
-) {
-    let mut extracted_haystack: BTreeMap<K, Option<V>> = BTreeMap::new();
-
-    for needle_key in needle.keys() {
-        let haystack_value = haystack.get(needle_key).cloned();
-        extracted_haystack.insert(needle_key.clone(), haystack_value);
-    }
-
-    let needle_with_options: BTreeMap<K, Option<V>> = needle
-        .iter()
-        .map(|(k, v)| (k.clone(), Some(v.clone())))
-        .collect();
-
-    assert_eq!(needle_with_options, extracted_haystack);
 }
 
 /// This is a static instance of the `TestClusterResources` that is used for

@@ -145,7 +145,6 @@ impl ClusterClassBuilder {
                     ]),
                     ..Default::default()
                 }),
-                ..Default::default()
             },
             ..Default::default()
         }

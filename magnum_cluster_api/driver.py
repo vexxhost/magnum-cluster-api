@@ -102,7 +102,7 @@ class BaseDriver(driver.Driver):
         ).apply()
 
         magnum_cluster = magnum_cluster_api.MagnumCluster(
-            cluster, namespace="magnum-system"
+            cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
         )
         magnum_cluster.create_or_update()
 
@@ -387,7 +387,7 @@ class BaseDriver(driver.Driver):
         #               the expectation is that running an upgrade operation will change
         #               the cluster in some way.
         magnum_cluster = magnum_cluster_api.MagnumCluster(
-            cluster, namespace="magnum-system"
+            cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
         )
         magnum_cluster.create_or_update()
         resources.apply_cluster_from_magnum_cluster(

@@ -154,7 +154,7 @@ impl ClusterFeature for Feature {
                                             overwrite: Some(false),
                                             table_type: Some("gpt".into()),
                                         }
-                                    ).unwrap().into()),
+                                    ).unwrap()),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
@@ -175,7 +175,7 @@ impl ClusterFeature for Feature {
                                             label: "etcd_disk".into(),
                                             ..Default::default()
                                         }
-                                    ).unwrap().into()),
+                                    ).unwrap()),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
@@ -316,7 +316,7 @@ impl ClusterFeature for Feature {
                                             overwrite: Some(false),
                                             table_type: Some("gpt".into()),
                                         }
-                                    ).unwrap().into()),
+                                    ).unwrap()),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
@@ -337,7 +337,7 @@ impl ClusterFeature for Feature {
                                             label: "docker_disk".into(),
                                             ..Default::default()
                                         }
-                                    ).unwrap().into()),
+                                    ).unwrap()),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
@@ -372,7 +372,7 @@ impl ClusterFeature for Feature {
                                             overwrite: Some(false),
                                             table_type: Some("gpt".into()),
                                         }
-                                    ).unwrap().into()),
+                                    ).unwrap()),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
@@ -393,7 +393,7 @@ impl ClusterFeature for Feature {
                                             label: "docker_disk".into(),
                                             ..Default::default()
                                         }
-                                    ).unwrap().into()),
+                                    ).unwrap()),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
@@ -428,7 +428,7 @@ impl ClusterFeature for Feature {
                                             overwrite: Some(false),
                                             table_type: Some("gpt".into()),
                                         }
-                                    ).unwrap().into()),
+                                    ).unwrap()),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
@@ -449,7 +449,7 @@ impl ClusterFeature for Feature {
                                             label: "docker_disk".into(),
                                             ..Default::default()
                                         }
-                                    ).unwrap().into()),
+                                    ).unwrap()),
                                     ..Default::default()
                                 }),
                                 ..Default::default()

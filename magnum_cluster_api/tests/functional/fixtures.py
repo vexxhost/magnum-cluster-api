@@ -65,5 +65,9 @@ class ClusterFixture(fixtures.Fixture):
                 self.mutate_callback(resource)
             return resource
 
+        magnum_cluster_api.MagnumCluster(
+            self.magnum_cluster, resources.CLUSTER_CLASS_NAME, namespace=self.namespace
+        ).create_or_update()
+
         self.cluster.get_resource = get_resource_override
         self.cluster.apply()

@@ -28,18 +28,27 @@ pub struct MagnumCluster {
 
     #[pyo3(get)]
     uuid: String,
+
+    #[pyo3(get)]
+    cluster_class_name: String,
 }
 
 #[pymethods]
 impl MagnumCluster {
     #[new]
-    #[pyo3(signature = (obj, namespace = "magnum-system"))]
-    fn new(py: Python<'_>, obj: PyObject, namespace: &str) -> PyResult<Self> {
+    #[pyo3(signature = (obj, cluster_class_name, namespace = "magnum-system"))]
+    fn new(
+        py: Python<'_>,
+        obj: PyObject,
+        cluster_class_name: &str,
+        namespace: &str,
+    ) -> PyResult<Self> {
         let uuid: String = obj.getattr(py, "uuid")?.extract(py)?;
 
         Ok(MagnumCluster {
             uuid,
             namespace: namespace.to_string(),
+            cluster_class_name: cluster_class_name.to_string(),
         })
     }
 
@@ -47,7 +56,7 @@ impl MagnumCluster {
         let client = client::KubeClient::new()?;
 
         let metadata = ObjectMeta {
-            name: Some("test".to_string()),
+            name: Some(self.cluster_class_name.clone()),
             namespace: Some(self.namespace.clone()),
             ..Default::default()
         };
@@ -173,6 +182,7 @@ mod tests {
         let cluster = MagnumCluster {
             uuid: "sample-uuid".to_owned(),
             namespace: "sample-namespace".to_owned(),
+            cluster_class_name: "sample-cluster-class".to_owned(),
         };
 
         let namespace = Namespace::from(&cluster);
@@ -185,6 +195,7 @@ mod tests {
         let cluster = MagnumCluster {
             uuid: "sample-uuid".to_owned(),
             namespace: "sample-namespace".to_owned(),
+            cluster_class_name: "sample-cluster-class".to_owned(),
         };
 
         let crs = ClusterResourceSet::from(&cluster);
