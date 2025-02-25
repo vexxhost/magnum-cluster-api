@@ -60,8 +60,8 @@ pub struct ClusterClassControlPlane {
     pub machine_health_check: Option<ClusterClassControlPlaneMachineHealthCheck>,
     /// MachineInfrastructure defines the metadata and infrastructure information
     /// for control plane machines.
-    /// 
-    /// 
+    ///
+    ///
     /// This field is supported if and only if the control plane provider template
     /// referenced above is Machine based and supports setting replicas.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "machineInfrastructure")]
@@ -70,8 +70,8 @@ pub struct ClusterClassControlPlane {
     /// if the ControlPlaneTemplate referenced is machine based. If not, it is applied only to the
     /// ControlPlane.
     /// At runtime this metadata is merged with the corresponding metadata from the topology.
-    /// 
-    /// 
+    ///
+    ///
     /// This field is supported if and only if the control plane provider template
     /// referenced is Machine based.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -114,23 +114,23 @@ pub struct ClusterClassControlPlaneMachineHealthCheck {
     /// NodeStartupTimeout allows to set the maximum time for MachineHealthCheck
     /// to consider a Machine unhealthy if a corresponding Node isn't associated
     /// through a `Spec.ProviderID` field.
-    /// 
-    /// 
+    ///
+    ///
     /// The duration set in this field is compared to the greatest of:
     /// - Cluster's infrastructure ready condition timestamp (if and when available)
     /// - Control Plane's initialized condition timestamp (if and when available)
     /// - Machine's infrastructure ready condition timestamp (if and when available)
     /// - Machine's metadata creation timestamp
-    /// 
-    /// 
+    ///
+    ///
     /// Defaults to 10 minutes.
     /// If you wish to disable this feature, set the value explicitly to 0.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "nodeStartupTimeout")]
     pub node_startup_timeout: Option<String>,
     /// RemediationTemplate is a reference to a remediation template
     /// provided by an infrastructure provider.
-    /// 
-    /// 
+    ///
+    ///
     /// This field is completely optional, when filled, the MachineHealthCheck controller
     /// creates a new object from the template referenced and hands off remediation of the machine to
     /// a controller that lives outside of Cluster API.
@@ -152,8 +152,8 @@ pub struct ClusterClassControlPlaneMachineHealthCheck {
 
 /// RemediationTemplate is a reference to a remediation template
 /// provided by an infrastructure provider.
-/// 
-/// 
+///
+///
 /// This field is completely optional, when filled, the MachineHealthCheck controller
 /// creates a new object from the template referenced and hands off remediation of the machine to
 /// a controller that lives outside of Cluster API.
@@ -207,8 +207,8 @@ pub struct ClusterClassControlPlaneMachineHealthCheckUnhealthyConditions {
 
 /// MachineInfrastructure defines the metadata and infrastructure information
 /// for control plane machines.
-/// 
-/// 
+///
+///
 /// This field is supported if and only if the control plane provider template
 /// referenced above is Machine based and supports setting replicas.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
@@ -262,8 +262,8 @@ pub struct ClusterClassControlPlaneMachineInfrastructureRef {
 /// if the ControlPlaneTemplate referenced is machine based. If not, it is applied only to the
 /// ControlPlane.
 /// At runtime this metadata is merged with the corresponding metadata from the topology.
-/// 
-/// 
+///
+///
 /// This field is supported if and only if the control plane provider template
 /// referenced is Machine based.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
@@ -548,8 +548,8 @@ pub struct ClusterClassVariables {
     /// Metadata is the metadata of a variable.
     /// It can be used to add additional data for higher level tools to
     /// a ClusterClassVariable.
-    /// 
-    /// 
+    ///
+    ///
     /// Deprecated: This field is deprecated and is going to be removed in the next apiVersion. Please use XMetadata in JSONSchemaProps instead.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<ClusterClassVariablesMetadata>,
@@ -567,8 +567,8 @@ pub struct ClusterClassVariables {
 /// Metadata is the metadata of a variable.
 /// It can be used to add additional data for higher level tools to
 /// a ClusterClassVariable.
-/// 
-/// 
+///
+///
 /// Deprecated: This field is deprecated and is going to be removed in the next apiVersion. Please use XMetadata in JSONSchemaProps instead.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct ClusterClassVariablesMetadata {
@@ -765,8 +765,8 @@ pub struct ClusterClassVariablesSchemaOpenApiv3SchemaXKubernetesValidations {
     /// - Rule scoped to a map of objects: {"rule": "self.components['Widget'].priority < 10"}
     /// - Rule scoped to a list of integers: {"rule": "self.values.all(value, value >= 0 && value < 100)"}
     /// - Rule scoped to a string value: {"rule": "self.startsWith('kube')"}
-    /// 
-    /// 
+    ///
+    ///
     /// Unknown data preserved in custom resources via x-kubernetes-preserve-unknown-fields is not accessible in CEL
     /// expressions. This includes:
     /// - Unknown field values that are preserved by object schemas with x-kubernetes-preserve-unknown-fields.
@@ -774,8 +774,8 @@ pub struct ClusterClassVariablesSchemaOpenApiv3SchemaXKubernetesValidations {
     ///   - A schema with no type and x-kubernetes-preserve-unknown-fields set to true
     ///   - An array where the items schema is of an "unknown type"
     ///   - An object where the additionalProperties schema is of an "unknown type"
-    /// 
-    /// 
+    ///
+    ///
     /// Only property names of the form `[a-zA-Z_.-/][a-zA-Z0-9_.-/]*` are accessible.
     /// Accessible property names are escaped according to the following rules when accessed in the expression:
     /// - '__' escapes to '__underscores__'
@@ -789,15 +789,15 @@ pub struct ClusterClassVariablesSchemaOpenApiv3SchemaXKubernetesValidations {
     ///   - Rule accessing a property named "namespace": {"rule": "self.__namespace__ > 0"}
     ///   - Rule accessing a property named "x-prop": {"rule": "self.x__dash__prop > 0"}
     ///   - Rule accessing a property named "redact__d": {"rule": "self.redact__underscores__d > 0"}
-    /// 
-    /// 
+    ///
+    ///
     /// If `rule` makes use of the `oldSelf` variable it is implicitly a
     /// `transition rule`.
-    /// 
-    /// 
+    ///
+    ///
     /// By default, the `oldSelf` variable is the same type as `self`.
-    /// 
-    /// 
+    ///
+    ///
     /// Transition rules by default are applied only on UPDATE requests and are
     /// skipped if an old value could not be found.
     pub rule: String,
@@ -905,23 +905,23 @@ pub struct ClusterClassWorkersMachineDeploymentsMachineHealthCheck {
     /// NodeStartupTimeout allows to set the maximum time for MachineHealthCheck
     /// to consider a Machine unhealthy if a corresponding Node isn't associated
     /// through a `Spec.ProviderID` field.
-    /// 
-    /// 
+    ///
+    ///
     /// The duration set in this field is compared to the greatest of:
     /// - Cluster's infrastructure ready condition timestamp (if and when available)
     /// - Control Plane's initialized condition timestamp (if and when available)
     /// - Machine's infrastructure ready condition timestamp (if and when available)
     /// - Machine's metadata creation timestamp
-    /// 
-    /// 
+    ///
+    ///
     /// Defaults to 10 minutes.
     /// If you wish to disable this feature, set the value explicitly to 0.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "nodeStartupTimeout")]
     pub node_startup_timeout: Option<String>,
     /// RemediationTemplate is a reference to a remediation template
     /// provided by an infrastructure provider.
-    /// 
-    /// 
+    ///
+    ///
     /// This field is completely optional, when filled, the MachineHealthCheck controller
     /// creates a new object from the template referenced and hands off remediation of the machine to
     /// a controller that lives outside of Cluster API.
@@ -943,8 +943,8 @@ pub struct ClusterClassWorkersMachineDeploymentsMachineHealthCheck {
 
 /// RemediationTemplate is a reference to a remediation template
 /// provided by an infrastructure provider.
-/// 
-/// 
+///
+///
 /// This field is completely optional, when filled, the MachineHealthCheck controller
 /// creates a new object from the template referenced and hands off remediation of the machine to
 /// a controller that lives outside of Cluster API.
@@ -1035,21 +1035,21 @@ pub struct ClusterClassWorkersMachineDeploymentsStrategy {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct ClusterClassWorkersMachineDeploymentsStrategyRemediation {
     /// MaxInFlight determines how many in flight remediations should happen at the same time.
-    /// 
-    /// 
+    ///
+    ///
     /// Remediation only happens on the MachineSet with the most current revision, while
     /// older MachineSets (usually present during rollout operations) aren't allowed to remediate.
-    /// 
-    /// 
+    ///
+    ///
     /// Note: In general (independent of remediations), unhealthy machines are always
     /// prioritized during scale down operations over healthy ones.
-    /// 
-    /// 
+    ///
+    ///
     /// MaxInFlight can be set to a fixed number or a percentage.
     /// Example: when this is set to 20%, the MachineSet controller deletes at most 20% of
     /// the desired replicas.
-    /// 
-    /// 
+    ///
+    ///
     /// If not set, remediation is limited to all machines (bounded by replicas)
     /// under the active MachineSet's management.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "maxInFlight")]
@@ -1474,8 +1474,8 @@ pub struct ClusterClassStatusVariablesDefinitions {
     /// Metadata is the metadata of a variable.
     /// It can be used to add additional data for higher level tools to
     /// a ClusterClassVariable.
-    /// 
-    /// 
+    ///
+    ///
     /// Deprecated: This field is deprecated and is going to be removed in the next apiVersion.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<ClusterClassStatusVariablesDefinitionsMetadata>,
@@ -1491,8 +1491,8 @@ pub struct ClusterClassStatusVariablesDefinitions {
 /// Metadata is the metadata of a variable.
 /// It can be used to add additional data for higher level tools to
 /// a ClusterClassVariable.
-/// 
-/// 
+///
+///
 /// Deprecated: This field is deprecated and is going to be removed in the next apiVersion.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct ClusterClassStatusVariablesDefinitionsMetadata {
@@ -1689,8 +1689,8 @@ pub struct ClusterClassStatusVariablesDefinitionsSchemaOpenApiv3SchemaXKubernete
     /// - Rule scoped to a map of objects: {"rule": "self.components['Widget'].priority < 10"}
     /// - Rule scoped to a list of integers: {"rule": "self.values.all(value, value >= 0 && value < 100)"}
     /// - Rule scoped to a string value: {"rule": "self.startsWith('kube')"}
-    /// 
-    /// 
+    ///
+    ///
     /// Unknown data preserved in custom resources via x-kubernetes-preserve-unknown-fields is not accessible in CEL
     /// expressions. This includes:
     /// - Unknown field values that are preserved by object schemas with x-kubernetes-preserve-unknown-fields.
@@ -1698,8 +1698,8 @@ pub struct ClusterClassStatusVariablesDefinitionsSchemaOpenApiv3SchemaXKubernete
     ///   - A schema with no type and x-kubernetes-preserve-unknown-fields set to true
     ///   - An array where the items schema is of an "unknown type"
     ///   - An object where the additionalProperties schema is of an "unknown type"
-    /// 
-    /// 
+    ///
+    ///
     /// Only property names of the form `[a-zA-Z_.-/][a-zA-Z0-9_.-/]*` are accessible.
     /// Accessible property names are escaped according to the following rules when accessed in the expression:
     /// - '__' escapes to '__underscores__'
@@ -1713,15 +1713,15 @@ pub struct ClusterClassStatusVariablesDefinitionsSchemaOpenApiv3SchemaXKubernete
     ///   - Rule accessing a property named "namespace": {"rule": "self.__namespace__ > 0"}
     ///   - Rule accessing a property named "x-prop": {"rule": "self.x__dash__prop > 0"}
     ///   - Rule accessing a property named "redact__d": {"rule": "self.redact__underscores__d > 0"}
-    /// 
-    /// 
+    ///
+    ///
     /// If `rule` makes use of the `oldSelf` variable it is implicitly a
     /// `transition rule`.
-    /// 
-    /// 
+    ///
+    ///
     /// By default, the `oldSelf` variable is the same type as `self`.
-    /// 
-    /// 
+    ///
+    ///
     /// Transition rules by default are applied only on UPDATE requests and are
     /// skipped if an old value could not be found.
     pub rule: String,

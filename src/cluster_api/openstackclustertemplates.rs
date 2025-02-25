@@ -56,7 +56,7 @@ pub struct OpenStackClusterTemplateTemplateSpec {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiServerPort")]
     pub api_server_port: Option<i64>,
     /// Bastion is the OpenStack instance to login the nodes
-    /// 
+    ///
     /// As a rolling update is not ideal during a bastion host session, we
     /// prevent changes to a running bastion configuration. To make changes, it's required
     /// to first set `enabled: false` which will remove the bastion and then changes can be made.
@@ -105,14 +105,14 @@ pub struct OpenStackClusterTemplateTemplateSpec {
     pub disable_port_security: Option<bool>,
     /// ExternalNetwork is the OpenStack Network to be used to get public internet to the VMs.
     /// This option is ignored if DisableExternalNetwork is set to true.
-    /// 
+    ///
     /// If ExternalNetwork is defined it must refer to exactly one external network.
-    /// 
+    ///
     /// If ExternalNetwork is not defined or is empty the controller will use any
     /// existing external network as long as there is only one. It is an
     /// error if ExternalNetwork is not defined and there are multiple
     /// external networks unless DisableExternalNetwork is also set.
-    /// 
+    ///
     /// If ExternalNetwork is not defined and there are no external networks
     /// the controller will proceed as though DisableExternalNetwork was set.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "externalNetwork")]
@@ -181,7 +181,7 @@ pub struct OpenStackClusterTemplateTemplateSpecApiServerLoadBalancer {
     pub availability_zone: Option<String>,
     /// Enabled defines whether a load balancer should be created. This value
     /// defaults to true if an APIServerLoadBalancer is given.
-    /// 
+    ///
     /// There is no reason to set this to false. To disable creation of the
     /// API server loadbalancer, omit the APIServerLoadBalancer field in the
     /// cluster spec instead.
@@ -294,7 +294,7 @@ pub struct OpenStackClusterTemplateTemplateSpecApiServerLoadBalancerSubnetsFilte
 }
 
 /// Bastion is the OpenStack instance to login the nodes
-/// 
+///
 /// As a rolling update is not ideal during a bastion host session, we
 /// prevent changes to a running bastion configuration. To make changes, it's required
 /// to first set `enabled: false` which will remove the bastion and then changes can be made.
@@ -306,7 +306,7 @@ pub struct OpenStackClusterTemplateTemplateSpecBastion {
     /// Enabled means that bastion is enabled. The bastion is enabled by
     /// default if this field is not specified. Set this field to false to disable the
     /// bastion.
-    /// 
+    ///
     /// It is not currently possible to remove the bastion from the cluster
     /// spec without first disabling it by setting this field to false and
     /// waiting until the bastion has been deleted.
@@ -972,14 +972,14 @@ pub struct OpenStackClusterTemplateTemplateSpecControlPlaneEndpoint {
 
 /// ExternalNetwork is the OpenStack Network to be used to get public internet to the VMs.
 /// This option is ignored if DisableExternalNetwork is set to true.
-/// 
+///
 /// If ExternalNetwork is defined it must refer to exactly one external network.
-/// 
+///
 /// If ExternalNetwork is not defined or is empty the controller will use any
 /// existing external network as long as there is only one. It is an
 /// error if ExternalNetwork is not defined and there are multiple
 /// external networks unless DisableExternalNetwork is also set.
-/// 
+///
 /// If ExternalNetwork is not defined and there are no external networks
 /// the controller will proceed as though DisableExternalNetwork was set.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
