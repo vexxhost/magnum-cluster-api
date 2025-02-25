@@ -57,6 +57,7 @@ dev = [
   "pytest-mock>=3.6.1",
   "responses>=0.25.0",
   "types-PyYAML",
+  "stestr"
 ]
 
 [project.scripts]

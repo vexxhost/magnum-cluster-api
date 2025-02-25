@@ -67,7 +67,6 @@ class BaseDriver(driver.Driver):
         cluster.save()
 
         utils.validate_cluster(context, cluster)
-        resources.Namespace(self.kube_client).apply()
 
         return self._create_cluster(context, cluster)
 
@@ -101,6 +100,11 @@ class BaseDriver(driver.Driver):
         resources.ServiceAccountCertificateAuthoritySecret(
             context, self.kube_client, self.k8s_api, cluster
         ).apply()
+
+        magnum_cluster = magnum_cluster_api.MagnumCluster(
+            cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
+        )
+        magnum_cluster.create_or_update()
 
         resources.apply_cluster_from_magnum_cluster(
             context,
@@ -382,6 +386,10 @@ class BaseDriver(driver.Driver):
         # NOTE(mnaser): We run a full apply on the cluster regardless of the changes, since
         #               the expectation is that running an upgrade operation will change
         #               the cluster in some way.
+        magnum_cluster = magnum_cluster_api.MagnumCluster(
+            cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
+        )
+        magnum_cluster.create_or_update()
         resources.apply_cluster_from_magnum_cluster(
             context, self.kube_client, self.k8s_api, cluster
         )
@@ -405,7 +413,6 @@ class BaseDriver(driver.Driver):
         #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/pull/990
         utils.delete_loadbalancers(context, cluster)
 
-        resources.ClusterResourceSet(self.kube_client, cluster).delete()
         resources.ClusterResourcesConfigMap(
             context, self.kube_client, self.k8s_api, cluster
         ).delete()

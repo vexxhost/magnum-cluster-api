@@ -1,14 +1,18 @@
-use std::str::FromStr;
-
 use backoff::{future::retry, ExponentialBackoff};
+use k8s_openapi::serde::{de::DeserializeOwned, Deserialize, Serialize};
 use kube::{
     api::{Api, ApiResource, DynamicObject, GroupVersionKind, PostParams},
+    core::{
+        gvk::ParseGroupVersionError, ClusterResourceScope, GroupVersion, NamespaceResourceScope,
+        ObjectMeta, Resource,
+    },
     Client, Config, ResourceExt,
 };
-use kube_core::{gvk::ParseGroupVersionError, GroupVersion};
 use once_cell::sync::Lazy;
-use pyo3::create_exception;
-use pyo3::{exceptions, exceptions::PyException, prelude::*, types::PyDict, Bound};
+use pyo3::{
+    create_exception, exceptions, exceptions::PyException, prelude::*, types::PyDict, Bound,
+};
+use std::{fmt::Debug, str::FromStr};
 use thiserror::Error;
 use tokio::runtime::Runtime;
 
@@ -23,22 +27,22 @@ static GLOBAL_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
 
 #[pyclass]
 pub struct KubeClient {
-    client: Client,
+    pub client: Client,
 }
 
 #[derive(Debug, Error)]
 pub enum KubeClientError {
     #[error("Failed to deserialize dictionary: {0}")]
-    ParseError(#[from] pythonize::PythonizeError),
+    Parse(#[from] pythonize::PythonizeError),
 
     #[error("Missing metadata")]
-    MetadataError,
+    Metadata,
 
     #[error("API request failed: {0}")]
-    ApiError(#[from] kube::Error),
+    Api(#[from] kube::Error),
 
     #[error("Failed to parse group version: {0}")]
-    ParseGroupVersionError(#[from] ParseGroupVersionError),
+    ParseGroupVersion(#[from] ParseGroupVersionError),
 }
 
 impl From<KubeClientError> for PyErr {
@@ -64,12 +68,130 @@ impl KubeClient {
 
         api
     }
+
+    pub async fn create_or_update_resource<T>(
+        &self,
+        api: Api<T>,
+        resource: T,
+    ) -> Result<T, KubeClientError>
+    where
+        T: Resource + Clone + Debug + DeserializeOwned + Serialize,
+    {
+        let name = resource.name_any();
+
+        match api.get(&name).await {
+            Ok(..) => Ok(retry(ExponentialBackoff::default(), || async {
+                let mut new_resource = resource.clone();
+
+                let server_object = api.get(&name).await?;
+                new_resource.meta_mut().resource_version = server_object.resource_version();
+
+                match api.replace(&name, &Default::default(), &new_resource).await {
+                    Ok(result) => Ok(result),
+                    Err(e) => match e {
+                        kube::Error::Api(ref err) if err.code == 409 => {
+                            Err(backoff::Error::transient(e))
+                        }
+                        _ => Err(backoff::Error::Permanent(e)),
+                    },
+                }
+            })
+            .await
+            .map_err(KubeClientError::Api)?),
+            Err(kube::Error::Api(ref err)) if err.code == 404 => Ok(api
+                .create(&PostParams::default(), &resource)
+                .await
+                .map_err(KubeClientError::Api)?),
+            Err(e) => Err(KubeClientError::Api(e))?,
+        }
+    }
+
+    pub async fn create_or_update_cluster_resource<T>(
+        &self,
+        resource: T,
+    ) -> Result<T, KubeClientError>
+    where
+        T: Resource<Scope = ClusterResourceScope, DynamicType = ()>
+            + Clone
+            + Debug
+            + DeserializeOwned
+            + Serialize,
+    {
+        let client = self.client.to_owned();
+        let api: Api<T> = Api::all(client);
+
+        self.create_or_update_resource(api, resource).await
+    }
+
+    pub async fn create_or_update_namespaced_resource<T>(
+        &self,
+        namespace: &str,
+        resource: T,
+    ) -> Result<T, KubeClientError>
+    where
+        T: Resource<Scope = NamespaceResourceScope, DynamicType = ()>
+            + Clone
+            + std::fmt::Debug
+            + for<'de> Deserialize<'de>
+            + Serialize,
+    {
+        let client = self.client.to_owned();
+        let api: Api<T> = Api::namespaced(client, namespace);
+
+        self.create_or_update_resource(api, resource).await
+    }
+
+    pub async fn delete_resource<T>(&self, api: Api<T>, name: &str) -> Result<(), KubeClientError>
+    where
+        T: Resource + Clone + std::fmt::Debug + for<'de> Deserialize<'de> + Serialize,
+    {
+        match api.delete(name, &Default::default()).await {
+            Ok(_) => Ok(()),
+            Err(kube::Error::Api(ref err)) if err.code == 404 => Ok(()),
+            Err(e) => Err(KubeClientError::Api(e)),
+        }
+    }
+
+    pub async fn delete_cluster_resource<T>(&self, resource: T) -> Result<(), KubeClientError>
+    where
+        T: Resource<Scope = ClusterResourceScope, DynamicType = ()>
+            + Clone
+            + std::fmt::Debug
+            + for<'de> Deserialize<'de>
+            + Serialize,
+    {
+        let client = self.client.to_owned();
+        let api: Api<T> = Api::all(client);
+        let name = resource.name_any();
+
+        self.delete_resource(api, &name).await
+    }
+
+    pub async fn delete_namespaced_resource<T>(
+        &self,
+        namespace: &str,
+        resource: T,
+    ) -> Result<(), KubeClientError>
+    where
+        T: Resource<Scope = NamespaceResourceScope, DynamicType = ()>
+            + k8s_openapi::Metadata<Ty = ObjectMeta>
+            + Clone
+            + std::fmt::Debug
+            + for<'de> Deserialize<'de>
+            + Serialize,
+    {
+        let client = self.client.to_owned();
+        let api: Api<T> = Api::namespaced(client, namespace);
+        let name = resource.name_any();
+
+        self.delete_resource(api, &name).await
+    }
 }
 
 #[pymethods]
 impl KubeClient {
     #[new]
-    fn new() -> PyResult<Self> {
+    pub fn new() -> PyResult<Self> {
         let client = GLOBAL_RUNTIME.block_on(async {
             let config = Config::infer()
                 .await
@@ -95,52 +217,13 @@ impl KubeClient {
     fn create_or_update(&self, manifest: &Bound<'_, PyDict>) -> PyResult<()> {
         let object: DynamicObject = pythonize::depythonize(manifest)?;
 
-        let name = object
-            .metadata
-            .name
-            .to_owned()
-            .ok_or(KubeClientError::MetadataError)?;
+        let types = object.types.to_owned().ok_or(KubeClientError::Metadata)?;
 
-        let types = object
-            .types
-            .to_owned()
-            .ok_or(KubeClientError::MetadataError)?;
-
-        let gvk =
-            GroupVersionKind::try_from(types).map_err(KubeClientError::ParseGroupVersionError)?;
+        let gvk = GroupVersionKind::try_from(types).map_err(KubeClientError::ParseGroupVersion)?;
         let api = self.get_api_from_gvk(&gvk, object.metadata.namespace.as_deref());
 
         GLOBAL_RUNTIME.block_on(async move {
-            match api.get(&name).await {
-                Ok(..) => {
-                    retry(ExponentialBackoff::default(), || async {
-                        let mut new_object = object.clone();
-
-                        let server_object = api.get(&name).await?;
-                        new_object.metadata.resource_version = server_object.resource_version();
-
-                        match api.replace(&name, &Default::default(), &new_object).await {
-                            Ok(result) => Ok(result),
-                            Err(e) => match e {
-                                kube::Error::Api(ref err) if err.code == 409 => {
-                                    Err(backoff::Error::transient(e))
-                                }
-                                _ => Err(backoff::Error::Permanent(e)),
-                            },
-                        }
-                    })
-                    .await
-                    .map_err(|e| KubeClientError::ApiError(e))?;
-                }
-                Err(kube::Error::Api(ref err)) if err.code == 404 => {
-                    api.create(&PostParams::default(), &object)
-                        .await
-                        .map_err(|e| KubeClientError::ApiError(e))?;
-                }
-                Err(e) => {
-                    return Err(KubeClientError::ApiError(e))?;
-                }
-            }
+            self.create_or_update_resource(api, object).await?;
 
             Ok(())
         })
@@ -155,14 +238,12 @@ impl KubeClient {
         namespace: Option<&str>,
     ) -> PyResult<()> {
         let gvk: GroupVersionKind = GroupVersion::from_str(api_version)
-            .map_err(KubeClientError::ParseGroupVersionError)?
+            .map_err(KubeClientError::ParseGroupVersion)?
             .with_kind(kind);
         let api = self.get_api_from_gvk(&gvk, namespace);
 
         GLOBAL_RUNTIME.block_on(async {
-            api.delete(name, &Default::default())
-                .await
-                .map_err(|e| KubeClientError::ApiError(e))?;
+            self.delete_resource(api, name).await?;
 
             Ok(())
         })
