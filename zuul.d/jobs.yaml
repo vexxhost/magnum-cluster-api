@@ -40,6 +40,13 @@
     files:
       - magnum_cluster_api/cmd/image_builder.py
 
+# NOTE(mnaser): This is a workaround job to get around the fact that
+#               this job exists inside openstack-zuul-jobs and adding
+#               that to our project brings in the world.
+- job:
+    name: openstack-multinode-fips
+    parent: base
+
 - job:
     name: magnum-cluster-api-sonobuoy
     parent: devstack
