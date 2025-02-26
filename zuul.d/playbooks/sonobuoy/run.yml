@@ -39,11 +39,6 @@
       args:
         chdir: "{{ zuul.project.src_dir }}"
 
-    - name: Build Rust with cargo
-      command: "cargo build"
-      args:
-        chdir: "{{ zuul.project.src_dir }}"
-
     - name: Upgrade pip to the latest version
       ansible.builtin.pip:
         name: pip
