@@ -1,3 +1,8 @@
+- pragma:
+    implied-branches:
+      - main
+      - master
+
 - job:
     name: magnum-cluster-api-image-build-rockylinux-8
     parent: magnum-cluster-api-image-build
