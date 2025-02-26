@@ -55,6 +55,7 @@
       - opendev.org/openstack/manila
       - opendev.org/openstack/octavia
       - opendev.org/openstack/ovn-octavia-provider
+      - opendev.org/openstack/python-magnumclient
     vars:
       devstack_plugins:
         barbican: https://github.com/openstack/barbican
@@ -71,6 +72,7 @@
         MANILA_ENABLED_BACKENDS: generic
         MANILA_USE_SERVICE_INSTANCE_PASSWORD: true
         VOLUME_BACKING_FILE_SIZE: 50G
+        # NOTE(mnaser): https://review.opendev.org/c/openstack/devstack/+/942755
         ZSWAP_ZPOOL: zsmalloc
       devstack_local_conf:
         post-config:

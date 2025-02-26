@@ -51,14 +51,18 @@
         chdir: "{{ zuul.project.src_dir }}"
 
     - name: Install "magnum-cluster-api"
-      ansible.builtin.shell: |
-        pip install -U setuptools pip python-magnumclient
-        {{ ansible_env.HOME }}/.local/bin/pip3 install -e .
-      args:
-        chdir: "{{ zuul.project.src_dir }}"
+      ansible.builtin.pip:
+        name: "{{ zuul.project.src_dir }}"
+        extra_args: --constraint /opt/stack/requirements/upper-constraints.txt
+        editable: true
 
-    - name: Restart Magnum to pick up new driver
-      ansible.builtin.shell: sudo systemctl restart devstack@magnum-{api,cond}
+    - name: Restart Magnum services
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: started
+      loop:
+        - devstack@magnum-api
+        - devstack@magnum-cond
 
     - shell: "./hack/run-integration-tests.sh"
       args:
