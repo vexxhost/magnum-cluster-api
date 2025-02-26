@@ -21,9 +21,44 @@
       when:
         - image_url is defined
 
-    - shell: "./hack/stack.sh"
+    - name: Install DevStack
+      ansible.builtin.include_role:
+        name: orchestrate-devstack
+
+    - name: Install "kubectl"
+      ansible.builtin.shell: ./hack/setup-kubectl.sh
       args:
         chdir: "{{ zuul.project.src_dir }}"
+
+    - name: Install Helm
+      ansible.builtin.shell: ./hack/setup-helm.sh
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+
+    - name: Install Docker
+      ansible.builtin.shell: ./hack/setup-docker.sh
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+
+    - name: Install KinD
+      ansible.builtin.shell: ./hack/setup-kind.sh
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+
+    - name: Install CAPI/CAPO
+      ansible.builtin.shell: ./hack/setup-capo.sh
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+
+    - name: Install "magnum-cluster-api"
+      ansible.builtin.shell: |
+        pip install -U setuptools pip python-magnumclient
+        {{ ansible_env.HOME }}/.local/bin/pip3 install -e .
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+
+    - name: Restart Magnum to pick up new driver
+      ansible.builtin.shell: sudo systemctl restart devstack@magnum-{api,cond}
 
     - shell: "./hack/run-integration-tests.sh"
       args:
