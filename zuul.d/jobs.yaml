@@ -45,6 +45,7 @@
     parent: devstack
     abstract: true
     timeout: 7200
+    override-checkout: master
     pre-run: zuul.d/playbooks/sonobuoy/pre.yml
     run: zuul.d/playbooks/sonobuoy/run.yml
     post-run: zuul.d/playbooks/sonobuoy/post.yml
