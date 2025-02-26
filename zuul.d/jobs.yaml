@@ -96,5 +96,9 @@
         o-da: true
     nodeset:
       nodes:
-        - name: ubuntu-jammy
+        - name: controller
           label: jammy-16c-64g
+      groups:
+        - name: tempest
+          nodes:
+            - controller
