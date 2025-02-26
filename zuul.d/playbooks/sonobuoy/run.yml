@@ -63,11 +63,11 @@
       args:
         chdir: "{{ zuul.project.src_dir }}"
       environment:
-        OS_DISTRO: "{{ image_os_distro }}"
-        KUBE_TAG: "{{ kube_tag }}"
-        NODE_COUNT: 2
-        NETWORK_DRIVER: "{{ network_driver }}"
         IMAGE_NAME: "{{ image_url.split('/')[-1].split('.')[0] }}"
+        KUBE_TAG: "{{ kube_tag }}"
+        NETWORK_DRIVER: "{{ network_driver }}"
+        NODE_COUNT: 2
+        OS_CLOUD: devstack
 
     - name: Copy Sonobuoy results to output folder
       copy:

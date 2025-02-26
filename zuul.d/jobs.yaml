@@ -68,6 +68,7 @@
         GIT_BASE: https://github.com
         GLANCE_LIMIT_IMAGE_SIZE_TOTAL: 10000
         KEYSTONE_ADMIN_ENDPOINT: true
+        LIBVIRT_CPU_MODE: host-passthrough
         LIBVIRT_TYPE: kvm
         MAGNUM_GUEST_IMAGE_URL: "{{ image_url }}"
         MANILA_DEFAULT_SHARE_TYPE_EXTRA_SPECS: snapshot_support=True create_share_from_snapshot_support=True

@@ -18,8 +18,6 @@
 # will download the image, create a cluster, wait for it to hit `CREATE_COMPLETE`
 # and then run `sonobuoy` against it.
 
-source /opt/stack/openrc
-
 NODE_COUNT=${NODE_COUNT:-2}
 NETWORK_DRIVER=${NETWORK_DRIVER:-calico}
 SONOBUOY_VERSION=${SONOBUOY_VERSION:-0.56.16}
