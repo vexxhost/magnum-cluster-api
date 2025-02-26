@@ -29,7 +29,7 @@
       args:
         chdir: "{{ zuul.project.src_dir }}"
 
-    - name: Install KinD
+    - name: Install Kind
       ansible.builtin.shell: ./hack/setup-kind.sh
       args:
         chdir: "{{ zuul.project.src_dir }}"
@@ -41,7 +41,7 @@
 
     - name: Install "magnum-cluster-api"
       ansible.builtin.pip:
-        name: "./{{ zuul.project.src_dir }}"
+        name: "{{ playbook_dir }}/{{ zuul.project.src_dir }}"
         extra_args: --constraint /opt/stack/requirements/upper-constraints.txt
         editable: true
 
