@@ -25,7 +25,7 @@
       ansible.builtin.include_role:
         name: orchestrate-devstack
 
-    - name: Install "kubectl"
+    - name: Install kubectl CLI
       ansible.builtin.shell: ./hack/setup-kubectl.sh
       args:
         chdir: "{{ zuul.project.src_dir }}"
