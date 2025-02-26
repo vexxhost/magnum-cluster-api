@@ -72,6 +72,7 @@
         MANILA_DEFAULT_SHARE_TYPE_EXTRA_SPECS: snapshot_support=True create_share_from_snapshot_support=True
         MANILA_ENABLED_BACKENDS: generic
         MANILA_USE_SERVICE_INSTANCE_PASSWORD: true
+        OCTAVIA_NODE: api
         VOLUME_BACKING_FILE_SIZE: 50G
         # NOTE(mnaser): https://review.opendev.org/c/openstack/devstack/+/942755
         ZSWAP_ZPOOL: zsmalloc
