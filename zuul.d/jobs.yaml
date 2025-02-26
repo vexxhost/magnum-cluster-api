@@ -64,6 +64,7 @@
         octavia: https://github.com/openstack/octavia
         ovn-octavia-provider: https://github.com/openstack/ovn-octavia-provider
       devstack_localrc:
+        DISABLE_AMP_IMAGE_BUILD: true
         GIT_BASE: https://github.com
         GLANCE_LIMIT_IMAGE_SIZE_TOTAL: 10000
         KEYSTONE_ADMIN_ENDPOINT: true
@@ -93,8 +94,6 @@
         s-proxy: false
         octavia: true
         o-api: true
-        o-cw: true
-        o-hm: true
         o-hk: true
         o-da: true
     nodeset:
