@@ -48,6 +48,12 @@
     pre-run: zuul.d/playbooks/sonobuoy/pre.yml
     run: zuul.d/playbooks/sonobuoy/run.yml
     post-run: zuul.d/playbooks/sonobuoy/post.yml
+    required-projects:
+      - opendev.org/openstack/barbican
+      - opendev.org/openstack/magnum
+      - opendev.org/openstack/manila
+      - opendev.org/openstack/octavia
+      - opendev.org/openstack/ovn-octavia-provider
     vars:
       devstack_plugins:
         barbican: https://github.com/openstack/barbican
