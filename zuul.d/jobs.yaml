@@ -71,6 +71,7 @@
         MANILA_ENABLED_BACKENDS: generic
         MANILA_USE_SERVICE_INSTANCE_PASSWORD: true
         VOLUME_BACKING_FILE_SIZE: 50G
+        ZSWAP_ZPOOL: zsmalloc
       devstack_local_conf:
         post-config:
           /etc/manila/manila.conf:
