@@ -40,11 +40,6 @@
     files:
       - magnum_cluster_api/cmd/image_builder.py
 
-- pragma:
-    implied-branches:
-      - main
-      - master
-
 - job:
     name: magnum-cluster-api-sonobuoy
     parent: devstack
