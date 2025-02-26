@@ -41,9 +41,10 @@
 
     - name: Install "magnum-cluster-api"
       ansible.builtin.pip:
-        name: "/{{ zuul.project.src_dir }}"
+        name: "."
         extra_args: --constraint /opt/stack/requirements/upper-constraints.txt
         editable: true
+        chdir: "{{ zuul.project.src_dir }}"
 
     - name: Restart Magnum services
       ansible.builtin.service:
