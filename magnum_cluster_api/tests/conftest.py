@@ -189,7 +189,7 @@ def cluster_template(context, image, kube_tag):
         image_id=image["id"],
         master_lb_enabled=True,
         external_network_id=uuidutils.generate_uuid(),
-        dns_nameserver="8.8.8.8",
+        dns_nameserver="8.8.8.8,1.1.1.1",
         master_flavor_id=uuidutils.generate_uuid(),
         flavor_id=uuidutils.generate_uuid(),
         cluster_distro="ubuntu",
