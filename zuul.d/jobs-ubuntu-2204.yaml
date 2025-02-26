@@ -11,8 +11,7 @@
     parent: magnum-cluster-api-sonobuoy-ubuntu-2204
     vars:
       kube_tag: v1.28.11
-      devstack_localrc:
-        MAGNUM_GUEST_IMAGE_URL: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-28-11-1719601167.qcow2
+      image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-28-11-1719601167.qcow2
 
 - job:
     name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.28.11-calico
@@ -31,8 +30,7 @@
     parent: magnum-cluster-api-sonobuoy-ubuntu-2204
     vars:
       kube_tag: v1.29.6
-      devstack_localrc:
-        MAGNUM_GUEST_IMAGE_URL: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-29-6-1720107687.qcow2
+      image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-29-6-1720107687.qcow2
 
 - job:
     name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.29.6-calico
@@ -51,8 +49,7 @@
     parent: magnum-cluster-api-sonobuoy-ubuntu-2204
     vars:
       kube_tag: v1.30.2
-      devstack_localrc:
-        MAGNUM_GUEST_IMAGE_URL: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-30-2-1720107688.qcow2
+      image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-30-2-1720107688.qcow2
 
 - job:
     name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.30.2-calico
@@ -71,8 +68,7 @@
     parent: magnum-cluster-api-sonobuoy-ubuntu-2204
     vars:
       kube_tag: v1.31.1
-      devstack_localrc:
-        MAGNUM_GUEST_IMAGE_URL: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-31-1-1728920853.qcow2
+      image_url: https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-31-1-1728920853.qcow2
 
 - job:
     name: magnum-cluster-api-sonobuoy-ubuntu-2204-v1.31.1-calico
