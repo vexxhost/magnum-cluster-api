@@ -45,8 +45,9 @@
         chdir: "{{ zuul.project.src_dir }}"
 
     - name: Upgrade pip to the latest version
-      ansible.builtin.command:
-        cmd: python3 -m pip install --upgrade pip
+      ansible.builtin.pip:
+        name: pip
+        state: latest
 
     - name: Install "magnum-cluster-api"
       ansible.builtin.pip:
