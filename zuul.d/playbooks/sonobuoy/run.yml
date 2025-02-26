@@ -48,7 +48,6 @@
       ansible.builtin.pip:
         name: "."
         extra_args: --constraint /opt/stack/requirements/upper-constraints.txt
-        editable: true
         virtualenv: /opt/stack/data/venv
         chdir: "{{ zuul.project.src_dir }}"
 
