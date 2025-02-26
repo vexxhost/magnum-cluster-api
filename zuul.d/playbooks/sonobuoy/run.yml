@@ -63,7 +63,7 @@
         - devstack@magnum-api
         - devstack@magnum-cond
 
-    - shell: "./hack/run-integration-tests.sh"
+    - ansible.builtin.shell: "./hack/run-integration-tests.sh"
       args:
         chdir: "{{ zuul.project.src_dir }}"
       environment:
