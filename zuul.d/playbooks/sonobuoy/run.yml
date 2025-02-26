@@ -39,25 +39,15 @@
       args:
         chdir: "{{ zuul.project.src_dir }}"
 
-    - name: Download Rust installer
-      get_url:
-        url: https://sh.rustup.rs
-        dest: /tmp/rustup.sh
-        mode: '0755'
-
-    - name: Install Rust 1.81 system-wide
-      shell: |
-        /tmp/rustup.sh -y --default-toolchain 1.81.0 --no-modify-path
-        mv ~/.cargo/bin/* /usr/local/bin/
-        rm -rf ~/.cargo ~/.rustup
-      args:
-        creates: /usr/local/bin/rustc
-        
     - name: Build Rust with cargo
       command: "cargo build"
       args:
         chdir: "{{ zuul.project.src_dir }}"
-        
+
+    - name: Upgrade pip to the latest version
+      ansible.builtin.command:
+        cmd: python3 -m pip install --upgrade pip
+
     - name: Install "magnum-cluster-api"
       ansible.builtin.pip:
         name: "."
