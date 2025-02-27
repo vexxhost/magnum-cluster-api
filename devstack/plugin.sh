@@ -23,7 +23,7 @@ if is_service_enabled magnum-cluster-api; then
       /usr/local/bin/kind
     # Install Helm
     tar -xvzf \
-      $(get_extra_file https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz)
+      $(get_extra_file https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz) \
       -C /tmp
     sudo install -o root -g root -m 0755 \
       /tmp/linux-amd64/helm
