@@ -5,7 +5,7 @@ SERVICE_PASSWORD="secretservice"
 ADMIN_PASSWORD="secretadmin"
 
 # NOTE(mnaser): https://review.opendev.org/c/openstack/devstack/+/942755
-ZSWAP_ZPOOL: zsmalloc
+ZSWAP_ZPOOL=zsmalloc
 
 enable_service openstack-cli-server
 
@@ -18,7 +18,7 @@ enable_plugin octavia https://opendev.org/openstack/octavia
 enable_plugin ovn-octavia-provider https://opendev.org/openstack/ovn-octavia-provider
 enable_service octavia o-api o-hk o-da
 OCTAVIA_NODE=api
-DISABLE_AMP_IMAGE_BUILD=true
+DISABLE_AMP_IMAGE_BUILD=True
 
 enable_plugin manila https://opendev.org/openstack/manila
 MANILA_ENABLED_BACKENDS=generic

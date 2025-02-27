@@ -7,6 +7,14 @@ MAGNUM_CLUSTER_API_REPO=${MAGNUM_CLUSTER_API_REPO:-https://github.com/vexxhost/m
 MAGNUM_CLUSTER_API_BRANCH=${MAGNUM_CLUSTER_API_BRANCH:-main}
 MAGNUM_CLUSTER_API_DIR=$DEST/magnum-cluster-api
 
+function ensure_kind_cluster {
+  if echo "kind get clusters" | newgrp docker | grep -q kind; then
+    echo "KinD cluster already exists, skipping creation"
+    return
+  fi
+
+  echo "kind create cluster" | newgrp docker
+}
 
 if is_service_enabled magnum-cluster-api; then
 
@@ -32,6 +40,7 @@ if is_service_enabled magnum-cluster-api; then
     sudo sh $(get_extra_file https://get.docker.com)
     sudo usermod -aG docker $USER
     sudo iptables -I DOCKER-USER -j ACCEPT
+    ensure_kind_cluster
     # Create a KinD cluster
     echo "kind create cluster" | newgrp docker
     # Label a control plane node
