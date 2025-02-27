@@ -40,9 +40,8 @@ if is_service_enabled magnum-cluster-api; then
     sudo sh $(get_extra_file https://get.docker.com)
     sudo usermod -aG docker $USER
     sudo iptables -I DOCKER-USER -j ACCEPT
-    ensure_kind_cluster
     # Create a KinD cluster
-    echo "kind create cluster" | newgrp docker
+    ensure_kind_cluster
     # Label a control plane node
     kubectl label node kind-control-plane openstack-control-plane=enabled
     # Deploy CAPI/CAPO
