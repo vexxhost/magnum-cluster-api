@@ -37,6 +37,9 @@ if is_service_enabled magnum-cluster-api; then
     # Label a control plane node
     kubectl label node kind-control-plane openstack-control-plane=enabled
     # Deploy CAPI/CAPO
+    export EXP_CLUSTER_RESOURCE_SET=true
+    export EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true
+    export CLUSTER_TOPOLOGY=true
     clusterctl init \
       --core cluster-api:${CAPI_VERSION} \
       --bootstrap kubeadm:${CAPI_VERSION} \
