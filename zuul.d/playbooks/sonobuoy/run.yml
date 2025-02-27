@@ -52,6 +52,7 @@
         chdir: "{{ zuul.project.src_dir }}"
 
     - name: Restart Magnum services
+      become: true
       ansible.builtin.service:
         name: "{{ item }}"
         state: restarted
