@@ -12,23 +12,26 @@ if is_service_enabled magnum-cluster-api; then
 
   if [[ "$1" == "stack" && "$2" == "pre-install" ]]; then
     # Install Kubectl
-    local kubectl_bin=$(get_extra_file https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl)
-    sudo install -o root -g root -m 0755 ${kubectl_bin} /usr/local/bin/kubectl
+    local kubectl_bin=
+    sudo install -o root -g root -m 0755 \
+      $(get_extra_file https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl) \
+      /usr/local/bin/kubectl
     # Install Docker
-    local get_docker=$(get_extra_file https://get.docker.com)
-    sudo sh ${get_docker}
+    sudo sh $(get_extra_file https://get.docker.com)
     sudo usermod -aG docker $USER
     sudo iptables -I DOCKER-USER -j ACCEPT
     # Install KinD
-    local kind_bin=$(get_extra_file https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64)
-    sudo install -o root -g root -m 0755 ${kind_bin} /usr/local/bin/kind
+    sudo install -o root -g root -m 0755 \
+      $(get_extra_file https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64) \
+      /usr/local/bin/kind
     # Create a KinD cluster
     echo "kind create cluster" | newgrp docker
     # Label a control plane node
     kubectl label node kind-control-plane openstack-control-plane=enabled
     # Install clusterctl
-    let clusterctl_bin=$(get_extra_file https://github.com/kubernetes-sigs/cluster-api/releases/download/${CAPI_VERSION}/clusterctl-linux-amd64)
-    sudo install -o root -g root -m 0755 ${clusterctl_bin} /usr/local/bin/clusterctl
+    sudo install -o root -g root -m 0755 \
+      $(get_extra_file https://github.com/kubernetes-sigs/cluster-api/releases/download/${CAPI_VERSION}/clusterctl-linux-amd64) \
+      /usr/local/bin/clusterctl
     # Deploy CAPI/CAPO
     clusterctl init --core cluster-api:${CAPI_VERSION} --bootstrap kubeadm:${CAPI_VERSION} --control-plane kubeadm:${CAPI_VERSION} --infrastructure openstack:${CAPO_VERSION}
     # Wait for components to go up
