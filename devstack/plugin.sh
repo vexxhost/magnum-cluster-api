@@ -14,6 +14,7 @@ function ensure_kind_cluster {
   fi
 
   echo "kind create cluster" | newgrp docker
+  kubectl label node kind-control-plane openstack-control-plane=enabled
 }
 
 if is_service_enabled magnum-cluster-api; then
@@ -42,8 +43,6 @@ if is_service_enabled magnum-cluster-api; then
     sudo iptables -I DOCKER-USER -j ACCEPT
     # Create a KinD cluster
     ensure_kind_cluster
-    # Label a control plane node
-    kubectl label node kind-control-plane openstack-control-plane=enabled
     # Deploy CAPI/CAPO
     export EXP_CLUSTER_RESOURCE_SET=true
     export EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true
