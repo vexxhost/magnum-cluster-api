@@ -47,6 +47,7 @@
     - name: Install "magnum-cluster-api"
       ansible.builtin.pip:
         name: "."
+        editable: true
         extra_args: --constraint /opt/stack/requirements/upper-constraints.txt
         virtualenv: /opt/stack/data/venv
         chdir: "{{ zuul.project.src_dir }}"
