@@ -1,4 +1,5 @@
 mod client;
+mod cluster_api;
 
 use pyo3::{prelude::*, Bound};
 

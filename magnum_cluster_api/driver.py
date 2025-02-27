@@ -109,6 +109,11 @@ class BaseDriver(driver.Driver):
             cluster,
             skip_auto_scaling_release=True,
         )
+        self.kube_client.create_or_update(
+            resources.Cluster(
+                context, self.kube_client, self.k8s_api, cluster
+            ).get_object(),
+        )
 
     def _get_cluster_status_reason(self, capi_cluster):
         capi_cluster_status_reason = ""
@@ -384,6 +389,13 @@ class BaseDriver(driver.Driver):
         #               the cluster in some way.
         resources.apply_cluster_from_magnum_cluster(
             context, self.kube_client, self.k8s_api, cluster
+        )
+        self.kube_client.update_cluster(
+            "magnum-system",
+            cluster.stack_id,
+            resources.Cluster(
+                context, self.kube_client, self.k8s_api, cluster
+            ).get_object(),
         )
 
         # NOTE(mnaser): We do not save the cluster object here because the Magnum driver

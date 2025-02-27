@@ -3094,7 +3094,6 @@ def apply_cluster_from_magnum_cluster(
     ClusterServerGroups(context, cluster).apply()
     ClusterResourcesConfigMap(context, api, pykube_api, cluster).apply()
     ClusterResourceSet(api, cluster).apply()
-    Cluster(context, api, pykube_api, cluster).apply()
 
     if not skip_auto_scaling_release and utils.get_auto_scaling_enabled(cluster):
         ClusterAutoscalerHelmRelease(api, cluster).apply()

@@ -16,6 +16,8 @@ use std::{fmt::Debug, str::FromStr};
 use thiserror::Error;
 use tokio::runtime::Runtime;
 
+use crate::cluster_api::clusters::Cluster;
+
 create_exception!(magnum_cluster_api, KubeError, PyException);
 
 static GLOBAL_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
@@ -224,6 +226,43 @@ impl KubeClient {
 
         GLOBAL_RUNTIME.block_on(async move {
             self.create_or_update_resource(api, object).await?;
+
+            Ok(())
+        })
+    }
+
+    #[pyo3(signature = (namespace, name, manifest))]
+    fn update_cluster(
+        &self,
+        namespace: String,
+        name: String,
+        manifest: &Bound<'_, PyDict>,
+    ) -> PyResult<()> {
+        let object: Cluster = pythonize::depythonize(manifest)?;
+        let api: Api<Cluster> = Api::namespaced(self.client.clone(), &namespace);
+
+        GLOBAL_RUNTIME.block_on(async {
+            retry(ExponentialBackoff::default(), || async {
+                let object = object.clone();
+                let mut remote_object = api.get(&name).await?;
+
+                remote_object.metadata.labels = object.metadata.labels;
+                remote_object.spec.cluster_network = object.spec.cluster_network;
+                remote_object.spec.topology = object.spec.topology;
+
+                match api
+                    .replace(&name, &Default::default(), &remote_object)
+                    .await
+                {
+                    Ok(result) => Ok(result),
+                    Err(e) => match e {
+                        kube::Error::Api(ref err) if err.code == 409 => {
+                            Err(backoff::Error::transient(e))
+                        }
+                        _ => Err(backoff::Error::Permanent(e)),
+                    },
+                }
+            });
 
             Ok(())
         })
