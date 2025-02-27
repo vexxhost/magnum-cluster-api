@@ -58,12 +58,7 @@
       - opendev.org/openstack/python-magnumclient
     vars:
       devstack_plugins:
-        barbican: https://github.com/openstack/barbican
         magnum-cluster-api: https://github.com/vexxhost/magnum-cluster-api
-        magnum: https://github.com/openstack/magnum
-        manila: https://github.com/openstack/manila
-        octavia: https://github.com/openstack/octavia
-        ovn-octavia-provider: https://github.com/openstack/ovn-octavia-provider
       devstack_localrc:
         DISABLE_AMP_IMAGE_BUILD: true
         GIT_BASE: https://github.com
