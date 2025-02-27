@@ -54,7 +54,7 @@
     - name: Restart Magnum services
       ansible.builtin.service:
         name: "{{ item }}"
-        state: started
+        state: restarted
       loop:
         - devstack@magnum-api
         - devstack@magnum-cond
