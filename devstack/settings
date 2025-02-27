@@ -4,6 +4,9 @@ plugin_requires magnum-cluster-api barbican
 plugin_requires magnum-cluster-api magnum
 plugin_requires magnum-cluster-api manila
 plugin_requires magnum-cluster-api octavia
-plugin_requires magnum-cluster-api ovn-octavia-provider
+
+# NOTE(mnaser): We can probably enable this again once the following merges
+#               https://review.opendev.org/c/openstack/ovn-octavia-provider/+/942940
+# plugin_requires magnum-cluster-api ovn-octavia-provider
 
 enable_service magnum-cluster-api
