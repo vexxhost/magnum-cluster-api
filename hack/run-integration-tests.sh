@@ -25,7 +25,7 @@ SONOBUOY_ARCH=${SONOBUOY_ARCH:-amd64}
 DNS_NAMESERVER=${DNS_NAMESERVER:-1.1.1.1}
 
 # Create cluster template
-CLUSTER_TEMPLATE_ID=$(openstack coe cluster template create \
+openstack coe cluster template create \
     --image $(openstack image show ${IMAGE_NAME} -c id -f value) \
     --external-network public \
     --dns-nameserver ${DNS_NAMESERVER} \
@@ -37,13 +37,11 @@ CLUSTER_TEMPLATE_ID=$(openstack coe cluster template create \
     --coe kubernetes \
     --label kube_tag=${KUBE_TAG} \
     --label fixed_subnet_cidr=192.168.24.0/24 \
-    -c uuid \
-    -f value \
-    k8s-${KUBE_TAG});
+    k8s-${KUBE_TAG};
 
 # Create cluster
 openstack coe cluster create \
-  --cluster-template ${CLUSTER_TEMPLATE_ID} \
+  --cluster-template $(openstack coe cluster template show -c uuid -f value k8s-${KUBE_TAG}) \
   --master-count 1 \
   --node-count ${NODE_COUNT} \
   --merge-labels \
