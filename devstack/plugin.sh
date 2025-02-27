@@ -1,5 +1,5 @@
-MAGNUM_CLUSTER_API_REPO=${MAGNUM_REPO:-https://github.com/vexxhost/magnum-cluster-api.git}
-MAGNUM_CLUSTER_API_BRANCH=${MAGNUM_BRANCH:-main}
+MAGNUM_CLUSTER_API_REPO=${MAGNUM_CLUSTER_API_REPO:-https://github.com/vexxhost/magnum-cluster-api.git}
+MAGNUM_CLUSTER_API_BRANCH=${MAGNUM_CLUSTER_API_BRANCH:-main}
 MAGNUM_CLUSTER_API_DIR=$DEST/magnum-cluster-api
 
 if is_service_enabled magnum-cluster-api; then
