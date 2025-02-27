@@ -1,7 +1,7 @@
 CAPI_VERSION=${CAPI_VERSION:-v1.8.4}
 CAPO_VERSION=${CAPO_VERSION:-v0.11.2}
-
 KIND_VERSION=${KIND_VERSION:-v0.16.0}
+HELM_VERSION=${HELM_VERSION:-v3.10.3}
 
 MAGNUM_CLUSTER_API_REPO=${MAGNUM_CLUSTER_API_REPO:-https://github.com/vexxhost/magnum-cluster-api.git}
 MAGNUM_CLUSTER_API_BRANCH=${MAGNUM_CLUSTER_API_BRANCH:-main}
@@ -11,29 +11,37 @@ MAGNUM_CLUSTER_API_DIR=$DEST/magnum-cluster-api
 if is_service_enabled magnum-cluster-api; then
 
   if [[ "$1" == "stack" && "$2" == "pre-install" ]]; then
-    # Install Kubectl
-    local kubectl_bin=
+    # Install binaries
     sudo install -o root -g root -m 0755 \
       $(get_extra_file https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl) \
       /usr/local/bin/kubectl
+    sudo install -o root -g root -m 0755 \
+      $(get_extra_file https://github.com/kubernetes-sigs/cluster-api/releases/download/${CAPI_VERSION}/clusterctl-linux-amd64) \
+      /usr/local/bin/clusterctl
+    sudo install -o root -g root -m 0755 \
+      $(get_extra_file https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64) \
+      /usr/local/bin/kind
+    # Install Helm
+    tar -xvzf \
+      $(get_extra_file https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz)
+      -C /tmp
+    sudo install -o root -g root -m 0755 \
+      /tmp/linux-amd64/helm
+      /usr/local/bin/helm
     # Install Docker
     sudo sh $(get_extra_file https://get.docker.com)
     sudo usermod -aG docker $USER
     sudo iptables -I DOCKER-USER -j ACCEPT
-    # Install KinD
-    sudo install -o root -g root -m 0755 \
-      $(get_extra_file https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64) \
-      /usr/local/bin/kind
     # Create a KinD cluster
     echo "kind create cluster" | newgrp docker
     # Label a control plane node
     kubectl label node kind-control-plane openstack-control-plane=enabled
-    # Install clusterctl
-    sudo install -o root -g root -m 0755 \
-      $(get_extra_file https://github.com/kubernetes-sigs/cluster-api/releases/download/${CAPI_VERSION}/clusterctl-linux-amd64) \
-      /usr/local/bin/clusterctl
     # Deploy CAPI/CAPO
-    clusterctl init --core cluster-api:${CAPI_VERSION} --bootstrap kubeadm:${CAPI_VERSION} --control-plane kubeadm:${CAPI_VERSION} --infrastructure openstack:${CAPO_VERSION}
+    clusterctl init \
+      --core cluster-api:${CAPI_VERSION} \
+      --bootstrap kubeadm:${CAPI_VERSION} \
+      --control-plane kubeadm:${CAPI_VERSION} \
+      --infrastructure openstack:${CAPO_VERSION}
     # Wait for components to go up
     kubectl -n capi-kubeadm-bootstrap-system rollout status deploy/capi-kubeadm-bootstrap-controller-manager
     kubectl -n capi-kubeadm-control-plane-system rollout status deploy/capi-kubeadm-control-plane-controller-manager

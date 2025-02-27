@@ -14,11 +14,6 @@
       ansible.builtin.include_role:
         name: orchestrate-devstack
 
-    - name: Install Helm
-      ansible.builtin.shell: ./hack/setup-helm.sh
-      args:
-        chdir: "{{ zuul.project.src_dir }}"
-
     - ansible.builtin.shell: "./hack/run-integration-tests.sh"
       args:
         chdir: "{{ zuul.project.src_dir }}"
