@@ -19,20 +19,6 @@
       args:
         chdir: "{{ zuul.project.src_dir }}"
 
-    - name: Install CAPI/CAPO
-      ansible.builtin.shell: ./hack/setup-capo.sh
-      args:
-        chdir: "{{ zuul.project.src_dir }}"
-
-    - name: Restart Magnum services
-      become: true
-      ansible.builtin.service:
-        name: "{{ item }}"
-        state: restarted
-      loop:
-        - devstack@magnum-api
-        - devstack@magnum-cond
-
     - ansible.builtin.shell: "./hack/run-integration-tests.sh"
       args:
         chdir: "{{ zuul.project.src_dir }}"

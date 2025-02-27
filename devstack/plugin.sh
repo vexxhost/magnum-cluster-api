@@ -1,7 +1,12 @@
+CAPI_VERSION=${CAPI_VERSION:-v1.8.4}
+CAPO_VERSION=${CAPO_VERSION:-v0.11.2}
+
 KIND_VERSION=${KIND_VERSION:-v0.16.0}
+
 MAGNUM_CLUSTER_API_REPO=${MAGNUM_CLUSTER_API_REPO:-https://github.com/vexxhost/magnum-cluster-api.git}
 MAGNUM_CLUSTER_API_BRANCH=${MAGNUM_CLUSTER_API_BRANCH:-main}
 MAGNUM_CLUSTER_API_DIR=$DEST/magnum-cluster-api
+
 
 if is_service_enabled magnum-cluster-api; then
 
@@ -21,6 +26,16 @@ if is_service_enabled magnum-cluster-api; then
     echo "kind create cluster" | newgrp docker
     # Label a control plane node
     kubectl label node kind-control-plane openstack-control-plane=enabled
+    # Install clusterctl
+    let clusterctl_bin=$(get_extra_file https://github.com/kubernetes-sigs/cluster-api/releases/download/${CAPI_VERSION}/clusterctl-linux-amd64)
+    sudo install -o root -g root -m 0755 ${clusterctl_bin} /usr/local/bin/clusterctl
+    # Deploy CAPI/CAPO
+    clusterctl init --core cluster-api:${CAPI_VERSION} --bootstrap kubeadm:${CAPI_VERSION} --control-plane kubeadm:${CAPI_VERSION} --infrastructure openstack:${CAPO_VERSION}
+    # Wait for components to go up
+    kubectl -n capi-kubeadm-bootstrap-system rollout status deploy/capi-kubeadm-bootstrap-controller-manager
+    kubectl -n capi-kubeadm-control-plane-system rollout status deploy/capi-kubeadm-control-plane-controller-manager
+    kubectl -n capi-system rollout status deploy/capi-controller-manager
+    kubectl -n capo-system rollout status deploy/capo-controller-manager
     :
 
   elif [[ "$1" == "stack" && "$2" == "install" ]]; then
