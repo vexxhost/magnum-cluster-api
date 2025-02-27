@@ -21,7 +21,6 @@
         IMAGE_NAME: "{{ image_url.split('/')[-1].split('.')[0] }}"
         KUBE_TAG: "{{ kube_tag }}"
         NETWORK_DRIVER: "{{ network_driver }}"
-        NODE_COUNT: 2
         OS_CLOUD: devstack
 
     - name: Copy Sonobuoy results to output folder
