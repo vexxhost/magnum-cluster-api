@@ -37,6 +37,7 @@ openstack coe cluster template create \
     --coe kubernetes \
     --label kube_tag=${KUBE_TAG} \
     --label fixed_subnet_cidr=192.168.24.0/24 \
+    --label octavia_provider=ovn \
     k8s-${KUBE_TAG};
 
 # Create cluster
