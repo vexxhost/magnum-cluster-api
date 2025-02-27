@@ -1,0 +1,9 @@
+define_plugin magnum-cluster-api
+
+plugin_requires magnum-cluster-api barbican
+plugin_requires magnum-cluster-api magnum
+plugin_requires magnum-cluster-api manila
+plugin_requires magnum-cluster-api octavia
+plugin_requires magnum-cluster-api ovn-octavia-provider
+
+enable_service magnum-cluster-api

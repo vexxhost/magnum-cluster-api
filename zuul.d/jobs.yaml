@@ -59,6 +59,7 @@
     vars:
       devstack_plugins:
         barbican: https://github.com/openstack/barbican
+        magnum-cluster-api: https://github.com/vexxhost/magnum-cluster-api
         magnum: https://github.com/openstack/magnum
         manila: https://github.com/openstack/manila
         octavia: https://github.com/openstack/octavia
@@ -66,16 +67,11 @@
       devstack_localrc:
         DISABLE_AMP_IMAGE_BUILD: true
         GIT_BASE: https://github.com
-        GLANCE_LIMIT_IMAGE_SIZE_TOTAL: 10000
-        KEYSTONE_ADMIN_ENDPOINT: true
-        LIBVIRT_CPU_MODE: host-passthrough
-        LIBVIRT_TYPE: kvm
         MAGNUM_GUEST_IMAGE_URL: "{{ image_url }}"
         MANILA_DEFAULT_SHARE_TYPE_EXTRA_SPECS: snapshot_support=True create_share_from_snapshot_support=True
         MANILA_ENABLED_BACKENDS: generic
         MANILA_USE_SERVICE_INSTANCE_PASSWORD: true
         OCTAVIA_NODE: api
-        VOLUME_BACKING_FILE_SIZE: 50G
         # NOTE(mnaser): https://review.opendev.org/c/openstack/devstack/+/942755
         ZSWAP_ZPOOL: zsmalloc
       devstack_local_conf:
