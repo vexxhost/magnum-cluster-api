@@ -9,7 +9,6 @@ use kube::{
     },
     Client, Config, ResourceExt,
 };
-use log::info;
 use once_cell::sync::Lazy;
 use pyo3::{
     create_exception, exceptions, exceptions::PyException, prelude::*, types::PyDict, Bound,
