@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.26.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.26.2...v0.26.3) (2025-02-28)
+
+
+### Miscellaneous Chores
+
+* release 0.26.3 ([7ef0932](https://github.com/vexxhost/magnum-cluster-api/commit/7ef0932b4cdaafb10e71f73a3e01c6d4c945efb7))
+
+## [0.26.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.26.1...v0.26.2) (2025-02-25)
+
+
+### Bug Fixes
+
+* fix CloudConfigSecret deletion ([#513](https://github.com/vexxhost/magnum-cluster-api/issues/513)) ([1990e1c](https://github.com/vexxhost/magnum-cluster-api/commit/1990e1c6d09056263ec6a6c1bd086efb70c3e0f6))
+
+## [0.26.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.26.0...v0.26.1) (2025-02-25)
+
+
+### Bug Fixes
+
+* fix typo in basic delete of resource classes ([#511](https://github.com/vexxhost/magnum-cluster-api/issues/511)) ([e6959a3](https://github.com/vexxhost/magnum-cluster-api/commit/e6959a333169e9768fca236bbd926c1615032371))
+
 ## [0.26.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.25.8...v0.26.0) (2025-02-21)
 
 

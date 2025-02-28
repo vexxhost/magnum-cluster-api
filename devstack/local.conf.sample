@@ -1,0 +1,44 @@
+[[local|localrc]]
+DATABASE_PASSWORD="secretdatabase"
+RABBIT_PASSWORD="secretrabbit"
+SERVICE_PASSWORD="secretservice"
+ADMIN_PASSWORD="secretadmin"
+
+# NOTE(mnaser): https://review.opendev.org/c/openstack/devstack/+/942755
+ZSWAP_ZPOOL=zsmalloc
+
+enable_service openstack-cli-server
+
+enable_plugin neutron https://opendev.org/openstack/neutron
+FIXED_RANGE=10.1.0.0/20
+
+enable_plugin barbican https://opendev.org/openstack/barbican
+
+enable_plugin octavia https://opendev.org/openstack/octavia
+enable_plugin ovn-octavia-provider https://opendev.org/openstack/ovn-octavia-provider
+enable_service octavia o-api o-hk o-da
+OCTAVIA_NODE=api
+DISABLE_AMP_IMAGE_BUILD=True
+
+enable_plugin manila https://opendev.org/openstack/manila
+MANILA_ENABLED_BACKENDS=generic
+MANILA_DEFAULT_SHARE_TYPE_EXTRA_SPECS='snapshot_support=True create_share_from_snapshot_support=True'
+MANILA_USE_SERVICE_INSTANCE_PASSWORD=True
+MANILA_SERVICE_IMAGE_ENABLED=True
+
+enable_plugin magnum https://opendev.org/openstack/magnum
+MAGNUM_GUEST_IMAGE_URL=https://static.atmosphere.dev/artifacts/magnum-cluster-api/ubuntu-jammy-kubernetes-1-31-1-1728920853.qcow2
+
+enable_plugin magnum-cluster-api https://github.com/vexxhost/magnum-cluster-api
+
+[[post-config|/etc/manila/manila.conf]]
+[generic]
+driver_handles_share_servers = True
+connect_share_server_to_tenant_network = True
+
+[[post-config|/etc/magnum/magnum.conf]]
+[cluster_template]
+kubernetes_allowed_network_drivers = calico,cilium
+kubernetes_default_network_driver = calico
+[nova_client]
+api_version = 2.15

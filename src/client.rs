@@ -1,3 +1,4 @@
+use crate::cluster_api::clusters::Cluster;
 use backoff::{future::retry, ExponentialBackoff};
 use k8s_openapi::serde::{de::DeserializeOwned, Deserialize, Serialize};
 use kube::{
@@ -8,6 +9,7 @@ use kube::{
     },
     Client, Config, ResourceExt,
 };
+use log::info;
 use once_cell::sync::Lazy;
 use pyo3::{
     create_exception, exceptions, exceptions::PyException, prelude::*, types::PyDict, Bound,
@@ -214,7 +216,7 @@ impl KubeClient {
     }
 
     #[pyo3(signature = (manifest))]
-    fn create_or_update(&self, manifest: &Bound<'_, PyDict>) -> PyResult<()> {
+    fn create_or_update(&self, py: Python<'_>, manifest: &Bound<'_, PyDict>) -> PyResult<()> {
         let object: DynamicObject = pythonize::depythonize(manifest)?;
 
         let types = object.types.to_owned().ok_or(KubeClientError::Metadata)?;
@@ -222,16 +224,64 @@ impl KubeClient {
         let gvk = GroupVersionKind::try_from(types).map_err(KubeClientError::ParseGroupVersion)?;
         let api = self.get_api_from_gvk(&gvk, object.metadata.namespace.as_deref());
 
-        GLOBAL_RUNTIME.block_on(async move {
-            self.create_or_update_resource(api, object).await?;
+        py.allow_threads(|| {
+            GLOBAL_RUNTIME.block_on(async move {
+                self.create_or_update_resource(api, object).await?;
 
-            Ok(())
+                Ok(())
+            })
         })
+    }
+
+    #[pyo3(signature = (namespace, name, manifest))]
+    fn update_cluster(
+        &self,
+        py: Python<'_>,
+        namespace: String,
+        name: String,
+        manifest: &Bound<'_, PyDict>,
+    ) -> PyResult<()> {
+        let object: Cluster = pythonize::depythonize(manifest)?;
+        let api: Api<Cluster> = Api::namespaced(self.client.clone(), &namespace);
+
+        py.allow_threads(|| {
+            GLOBAL_RUNTIME.block_on(async {
+                match retry(ExponentialBackoff::default(), || async {
+                    let object = object.clone();
+                    let mut remote_object = api.get(&name).await?;
+
+                    remote_object.metadata.labels = object.metadata.labels;
+                    remote_object.spec.cluster_network = object.spec.cluster_network;
+                    remote_object.spec.topology = object.spec.topology;
+
+                    match api
+                        .replace(&name, &Default::default(), &remote_object)
+                        .await
+                    {
+                        Ok(result) => Ok(result),
+                        Err(e) => match e {
+                            kube::Error::Api(ref err) if err.code == 409 => {
+                                Err(backoff::Error::transient(e))
+                            }
+                            _ => Err(backoff::Error::Permanent(e)),
+                        },
+                    }
+                })
+                .await
+                {
+                    Ok(_) => Ok(()),
+                    Err(e) => Err(KubeClientError::Api(e)),
+                }
+            })
+        })?;
+
+        Ok(())
     }
 
     #[pyo3(signature = (api_version, kind, name, namespace=None))]
     fn delete(
         &self,
+        py: Python<'_>,
         api_version: &str,
         kind: &str,
         name: &str,
@@ -242,10 +292,12 @@ impl KubeClient {
             .with_kind(kind);
         let api = self.get_api_from_gvk(&gvk, namespace);
 
-        GLOBAL_RUNTIME.block_on(async {
-            self.delete_resource(api, name).await?;
+        py.allow_threads(|| {
+            GLOBAL_RUNTIME.block_on(async {
+                self.delete_resource(api, name).await?;
 
-            Ok(())
+                Ok(())
+            })
         })
     }
 }

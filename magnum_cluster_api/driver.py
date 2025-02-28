@@ -113,6 +113,7 @@ class BaseDriver(driver.Driver):
             cluster,
             skip_auto_scaling_release=True,
         )
+        resources.Cluster(context, self.kube_client, self.k8s_api, cluster).apply(),
 
     def _get_cluster_status_reason(self, capi_cluster):
         capi_cluster_status_reason = ""
@@ -262,7 +263,7 @@ class BaseDriver(driver.Driver):
             except keystoneauth1.exceptions.http.Forbidden:
                 pass
 
-            resources.CloudConfigSecret(context, self.k8s_api, cluster).delete()
+            resources.CloudConfigSecret(context, self.kube_client, cluster).delete()
             resources.ApiCertificateAuthoritySecret(
                 context, self.kube_client, self.k8s_api, cluster
             ).delete()
@@ -392,6 +393,13 @@ class BaseDriver(driver.Driver):
         magnum_cluster.create_or_update()
         resources.apply_cluster_from_magnum_cluster(
             context, self.kube_client, self.k8s_api, cluster
+        )
+        self.kube_client.update_cluster(
+            "magnum-system",
+            cluster.stack_id,
+            resources.Cluster(
+                context, self.kube_client, self.k8s_api, cluster
+            ).get_object(),
         )
 
         # NOTE(mnaser): We do not save the cluster object here because the Magnum driver
