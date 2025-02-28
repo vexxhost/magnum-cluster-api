@@ -250,6 +250,8 @@ impl KubeClient {
                 remote_object.spec.cluster_network = object.spec.cluster_network;
                 remote_object.spec.topology = object.spec.topology;
 
+                println!("{:?}", remote_object);
+
                 match api
                     .replace(&name, &Default::default(), &remote_object)
                     .await
