@@ -14,6 +14,7 @@ thiserror = "2.0.11"
 backoff = { version = "0.4.0", features = ["tokio"] }
 schemars = "0.8.21"
 serde = "1.0.218"
+pyo3-log = "0.12.1"
 
 [dependencies.pyo3]
 version = "0.23.1"
