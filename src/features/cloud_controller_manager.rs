@@ -1,4 +1,3 @@
-use super::ClusterFeature;
 use crate::{
     cluster_api::{
         clusterclasses::{
@@ -20,42 +19,36 @@ use crate::{
             KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding,
         },
     },
-    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
+    features::{
+        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
+        ClusterFeatureVariables,
+    },
 };
+use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "cloudCaCert")]
 pub struct CloudCACertificatesConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "cloudControllerManagerConfig")]
 pub struct CloudControllerManagerConfig(pub String);
+
+#[derive(Serialize, Deserialize, ClusterFeatureValues)]
+pub struct FeatureValues {
+    #[serde(rename = "cloudCaCert")]
+    pub cloud_ca_certificate: CloudCACertificatesConfig,
+
+    #[serde(rename = "cloudControllerManagerConfig")]
+    pub cloud_controller_manager_config: CloudControllerManagerConfig,
+}
 
 pub struct Feature {}
 
-impl ClusterFeature for Feature {
-    fn variables(&self) -> Vec<ClusterClassVariables> {
-        vec![
-            ClusterClassVariables {
-                name: "cloudCaCert".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<CloudCACertificatesConfig>(),
-            },
-            ClusterClassVariables {
-                name: "cloudControllerManagerConfig".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<CloudControllerManagerConfig>(),
-            },
-        ]
-    }
-
+impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
             name: "cloudControllerManagerConfig".into(),
@@ -210,7 +203,7 @@ mod tests {
             kcpt_ca_file.encoding,
             Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64)
         );
-        assert_eq!(kcpt_ca_file.content, Some(values.cloud_ca_cert.0.clone()));
+        assert_eq!(kcpt_ca_file.content, Some(values.cloud_ca_certificate.0.clone()));
 
         let kcpt_ccm_file = kcpt_files
             .iter()
@@ -248,7 +241,7 @@ mod tests {
             kct_ca_file.encoding,
             Some(KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64)
         );
-        assert_eq!(kct_ca_file.content, Some(values.cloud_ca_cert.0.clone()));
+        assert_eq!(kct_ca_file.content, Some(values.cloud_ca_certificate.0.clone()));
 
         let kct_ccm_file = kct_files
             .iter()

@@ -1,9 +1,8 @@
 use glob::glob;
-use heck::ToSnakeCase;
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::{env, error::Error, fs, path::Path};
-use syn::{File, Item, Lit, Meta, NestedMeta};
+use syn::{parse_file, Ident, Item, Meta, NestedMeta};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let pattern = "src/features/*.rs";
@@ -12,31 +11,25 @@ fn main() -> Result<(), Box<dyn Error>> {
     for entry in glob(pattern)? {
         let path = entry?;
         let content = fs::read_to_string(&path)?;
-        let syntax: File = syn::parse_file(&content)?;
+        let syntax = parse_file(&content)?;
 
         let module_name = path.file_stem().unwrap().to_str().unwrap();
-        let mod_ident = syn::Ident::new(module_name, proc_macro2::Span::call_site());
+        let mod_ident = Ident::new(module_name, proc_macro2::Span::call_site());
 
+        // Iterate over the top-level items in the file.
         for item in syntax.items {
             if let Item::Struct(item_struct) = item {
-                let struct_ident = &item_struct.ident;
-
-                if !matches!(item_struct.vis, syn::Visibility::Public(_))
-                    || !struct_ident.to_string().ends_with("Config")
-                {
-                    continue;
-                }
-
-                let mut serde_rename: Option<String> = None;
+                // Look for a `#[derive(..., ClusterFeatureValues, ...)]` attribute.
+                let mut has_marker = false;
                 for attr in &item_struct.attrs {
-                    if attr.path.is_ident("serde") {
+                    if attr.path.is_ident("derive") {
                         if let Ok(meta) = attr.parse_meta() {
                             if let Meta::List(meta_list) = meta {
                                 for nested in meta_list.nested.iter() {
-                                    if let NestedMeta::Meta(Meta::NameValue(nv)) = nested {
-                                        if nv.path.is_ident("rename") {
-                                            if let Lit::Str(lit_str) = &nv.lit {
-                                                serde_rename = Some(lit_str.value());
+                                    if let NestedMeta::Meta(Meta::Path(path)) = nested {
+                                        if let Some(ident) = path.get_ident() {
+                                            if ident == "ClusterFeatureValues" {
+                                                has_marker = true;
                                             }
                                         }
                                     }
@@ -45,17 +38,26 @@ fn main() -> Result<(), Box<dyn Error>> {
                         }
                     }
                 }
+                if !has_marker {
+                    continue;
+                }
 
-                if let Some(rename_value) = serde_rename {
-                    // Convert the rename value to snake_case for the field name.
-                    let field_name_str = rename_value.to_snake_case();
-                    let field_ident = syn::Ident::new(&field_name_str, struct_ident.span());
-                    let type_path = quote! { crate::features::#mod_ident::#struct_ident };
-                    let tokens = quote! {
-                        #[serde(rename = #rename_value)]
-                        pub #field_ident: #type_path,
-                    };
-                    field_tokens.push(tokens);
+                // This struct is marked with ClusterFeatureValues.
+                // We assume its fields are named.
+                if let syn::Fields::Named(fields_named) = &item_struct.fields {
+                    for field in fields_named.named.iter() {
+                        if let Some(ident) = &field.ident {
+                            // Preserve all attributes for the field (like #[serde(rename = "...")])
+                            let attrs = &field.attrs;
+                            let ty = &field.ty;
+                            let qualified_ty = quote! { crate::features::#mod_ident::#ty };
+                            let tokens = quote! {
+                                #(#attrs)*
+                                pub #ident: #qualified_ty,
+                            };
+                            field_tokens.push(tokens);
+                        }
+                    }
                 }
             }
         }

@@ -1,4 +1,3 @@
-use super::ClusterFeature;
 use crate::{
     cluster_api::{
         clusterclasses::{
@@ -21,8 +20,12 @@ use crate::{
         },
         openstackmachinetemplates::OpenStackMachineTemplate,
     },
-    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
+    features::{
+        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
+        ClusterFeatureVariables,
+    },
 };
+use cluster_feature_derive::ClusterFeatureValues;
 use indoc::indoc;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
@@ -30,89 +33,59 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "enableDockerVolume")]
 pub struct EnableDockerVolumeConfig(pub bool);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "dockerVolumeSize")]
 pub struct DockerVolumeSizeConfig(pub i64);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "dockerVolumeType")]
 pub struct DockerVolumeTypeConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "enableEtcdVolume")]
 pub struct EnableEtcdVolumeConfig(pub bool);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "etcdVolumeSize")]
 pub struct EtcdVolumeSizeConfig(pub i64);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "etcdVolumeType")]
 pub struct EtcdVolumeTypeConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "availabilityZone")]
 pub struct AvailabilityZoneConfig(pub String);
+
+#[derive(Serialize, Deserialize, ClusterFeatureValues)]
+pub struct FeatureValues {
+    #[serde(rename = "enableDockerVolume")]
+    pub enable_docker_volume: EnableDockerVolumeConfig,
+
+    #[serde(rename = "dockerVolumeSize")]
+    pub docker_volume_size: DockerVolumeSizeConfig,
+
+    #[serde(rename = "dockerVolumeType")]
+    pub docker_volume_type: DockerVolumeTypeConfig,
+
+    #[serde(rename = "enableEtcdVolume")]
+    pub enable_etcd_volume: EnableEtcdVolumeConfig,
+
+    #[serde(rename = "etcdVolumeSize")]
+    pub etcd_volume_size: EtcdVolumeSizeConfig,
+
+    #[serde(rename = "etcdVolumeType")]
+    pub etcd_volume_type: EtcdVolumeTypeConfig,
+
+    #[serde(rename = "availabilityZone")]
+    pub availability_zone: AvailabilityZoneConfig,
+}
 
 pub struct Feature {}
 
-impl ClusterFeature for Feature {
-    fn variables(&self) -> Vec<ClusterClassVariables> {
-        vec![
-            ClusterClassVariables {
-                name: "enableDockerVolume".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<EnableDockerVolumeConfig>(),
-            },
-            ClusterClassVariables {
-                name: "dockerVolumeSize".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<DockerVolumeSizeConfig>(),
-            },
-            ClusterClassVariables {
-                name: "dockerVolumeType".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<DockerVolumeTypeConfig>(),
-            },
-            ClusterClassVariables {
-                name: "enableEtcdVolume".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<EnableEtcdVolumeConfig>(),
-            },
-            ClusterClassVariables {
-                name: "etcdVolumeSize".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<EtcdVolumeSizeConfig>(),
-            },
-            ClusterClassVariables {
-                name: "etcdVolumeType".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<EtcdVolumeTypeConfig>(),
-            },
-            ClusterClassVariables {
-                name: "availabilityZone".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<AvailabilityZoneConfig>(),
-            },
-        ]
-    }
-
+impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![
             ClusterClassPatches {

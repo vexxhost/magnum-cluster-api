@@ -1,4 +1,3 @@
-use super::ClusterFeature;
 use crate::{
     cluster_api::{
         clusterclasses::{
@@ -24,8 +23,12 @@ use crate::{
             KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecIgnitionContainerLinuxConfig,
         },
     },
-    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
+    features::{
+        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
+        ClusterFeatureVariables,
+    },
 };
+use cluster_feature_derive::ClusterFeatureValues;
 use ignition_config::v3_5::{Config, Dropin, Systemd, Unit};
 use indoc::indoc;
 use kube::CustomResourceExt;
@@ -43,34 +46,25 @@ pub enum OperatingSystem {
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "operatingSystem")]
 pub struct OperatingSystemConfig(pub OperatingSystem);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "aptProxyConfig")]
 pub struct AptProxyConfig(pub String);
+
+
+#[derive(Serialize, Deserialize, ClusterFeatureValues)]
+pub struct FeatureValues {
+    #[serde(rename = "operatingSystem")]
+    pub operating_system: OperatingSystemConfig,
+
+    #[serde(rename = "aptProxyConfig")]
+    pub apt_proxy_config: AptProxyConfig,
+}
 
 pub struct Feature {}
 
-impl ClusterFeature for Feature {
-    fn variables(&self) -> Vec<ClusterClassVariables> {
-        vec![
-            ClusterClassVariables {
-                name: "operatingSystem".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<OperatingSystemConfig>(),
-            },
-            ClusterClassVariables {
-                name: "aptProxyConfig".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<AptProxyConfig>(),
-            },
-        ]
-    }
-
+impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![
             ClusterClassPatches {

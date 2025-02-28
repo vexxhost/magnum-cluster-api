@@ -1,4 +1,3 @@
-use super::ClusterFeature;
 use crate::{
     cluster_api::{
         clusterclasses::{
@@ -11,32 +10,32 @@ use crate::{
         },
         openstackclustertemplates::OpenStackClusterTemplate,
     },
-    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
+    features::{
+        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
+        ClusterFeatureVariables,
+    },
 };
+use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
-#[serde(rename = "apiServerLoadBalancer")]
-pub struct Config {
+pub struct APIServerLoadBalancerConfig {
     pub enabled: bool,
     pub provider: String,
 }
 
+#[derive(Serialize, Deserialize, ClusterFeatureValues)]
+pub struct FeatureValues {
+    #[serde(rename = "apiServerLoadBalancer")]
+    pub api_server_load_balancer: APIServerLoadBalancerConfig,
+}
+
 pub struct Feature {}
 
-impl ClusterFeature for Feature {
-    fn variables(&self) -> Vec<ClusterClassVariables> {
-        vec![ClusterClassVariables {
-            name: "apiServerLoadBalancer".into(),
-            metadata: None,
-            required: true,
-            schema: ClusterClassVariablesSchema::from_object::<Config>(),
-        }]
-    }
-
+impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
             name: "apiServerLoadBalancer".into(),

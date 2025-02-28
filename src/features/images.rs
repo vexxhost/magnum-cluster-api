@@ -1,4 +1,3 @@
-use super::ClusterFeature;
 use crate::{
     cluster_api::{
         clusterclasses::{
@@ -12,29 +11,29 @@ use crate::{
         },
         openstackmachinetemplates::OpenStackMachineTemplate,
     },
-    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
+    features::{
+        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
+        ClusterFeatureVariables,
+    },
 };
+use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "imageUUID")]
 pub struct Config(pub String);
+
+#[derive(Serialize, Deserialize, ClusterFeatureValues)]
+pub struct FeatureValues {
+    #[serde(rename = "imageUUID")]
+    pub image_uuid: Config,
+}
 
 pub struct Feature {}
 
-impl ClusterFeature for Feature {
-    fn variables(&self) -> Vec<ClusterClassVariables> {
-        vec![ClusterClassVariables {
-            name: "imageUUID".into(),
-            metadata: None,
-            required: true,
-            schema: ClusterClassVariablesSchema::from_object::<Config>(),
-        }]
-    }
-
+impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
             name: "images".into(),

@@ -1,4 +1,3 @@
-use super::ClusterFeature;
 use crate::{
     cluster_api::{
         clusterclasses::{
@@ -13,29 +12,29 @@ use crate::{
             OpenStackClusterTemplate, OpenStackClusterTemplateTemplateSpecExternalNetwork,
         },
     },
-    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
+    features::{
+        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
+        ClusterFeatureVariables,
+    },
 };
+use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "externalNetworkId")]
 pub struct Config(pub String);
+
+#[derive(Serialize, Deserialize, ClusterFeatureValues)]
+pub struct FeatureValues {
+    #[serde(rename = "externalNetworkId")]
+    pub external_network_id: Config,
+}
 
 pub struct Feature {}
 
-impl ClusterFeature for Feature {
-    fn variables(&self) -> Vec<ClusterClassVariables> {
-        vec![ClusterClassVariables {
-            name: "externalNetworkId".into(),
-            metadata: None,
-            required: true,
-            schema: ClusterClassVariablesSchema::from_object::<Config>(),
-        }]
-    }
-
+impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
             name: "externalNetworkId".into(),

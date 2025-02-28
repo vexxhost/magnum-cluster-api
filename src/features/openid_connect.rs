@@ -1,4 +1,3 @@
-use super::ClusterFeature;
 use crate::{
     cluster_api::{
         clusterclasses::{
@@ -11,16 +10,19 @@ use crate::{
         },
         kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate,
     },
-    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
+    features::{
+        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
+        ClusterFeatureVariables,
+    },
 };
+use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
-#[serde(rename = "openidConnect")]
-pub struct Config {
+pub struct OpenIdConnectConfig {
     #[serde(rename = "issuerUrl")]
     pub issuer_url: String,
 
@@ -40,18 +42,15 @@ pub struct Config {
     pub groups_prefix: String,
 }
 
+#[derive(Serialize, Deserialize, ClusterFeatureValues)]
+pub struct FeatureValues {
+    #[serde(rename = "openidConnect")]
+    pub openid_connect: OpenIdConnectConfig,
+}
+
 pub struct Feature {}
 
-impl ClusterFeature for Feature {
-    fn variables(&self) -> Vec<ClusterClassVariables> {
-        vec![ClusterClassVariables {
-            name: "openidConnect".into(),
-            metadata: None,
-            required: true,
-            schema: ClusterClassVariablesSchema::from_object::<Config>(),
-        }]
-    }
-
+impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![
             ClusterClassPatches {
@@ -147,7 +146,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.openid_connect = Config::builder()
+        values.openid_connect = OpenIdConnectConfig::builder()
             .issuer_url("".to_string())
             .client_id("client-id".to_string())
             .username_claim("email".to_string())
@@ -185,7 +184,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.openid_connect = Config::builder()
+        values.openid_connect = OpenIdConnectConfig::builder()
             .issuer_url("https://example.com".to_string())
             .client_id("client-id".to_string())
             .username_claim("email".to_string())

@@ -1,4 +1,3 @@
-use super::ClusterFeature;
 use crate::{
     cluster_api::{
         clusterclasses::{
@@ -12,8 +11,12 @@ use crate::{
             KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles,
         },
     },
-    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
+    features::{
+        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
+        ClusterFeatureVariables,
+    },
 };
+use cluster_feature_derive::ClusterFeatureValues;
 use json_patch::{AddOperation, PatchOperation};
 use jsonptr::PointerBuf;
 use kube::CustomResourceExt;
@@ -43,21 +46,17 @@ struct KustomizePatch {
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "enableKeystoneAuth")]
 pub struct Config(pub bool);
+
+#[derive(Serialize, Deserialize, ClusterFeatureValues)]
+pub struct FeatureValues {
+    #[serde(rename = "enableKeystoneAuth")]
+    pub enable_keystone_auth: Config,
+}
 
 pub struct Feature {}
 
-impl ClusterFeature for Feature {
-    fn variables(&self) -> Vec<ClusterClassVariables> {
-        vec![ClusterClassVariables {
-            name: "enableKeystoneAuth".into(),
-            metadata: None,
-            required: true,
-            schema: ClusterClassVariablesSchema::from_object::<Config>(),
-        }]
-    }
-
+impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
             name: "keystoneAuth".into(),

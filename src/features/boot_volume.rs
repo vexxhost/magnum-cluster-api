@@ -1,4 +1,3 @@
-use super::ClusterFeature;
 use crate::{
     cluster_api::{
         clusterclasses::{
@@ -12,8 +11,12 @@ use crate::{
         },
         openstackmachinetemplates::OpenStackMachineTemplate,
     },
-    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
+    features::{
+        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
+        ClusterFeatureVariables,
+    },
 };
+use cluster_feature_derive::ClusterFeatureValues;
 use indoc::indoc;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
@@ -21,24 +24,20 @@ use serde::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
-#[serde(rename = "bootVolume")]
-pub struct Config {
+pub struct BootVolumeConfig {
     pub r#type: String,
     pub size: i64,
 }
 
+#[derive(Serialize, Deserialize, ClusterFeatureValues)]
+pub struct FeatureValues {
+    #[serde(rename = "bootVolume")]
+    pub boot_volume: BootVolumeConfig,
+}
+
 pub struct Feature {}
 
-impl ClusterFeature for Feature {
-    fn variables(&self) -> Vec<ClusterClassVariables> {
-        vec![ClusterClassVariables {
-            name: "bootVolume".into(),
-            metadata: None,
-            required: true,
-            schema: ClusterClassVariablesSchema::from_object::<Config>(),
-        }]
-    }
-
+impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
             name: "bootVolume".into(),
@@ -93,7 +92,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.boot_volume = Config::builder().r#type("ssd".into()).size(10).build();
+        values.boot_volume = BootVolumeConfig::builder().r#type("ssd".into()).size(10).build();
 
         let patches = feature.patches();
 
@@ -134,7 +133,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.boot_volume = Config::builder().r#type("ssd".into()).size(0).build();
+        values.boot_volume = BootVolumeConfig::builder().r#type("ssd".into()).size(0).build();
 
         let patches = feature.patches();
 

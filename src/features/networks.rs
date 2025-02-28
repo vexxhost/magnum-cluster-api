@@ -1,4 +1,3 @@
-use super::ClusterFeature;
 use crate::{
     cluster_api::{
         clusterclasses::{
@@ -14,8 +13,12 @@ use crate::{
             OpenStackClusterTemplateTemplateSpecSubnets,
         },
     },
-    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
+    features::{
+        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
+        ClusterFeatureVariables,
+    },
 };
+use cluster_feature_derive::ClusterFeatureValues;
 use indoc::indoc;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
@@ -23,56 +26,38 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "nodeCidr")]
 pub struct NodeCIDRConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "dnsNameservers")]
 pub struct DNSNameserversConfig(pub Vec<String>);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "fixedNetworkId")]
 pub struct FixedNetworkIDConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "fixedSubnetId")]
 pub struct FixedSubnetIDConfig(pub String);
+
+#[derive(Serialize, Deserialize, ClusterFeatureValues)]
+pub struct FeatureValues {
+    #[serde(rename = "nodeCidr")]
+    pub node_cidr: NodeCIDRConfig,
+
+    #[serde(rename = "dnsNameservers")]
+    pub dns_nameservers: DNSNameserversConfig,
+
+    #[serde(rename = "fixedNetworkId")]
+    pub fixed_network_id: FixedNetworkIDConfig,
+
+    #[serde(rename = "fixedSubnetId")]
+    pub fixed_subnet_id: FixedSubnetIDConfig,
+}
 
 pub struct Feature {}
 
-impl ClusterFeature for Feature {
-    fn variables(&self) -> Vec<ClusterClassVariables> {
-        vec![
-            ClusterClassVariables {
-                name: "nodeCidr".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<NodeCIDRConfig>(),
-            },
-            ClusterClassVariables {
-                name: "dnsNameservers".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<DNSNameserversConfig>(),
-            },
-            ClusterClassVariables {
-                name: "fixedNetworkId".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<FixedNetworkIDConfig>(),
-            },
-            ClusterClassVariables {
-                name: "fixedSubnetId".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<FixedSubnetIDConfig>(),
-            },
-        ]
-    }
-
+impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![
             ClusterClassPatches {

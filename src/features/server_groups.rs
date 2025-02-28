@@ -1,4 +1,3 @@
-use super::ClusterFeature;
 use crate::{
     cluster_api::{
         clusterclasses::{
@@ -14,8 +13,12 @@ use crate::{
             OpenStackMachineTemplate, OpenStackMachineTemplateTemplateSpecServerGroup,
         },
     },
-    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
+    features::{
+        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
+        ClusterFeatureVariables,
+    },
 };
+use cluster_feature_derive::ClusterFeatureValues;
 use indoc::indoc;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
@@ -23,34 +26,24 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "serverGroupId")]
 pub struct ServerGroupIDConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-#[serde(rename = "isServerGroupDiffFailureDomain")]
 pub struct DifferentFailureDomainConfig(pub bool);
+
+#[derive(Serialize, Deserialize, ClusterFeatureValues)]
+pub struct FeatureValues {
+    #[serde(rename = "serverGroupId")]
+    pub server_group_id: ServerGroupIDConfig,
+
+    #[serde(rename = "isServerGroupDiffFailureDomain")]
+    pub is_server_group_diff_failure_domain: DifferentFailureDomainConfig,
+}
 
 pub struct Feature {}
 
-impl ClusterFeature for Feature {
-    fn variables(&self) -> Vec<ClusterClassVariables> {
-        vec![
-            ClusterClassVariables {
-                name: "serverGroupId".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<ServerGroupIDConfig>(),
-            },
-            ClusterClassVariables {
-                name: "isServerGroupDiffFailureDomain".into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<DifferentFailureDomainConfig>(),
-            },
-        ]
-    }
-
+impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
             name: "serverGroupId".into(),

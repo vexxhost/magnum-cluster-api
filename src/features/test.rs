@@ -326,21 +326,21 @@ impl TestClusterResources {
 pub fn default_values() -> Values {
     Values::builder()
         .api_server_load_balancer(
-            api_server_load_balancer::Config::builder()
+            api_server_load_balancer::APIServerLoadBalancerConfig::builder()
                 .enabled(true)
                 .provider("amphora".into())
                 .build(),
         )
         .audit_log(
-            audit_log::Config::builder()
+            audit_log::AuditLogConfig::builder()
                 .enabled(false)
                 .max_age("30".to_string())
                 .max_backup("10".to_string())
                 .max_size("100".to_string())
                 .build(),
         )
-        .boot_volume(boot_volume::Config::builder().r#type("nvme".into()).size(0).build())
-        .cloud_ca_cert(cloud_controller_manager::CloudCACertificatesConfig(
+        .boot_volume(boot_volume::BootVolumeConfig::builder().r#type("nvme".into()).size(0).build())
+        .cloud_ca_certificate(cloud_controller_manager::CloudCACertificatesConfig(
             BASE64_STANDARD.encode(indoc!(
                 r#"
                 -----BEGIN CERTIFICATE-----
@@ -409,7 +409,7 @@ pub fn default_values() -> Values {
         .fixed_network_id(networks::FixedNetworkIDConfig("foo".into()))
         .fixed_subnet_id(networks::FixedSubnetIDConfig("bar".into()))
         .openid_connect(
-            openid_connect::Config::builder()
+            openid_connect::OpenIdConnectConfig::builder()
                 .issuer_url("https://example.com".to_string())
                 .client_id("client-id".to_string())
                 .username_claim("email".to_string())
@@ -426,7 +426,7 @@ pub fn default_values() -> Values {
         .is_server_group_diff_failure_domain(server_groups::DifferentFailureDomainConfig(true))
         .ssh_key_name(ssh_key::Config("my-key".into()))
         .api_server_tls_cipher_suites(tls::ApiServerTLSCipherSuitesConfig("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305".into()))
-        .api_server_sa_ns(tls::ApiServerSANsConfig("".into()))
+        .api_server_sans(tls::ApiServerSANsConfig("".into()))
         .kubelet_tls_cipher_suites(tls::KubeletTLSCipherSuitesConfig("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305".into()))
         .enable_docker_volume(volumes::EnableDockerVolumeConfig(false))
         .docker_volume_size(volumes::DockerVolumeSizeConfig(0))

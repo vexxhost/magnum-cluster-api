@@ -68,10 +68,17 @@ pub mod ssh_key;
 pub mod tls;
 pub mod volumes;
 
-pub trait ClusterFeature: Sync {
+pub trait ClusterFeatureVariables: Sync {
     fn variables(&self) -> Vec<ClusterClassVariables>;
+}
+
+pub trait ClusterFeaturePatches: Sync {
     fn patches(&self) -> Vec<ClusterClassPatches>;
 }
+
+pub trait ClusterFeature: Sync + ClusterFeatureVariables + ClusterFeaturePatches {}
+
+impl<T> ClusterFeature for T where T: Sync + ClusterFeatureVariables + ClusterFeaturePatches {}
 
 pub struct ClusterFeatureEntry {
     pub feature: &'static dyn ClusterFeature,

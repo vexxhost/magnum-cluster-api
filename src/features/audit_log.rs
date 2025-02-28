@@ -1,4 +1,3 @@
-use super::ClusterFeature;
 use crate::{
     cluster_api::{
         clusterclasses::{
@@ -14,16 +13,19 @@ use crate::{
             KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
         },
     },
-    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
+    features::{
+        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
+        ClusterFeatureVariables,
+    },
 };
+use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
-#[serde(rename = "auditLog")]
-pub struct Config {
+pub struct AuditLogConfig {
     pub enabled: bool,
 
     #[serde(rename = "maxAge")]
@@ -36,18 +38,15 @@ pub struct Config {
     pub max_size: String,
 }
 
+#[derive(Serialize, Deserialize, ClusterFeatureValues)]
+pub struct FeatureValues {
+    #[serde(rename = "auditLog")]
+    pub audit_log: AuditLogConfig,
+}
+
 pub struct Feature {}
 
-impl ClusterFeature for Feature {
-    fn variables(&self) -> Vec<ClusterClassVariables> {
-        vec![ClusterClassVariables {
-            name: "auditLog".into(),
-            metadata: None,
-            required: true,
-            schema: ClusterClassVariablesSchema::from_object::<Config>(),
-        }]
-    }
-
+impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![
             ClusterClassPatches {
@@ -164,7 +163,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.audit_log = Config::builder()
+        values.audit_log = AuditLogConfig::builder()
             .enabled(false)
             .max_age("30".into())
             .max_backup("10".into())
@@ -200,7 +199,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.audit_log = Config::builder()
+        values.audit_log = AuditLogConfig::builder()
             .enabled(true)
             .max_age("30".into())
             .max_backup("10".into())

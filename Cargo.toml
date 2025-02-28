@@ -33,6 +33,7 @@ pyo3-log = "0.12.1"
 log = "0.4.26"
 inventory = "0.3.19"
 typed-builder = "0.20.0"
+cluster_feature_derive = { path = "crates/cluster_feature_derive" }
 
 [dependencies.pyo3]
 version = "0.23.1"
@@ -43,4 +44,4 @@ gtmpl = "0.7.1"
 pretty_assertions = "1.4.1"
 
 [workspace]
-members = [ "crates/serde_gtmpl" ]
+members = [ "crates/cluster_feature_derive", "crates/serde_gtmpl" ]
