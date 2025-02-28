@@ -21,5 +21,7 @@
         - name: Copy all of the pod logs
           ansible.builtin.copy:
             src: "/var/lib/docker/volumes/{{ volume_id.stdout_lines[0] }}/_data/log/pods"
-            dest: "{{ zuul_output_dir }}/logs/pods"
+            dest: "{{ zuul_output_dir }}/logs"
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
             remote_src: true
