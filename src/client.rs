@@ -160,11 +160,11 @@ impl KubeClient {
         let api = self.get_api_from_gvk(&gvk, namespace);
 
         GLOBAL_RUNTIME.block_on(async {
-            api.delete(name, &Default::default())
-                .await
-                .map_err(|e| KubeClientError::ApiError(e))?;
-
-            Ok(())
+            match api.delete(name, &Default::default()).await {
+                Ok(..) => Ok(()),
+                Err(kube::Error::Api(ref err)) if err.code == 404 => Ok(()),
+                Err(e) => Err(KubeClientError::ApiError(e))?,
+            }
         })
     }
 }

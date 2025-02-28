@@ -10,31 +10,18 @@
         - item.name is defined
         - item.name == "{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
 
-    - name: Download image
-      get_url:
-        url: "{{ image_url }}"
-        dest: "{{ zuul.project.src_dir }}/{{ image_operating_system }}-kube-{{ kube_tag }}.qcow2"
-      register: fetch_artifact
-      retries: 60
-      delay: 10
-      until: fetch_artifact is succeeded
-      when:
-        - image_url is defined
+    - name: Install DevStack
+      ansible.builtin.include_role:
+        name: orchestrate-devstack
 
-    - shell: "./hack/stack.sh"
-      args:
-        chdir: "{{ zuul.project.src_dir }}"
-
-    - shell: "./hack/run-integration-tests.sh"
+    - ansible.builtin.shell: "./hack/run-integration-tests.sh"
       args:
         chdir: "{{ zuul.project.src_dir }}"
       environment:
-        IMAGE_OS: "{{ image_operating_system }}"
-        OS_DISTRO: "{{ image_os_distro }}"
+        IMAGE_NAME: "{{ image_url.split('/')[-1].split('.')[0] }}"
         KUBE_TAG: "{{ kube_tag }}"
-        NODE_COUNT: 2
-        BUILD_NEW_IMAGE: "{{ fetch_artifact.changed }}"
         NETWORK_DRIVER: "{{ network_driver }}"
+        OS_CLOUD: devstack
 
     - name: Copy Sonobuoy results to output folder
       copy:
