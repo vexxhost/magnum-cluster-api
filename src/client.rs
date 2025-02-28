@@ -1,3 +1,4 @@
+use crate::cluster_api::clusters::Cluster;
 use backoff::{future::retry, ExponentialBackoff};
 use k8s_openapi::serde::{de::DeserializeOwned, Deserialize, Serialize};
 use kube::{
@@ -8,6 +9,7 @@ use kube::{
     },
     Client, Config, ResourceExt,
 };
+use log::info;
 use once_cell::sync::Lazy;
 use pyo3::{
     create_exception, exceptions, exceptions::PyException, prelude::*, types::PyDict, Bound,
@@ -15,8 +17,6 @@ use pyo3::{
 use std::{fmt::Debug, str::FromStr};
 use thiserror::Error;
 use tokio::runtime::Runtime;
-
-use crate::cluster_api::clusters::Cluster;
 
 create_exception!(magnum_cluster_api, KubeError, PyException);
 
@@ -250,7 +250,7 @@ impl KubeClient {
                 remote_object.spec.cluster_network = object.spec.cluster_network;
                 remote_object.spec.topology = object.spec.topology;
 
-                println!("{:?}", remote_object);
+                info!("{:?}", remote_object);
 
                 match api
                     .replace(&name, &Default::default(), &remote_object)
