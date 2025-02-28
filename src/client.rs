@@ -246,9 +246,9 @@ impl KubeClient {
 
         info!("{:?}", object);
 
-        py.allow_threads(|| {
+        Ok(py.allow_threads(|| {
             GLOBAL_RUNTIME.block_on(async {
-                retry(ExponentialBackoff::default(), || async {
+                match retry(ExponentialBackoff::default(), || async {
                     let object = object.clone();
                     let mut remote_object = api.get(&name).await?;
 
@@ -270,11 +270,14 @@ impl KubeClient {
                             _ => Err(backoff::Error::Permanent(e)),
                         },
                     }
-                }).await.map_err(KubeClientError::Api)?;
-
-                Ok(())
+                })
+                .await
+                {
+                    Ok(_) => Ok(()),
+                    Err(e) => Err(KubeClientError::Api(e)),
+                }
             })
-        })
+        })?)
     }
 
     #[pyo3(signature = (api_version, kind, name, namespace=None))]
