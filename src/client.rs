@@ -244,6 +244,8 @@ impl KubeClient {
         let object: Cluster = pythonize::depythonize(manifest)?;
         let api: Api<Cluster> = Api::namespaced(self.client.clone(), &namespace);
 
+        info!("{:?}", object);
+
         py.allow_threads(|| {
             GLOBAL_RUNTIME.block_on(async {
                 retry(ExponentialBackoff::default(), || async {
