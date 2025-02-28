@@ -52,7 +52,7 @@ impl MagnumCluster {
         })
     }
 
-    fn create_or_update(&self, py: Python<'_>) -> PyResult<()> {
+    fn apply_cluster_class(&self, py: Python<'_>) -> PyResult<()> {
         let client = client::KubeClient::new()?;
 
         let metadata = ObjectMeta {
@@ -83,11 +83,17 @@ impl MagnumCluster {
                     .await
                     .unwrap();
                 client
-                    .create_or_update_namespaced_resource(&self.namespace, openstack_cluster_template)
+                    .create_or_update_namespaced_resource(
+                        &self.namespace,
+                        openstack_cluster_template,
+                    )
                     .await
                     .unwrap();
                 client
-                    .create_or_update_namespaced_resource(&self.namespace, openstack_machine_template)
+                    .create_or_update_namespaced_resource(
+                        &self.namespace,
+                        openstack_machine_template,
+                    )
                     .await
                     .unwrap();
                 client
@@ -105,6 +111,17 @@ impl MagnumCluster {
                     .create_or_update_namespaced_resource(&self.namespace, cluster_class)
                     .await
                     .unwrap();
+            })
+        });
+
+        Ok(())
+    }
+
+    fn create_cluster(&self, py: Python<'_>) -> PyResult<()> {
+        let client = client::KubeClient::new()?;
+
+        py.allow_threads(|| {
+            GLOBAL_RUNTIME.block_on(async move {
                 client
                     .create_or_update_namespaced_resource(
                         &self.namespace,

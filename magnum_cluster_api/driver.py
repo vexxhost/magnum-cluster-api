@@ -66,12 +66,22 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
+        magnum_cluster = magnum_cluster_api.MagnumCluster(
+            cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
+        )
+        magnum_cluster.apply_cluster_class()
+
         utils.validate_cluster(context, cluster)
 
-        return self._create_cluster(context, cluster)
+        return self._create_cluster(context, cluster, magnum_cluster)
 
     @cluster_lock_wrapper
-    def _create_cluster(self, context, cluster: magnum_objects.Cluster):
+    def _create_cluster(
+        self,
+        context,
+        cluster: magnum_objects.Cluster,
+        magnum_cluster: magnum_cluster_api.MagnumCluster,
+    ):
         osc = clients.get_openstack_api(context)
 
         credential = osc.keystone().client.application_credentials.create(
@@ -101,11 +111,6 @@ class BaseDriver(driver.Driver):
             context, self.kube_client, self.k8s_api, cluster
         ).apply()
 
-        magnum_cluster = magnum_cluster_api.MagnumCluster(
-            cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
-        )
-        magnum_cluster.create_or_update()
-
         resources.apply_cluster_from_magnum_cluster(
             context,
             self.kube_client,
@@ -113,6 +118,7 @@ class BaseDriver(driver.Driver):
             cluster,
             skip_auto_scaling_release=True,
         )
+        magnum_cluster.create_cluster()
         resources.Cluster(context, self.kube_client, self.k8s_api, cluster).apply(),
 
     def _get_cluster_status_reason(self, capi_cluster):
@@ -390,7 +396,7 @@ class BaseDriver(driver.Driver):
         magnum_cluster = magnum_cluster_api.MagnumCluster(
             cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
         )
-        magnum_cluster.create_or_update()
+        magnum_cluster.apply_cluster_class()
         resources.apply_cluster_from_magnum_cluster(
             context, self.kube_client, self.k8s_api, cluster
         )
