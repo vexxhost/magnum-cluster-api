@@ -246,7 +246,7 @@ impl KubeClient {
 
         info!("{:?}", object);
 
-        Ok(py.allow_threads(|| {
+        py.allow_threads(|| {
             GLOBAL_RUNTIME.block_on(async {
                 match retry(ExponentialBackoff::default(), || async {
                     let object = object.clone();
@@ -277,7 +277,9 @@ impl KubeClient {
                     Err(e) => Err(KubeClientError::Api(e)),
                 }
             })
-        })?)
+        })?;
+
+        Ok(())
     }
 
     #[pyo3(signature = (api_version, kind, name, namespace=None))]
