@@ -244,8 +244,6 @@ impl KubeClient {
         let object: Cluster = pythonize::depythonize(manifest)?;
         let api: Api<Cluster> = Api::namespaced(self.client.clone(), &namespace);
 
-        info!("{:?}", object);
-
         py.allow_threads(|| {
             GLOBAL_RUNTIME.block_on(async {
                 match retry(ExponentialBackoff::default(), || async {
@@ -255,8 +253,6 @@ impl KubeClient {
                     remote_object.metadata.labels = object.metadata.labels;
                     remote_object.spec.cluster_network = object.spec.cluster_network;
                     remote_object.spec.topology = object.spec.topology;
-
-                    info!("{:?}", remote_object);
 
                     match api
                         .replace(&name, &Default::default(), &remote_object)
