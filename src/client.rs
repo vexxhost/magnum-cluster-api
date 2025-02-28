@@ -270,7 +270,7 @@ impl KubeClient {
                             _ => Err(backoff::Error::Permanent(e)),
                         },
                     }
-                });
+                }).await.map_err(KubeClientError::Api)?;
 
                 Ok(())
             })
