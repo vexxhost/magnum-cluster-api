@@ -17,13 +17,7 @@ use crate::{
         openstackclustertemplates::OpenStackClusterTemplate,
         openstackmachinetemplates::OpenStackMachineTemplate,
     },
-    features::{
-        api_server_load_balancer, audit_log, boot_volume, cloud_controller_manager,
-        cluster_identity, containerd_config, control_plane_availablity_zones,
-        disable_api_server_floating_ip, external_network, flavors, image_repository, images,
-        keystone_auth, networks, openid_connect, operating_system, server_groups, ssh_key, tls,
-        volumes, ClusterFeature,
-    },
+    features::ClusterFeatureEntry,
 };
 use k8s_openapi::{api::core::v1::ObjectReference, apimachinery::pkg::util::intstr::IntOrString};
 use kube::{api::ObjectMeta, CustomResourceExt};
@@ -41,9 +35,12 @@ impl ClusterClassBuilder {
         }
     }
 
-    pub fn add_feature(mut self, feature: impl ClusterFeature) -> Self {
-        self.variables.extend(feature.variables());
-        self.patches.extend(feature.patches());
+    pub fn add_all_features(mut self) -> Self {
+        for entry in inventory::iter::<ClusterFeatureEntry> {
+            self.variables.extend(entry.feature.variables());
+            self.patches.extend(entry.feature.patches());
+        }
+
         self
     }
 
@@ -152,26 +149,7 @@ impl ClusterClassBuilder {
 
     pub fn default(metadata: ObjectMeta) -> ClusterClass {
         ClusterClassBuilder::new()
-            .add_feature(api_server_load_balancer::Feature {})
-            .add_feature(audit_log::Feature {})
-            .add_feature(boot_volume::Feature {})
-            .add_feature(cloud_controller_manager::Feature {})
-            .add_feature(cluster_identity::Feature {})
-            .add_feature(containerd_config::Feature {})
-            .add_feature(control_plane_availablity_zones::Feature {})
-            .add_feature(disable_api_server_floating_ip::Feature {})
-            .add_feature(external_network::Feature {})
-            .add_feature(flavors::Feature {})
-            .add_feature(image_repository::Feature {})
-            .add_feature(images::Feature {})
-            .add_feature(keystone_auth::Feature {})
-            .add_feature(networks::Feature {})
-            .add_feature(openid_connect::Feature {})
-            .add_feature(operating_system::Feature {})
-            .add_feature(server_groups::Feature {})
-            .add_feature(ssh_key::Feature {})
-            .add_feature(tls::Feature {})
-            .add_feature(volumes::Feature {})
+            .add_all_features()
             .build(metadata)
     }
 }

@@ -14,7 +14,7 @@ use crate::{
             OpenStackMachineTemplate, OpenStackMachineTemplateTemplateSpecServerGroup,
         },
     },
-    features::ClusterClassVariablesSchemaExt,
+    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
 };
 use indoc::indoc;
 use kube::CustomResourceExt;
@@ -103,6 +103,10 @@ impl ClusterFeature for Feature {
             ..Default::default()
         }]
     }
+}
+
+inventory::submit! {
+    ClusterFeatureEntry{ feature: &Feature {} }
 }
 
 #[cfg(test)]

@@ -68,10 +68,16 @@ pub mod ssh_key;
 pub mod tls;
 pub mod volumes;
 
-pub trait ClusterFeature {
+pub trait ClusterFeature: Sync {
     fn variables(&self) -> Vec<ClusterClassVariables>;
     fn patches(&self) -> Vec<ClusterClassPatches>;
 }
+
+pub struct ClusterFeatureEntry {
+    pub feature: &'static dyn ClusterFeature,
+}
+
+inventory::collect!(ClusterFeatureEntry);
 
 pub trait ClusterClassVariablesSchemaExt {
     fn from_object<T: JsonSchema>() -> Self;

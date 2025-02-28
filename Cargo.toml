@@ -24,6 +24,7 @@ base64 = "0.22.1"
 ignition-config = "0.5.0"
 pyo3-log = "0.12.1"
 log = "0.4.26"
+inventory = "0.3.19"
 
 [dependencies.pyo3]
 version = "0.23.1"

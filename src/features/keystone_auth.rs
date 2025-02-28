@@ -12,7 +12,7 @@ use crate::{
             KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles,
         },
     },
-    features::ClusterClassVariablesSchemaExt,
+    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
 };
 use json_patch::{AddOperation, PatchOperation};
 use jsonptr::PointerBuf;
@@ -132,6 +132,10 @@ impl ClusterFeature for Feature {
             ..Default::default()
         }]
     }
+}
+
+inventory::submit! {
+    ClusterFeatureEntry{ feature: &Feature {} }
 }
 
 #[cfg(test)]

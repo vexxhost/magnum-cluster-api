@@ -24,7 +24,7 @@ use crate::{
             KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecIgnitionContainerLinuxConfig,
         },
     },
-    features::ClusterClassVariablesSchemaExt,
+    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
 };
 use ignition_config::v3_5::{Config, Dropin, Systemd, Unit};
 use indoc::indoc;
@@ -317,6 +317,10 @@ impl ClusterFeature for Feature {
             }
         ]
     }
+}
+
+inventory::submit! {
+    ClusterFeatureEntry{ feature: &Feature {} }
 }
 
 #[cfg(test)]

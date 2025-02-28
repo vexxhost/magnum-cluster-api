@@ -12,7 +12,7 @@ use crate::{
         },
         openstackmachinetemplates::OpenStackMachineTemplate,
     },
-    features::ClusterClassVariablesSchemaExt,
+    features::{ClusterClassVariablesSchemaExt, ClusterFeatureEntry},
 };
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
@@ -66,6 +66,10 @@ impl ClusterFeature for Feature {
             ..Default::default()
         }]
     }
+}
+
+inventory::submit! {
+    ClusterFeatureEntry{ feature: &Feature {} }
 }
 
 #[cfg(test)]
