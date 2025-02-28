@@ -179,8 +179,8 @@ pub struct ClusterTopology {
     pub control_plane: Option<ClusterTopologyControlPlane>,
     /// RolloutAfter performs a rollout of the entire cluster one component at a time,
     /// control plane first and then machine deployments.
-    /// 
-    /// 
+    ///
+    ///
     /// Deprecated: This field has no function and is going to be removed in the next apiVersion.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "rolloutAfter")]
     pub rollout_after: Option<String>,
@@ -240,15 +240,15 @@ pub struct ClusterTopologyControlPlane {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct ClusterTopologyControlPlaneMachineHealthCheck {
     /// Enable controls if a MachineHealthCheck should be created for the target machines.
-    /// 
-    /// 
+    ///
+    ///
     /// If false: No MachineHealthCheck will be created.
-    /// 
-    /// 
+    ///
+    ///
     /// If not set(default): A MachineHealthCheck will be created if it is defined here or
     ///  in the associated ClusterClass. If no MachineHealthCheck is defined then none will be created.
-    /// 
-    /// 
+    ///
+    ///
     /// If true: A MachineHealthCheck is guaranteed to be created. Cluster validation will
     /// block if `enable` is true and no MachineHealthCheck definition is available.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -260,23 +260,23 @@ pub struct ClusterTopologyControlPlaneMachineHealthCheck {
     /// NodeStartupTimeout allows to set the maximum time for MachineHealthCheck
     /// to consider a Machine unhealthy if a corresponding Node isn't associated
     /// through a `Spec.ProviderID` field.
-    /// 
-    /// 
+    ///
+    ///
     /// The duration set in this field is compared to the greatest of:
     /// - Cluster's infrastructure ready condition timestamp (if and when available)
     /// - Control Plane's initialized condition timestamp (if and when available)
     /// - Machine's infrastructure ready condition timestamp (if and when available)
     /// - Machine's metadata creation timestamp
-    /// 
-    /// 
+    ///
+    ///
     /// Defaults to 10 minutes.
     /// If you wish to disable this feature, set the value explicitly to 0.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "nodeStartupTimeout")]
     pub node_startup_timeout: Option<String>,
     /// RemediationTemplate is a reference to a remediation template
     /// provided by an infrastructure provider.
-    /// 
-    /// 
+    ///
+    ///
     /// This field is completely optional, when filled, the MachineHealthCheck controller
     /// creates a new object from the template referenced and hands off remediation of the machine to
     /// a controller that lives outside of Cluster API.
@@ -298,8 +298,8 @@ pub struct ClusterTopologyControlPlaneMachineHealthCheck {
 
 /// RemediationTemplate is a reference to a remediation template
 /// provided by an infrastructure provider.
-/// 
-/// 
+///
+///
 /// This field is completely optional, when filled, the MachineHealthCheck controller
 /// creates a new object from the template referenced and hands off remediation of the machine to
 /// a controller that lives outside of Cluster API.
@@ -384,8 +384,8 @@ pub struct ClusterTopologyControlPlaneVariables {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct ClusterTopologyControlPlaneVariablesOverrides {
     /// DefinitionFrom specifies where the definition of this Variable is from.
-    /// 
-    /// 
+    ///
+    ///
     /// Deprecated: This field is deprecated, must not be set anymore and is going to be removed in the next apiVersion.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "definitionFrom")]
     pub definition_from: Option<String>,
@@ -406,8 +406,8 @@ pub struct ClusterTopologyControlPlaneVariablesOverrides {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct ClusterTopologyVariables {
     /// DefinitionFrom specifies where the definition of this Variable is from.
-    /// 
-    /// 
+    ///
+    ///
     /// Deprecated: This field is deprecated, must not be set anymore and is going to be removed in the next apiVersion.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "definitionFrom")]
     pub definition_from: Option<String>,
@@ -500,15 +500,15 @@ pub struct ClusterTopologyWorkersMachineDeployments {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct ClusterTopologyWorkersMachineDeploymentsMachineHealthCheck {
     /// Enable controls if a MachineHealthCheck should be created for the target machines.
-    /// 
-    /// 
+    ///
+    ///
     /// If false: No MachineHealthCheck will be created.
-    /// 
-    /// 
+    ///
+    ///
     /// If not set(default): A MachineHealthCheck will be created if it is defined here or
     ///  in the associated ClusterClass. If no MachineHealthCheck is defined then none will be created.
-    /// 
-    /// 
+    ///
+    ///
     /// If true: A MachineHealthCheck is guaranteed to be created. Cluster validation will
     /// block if `enable` is true and no MachineHealthCheck definition is available.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -520,23 +520,23 @@ pub struct ClusterTopologyWorkersMachineDeploymentsMachineHealthCheck {
     /// NodeStartupTimeout allows to set the maximum time for MachineHealthCheck
     /// to consider a Machine unhealthy if a corresponding Node isn't associated
     /// through a `Spec.ProviderID` field.
-    /// 
-    /// 
+    ///
+    ///
     /// The duration set in this field is compared to the greatest of:
     /// - Cluster's infrastructure ready condition timestamp (if and when available)
     /// - Control Plane's initialized condition timestamp (if and when available)
     /// - Machine's infrastructure ready condition timestamp (if and when available)
     /// - Machine's metadata creation timestamp
-    /// 
-    /// 
+    ///
+    ///
     /// Defaults to 10 minutes.
     /// If you wish to disable this feature, set the value explicitly to 0.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "nodeStartupTimeout")]
     pub node_startup_timeout: Option<String>,
     /// RemediationTemplate is a reference to a remediation template
     /// provided by an infrastructure provider.
-    /// 
-    /// 
+    ///
+    ///
     /// This field is completely optional, when filled, the MachineHealthCheck controller
     /// creates a new object from the template referenced and hands off remediation of the machine to
     /// a controller that lives outside of Cluster API.
@@ -558,8 +558,8 @@ pub struct ClusterTopologyWorkersMachineDeploymentsMachineHealthCheck {
 
 /// RemediationTemplate is a reference to a remediation template
 /// provided by an infrastructure provider.
-/// 
-/// 
+///
+///
 /// This field is completely optional, when filled, the MachineHealthCheck controller
 /// creates a new object from the template referenced and hands off remediation of the machine to
 /// a controller that lives outside of Cluster API.
@@ -652,21 +652,21 @@ pub struct ClusterTopologyWorkersMachineDeploymentsStrategy {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct ClusterTopologyWorkersMachineDeploymentsStrategyRemediation {
     /// MaxInFlight determines how many in flight remediations should happen at the same time.
-    /// 
-    /// 
+    ///
+    ///
     /// Remediation only happens on the MachineSet with the most current revision, while
     /// older MachineSets (usually present during rollout operations) aren't allowed to remediate.
-    /// 
-    /// 
+    ///
+    ///
     /// Note: In general (independent of remediations), unhealthy machines are always
     /// prioritized during scale down operations over healthy ones.
-    /// 
-    /// 
+    ///
+    ///
     /// MaxInFlight can be set to a fixed number or a percentage.
     /// Example: when this is set to 20%, the MachineSet controller deletes at most 20% of
     /// the desired replicas.
-    /// 
-    /// 
+    ///
+    ///
     /// If not set, remediation is limited to all machines (bounded by replicas)
     /// under the active MachineSet's management.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "maxInFlight")]
@@ -743,8 +743,8 @@ pub struct ClusterTopologyWorkersMachineDeploymentsVariables {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct ClusterTopologyWorkersMachineDeploymentsVariablesOverrides {
     /// DefinitionFrom specifies where the definition of this Variable is from.
-    /// 
-    /// 
+    ///
+    ///
     /// Deprecated: This field is deprecated, must not be set anymore and is going to be removed in the next apiVersion.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "definitionFrom")]
     pub definition_from: Option<String>,
@@ -843,8 +843,8 @@ pub struct ClusterTopologyWorkersMachinePoolsVariables {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct ClusterTopologyWorkersMachinePoolsVariablesOverrides {
     /// DefinitionFrom specifies where the definition of this Variable is from.
-    /// 
-    /// 
+    ///
+    ///
     /// Deprecated: This field is deprecated, must not be set anymore and is going to be removed in the next apiVersion.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "definitionFrom")]
     pub definition_from: Option<String>,
@@ -907,4 +907,3 @@ pub struct ClusterStatusFailureDomains {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "controlPlane")]
     pub control_plane: Option<bool>,
 }
-
