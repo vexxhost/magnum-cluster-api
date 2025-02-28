@@ -43,6 +43,7 @@ struct KustomizePatch {
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "enableKeystoneAuth")]
 pub struct Config(pub bool);
 
 pub struct Feature {}
@@ -141,23 +142,17 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test::{ApplyPatch, TestClusterResources};
+    use crate::features::test::{ApplyPatch, default_values, TestClusterResources};
     use k8s_openapi::api::core::v1::Pod;
     use pretty_assertions::assert_eq;
     use std::fs::File;
 
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "enableKeystoneAuth")]
-        enable_keystone_auth: Config,
-    }
-
     #[test]
     fn test_disabled() {
         let feature = Feature {};
-        let values = Values {
-            enable_keystone_auth: Config(false),
-        };
+
+        let mut values = default_values();
+        values.enable_keystone_auth = Config(false);
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -183,9 +178,9 @@ mod tests {
     #[test]
     fn test_apply_patches() {
         let feature = Feature {};
-        let values = Values {
-            enable_keystone_auth: Config(true),
-        };
+
+        let mut values = default_values();
+        values.enable_keystone_auth = Config(true);
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();

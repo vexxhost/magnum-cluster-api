@@ -43,10 +43,12 @@ pub enum OperatingSystem {
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "operatingSystem")]
 pub struct OperatingSystemConfig(pub OperatingSystem);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "aptProxyConfig")]
 pub struct AptProxyConfig(pub String);
 
 pub struct Feature {}
@@ -326,32 +328,23 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test::TestClusterResources;
+    use crate::features::test::{default_values, TestClusterResources};
     use base64::prelude::*;
     use indoc::indoc;
     use pretty_assertions::assert_eq;
 
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "operatingSystem")]
-        operating_system: OperatingSystemConfig,
-
-        #[serde(rename = "aptProxyConfig")]
-        apt_proxy_config: AptProxyConfig,
-    }
-
     #[test]
     fn test_apply_patches_for_ubuntu() {
         let feature = Feature {};
-        let values = Values {
-            operating_system: OperatingSystemConfig(OperatingSystem::Ubuntu),
-            apt_proxy_config: AptProxyConfig(BASE64_STANDARD.encode(indoc!(
-                "
-                Acquire::http::Proxy \"http://proxy.example.com\";
-                Acquire::https::Proxy \"http://proxy.example.com\";
-                "
-            ))),
-        };
+
+        let mut values = default_values();
+        values.operating_system = OperatingSystemConfig(OperatingSystem::Ubuntu);
+        values.apt_proxy_config = AptProxyConfig(BASE64_STANDARD.encode(indoc!(
+            "
+            Acquire::http::Proxy \"http://proxy.example.com\";
+            Acquire::https::Proxy \"http://proxy.example.com\";
+            "
+        )));
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -411,10 +404,10 @@ mod tests {
     #[test]
     fn test_apply_patches_for_flatcar() {
         let feature = Feature {};
-        let values = Values {
-            operating_system: OperatingSystemConfig(OperatingSystem::Flatcar),
-            apt_proxy_config: AptProxyConfig(BASE64_STANDARD.encode("")),
-        };
+
+        let mut values = default_values();
+        values.operating_system = OperatingSystemConfig(OperatingSystem::Flatcar);
+        values.apt_proxy_config = AptProxyConfig(BASE64_STANDARD.encode(""));
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();

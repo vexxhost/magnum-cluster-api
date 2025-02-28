@@ -30,18 +30,37 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-pub struct EnableVolumeConfig(pub bool);
+#[serde(rename = "enableDockerVolume")]
+pub struct EnableDockerVolumeConfig(pub bool);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-pub struct VolumeSizeConfig(pub i64);
+#[serde(rename = "dockerVolumeSize")]
+pub struct DockerVolumeSizeConfig(pub i64);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
-pub struct VolumeTypeConfig(pub String);
+#[serde(rename = "dockerVolumeType")]
+pub struct DockerVolumeTypeConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "enableEtcdVolume")]
+pub struct EnableEtcdVolumeConfig(pub bool);
+
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
+#[serde(rename = "etcdVolumeSize")]
+pub struct EtcdVolumeSizeConfig(pub i64);
+
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
+#[serde(rename = "etcdVolumeType")]
+pub struct EtcdVolumeTypeConfig(pub String);
+
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
+#[serde(rename = "availabilityZone")]
 pub struct AvailabilityZoneConfig(pub String);
 
 pub struct Feature {}
@@ -53,37 +72,37 @@ impl ClusterFeature for Feature {
                 name: "enableDockerVolume".into(),
                 metadata: None,
                 required: true,
-                schema: ClusterClassVariablesSchema::from_object::<EnableVolumeConfig>(),
+                schema: ClusterClassVariablesSchema::from_object::<EnableDockerVolumeConfig>(),
             },
             ClusterClassVariables {
                 name: "dockerVolumeSize".into(),
                 metadata: None,
                 required: true,
-                schema: ClusterClassVariablesSchema::from_object::<VolumeSizeConfig>(),
+                schema: ClusterClassVariablesSchema::from_object::<DockerVolumeSizeConfig>(),
             },
             ClusterClassVariables {
                 name: "dockerVolumeType".into(),
                 metadata: None,
                 required: true,
-                schema: ClusterClassVariablesSchema::from_object::<VolumeTypeConfig>(),
+                schema: ClusterClassVariablesSchema::from_object::<DockerVolumeTypeConfig>(),
             },
             ClusterClassVariables {
                 name: "enableEtcdVolume".into(),
                 metadata: None,
                 required: true,
-                schema: ClusterClassVariablesSchema::from_object::<EnableVolumeConfig>(),
+                schema: ClusterClassVariablesSchema::from_object::<EnableEtcdVolumeConfig>(),
             },
             ClusterClassVariables {
                 name: "etcdVolumeSize".into(),
                 metadata: None,
                 required: true,
-                schema: ClusterClassVariablesSchema::from_object::<VolumeSizeConfig>(),
+                schema: ClusterClassVariablesSchema::from_object::<EtcdVolumeSizeConfig>(),
             },
             ClusterClassVariables {
                 name: "etcdVolumeType".into(),
                 metadata: None,
                 required: true,
-                schema: ClusterClassVariablesSchema::from_object::<VolumeTypeConfig>(),
+                schema: ClusterClassVariablesSchema::from_object::<EtcdVolumeTypeConfig>(),
             },
             ClusterClassVariables {
                 name: "availabilityZone".into(),
@@ -481,48 +500,17 @@ mod tests {
                 OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZone,
             },
         },
-        features::test::TestClusterResources,
+        features::test::{default_values, TestClusterResources}
     };
     use pretty_assertions::assert_eq;
-
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "enableDockerVolume")]
-        enable_docker_volume: EnableVolumeConfig,
-
-        #[serde(rename = "dockerVolumeSize")]
-        docker_volume_size: VolumeSizeConfig,
-
-        #[serde(rename = "dockerVolumeType")]
-        docker_volume_type: VolumeTypeConfig,
-
-        #[serde(rename = "enableEtcdVolume")]
-        enable_etcd_volume: EnableVolumeConfig,
-
-        #[serde(rename = "etcdVolumeSize")]
-        etcd_volume_size: VolumeSizeConfig,
-
-        #[serde(rename = "etcdVolumeType")]
-        etcd_volume_type: VolumeTypeConfig,
-
-        #[serde(rename = "availabilityZone")]
-        availability_zone: AvailabilityZoneConfig,
-    }
 
     #[test]
     fn test_patches_with_no_volumes() {
         let feature = Feature {};
-        let values = Values {
-            enable_docker_volume: EnableVolumeConfig(false),
-            docker_volume_size: VolumeSizeConfig(0),
-            docker_volume_type: VolumeTypeConfig("".into()),
-            enable_etcd_volume: EnableVolumeConfig(false),
-            etcd_volume_size: VolumeSizeConfig(0),
-            etcd_volume_type: VolumeTypeConfig("".into()),
-            availability_zone: AvailabilityZoneConfig("".into()),
-        };
 
+        let values = default_values();
         let patches = feature.patches();
+
         let mut resources = TestClusterResources::new();
         resources.apply_patches(&patches, &values);
     }
@@ -530,15 +518,11 @@ mod tests {
     #[test]
     fn test_patches_with_etcd_volumes_only() {
         let feature = Feature {};
-        let values = Values {
-            enable_docker_volume: EnableVolumeConfig(false),
-            docker_volume_size: VolumeSizeConfig(0),
-            docker_volume_type: VolumeTypeConfig("".into()),
-            enable_etcd_volume: EnableVolumeConfig(true),
-            etcd_volume_size: VolumeSizeConfig(80),
-            etcd_volume_type: VolumeTypeConfig("nvme".into()),
-            availability_zone: AvailabilityZoneConfig("az1".into()),
-        };
+
+        let mut values = default_values();
+        values.enable_etcd_volume = EnableEtcdVolumeConfig(true);
+        values.etcd_volume_size = EtcdVolumeSizeConfig(80);
+        values.etcd_volume_type = EtcdVolumeTypeConfig("nvme".into());
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -652,15 +636,11 @@ mod tests {
     #[test]
     fn test_patches_with_docker_volumes_only() {
         let feature = Feature {};
-        let values = Values {
-            enable_docker_volume: EnableVolumeConfig(true),
-            docker_volume_size: VolumeSizeConfig(160),
-            docker_volume_type: VolumeTypeConfig("ssd".into()),
-            enable_etcd_volume: EnableVolumeConfig(false),
-            etcd_volume_size: VolumeSizeConfig(0),
-            etcd_volume_type: VolumeTypeConfig("".into()),
-            availability_zone: AvailabilityZoneConfig("az1".into()),
-        };
+
+        let mut values = default_values();
+        values.enable_docker_volume = EnableDockerVolumeConfig(true);
+        values.docker_volume_size = DockerVolumeSizeConfig(160);
+        values.docker_volume_type = DockerVolumeTypeConfig("ssd".into());
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -810,15 +790,14 @@ mod tests {
     #[test]
     fn test_patches_with_etcd_and_docker_volumes() {
         let feature = Feature {};
-        let values = Values {
-            enable_docker_volume: EnableVolumeConfig(true),
-            docker_volume_size: VolumeSizeConfig(160),
-            docker_volume_type: VolumeTypeConfig("ssd".into()),
-            enable_etcd_volume: EnableVolumeConfig(true),
-            etcd_volume_size: VolumeSizeConfig(80),
-            etcd_volume_type: VolumeTypeConfig("nvme".into()),
-            availability_zone: AvailabilityZoneConfig("az1".into()),
-        };
+
+        let mut values = default_values();
+        values.enable_etcd_volume = EnableEtcdVolumeConfig(true);
+        values.etcd_volume_size = EtcdVolumeSizeConfig(80);
+        values.etcd_volume_type = EtcdVolumeTypeConfig("nvme".into());
+        values.enable_docker_volume = EnableDockerVolumeConfig(true);
+        values.docker_volume_size = DockerVolumeSizeConfig(160);
+        values.docker_volume_type = DockerVolumeTypeConfig("ssd".into());
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();

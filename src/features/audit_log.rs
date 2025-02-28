@@ -19,8 +19,10 @@ use crate::{
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use typed_builder::TypedBuilder;
 
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
+#[serde(rename = "auditLog")]
 pub struct Config {
     pub enabled: bool,
 
@@ -152,28 +154,22 @@ mod tests {
     use super::*;
     use crate::{
         cluster_api::kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
-        features::test::TestClusterResources,
+        features::test::{default_values, TestClusterResources},
     };
     use maplit::btreemap;
     use pretty_assertions::assert_eq;
 
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "auditLog")]
-        audit_log: Config,
-    }
-
     #[test]
     fn test_disabled() {
         let feature = Feature {};
-        let values = Values {
-            audit_log: Config {
-                enabled: false,
-                max_age: "30".to_string(),
-                max_backup: "10".to_string(),
-                max_size: "100".to_string(),
-            },
-        };
+
+        let mut values = default_values();
+        values.audit_log = Config::builder()
+            .enabled(false)
+            .max_age("30".into())
+            .max_backup("10".into())
+            .max_size("100".into())
+            .build();
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -202,14 +198,14 @@ mod tests {
     #[test]
     fn test_apply_patches() {
         let feature = Feature {};
-        let values = Values {
-            audit_log: Config {
-                enabled: true,
-                max_age: "30".to_string(),
-                max_backup: "10".to_string(),
-                max_size: "100".to_string(),
-            },
-        };
+
+        let mut values = default_values();
+        values.audit_log = Config::builder()
+            .enabled(true)
+            .max_age("30".into())
+            .max_backup("10".into())
+            .max_size("100".into())
+            .build();
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();

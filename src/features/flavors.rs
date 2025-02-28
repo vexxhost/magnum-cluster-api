@@ -20,10 +20,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "controlPlaneFlavor")]
 pub struct ControlPlaneFlavorConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "flavor")]
 pub struct WorkerFlavorConfig(pub String);
 
 pub struct Feature {}
@@ -107,26 +109,14 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test::TestClusterResources;
+    use crate::features::test::{default_values, TestClusterResources};
     use pretty_assertions::assert_eq;
-
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "controlPlaneFlavor")]
-        control_plane_flavor: ControlPlaneFlavorConfig,
-
-        #[serde(rename = "flavor")]
-        flavor: WorkerFlavorConfig,
-    }
 
     #[test]
     fn test_patches() {
         let feature = Feature {};
-        let values = Values {
-            control_plane_flavor: ControlPlaneFlavorConfig("control-plane".into()),
-            flavor: WorkerFlavorConfig("worker".into()),
-        };
 
+        let values = default_values();
         let patches = feature.patches();
 
         let mut resources = TestClusterResources::new();

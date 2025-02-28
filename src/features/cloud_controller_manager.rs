@@ -28,10 +28,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "cloudCaCert")]
 pub struct CloudCACertificatesConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "cloudControllerManagerConfig")]
 pub struct CloudControllerManagerConfig(pub String);
 
 pub struct Feature {}
@@ -177,51 +179,16 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test::TestClusterResources;
-    use base64::prelude::*;
-    use indoc::indoc;
+    use crate::features::test::{default_values, TestClusterResources};
     use pretty_assertions::assert_eq;
-
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "cloudCaCert")]
-        cloud_ca_cert: CloudCACertificatesConfig,
-
-        #[serde(rename = "cloudControllerManagerConfig")]
-        cloud_controller_manager_config: CloudControllerManagerConfig,
-    }
 
     #[test]
     fn test_apply_patches() {
         let feature = Feature {};
-        let values = Values {
-            cloud_ca_cert: CloudCACertificatesConfig(BASE64_STANDARD.encode(indoc!(
-                r#"
-                -----BEGIN CERTIFICATE-----
-                MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzZz5z5z5z5z5z5z5z5z
-                -----END CERTIFICATE-----
-                "#
-            ))),
-            cloud_controller_manager_config: CloudControllerManagerConfig(BASE64_STANDARD.encode(
-                indoc!(
-                    r#"
-                [Global]
-                auth-url=https://auth.vexxhost.net
-                region=sjc1
-                application-credential-id=foo
-                application-credential-secret=bar
-                tls-insecure=true
-                ca-file=/etc/config/ca.crt
-                [LoadBalancer]
-                lb-provider=amphora
-                lb-method=ROUND_ROBIN
-                create-monitor=true
-                "#,
-                ),
-            )),
-        };
 
+        let values = default_values();
         let patches = feature.patches();
+
         let mut resources = TestClusterResources::new();
         resources.apply_patches(&patches, &values);
 

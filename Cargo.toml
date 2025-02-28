@@ -3,6 +3,13 @@ name = "magnum-cluster-api"
 version = "0.1.0"
 edition = "2021"
 
+[build-dependencies]
+glob = "0.3"
+syn = { version = "1", features = ["full", "parsing"] }
+quote = "1.0"
+proc-macro2 = "1.0"
+heck = "0.4"
+
 [dependencies]
 kube = { version = "0.98.0", features = ["runtime", "derive"] }
 k8s-openapi = { version = "0.24.0", features = ["schemars", "latest"] }
@@ -25,6 +32,7 @@ ignition-config = "0.5.0"
 pyo3-log = "0.12.1"
 log = "0.4.26"
 inventory = "0.3.19"
+typed-builder = "0.20.0"
 
 [dependencies.pyo3]
 version = "0.23.1"

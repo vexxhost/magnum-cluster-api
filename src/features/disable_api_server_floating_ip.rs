@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "disableAPIServerFloatingIP")]
 pub struct Config(pub bool);
 
 pub struct Feature {}
@@ -68,21 +69,15 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test::TestClusterResources;
+    use crate::features::test::{default_values, TestClusterResources};
     use pretty_assertions::assert_eq;
-
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "disableAPIServerFloatingIP")]
-        disable_api_server_floating_ip: Config,
-    }
 
     #[test]
     fn test_patches_if_enabled() {
         let feature = Feature {};
-        let values = Values {
-            disable_api_server_floating_ip: Config(true),
-        };
+
+        let mut values = default_values();
+        values.disable_api_server_floating_ip = Config(true);
 
         let patches = feature.patches();
 
@@ -103,9 +98,9 @@ mod tests {
     #[test]
     fn test_patches_if_disabled() {
         let feature = Feature {};
-        let values = Values {
-            disable_api_server_floating_ip: Config(false),
-        };
+
+        let mut values = default_values();
+        values.disable_api_server_floating_ip = Config(false);
 
         let patches = feature.patches();
 

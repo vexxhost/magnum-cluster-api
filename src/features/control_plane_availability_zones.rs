@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "controlPlaneAvailabilityZones")]
 pub struct Config(pub Vec<String>);
 
 pub struct Feature {}
@@ -70,22 +71,14 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test::TestClusterResources;
+    use crate::features::test::{default_values, TestClusterResources};
     use pretty_assertions::assert_eq;
-
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "controlPlaneAvailabilityZones")]
-        pub control_plane_availability_zones: Config,
-    }
 
     #[test]
     fn test_patches() {
         let feature = Feature {};
-        let values = Values {
-            control_plane_availability_zones: Config(vec!["az1".into(), "az2".into()]),
-        };
 
+        let values = default_values();
         let patches = feature.patches();
 
         let mut resources = TestClusterResources::new();

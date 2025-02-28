@@ -1,3 +1,5 @@
+include!(concat!(env!("OUT_DIR"), "/values.rs"));
+
 use crate::{
     cluster_api::{
         clusterclasses::{

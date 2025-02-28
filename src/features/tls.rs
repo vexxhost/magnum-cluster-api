@@ -22,14 +22,17 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "apiServerTLSCipherSuites")]
 pub struct ApiServerTLSCipherSuitesConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "apiServerSANs")]
 pub struct ApiServerSANsConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "kubeletTLSCipherSuites")]
 pub struct KubeletTLSCipherSuitesConfig(pub String);
 
 pub struct Feature {}
@@ -155,7 +158,7 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test::TestClusterResources;
+    use crate::features::test::{default_values, TestClusterResources};
     use maplit::btreemap;
     use pretty_assertions::assert_eq;
 
@@ -174,16 +177,17 @@ mod tests {
     #[test]
     fn test_patches() {
         let feature = Feature {};
-        let values = Values {
-            api_server_tls_cipher_suites: ApiServerTLSCipherSuitesConfig("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305".into()),
-            kubelet_tls_cipher_suites: KubeletTLSCipherSuitesConfig("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305".into()),
-            api_server_sans: ApiServerSANsConfig(indoc!(
+
+        let mut values = default_values();
+        values.api_server_sa_ns = ApiServerSANsConfig(
+            indoc!(
                 "
-                - foo.cluster.name").into()),
-        };
+                - foo.cluster.name"
+            )
+            .into(),
+        );
 
         let patches = feature.patches();
-
         let mut resources = TestClusterResources::new();
         resources.apply_patches(&patches, &values);
 
@@ -197,8 +201,6 @@ mod tests {
         let cluster_configuration = kubeadm_config_spec
             .cluster_configuration
             .expect("cluster configuration should be set");
-
-        // /spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/certSANs
 
         assert_eq!(
             cluster_configuration

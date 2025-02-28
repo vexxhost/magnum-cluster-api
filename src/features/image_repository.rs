@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "imageRepository")]
 pub struct Config(pub String);
 
 pub struct Feature {}
@@ -104,23 +105,16 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test::TestClusterResources;
+    use crate::features::test::{default_values, TestClusterResources};
     use pretty_assertions::assert_eq;
-
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "imageRepository")]
-        image_repository: Config,
-    }
 
     #[test]
     fn test_apply_patches() {
         let feature = Feature {};
-        let values = Values {
-            image_repository: Config("registry.example.com/cluster-api".into()),
-        };
 
+        let values = default_values();
         let patches = feature.patches();
+
         let mut resources = TestClusterResources::new();
         resources.apply_patches(&patches, &values);
 

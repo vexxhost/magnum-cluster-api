@@ -16,8 +16,10 @@ use crate::{
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use typed_builder::TypedBuilder;
 
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
+#[serde(rename = "apiServerLoadBalancer")]
 pub struct Config {
     pub enabled: bool,
     pub provider: String,
@@ -69,25 +71,15 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::features::test::default_values;
     use crate::features::test::TestClusterResources;
     use pretty_assertions::assert_eq;
-
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "apiServerLoadBalancer")]
-        api_server_load_balancer: Config,
-    }
 
     #[test]
     fn test_patches() {
         let feature = Feature {};
-        let values = Values {
-            api_server_load_balancer: Config {
-                enabled: true,
-                provider: "amphora".into(),
-            },
-        };
 
+        let values = default_values();
         let patches = feature.patches();
 
         let mut resources = TestClusterResources::new();
@@ -101,10 +93,13 @@ mod tests {
             .api_server_load_balancer
             .expect("apiServerLoadBalancer should be set");
 
-        assert_eq!(api_server_load_balancer.enabled, true);
+        assert_eq!(
+            api_server_load_balancer.enabled,
+            values.api_server_load_balancer.enabled
+        );
         assert_eq!(
             api_server_load_balancer.provider,
-            Some("amphora".to_string())
+            Some(values.api_server_load_balancer.provider)
         );
     }
 }

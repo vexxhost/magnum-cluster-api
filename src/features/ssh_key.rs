@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "sshKeyName")]
 pub struct Config(pub String);
 
 pub struct Feature {}
@@ -75,22 +76,14 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test::TestClusterResources;
+    use crate::features::test::{default_values, TestClusterResources};
     use pretty_assertions::assert_eq;
-
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "sshKeyName")]
-        pub ssh_key_name: Config,
-    }
 
     #[test]
     fn test_patches() {
         let feature = Feature {};
-        let values = Values {
-            ssh_key_name: Config("my-key".into()),
-        };
 
+        let values = default_values();
         let patches = feature.patches();
 
         let mut resources = TestClusterResources::new();

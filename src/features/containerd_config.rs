@@ -28,10 +28,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "containerdConfig")]
 pub struct ContainerdConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "systemdProxyConfig")]
 pub struct SystemdProxyConfig(pub String);
 
 pub struct Feature {}
@@ -189,51 +191,16 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test::TestClusterResources;
-    use indoc::indoc;
+    use crate::features::test::{default_values, TestClusterResources};
     use pretty_assertions::assert_eq;
-    use base64::prelude::*;
-
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "containerdConfig")]
-        containerd_config: ContainerdConfig,
-
-        #[serde(rename = "systemdProxyConfig")]
-        systemd_proxy_config: SystemdProxyConfig,
-    }
 
     #[test]
     fn test_apply_patches() {
         let feature = Feature {};
-        let values = Values {
-            containerd_config: ContainerdConfig(BASE64_STANDARD.encode(indoc! {r#"
-                # Use config version 2 to enable new configuration fields.
-                # Config file is parsed as version 1 by default.
-                version = 2
 
-                imports = ["/etc/containerd/conf.d/*.toml"]
-
-                [plugins]
-                [plugins."io.containerd.grpc.v1.cri"]
-                    sandbox_image = "{sandbox_image}"
-                [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
-                    runtime_type = "io.containerd.runc.v2"
-                [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
-                    SystemdCgroup = true
-            "#})),
-            systemd_proxy_config: SystemdProxyConfig(BASE64_STANDARD.encode(indoc! {r#"
-                [Service]
-                Environment="http_proxy=http://proxy.internal:3128"
-                Environment="HTTP_PROXY=http://proxy.internal:3128"
-                Environment="https_proxy=https://proxy.internal:3129"
-                Environment="HTTPS_PROXY=https://proxy.internal:3129"
-                Environment="no_proxy=localhost,
-                Environment="NO_PROXY=localhost,
-            "#})),
-        };
-
+        let values = default_values();
         let patches = feature.patches();
+
         let mut resources = TestClusterResources::new();
         resources.apply_patches(&patches, &values);
 

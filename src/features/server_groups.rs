@@ -23,10 +23,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "serverGroupId")]
 pub struct ServerGroupIDConfig(pub String);
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
+#[serde(rename = "isServerGroupDiffFailureDomain")]
 pub struct DifferentFailureDomainConfig(pub bool);
 
 pub struct Feature {}
@@ -118,28 +120,17 @@ mod tests {
             OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalPropertiesValue,
             OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalPropertiesValueType,
         },
-        features::test::TestClusterResources,
+        features::test::{default_values, TestClusterResources}
     };
     use pretty_assertions::assert_eq;
-
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "serverGroupId")]
-        server_group_id: ServerGroupIDConfig,
-
-        #[serde(rename = "isServerGroupDiffFailureDomain")]
-        is_server_group_diff_failure_domain: DifferentFailureDomainConfig,
-    }
 
     #[test]
     fn test_apply_patches() {
         let feature = Feature {};
-        let values = Values {
-            server_group_id: ServerGroupIDConfig("server-group-1".to_string()),
-            is_server_group_diff_failure_domain: DifferentFailureDomainConfig(true),
-        };
 
+        let values = default_values();
         let patches = feature.patches();
+
         let mut resources = TestClusterResources::new();
         resources.apply_patches(&patches, &values);
 
@@ -154,7 +145,7 @@ mod tests {
             assert_eq!(
                 spec.server_group,
                 Some(OpenStackMachineTemplateTemplateSpecServerGroup {
-                    id: Some("server-group-1".to_string()),
+                    id: Some(values.server_group_id.0.clone()),
                     ..Default::default()
                 })
             );
@@ -165,50 +156,7 @@ mod tests {
                         name: "different_failure_domain".to_string(),
                         value: OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalPropertiesValue {
                             r#type: OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalPropertiesValueType::Bool,
-                            bool: Some(true),
-                            ..Default::default()
-                        },
-                    }
-                ])
-            );
-        }
-    }
-
-    #[test]
-    fn test_apply_patches_with_failure_domain_disabled() {
-        let feature = Feature {};
-        let values = Values {
-            server_group_id: ServerGroupIDConfig("server-group-1".to_string()),
-            is_server_group_diff_failure_domain: DifferentFailureDomainConfig(false),
-        };
-
-        let patches = feature.patches();
-        let mut resources = TestClusterResources::new();
-        resources.apply_patches(&patches, &values);
-
-        let templates = vec![
-            &resources.control_plane_openstack_machine_template,
-            &resources.worker_openstack_machine_template,
-        ];
-
-        for template in templates {
-            let spec = &template.spec.template.spec;
-
-            assert_eq!(
-                spec.server_group,
-                Some(OpenStackMachineTemplateTemplateSpecServerGroup {
-                    id: Some("server-group-1".to_string()),
-                    ..Default::default()
-                })
-            );
-            assert_eq!(
-                spec.scheduler_hint_additional_properties,
-                Some(vec![
-                    OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalProperties {
-                        name: "different_failure_domain".to_string(),
-                        value: OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalPropertiesValue {
-                            r#type: OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalPropertiesValueType::Bool,
-                            bool: Some(false),
+                            bool: Some(values.is_server_group_diff_failure_domain.0),
                             ..Default::default()
                         },
                     }

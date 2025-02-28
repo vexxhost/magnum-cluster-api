@@ -18,8 +18,10 @@ use indoc::indoc;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use typed_builder::TypedBuilder;
 
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
+#[serde(rename = "bootVolume")]
 pub struct Config {
     pub r#type: String,
     pub size: i64,
@@ -82,25 +84,16 @@ mod tests {
     use super::*;
     use crate::{
         cluster_api::openstackmachinetemplates::OpenStackMachineTemplateTemplateSpecRootVolume,
-        features::test::TestClusterResources,
+        features::test::{default_values, TestClusterResources},
     };
     use pretty_assertions::assert_eq;
-
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "bootVolume")]
-        boot_volume: Config,
-    }
 
     #[test]
     fn test_enabled() {
         let feature = Feature {};
-        let values = Values {
-            boot_volume: Config {
-                r#type: "ssd".into(),
-                size: 10,
-            },
-        };
+
+        let mut values = default_values();
+        values.boot_volume = Config::builder().r#type("ssd".into()).size(10).build();
 
         let patches = feature.patches();
 
@@ -139,12 +132,9 @@ mod tests {
     #[test]
     fn test_disabled() {
         let feature = Feature {};
-        let values = Values {
-            boot_volume: Config {
-                r#type: "ssd".into(),
-                size: 0,
-            },
-        };
+
+        let mut values = default_values();
+        values.boot_volume = Config::builder().r#type("ssd".into()).size(0).build();
 
         let patches = feature.patches();
 

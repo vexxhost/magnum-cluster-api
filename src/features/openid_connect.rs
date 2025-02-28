@@ -16,8 +16,10 @@ use crate::{
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use typed_builder::TypedBuilder;
 
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
+#[serde(rename = "openidConnect")]
 pub struct Config {
     #[serde(rename = "issuerUrl")]
     pub issuer_url: String,
@@ -136,29 +138,23 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test::TestClusterResources;
+    use crate::features::test::{default_values, TestClusterResources};
     use maplit::btreemap;
     use pretty_assertions::assert_eq;
-
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "openidConnect")]
-        openid_connect: Config,
-    }
 
     #[test]
     fn test_disabled_if_issuer_is_empty() {
         let feature = Feature {};
-        let values = Values {
-            openid_connect: Config {
-                issuer_url: "".to_string(),
-                client_id: "client-id".to_string(),
-                username_claim: "email".to_string(),
-                username_prefix: "email:".to_string(),
-                groups_claim: "groups".to_string(),
-                groups_prefix: "groups:".to_string(),
-            },
-        };
+
+        let mut values = default_values();
+        values.openid_connect = Config::builder()
+            .issuer_url("".to_string())
+            .client_id("client-id".to_string())
+            .username_claim("email".to_string())
+            .username_prefix("email:".to_string())
+            .groups_claim("groups".to_string())
+            .groups_prefix("groups:".to_string())
+            .build();
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -187,16 +183,16 @@ mod tests {
     #[test]
     fn test_apply_patches() {
         let feature = Feature {};
-        let values = Values {
-            openid_connect: Config {
-                issuer_url: "https://example.com".to_string(),
-                client_id: "client-id".to_string(),
-                username_claim: "email".to_string(),
-                username_prefix: "email:".to_string(),
-                groups_claim: "groups".to_string(),
-                groups_prefix: "groups:".to_string(),
-            },
-        };
+
+        let mut values = default_values();
+        values.openid_connect = Config::builder()
+            .issuer_url("https://example.com".to_string())
+            .client_id("client-id".to_string())
+            .username_claim("email".to_string())
+            .username_prefix("email:".to_string())
+            .groups_claim("groups".to_string())
+            .groups_prefix("groups:".to_string())
+            .build();
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
