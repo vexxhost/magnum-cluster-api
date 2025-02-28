@@ -52,7 +52,7 @@ impl MagnumCluster {
         })
     }
 
-    fn create_or_update(&self) -> PyResult<()> {
+    fn create_or_update(&self, py: Python<'_>) -> PyResult<()> {
         let client = client::KubeClient::new()?;
 
         let metadata = ObjectMeta {
@@ -75,55 +75,59 @@ impl MagnumCluster {
 
         let cluster_class = ClusterClassBuilder::default(metadata.clone());
 
-        GLOBAL_RUNTIME.block_on(async move {
-            // TODO: get rid of the unwraps here
-            client
-                .create_or_update_cluster_resource(Namespace::from(self))
-                .await
-                .unwrap();
-            client
-                .create_or_update_namespaced_resource(&self.namespace, openstack_cluster_template)
-                .await
-                .unwrap();
-            client
-                .create_or_update_namespaced_resource(&self.namespace, openstack_machine_template)
-                .await
-                .unwrap();
-            client
-                .create_or_update_namespaced_resource(
-                    &self.namespace,
-                    kubeadm_control_plane_template,
-                )
-                .await
-                .unwrap();
-            client
-                .create_or_update_namespaced_resource(&self.namespace, kubeadm_config_template)
-                .await
-                .unwrap();
-            client
-                .create_or_update_namespaced_resource(&self.namespace, cluster_class)
-                .await
-                .unwrap();
-            client
-                .create_or_update_namespaced_resource(
-                    &self.namespace,
-                    ClusterResourceSet::from(self),
-                )
-                .await
-                .unwrap();
+        py.allow_threads(|| {
+            GLOBAL_RUNTIME.block_on(async move {
+                // TODO: get rid of the unwraps here
+                client
+                    .create_or_update_cluster_resource(Namespace::from(self))
+                    .await
+                    .unwrap();
+                client
+                    .create_or_update_namespaced_resource(&self.namespace, openstack_cluster_template)
+                    .await
+                    .unwrap();
+                client
+                    .create_or_update_namespaced_resource(&self.namespace, openstack_machine_template)
+                    .await
+                    .unwrap();
+                client
+                    .create_or_update_namespaced_resource(
+                        &self.namespace,
+                        kubeadm_control_plane_template,
+                    )
+                    .await
+                    .unwrap();
+                client
+                    .create_or_update_namespaced_resource(&self.namespace, kubeadm_config_template)
+                    .await
+                    .unwrap();
+                client
+                    .create_or_update_namespaced_resource(&self.namespace, cluster_class)
+                    .await
+                    .unwrap();
+                client
+                    .create_or_update_namespaced_resource(
+                        &self.namespace,
+                        ClusterResourceSet::from(self),
+                    )
+                    .await
+                    .unwrap();
+            })
         });
 
         Ok(())
     }
 
-    fn delete(&self) -> PyResult<()> {
+    fn delete(&self, py: Python<'_>) -> PyResult<()> {
         let client = client::KubeClient::new()?;
 
-        GLOBAL_RUNTIME.block_on(async move {
-            client
-                .delete_cluster_resource(Namespace::from(self))
-                .await
-                .unwrap()
+        py.allow_threads(|| {
+            GLOBAL_RUNTIME.block_on(async move {
+                client
+                    .delete_cluster_resource(Namespace::from(self))
+                    .await
+                    .unwrap()
+            })
         });
 
         Ok(())
