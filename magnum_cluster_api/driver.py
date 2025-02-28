@@ -109,11 +109,7 @@ class BaseDriver(driver.Driver):
             cluster,
             skip_auto_scaling_release=True,
         )
-        self.kube_client.create_or_update(
-            resources.Cluster(
-                context, self.kube_client, self.k8s_api, cluster
-            ).get_object(),
-        )
+        resources.Cluster(context, self.kube_client, self.k8s_api, cluster).apply(),
 
     def _get_cluster_status_reason(self, capi_cluster):
         capi_cluster_status_reason = ""
