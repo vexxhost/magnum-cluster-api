@@ -167,8 +167,7 @@ pub static KUBEADM_CONTROL_PLANE_TEMPLATE: LazyLock<KubeadmControlPlaneTemplate>
                                 ..Default::default()
                             }),
                             disk_setup: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetup {
-                                filesystems: Some(vec![]),
-                                partitions: Some(vec![]),
+                                ..Default::default()
                             }),
                             files: Some(vec![
                                 KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles {
@@ -248,8 +247,7 @@ pub static KUBEADM_CONFIG_TEMPLATE: LazyLock<KubeadmConfigTemplate> =
             template: KubeadmConfigTemplateTemplate {
                 spec: Some(KubeadmConfigTemplateTemplateSpec {
                     disk_setup: Some(KubeadmConfigTemplateTemplateSpecDiskSetup {
-                        filesystems: Some(vec![]),
-                        partitions: Some(vec![]),
+                        ..Default::default()
                     }),
                     files: Some(vec![KubeadmConfigTemplateTemplateSpecFiles {
                         path: "/etc/kubernetes/.placeholder".to_string(),
@@ -285,7 +283,6 @@ pub static OPENSTACK_MACHINE_TEMPLATE: LazyLock<OpenStackMachineTemplate> =
         spec: OpenStackMachineTemplateSpec {
             template: OpenStackMachineTemplateTemplate {
                 spec: OpenStackMachineTemplateTemplateSpec {
-                    additional_block_devices: Some(vec![]),
                     flavor: Some("PLACEHOLDER".to_string()),
                     identity_ref: Some(OpenStackMachineTemplateTemplateSpecIdentityRef {
                         name: "PLACEHOLDER".to_string(),

@@ -60,9 +60,30 @@ impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![
             ClusterClassPatches {
-                name: "addMountsList".into(),
+                name: "addEmptyLists".into(),
                 enabled_if: Some(r#"{{ if or .enableEtcdVolume .enableDockerVolume }}true{{ end }}"#.into()),
                 definitions: Some(vec![
+                    ClusterClassPatchesDefinitions {
+                        selector: ClusterClassPatchesDefinitionsSelector {
+                            api_version: OpenStackMachineTemplate::api_resource().api_version,
+                            kind: OpenStackMachineTemplate::api_resource().kind,
+                            match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                                control_plane: Some(true),
+                                machine_deployment_class: Some(ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass {
+                                    names: Some(vec!["default-worker".to_string()])
+                                }),
+                                ..Default::default()
+                            },
+                        },
+                        json_patches: vec![
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/additionalBlockDevices".into(),
+                                value: Some(Vec::<String>::new().into()),
+                                ..Default::default()
+                            }
+                        ],
+                    },
                     ClusterClassPatchesDefinitions {
                         selector: ClusterClassPatchesDefinitionsSelector {
                             api_version: KubeadmControlPlaneTemplate::api_resource().api_version,
@@ -76,6 +97,18 @@ impl ClusterFeaturePatches for Feature {
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/kubeadmConfigSpec/mounts".into(),
+                                value: Some(Vec::<String>::new().into()),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/diskSetup/filesystems".into(),
+                                value: Some(Vec::<String>::new().into()),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/diskSetup/partitions".into(),
                                 value: Some(Vec::<String>::new().into()),
                                 ..Default::default()
                             }
@@ -97,6 +130,18 @@ impl ClusterFeaturePatches for Feature {
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/mounts".into(),
+                                value: Some(Vec::<String>::new().into()),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/diskSetup/filesystems".into(),
+                                value: Some(Vec::<String>::new().into()),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/diskSetup/partitions".into(),
                                 value: Some(Vec::<String>::new().into()),
                                 ..Default::default()
                             }
