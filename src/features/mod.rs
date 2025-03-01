@@ -221,7 +221,6 @@ pub static KUBEADM_CONTROL_PLANE_TEMPLATE: LazyLock<KubeadmControlPlaneTemplate>
                                 }),
                                 ..Default::default()
                             }),
-                            mounts: Some(vec![]),
                             pre_kubeadm_commands: Some(vec![
                                 "rm /var/lib/etcd/lost+found -rf".to_string(),
                                 "bash /run/kubeadm/configure-kube-proxy.sh".to_string(),
@@ -271,7 +270,6 @@ pub static KUBEADM_CONFIG_TEMPLATE: LazyLock<KubeadmConfigTemplate> =
                         ),
                         ..Default::default()
                     }),
-                    mounts: Some(vec![]),
                     ..Default::default()
                 }),
                 ..Default::default()

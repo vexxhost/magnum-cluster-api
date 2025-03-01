@@ -60,6 +60,53 @@ impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![
             ClusterClassPatches {
+                name: "addMountsList".into(),
+                enabled_if: Some(r#"{{ if or .enableEtcdVolume .enableDockerVolume }}true{{ end }}"#.into()),
+                definitions: Some(vec![
+                    ClusterClassPatchesDefinitions {
+                        selector: ClusterClassPatchesDefinitionsSelector {
+                            api_version: KubeadmControlPlaneTemplate::api_resource().api_version,
+                            kind: KubeadmControlPlaneTemplate::api_resource().kind,
+                            match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                                control_plane: Some(true),
+                                ..Default::default()
+                            },
+                        },
+                        json_patches: vec![
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/mounts".into(),
+                                value: Some(Vec::<String>::new().into()),
+                                ..Default::default()
+                            }
+                        ],
+                        ..Default::default()
+                    },
+                    ClusterClassPatchesDefinitions {
+                        selector: ClusterClassPatchesDefinitionsSelector {
+                            api_version: KubeadmConfigTemplate::api_resource().api_version,
+                            kind: KubeadmConfigTemplate::api_resource().kind,
+                            match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                                machine_deployment_class: Some(ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass {
+                                    names: Some(vec!["default-worker".to_string()])
+                                }),
+                                ..Default::default()
+                            },
+                        },
+                        json_patches: vec![
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/mounts".into(),
+                                value: Some(Vec::<String>::new().into()),
+                                ..Default::default()
+                            }
+                        ],
+                        ..Default::default()
+                    },
+                ]),
+                ..Default::default()
+            },
+            ClusterClassPatches {
                 name: "etcdVolume".into(),
                 enabled_if: Some(r#"{{ if .enableEtcdVolume }}true{{ end }}"#.into()),
                 definitions: Some(vec![
