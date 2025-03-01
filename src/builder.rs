@@ -37,15 +37,6 @@ impl ClusterClassBuilder {
         }
     }
 
-    pub fn add_all_features(mut self) -> Self {
-        for entry in inventory::iter::<ClusterFeatureEntry> {
-            self.variables.extend(entry.feature.variables());
-            self.patches.extend(entry.feature.patches());
-        }
-
-        self
-    }
-
     pub fn build(self, metadata: ObjectMeta) -> ClusterClass {
         ClusterClass {
             metadata: metadata.clone(),
@@ -150,9 +141,14 @@ impl ClusterClassBuilder {
     }
 
     pub fn default(metadata: ObjectMeta) -> ClusterClass {
-        ClusterClassBuilder::new()
-            .add_all_features()
-            .build(metadata)
+        let mut cc = ClusterClassBuilder::new();
+
+        for entry in inventory::iter::<ClusterFeatureEntry> {
+            cc.variables.extend(entry.feature.variables());
+            cc.patches.extend(entry.feature.patches());
+        }
+
+        cc.build(metadata)
     }
 }
 
