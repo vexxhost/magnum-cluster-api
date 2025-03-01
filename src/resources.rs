@@ -166,11 +166,8 @@ mod tests {
         };
         let cluster_class = ClusterClassBuilder::default(metadata);
 
-        assert_eq!(cluster_class.metadata.name, Some("test".to_string()));
-        assert_eq!(
-            cluster_class.metadata.namespace,
-            Some("default".to_string())
-        );
+        assert_eq!(cluster_class.metadata.name, Some("test".into()));
+        assert_eq!(cluster_class.metadata.namespace, Some("default".into()));
 
         assert_eq!(cluster_class.spec.control_plane.is_some(), true);
         assert_eq!(cluster_class.spec.infrastructure.is_some(), true);
