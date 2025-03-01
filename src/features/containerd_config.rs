@@ -26,24 +26,15 @@ use crate::{
 };
 use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct ContainerdConfig(pub String);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct SystemdProxyConfig(pub String);
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "containerdConfig")]
-    pub containerd_config: ContainerdConfig,
+    pub containerd_config: String,
 
     #[serde(rename = "systemdProxyConfig")]
-    pub systemd_proxy_config: SystemdProxyConfig,
+    pub systemd_proxy_config: String,
 }
 
 pub struct Feature {}
@@ -232,7 +223,7 @@ mod tests {
         );
         assert_eq!(
             kcpt_systemd_file.content,
-            Some(values.systemd_proxy_config.0.clone())
+            Some(values.systemd_proxy_config.clone())
         );
 
         let kcpt_containerd_file = kcpt_files
@@ -248,7 +239,7 @@ mod tests {
         );
         assert_eq!(
             kcpt_containerd_file.content,
-            Some(values.containerd_config.0.clone())
+            Some(values.containerd_config.clone())
         );
 
         let kct_spec = resources
@@ -283,7 +274,7 @@ mod tests {
         );
         assert_eq!(
             kct_systemd_file.content,
-            Some(values.systemd_proxy_config.0.clone())
+            Some(values.systemd_proxy_config.clone())
         );
 
         let kct_containerd_file = kct_files
@@ -299,7 +290,7 @@ mod tests {
         );
         assert_eq!(
             kct_containerd_file.content,
-            Some(values.containerd_config.0.clone())
+            Some(values.containerd_config.clone())
         );
     }
 }

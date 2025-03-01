@@ -21,24 +21,15 @@ use crate::{
 use cluster_feature_derive::ClusterFeatureValues;
 use indoc::indoc;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct ServerGroupIDConfig(pub String);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct DifferentFailureDomainConfig(pub bool);
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "serverGroupId")]
-    pub server_group_id: ServerGroupIDConfig,
+    pub server_group_id: String,
 
     #[serde(rename = "isServerGroupDiffFailureDomain")]
-    pub is_server_group_diff_failure_domain: DifferentFailureDomainConfig,
+    pub is_server_group_diff_failure_domain: bool,
 }
 
 pub struct Feature {}
@@ -138,7 +129,7 @@ mod tests {
             assert_eq!(
                 spec.server_group,
                 Some(OpenStackMachineTemplateTemplateSpecServerGroup {
-                    id: Some(values.server_group_id.0.clone()),
+                    id: Some(values.server_group_id.clone()),
                     ..Default::default()
                 })
             );
@@ -149,7 +140,7 @@ mod tests {
                         name: "different_failure_domain".to_string(),
                         value: OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalPropertiesValue {
                             r#type: OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalPropertiesValueType::Bool,
-                            bool: Some(values.is_server_group_diff_failure_domain.0),
+                            bool: Some(values.is_server_group_diff_failure_domain),
                             ..Default::default()
                         },
                     }

@@ -28,59 +28,30 @@ use crate::{
 use cluster_feature_derive::ClusterFeatureValues;
 use indoc::indoc;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct EnableDockerVolumeConfig(pub bool);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct DockerVolumeSizeConfig(pub i64);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct DockerVolumeTypeConfig(pub String);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct EnableEtcdVolumeConfig(pub bool);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct EtcdVolumeSizeConfig(pub i64);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct EtcdVolumeTypeConfig(pub String);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct AvailabilityZoneConfig(pub String);
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "enableDockerVolume")]
-    pub enable_docker_volume: EnableDockerVolumeConfig,
+    pub enable_docker_volume: bool,
 
     #[serde(rename = "dockerVolumeSize")]
-    pub docker_volume_size: DockerVolumeSizeConfig,
+    pub docker_volume_size: i64,
 
     #[serde(rename = "dockerVolumeType")]
-    pub docker_volume_type: DockerVolumeTypeConfig,
+    pub docker_volume_type: String,
 
     #[serde(rename = "enableEtcdVolume")]
-    pub enable_etcd_volume: EnableEtcdVolumeConfig,
+    pub enable_etcd_volume: bool,
 
     #[serde(rename = "etcdVolumeSize")]
-    pub etcd_volume_size: EtcdVolumeSizeConfig,
+    pub etcd_volume_size: i64,
 
     #[serde(rename = "etcdVolumeType")]
-    pub etcd_volume_type: EtcdVolumeTypeConfig,
+    pub etcd_volume_type: String,
 
     #[serde(rename = "availabilityZone")]
-    pub availability_zone: AvailabilityZoneConfig,
+    pub availability_zone: String,
 }
 
 pub struct Feature {}
@@ -493,9 +464,9 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.enable_etcd_volume = EnableEtcdVolumeConfig(true);
-        values.etcd_volume_size = EtcdVolumeSizeConfig(80);
-        values.etcd_volume_type = EtcdVolumeTypeConfig("nvme".into());
+        values.enable_etcd_volume = true;
+        values.etcd_volume_size = 80;
+        values.etcd_volume_type = "nvme".into();
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -511,13 +482,13 @@ mod tests {
                 .expect("additional block devices should be set"),
                 vec![OpenStackMachineTemplateTemplateSpecAdditionalBlockDevices {
                     name: "etcd".into(),
-                    size_gi_b: values.etcd_volume_size.0,
+                    size_gi_b: values.etcd_volume_size,
                     storage: OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorage {
                         r#type: "Volume".into(),
                         volume: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolume {
-                            r#type: Some(values.etcd_volume_type.0),
+                            r#type: Some(values.etcd_volume_type),
                             availability_zone: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZone {
-                                name: Some(values.availability_zone.0),
+                                name: Some(values.availability_zone),
                                 ..Default::default()
                             })
                         })
@@ -611,9 +582,9 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.enable_docker_volume = EnableDockerVolumeConfig(true);
-        values.docker_volume_size = DockerVolumeSizeConfig(160);
-        values.docker_volume_type = DockerVolumeTypeConfig("ssd".into());
+        values.enable_docker_volume = true;
+        values.docker_volume_size = 160;
+        values.docker_volume_type = "ssd".into();
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -629,13 +600,13 @@ mod tests {
                 .expect("additional block devices should be set"),
                 vec![OpenStackMachineTemplateTemplateSpecAdditionalBlockDevices {
                     name: "docker".into(),
-                    size_gi_b: values.clone().docker_volume_size.0,
+                    size_gi_b: values.clone().docker_volume_size,
                     storage: OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorage {
                         r#type: "Volume".into(),
                         volume: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolume {
-                            r#type: Some(values.clone().docker_volume_type.0),
+                            r#type: Some(values.clone().docker_volume_type),
                             availability_zone: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZone {
-                                name: Some(values.clone().availability_zone.0),
+                                name: Some(values.clone().availability_zone),
                                 ..Default::default()
                             })
                         })
@@ -653,13 +624,13 @@ mod tests {
                 .expect("additional block devices should be set"),
                 vec![OpenStackMachineTemplateTemplateSpecAdditionalBlockDevices {
                     name: "docker".into(),
-                    size_gi_b: values.clone().docker_volume_size.0,
+                    size_gi_b: values.clone().docker_volume_size,
                     storage: OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorage {
                         r#type: "Volume".into(),
                         volume: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolume {
-                            r#type: Some(values.clone().docker_volume_type.0),
+                            r#type: Some(values.clone().docker_volume_type),
                             availability_zone: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZone {
-                                name: Some(values.clone().availability_zone.0),
+                                name: Some(values.clone().availability_zone),
                                 ..Default::default()
                             })
                         })
@@ -765,12 +736,12 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.enable_etcd_volume = EnableEtcdVolumeConfig(true);
-        values.etcd_volume_size = EtcdVolumeSizeConfig(80);
-        values.etcd_volume_type = EtcdVolumeTypeConfig("nvme".into());
-        values.enable_docker_volume = EnableDockerVolumeConfig(true);
-        values.docker_volume_size = DockerVolumeSizeConfig(160);
-        values.docker_volume_type = DockerVolumeTypeConfig("ssd".into());
+        values.enable_etcd_volume = true;
+        values.etcd_volume_size = 80;
+        values.etcd_volume_type = "nvme".into();
+        values.enable_docker_volume = true;
+        values.docker_volume_size = 160;
+        values.docker_volume_type = "ssd".into();
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -787,13 +758,13 @@ mod tests {
                 vec![
                     OpenStackMachineTemplateTemplateSpecAdditionalBlockDevices {
                         name: "etcd".into(),
-                        size_gi_b: values.clone().etcd_volume_size.0,
+                        size_gi_b: values.clone().etcd_volume_size,
                         storage: OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorage {
                             r#type: "Volume".into(),
                             volume: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolume {
-                                r#type: Some(values.clone().etcd_volume_type.0),
+                                r#type: Some(values.clone().etcd_volume_type),
                                 availability_zone: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZone {
-                                    name: Some(values.clone().availability_zone.0),
+                                    name: Some(values.clone().availability_zone),
                                     ..Default::default()
                                 })
                             })
@@ -801,13 +772,13 @@ mod tests {
                     },
                     OpenStackMachineTemplateTemplateSpecAdditionalBlockDevices {
                         name: "docker".into(),
-                        size_gi_b: values.clone().docker_volume_size.0,
+                        size_gi_b: values.clone().docker_volume_size,
                         storage: OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorage {
                             r#type: "Volume".into(),
                             volume: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolume {
-                                r#type: Some(values.clone().docker_volume_type.0),
+                                r#type: Some(values.clone().docker_volume_type),
                                 availability_zone: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZone {
-                                    name: Some(values.clone().availability_zone.0),
+                                    name: Some(values.clone().availability_zone),
                                     ..Default::default()
                                 })
                             })
@@ -826,13 +797,13 @@ mod tests {
                 .expect("additional block devices should be set"),
                 vec![OpenStackMachineTemplateTemplateSpecAdditionalBlockDevices {
                     name: "docker".into(),
-                    size_gi_b: values.docker_volume_size.0,
+                    size_gi_b: values.docker_volume_size,
                     storage: OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorage {
                         r#type: "Volume".into(),
                         volume: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolume {
-                            r#type: Some(values.clone().docker_volume_type.0),
+                            r#type: Some(values.clone().docker_volume_type),
                             availability_zone: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZone {
-                                name: Some(values.clone().availability_zone.0),
+                                name: Some(values.clone().availability_zone),
                                 ..Default::default()
                             })
                         })

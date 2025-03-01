@@ -1,8 +1,8 @@
 use glob::glob;
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
 use std::{env, error::Error, fs, path::Path};
-use syn::{parse_file, Ident, Item, Meta, NestedMeta};
+use syn::{parse_file, Ident, Item, Meta, NestedMeta, Type};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let pattern = "src/features/*.rs";
@@ -50,7 +50,20 @@ fn main() -> Result<(), Box<dyn Error>> {
                             // Preserve all attributes for the field (like #[serde(rename = "...")])
                             let attrs = &field.attrs;
                             let ty = &field.ty;
-                            let qualified_ty = quote! { crate::features::#mod_ident::#ty };
+
+                            let qualified_ty = match &field.ty {
+                                Type::Path(type_path) => {
+                                    let type_name = type_path.clone().into_token_stream().to_string();
+                                    if type_name == "String" || type_name == "i64" || type_name == "bool" || type_name == "Vec < String >" {
+                                        quote! { #ty }
+                                    } else {
+                                        println!("cargo-warning: {} is not a primitive type", type_name);
+                                        quote! { crate::features::#mod_ident::#ty }
+                                    }
+                                },
+                                _ => quote! { #field.ty },
+                            };
+
                             let tokens = quote! {
                                 #(#attrs)*
                                 pub #ident: #qualified_ty,

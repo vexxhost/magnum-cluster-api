@@ -17,17 +17,12 @@ use crate::{
 };
 use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct Config(pub bool);
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "disableAPIServerFloatingIP")]
-    pub disable_api_server_floating_ip: Config,
+    pub disable_api_server_floating_ip: bool,
 }
 
 pub struct Feature {}
@@ -76,7 +71,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.disable_api_server_floating_ip = Config(true);
+        values.disable_api_server_floating_ip = true;
 
         let patches = feature.patches();
 
@@ -99,7 +94,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.disable_api_server_floating_ip = Config(false);
+        values.disable_api_server_floating_ip = false;
 
         let patches = feature.patches();
 

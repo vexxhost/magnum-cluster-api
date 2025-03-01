@@ -19,17 +19,12 @@ use crate::{
 };
 use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct Config(pub String);
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "clusterIdentityRefName")]
-    pub cluster_identity_ref_name: Config,
+    pub cluster_identity_ref_name: String,
 }
 
 pub struct Feature {}
@@ -119,7 +114,7 @@ mod tests {
                 .identity_ref
                 .expect("identity ref should be set")
                 .name,
-            values.cluster_identity_ref_name.clone().0
+            values.cluster_identity_ref_name.clone()
         );
 
         assert_eq!(
@@ -131,7 +126,7 @@ mod tests {
                 .identity_ref
                 .expect("identity ref should be set")
                 .name,
-            values.cluster_identity_ref_name.clone().0
+            values.cluster_identity_ref_name.clone()
         );
 
         assert_eq!(
@@ -142,7 +137,7 @@ mod tests {
                 .spec
                 .identity_ref
                 .name,
-            values.cluster_identity_ref_name.clone().0
+            values.cluster_identity_ref_name.clone()
         );
     }
 }

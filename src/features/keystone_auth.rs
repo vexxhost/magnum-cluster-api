@@ -20,7 +20,6 @@ use cluster_feature_derive::ClusterFeatureValues;
 use json_patch::{AddOperation, PatchOperation};
 use jsonptr::PointerBuf;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -44,14 +43,10 @@ struct KustomizePatch {
     patch: String,
 }
 
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct Config(pub bool);
-
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "enableKeystoneAuth")]
-    pub enable_keystone_auth: Config,
+    pub enable_keystone_auth: bool,
 }
 
 pub struct Feature {}
@@ -151,7 +146,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.enable_keystone_auth = Config(false);
+        values.enable_keystone_auth = false;
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -179,7 +174,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.enable_keystone_auth = Config(true);
+        values.enable_keystone_auth = true;
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();

@@ -26,24 +26,15 @@ use crate::{
 };
 use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct CloudCACertificatesConfig(pub String);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct CloudControllerManagerConfig(pub String);
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "cloudCaCert")]
-    pub cloud_ca_certificate: CloudCACertificatesConfig,
+    pub cloud_ca_certificate: String,
 
     #[serde(rename = "cloudControllerManagerConfig")]
-    pub cloud_controller_manager_config: CloudControllerManagerConfig,
+    pub cloud_controller_manager_config: String,
 }
 
 pub struct Feature {}
@@ -203,7 +194,7 @@ mod tests {
             kcpt_ca_file.encoding,
             Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64)
         );
-        assert_eq!(kcpt_ca_file.content, Some(values.cloud_ca_certificate.0.clone()));
+        assert_eq!(kcpt_ca_file.content, Some(values.cloud_ca_certificate.clone()));
 
         let kcpt_ccm_file = kcpt_files
             .iter()
@@ -218,7 +209,7 @@ mod tests {
         );
         assert_eq!(
             kcpt_ccm_file.content,
-            Some(values.cloud_controller_manager_config.0.clone())
+            Some(values.cloud_controller_manager_config.clone())
         );
 
         let kct_spec = resources
@@ -241,7 +232,7 @@ mod tests {
             kct_ca_file.encoding,
             Some(KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64)
         );
-        assert_eq!(kct_ca_file.content, Some(values.cloud_ca_certificate.0.clone()));
+        assert_eq!(kct_ca_file.content, Some(values.cloud_ca_certificate.clone()));
 
         let kct_ccm_file = kct_files
             .iter()
@@ -256,7 +247,7 @@ mod tests {
         );
         assert_eq!(
             kct_ccm_file.content,
-            Some(values.cloud_controller_manager_config.0.clone())
+            Some(values.cloud_controller_manager_config.clone())
         );
     }
 }

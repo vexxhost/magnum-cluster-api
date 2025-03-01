@@ -17,17 +17,12 @@ use crate::{
 };
 use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct Config(pub Vec<String>);
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "controlPlaneAvailabilityZones")]
-    pub control_plane_availability_zones: Config,
+    pub control_plane_availability_zones: Vec<String>,
 }
 
 pub struct Feature {}
@@ -90,7 +85,7 @@ mod tests {
                 .template
                 .spec
                 .control_plane_availability_zones,
-            Some(values.control_plane_availability_zones.0)
+            Some(values.control_plane_availability_zones)
         );
     }
 }

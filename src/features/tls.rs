@@ -20,31 +20,18 @@ use crate::{
 use cluster_feature_derive::ClusterFeatureValues;
 use indoc::indoc;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct ApiServerTLSCipherSuitesConfig(pub String);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct ApiServerSANsConfig(pub String);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct KubeletTLSCipherSuitesConfig(pub String);
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "apiServerTLSCipherSuites")]
-    pub api_server_tls_cipher_suites: ApiServerTLSCipherSuitesConfig,
+    pub api_server_tls_cipher_suites: String,
 
     #[serde(rename = "kubeletTLSCipherSuites")]
-    pub kubelet_tls_cipher_suites: KubeletTLSCipherSuitesConfig,
+    pub kubelet_tls_cipher_suites: String,
 
     #[serde(rename = "apiServerSANs")]
-    pub api_server_sans: ApiServerSANsConfig,
+    pub api_server_sans: String,
 }
 
 pub struct Feature {}
@@ -150,30 +137,15 @@ mod tests {
     use maplit::btreemap;
     use pretty_assertions::assert_eq;
 
-    #[derive(Clone, Serialize, Deserialize)]
-    pub struct Values {
-        #[serde(rename = "apiServerTLSCipherSuites")]
-        api_server_tls_cipher_suites: ApiServerTLSCipherSuitesConfig,
-
-        #[serde(rename = "kubeletTLSCipherSuites")]
-        kubelet_tls_cipher_suites: KubeletTLSCipherSuitesConfig,
-
-        #[serde(rename = "apiServerSANs")]
-        api_server_sans: ApiServerSANsConfig,
-    }
-
     #[test]
     fn test_patches() {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.api_server_sans = ApiServerSANsConfig(
-            indoc!(
-                "
-                - foo.cluster.name"
-            )
-            .into(),
-        );
+        values.api_server_sans = indoc!(
+            "
+            - foo.cluster.name"
+        ).into();
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -200,7 +172,7 @@ mod tests {
             btreemap! {
                 "cloud-provider".to_string() => "external".to_string(),
                 "profiling".to_string() => "false".to_string(),
-                "tls-cipher-suites".to_string() => values.api_server_tls_cipher_suites.0.clone()
+                "tls-cipher-suites".to_string() => values.api_server_tls_cipher_suites.clone()
             }
         );
         assert_eq!(
@@ -213,7 +185,7 @@ mod tests {
                 .expect("kubelet extra args should be set"),
             btreemap! {
                 "cloud-provider".to_string() => "external".to_string(),
-                "tls-cipher-suites".to_string() => values.kubelet_tls_cipher_suites.0.clone()
+                "tls-cipher-suites".to_string() => values.kubelet_tls_cipher_suites.clone()
             }
         );
         assert_eq!(
@@ -226,7 +198,7 @@ mod tests {
                 .expect("kubelet extra args should be set"),
             btreemap! {
                 "cloud-provider".to_string() => "external".to_string(),
-                "tls-cipher-suites".to_string() => values.kubelet_tls_cipher_suites.0.clone()
+                "tls-cipher-suites".to_string() => values.kubelet_tls_cipher_suites.clone()
             }
         );
         assert_eq!(
@@ -260,7 +232,7 @@ mod tests {
                 .expect("kubelet extra args should be set"),
             btreemap! {
                 "cloud-provider".to_string() => "external".to_string(),
-                "tls-cipher-suites".to_string() => values.kubelet_tls_cipher_suites.0.clone()
+                "tls-cipher-suites".to_string() => values.kubelet_tls_cipher_suites.clone()
             }
         )
     }

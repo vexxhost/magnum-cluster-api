@@ -18,17 +18,12 @@ use crate::{
 };
 use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct Config(pub String);
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "imageUUID")]
-    pub image_uuid: Config,
+    pub image_uuid: String,
 }
 
 pub struct Feature {}
@@ -96,7 +91,7 @@ mod tests {
                 .spec
                 .image
                 .id,
-            Some(values.image_uuid.clone().0)
+            Some(values.image_uuid.clone())
         );
 
         assert_eq!(
@@ -107,7 +102,7 @@ mod tests {
                 .spec
                 .image
                 .id,
-            Some(values.image_uuid.clone().0)
+            Some(values.image_uuid.clone())
         );
     }
 }

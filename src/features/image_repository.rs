@@ -21,17 +21,12 @@ use crate::{
 };
 use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct Config(pub String);
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "imageRepository")]
-    pub image_repository: Config,
+    pub image_repository: String,
 }
 
 pub struct Feature {}
@@ -127,7 +122,7 @@ mod tests {
                 .cluster_configuration
                 .expect("cluster configuration should be set")
                 .image_repository,
-            Some(values.image_repository.clone().0)
+            Some(values.image_repository.clone())
         );
 
         assert_eq!(
@@ -140,7 +135,7 @@ mod tests {
                 .cluster_configuration
                 .expect("cluster configuration should be set")
                 .image_repository,
-            Some(values.image_repository.clone().0)
+            Some(values.image_repository.clone())
         );
     }
 }

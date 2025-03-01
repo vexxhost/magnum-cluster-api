@@ -18,17 +18,12 @@ use crate::{
 };
 use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct Config(pub String);
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "sshKeyName")]
-    pub ssh_key_name: Config,
+    pub ssh_key_name: String,
 }
 
 pub struct Feature {}
@@ -95,7 +90,7 @@ mod tests {
                 .template
                 .spec
                 .ssh_key_name,
-            Some(values.ssh_key_name.clone().0)
+            Some(values.ssh_key_name.clone())
         );
 
         assert_eq!(
@@ -105,7 +100,7 @@ mod tests {
                 .template
                 .spec
                 .ssh_key_name,
-            Some(values.ssh_key_name.clone().0)
+            Some(values.ssh_key_name.clone())
         );
     }
 }

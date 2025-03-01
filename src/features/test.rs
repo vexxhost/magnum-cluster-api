@@ -11,12 +11,9 @@ use crate::{
         openstackmachinetemplates::OpenStackMachineTemplate,
     },
     features::{
-        api_server_load_balancer, audit_log, boot_volume, cloud_controller_manager,
-        cluster_identity, containerd_config, control_plane_availability_zones,
-        disable_api_server_floating_ip, external_network, flavors, image_repository, images,
-        keystone_auth, networks, openid_connect, operating_system, server_groups, ssh_key, tls,
-        volumes, KUBEADM_CONFIG_TEMPLATE, KUBEADM_CONTROL_PLANE_TEMPLATE,
-        OPENSTACK_CLUSTER_TEMPLATE, OPENSTACK_MACHINE_TEMPLATE,
+        api_server_load_balancer, audit_log, boot_volume, openid_connect, operating_system,
+        KUBEADM_CONFIG_TEMPLATE, KUBEADM_CONTROL_PLANE_TEMPLATE, OPENSTACK_CLUSTER_TEMPLATE,
+        OPENSTACK_MACHINE_TEMPLATE,
     },
 };
 use base64::prelude::*;
@@ -340,7 +337,7 @@ pub fn default_values() -> Values {
                 .build(),
         )
         .boot_volume(boot_volume::BootVolumeConfig::builder().r#type("nvme".into()).size(0).build())
-        .cloud_ca_certificate(cloud_controller_manager::CloudCACertificatesConfig(
+        .cloud_ca_certificate(
             BASE64_STANDARD.encode(indoc!(
                 r#"
                 -----BEGIN CERTIFICATE-----
@@ -348,9 +345,9 @@ pub fn default_values() -> Values {
                 -----END CERTIFICATE-----
                 "#
             )),
-        ))
-        .cloud_controller_manager_config(cloud_controller_manager::CloudControllerManagerConfig(BASE64_STANDARD.encode(
-            indoc!(
+        )
+        .cloud_controller_manager_config(
+            BASE64_STANDARD.encode(indoc!(
                 r#"
                 [Global]
                 auth-url=https://auth.vexxhost.net
@@ -365,9 +362,9 @@ pub fn default_values() -> Values {
                 create-monitor=true
                 "#,
             ),
-        )))
-        .cluster_identity_ref_name(cluster_identity::Config("identity-ref-name".into()))
-        .containerd_config(containerd_config::ContainerdConfig(
+        ))
+        .cluster_identity_ref_name("identity-ref-name".into())
+        .containerd_config(
             BASE64_STANDARD.encode(indoc! {r#"
                 # Use config version 2 to enable new configuration fields.
                 # Config file is parsed as version 1 by default.
@@ -383,31 +380,30 @@ pub fn default_values() -> Values {
                 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
                     SystemdCgroup = true
             "#})
-        ))
-        .systemd_proxy_config(containerd_config::SystemdProxyConfig(BASE64_STANDARD.encode(indoc! {r#"
-            [Service]
-            Environment="http_proxy=http://proxy.internal:3128"
-            Environment="HTTP_PROXY=http://proxy.internal:3128"
-            Environment="https_proxy=https://proxy.internal:3129"
-            Environment="HTTPS_PROXY=https://proxy.internal:3129"
-            Environment="no_proxy=localhost,
-            Environment="NO_PROXY=localhost,
-        "#})))
-        .control_plane_availability_zones(control_plane_availability_zones::Config(vec![
-            "zone1".into(),
-            "zone2".into(),
-        ]))
-        .disable_api_server_floating_ip(disable_api_server_floating_ip::Config(true))
-        .external_network_id(external_network::Config("external-network-id".into()))
-        .control_plane_flavor(flavors::ControlPlaneFlavorConfig("control-plane".into()))
-        .flavor(flavors::WorkerFlavorConfig("worker".into()))
-        .image_repository(image_repository::Config("registry.example.com/cluster-api".into()))
-        .image_uuid(images::Config("bar".into()))
-        .enable_keystone_auth(keystone_auth::Config(true))
-        .node_cidr(networks::NodeCIDRConfig("foo".into()))
-        .dns_nameservers(networks::DNSNameserversConfig(vec!["1.1.1.1".into()]))
-        .fixed_network_id(networks::FixedNetworkIDConfig("foo".into()))
-        .fixed_subnet_id(networks::FixedSubnetIDConfig("bar".into()))
+        )
+        .systemd_proxy_config(
+            BASE64_STANDARD.encode(indoc! {r#"
+                [Service]
+                Environment="http_proxy=http://proxy.internal:3128"
+                Environment="HTTP_PROXY=http://proxy.internal:3128"
+                Environment="https_proxy=https://proxy.internal:3129"
+                Environment="HTTPS_PROXY=https://proxy.internal:3129"
+                Environment="no_proxy=localhost,"
+                Environment="NO_PROXY=localhost,"
+            "#})
+        )
+        .control_plane_availability_zones(vec!["zone1".into(), "zone2".into()])
+        .disable_api_server_floating_ip(true)
+        .external_network_id("external-network-id".into())
+        .control_plane_flavor("control-plane".into())
+        .flavor("worker".into())
+        .image_repository("registry.example.com/cluster-api".into())
+        .image_uuid("bar".into())
+        .enable_keystone_auth(true)
+        .node_cidr("10.0.0.0/24".into())
+        .dns_nameservers(vec!["1.1.1.1".into()])
+        .fixed_network_id("".into())
+        .fixed_subnet_id("".into())
         .openid_connect(
             openid_connect::OpenIdConnectConfig::builder()
                 .issuer_url("https://example.com".to_string())
@@ -418,22 +414,20 @@ pub fn default_values() -> Values {
                 .groups_prefix("groups:".to_string())
                 .build(),
         )
-        .operating_system(operating_system::OperatingSystemConfig(operating_system::OperatingSystem::Ubuntu))
-        .apt_proxy_config(operating_system::AptProxyConfig("bar".into()))
-        .server_group_id(server_groups::ServerGroupIDConfig(
-            "server-group-1".to_string(),
-        ))
-        .is_server_group_diff_failure_domain(server_groups::DifferentFailureDomainConfig(true))
-        .ssh_key_name(ssh_key::Config("my-key".into()))
-        .api_server_tls_cipher_suites(tls::ApiServerTLSCipherSuitesConfig("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305".into()))
-        .api_server_sans(tls::ApiServerSANsConfig("".into()))
-        .kubelet_tls_cipher_suites(tls::KubeletTLSCipherSuitesConfig("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305".into()))
-        .enable_docker_volume(volumes::EnableDockerVolumeConfig(false))
-        .docker_volume_size(volumes::DockerVolumeSizeConfig(0))
-        .docker_volume_type(volumes::DockerVolumeTypeConfig("".into()))
-        .enable_etcd_volume(volumes::EnableEtcdVolumeConfig(false))
-        .etcd_volume_size(volumes::EtcdVolumeSizeConfig(0))
-        .etcd_volume_type(volumes::EtcdVolumeTypeConfig("".into()))
-        .availability_zone(volumes::AvailabilityZoneConfig("az1".into()))
+        .operating_system(operating_system::OperatingSystem::Ubuntu)
+        .apt_proxy_config("bar".into())
+        .server_group_id("server-group-1".into())
+        .is_server_group_diff_failure_domain(true)
+        .ssh_key_name("my-key".into())
+        .api_server_tls_cipher_suites("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305".into())
+        .api_server_sans("".into())
+        .kubelet_tls_cipher_suites("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305".into())
+        .enable_docker_volume(false)
+        .docker_volume_size(0)
+        .docker_volume_type("".into())
+        .enable_etcd_volume(false)
+        .etcd_volume_size(0)
+        .etcd_volume_type("".into())
+        .availability_zone("az1".into())
         .build()
 }

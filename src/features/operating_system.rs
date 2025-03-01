@@ -44,22 +44,13 @@ pub enum OperatingSystem {
     RockyLinux,
 }
 
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct OperatingSystemConfig(pub OperatingSystem);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct AptProxyConfig(pub String);
-
-
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "operatingSystem")]
-    pub operating_system: OperatingSystemConfig,
+    pub operating_system: OperatingSystem,
 
     #[serde(rename = "aptProxyConfig")]
-    pub apt_proxy_config: AptProxyConfig,
+    pub apt_proxy_config: String,
 }
 
 pub struct Feature {}
@@ -332,13 +323,13 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.operating_system = OperatingSystemConfig(OperatingSystem::Ubuntu);
-        values.apt_proxy_config = AptProxyConfig(BASE64_STANDARD.encode(indoc!(
+        values.operating_system = OperatingSystem::Ubuntu;
+        values.apt_proxy_config = BASE64_STANDARD.encode(indoc!(
             "
             Acquire::http::Proxy \"http://proxy.example.com\";
             Acquire::https::Proxy \"http://proxy.example.com\";
             "
-        )));
+        ));
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -366,7 +357,7 @@ mod tests {
         );
         assert_eq!(
             kcpt_proxy_file.content,
-            Some(values.apt_proxy_config.0.clone())
+            Some(values.apt_proxy_config.clone())
         );
 
         let kct_files = resources
@@ -391,7 +382,7 @@ mod tests {
         );
         assert_eq!(
             kct_proxy_file.content,
-            Some(values.apt_proxy_config.0.clone())
+            Some(values.apt_proxy_config.clone())
         );
     }
 
@@ -400,8 +391,8 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.operating_system = OperatingSystemConfig(OperatingSystem::Flatcar);
-        values.apt_proxy_config = AptProxyConfig(BASE64_STANDARD.encode(""));
+        values.operating_system = OperatingSystem::Flatcar;
+        values.apt_proxy_config = BASE64_STANDARD.encode("");
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();

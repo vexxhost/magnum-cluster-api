@@ -19,17 +19,12 @@ use crate::{
 };
 use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct Config(pub String);
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "externalNetworkId")]
-    pub external_network_id: Config,
+    pub external_network_id: String,
 }
 
 pub struct Feature {}
@@ -99,7 +94,7 @@ mod tests {
                 .external_network
                 .expect("external network should be set")
                 .id,
-            Some(values.external_network_id.clone().0)
+            Some(values.external_network_id)
         );
     }
 }

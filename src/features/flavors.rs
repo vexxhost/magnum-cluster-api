@@ -18,24 +18,15 @@ use crate::{
 };
 use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct ControlPlaneFlavorConfig(pub String);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct WorkerFlavorConfig(pub String);
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "controlPlaneFlavor")]
-    pub control_plane_flavor: ControlPlaneFlavorConfig,
+    pub control_plane_flavor: String,
 
     #[serde(rename = "flavor")]
-    pub flavor: WorkerFlavorConfig,
+    pub flavor: String,
 }
 
 pub struct Feature {}
@@ -122,7 +113,7 @@ mod tests {
                 .template
                 .spec
                 .flavor,
-            Some(values.control_plane_flavor.0)
+            Some(values.control_plane_flavor)
         );
 
         assert_eq!(
@@ -132,7 +123,7 @@ mod tests {
                 .template
                 .spec
                 .flavor,
-            Some(values.flavor.0)
+            Some(values.flavor)
         );
     }
 }

@@ -21,38 +21,21 @@ use crate::{
 use cluster_feature_derive::ClusterFeatureValues;
 use indoc::indoc;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct NodeCIDRConfig(pub String);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct DNSNameserversConfig(pub Vec<String>);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct FixedNetworkIDConfig(pub String);
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(transparent)]
-pub struct FixedSubnetIDConfig(pub String);
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
     #[serde(rename = "nodeCidr")]
-    pub node_cidr: NodeCIDRConfig,
+    pub node_cidr: String,
 
     #[serde(rename = "dnsNameservers")]
-    pub dns_nameservers: DNSNameserversConfig,
+    pub dns_nameservers: Vec<String>,
 
     #[serde(rename = "fixedNetworkId")]
-    pub fixed_network_id: FixedNetworkIDConfig,
+    pub fixed_network_id: String,
 
     #[serde(rename = "fixedSubnetId")]
-    pub fixed_subnet_id: FixedSubnetIDConfig,
+    pub fixed_subnet_id: String,
 }
 
 pub struct Feature {}
@@ -181,12 +164,10 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.node_cidr = NodeCIDRConfig("10.0.0.0/24".into());
-        values.dns_nameservers = DNSNameserversConfig(
-            vec!["1.1.1.1".to_string(), "1.0.0.1".to_string()].into(),
-        );
-        values.fixed_network_id = FixedNetworkIDConfig("".into());
-        values.fixed_subnet_id = FixedSubnetIDConfig("".into());
+        values.node_cidr = "10.0.0.0/24".into();
+        values.dns_nameservers = vec!["1.1.1.1".into(), "1.0.0.1".into()];
+        values.fixed_network_id = "".into();
+        values.fixed_subnet_id = "".into();
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -201,8 +182,8 @@ mod tests {
                 .managed_subnets
                 .expect("managed subnets should be set"),
             vec![OpenStackClusterTemplateTemplateSpecManagedSubnets {
-                cidr: values.node_cidr.0,
-                dns_nameservers: Some(values.dns_nameservers.0),
+                cidr: values.node_cidr,
+                dns_nameservers: Some(values.dns_nameservers),
                 ..Default::default()
             }]
         );
@@ -213,12 +194,10 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.node_cidr = NodeCIDRConfig("10.0.0.0/24".into());
-        values.dns_nameservers = DNSNameserversConfig(
-            vec!["1.1.1.1".to_string(), "1.0.0.1".to_string()].into(),
-        );
-        values.fixed_network_id = FixedNetworkIDConfig("e3172714-4ac5-4152-abf7-2d37387977e7".into());
-        values.fixed_subnet_id = FixedSubnetIDConfig("".into());
+        values.node_cidr = "10.0.0.0/24".into();
+        values.dns_nameservers = vec!["1.1.1.1".into(), "1.0.0.1".into()];
+        values.fixed_network_id = "e3172714-4ac5-4152-abf7-2d37387977e7".into();
+        values.fixed_subnet_id = "".into();
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -233,7 +212,7 @@ mod tests {
                 .network
                 .expect("network should be set"),
             OpenStackClusterTemplateTemplateSpecNetwork {
-                id: Some(values.fixed_network_id.0),
+                id: Some(values.fixed_network_id),
                 ..Default::default()
             }
         );
@@ -244,12 +223,10 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.node_cidr = NodeCIDRConfig("10.0.0.0/24".into());
-        values.dns_nameservers = DNSNameserversConfig(
-            vec!["1.1.1.1".to_string(), "1.0.0.1".to_string()].into(),
-        );
-        values.fixed_network_id = FixedNetworkIDConfig("e3172714-4ac5-4152-abf7-2d37387977e7".into());
-        values.fixed_subnet_id = FixedSubnetIDConfig("5ef0bdfa-c836-4753-ae38-d2ca71ef921a".into());
+        values.node_cidr = "10.0.0.0/24".into();
+        values.dns_nameservers = vec!["1.1.1.1".into(), "1.0.0.1".into()];
+        values.fixed_network_id = "e3172714-4ac5-4152-abf7-2d37387977e7".into();
+        values.fixed_subnet_id = "5ef0bdfa-c836-4753-ae38-d2ca71ef921a".into();
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -264,7 +241,7 @@ mod tests {
                 .network
                 .expect("network should be set"),
             OpenStackClusterTemplateTemplateSpecNetwork {
-                id: Some(values.fixed_network_id.0),
+                id: Some(values.fixed_network_id),
                 ..Default::default()
             }
         );
@@ -278,7 +255,7 @@ mod tests {
                 .subnets
                 .expect("subnets should be set"),
             vec![OpenStackClusterTemplateTemplateSpecSubnets {
-                id: Some(values.fixed_subnet_id.0),
+                id: Some(values.fixed_subnet_id),
                 ..Default::default()
             }]
         );
