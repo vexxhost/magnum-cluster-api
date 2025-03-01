@@ -158,7 +158,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn test_default() {
+    fn test_default_cluster_class() {
         let metadata = ObjectMeta {
             name: Some("test".to_string()),
             namespace: Some("default".to_string()),
