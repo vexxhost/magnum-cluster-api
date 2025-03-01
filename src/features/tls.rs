@@ -145,7 +145,8 @@ mod tests {
         values.api_server_sans = indoc!(
             "
             - foo.cluster.name"
-        ).into();
+        )
+        .into();
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();

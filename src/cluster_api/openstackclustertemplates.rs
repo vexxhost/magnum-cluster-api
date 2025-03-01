@@ -6,16 +6,21 @@
 mod prelude {
     pub use kube::CustomResource;
     pub use schemars::JsonSchema;
-    pub use serde::{Serialize, Deserialize};
+    pub use serde::{Deserialize, Serialize};
 }
 use self::prelude::*;
 
 /// OpenStackClusterTemplateSpec defines the desired state of OpenStackClusterTemplate.
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-#[kube(group = "infrastructure.cluster.x-k8s.io", version = "v1beta1", kind = "OpenStackClusterTemplate", plural = "openstackclustertemplates")]
+#[kube(
+    group = "infrastructure.cluster.x-k8s.io",
+    version = "v1beta1",
+    kind = "OpenStackClusterTemplate",
+    plural = "openstackclustertemplates"
+)]
 #[kube(namespaced)]
-#[kube(derive="Default")]
-#[kube(derive="PartialEq")]
+#[kube(derive = "Default")]
+#[kube(derive = "PartialEq")]
 pub struct OpenStackClusterTemplateSpec {
     /// OpenStackClusterTemplateResource describes the data needed to create a OpenStackCluster from a template.
     pub template: OpenStackClusterTemplateTemplate,
@@ -39,21 +44,37 @@ pub struct OpenStackClusterTemplateTemplateSpec {
     /// If a managed load balancer is not used AND the API server floating IP is disabled,
     /// this field MUST be specified and should correspond to a pre-allocated port that
     /// holds the fixed IP to be used as a VIP.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiServerFixedIP")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "apiServerFixedIP"
+    )]
     pub api_server_fixed_ip: Option<String>,
     /// APIServerFloatingIP is the floatingIP which will be associated with the API server.
     /// The floatingIP will be created if it does not already exist.
     /// If not specified, a new floatingIP is allocated.
     /// This field is not used if DisableAPIServerFloatingIP is set to true.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiServerFloatingIP")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "apiServerFloatingIP"
+    )]
     pub api_server_floating_ip: Option<String>,
     /// APIServerLoadBalancer configures the optional LoadBalancer for the APIServer.
     /// If not specified, no load balancer will be created for the API server.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiServerLoadBalancer")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "apiServerLoadBalancer"
+    )]
     pub api_server_load_balancer: Option<OpenStackClusterTemplateTemplateSpecApiServerLoadBalancer>,
     /// APIServerPort is the port on which the listener on the APIServer
     /// will be created. If specified, it must be an integer between 0 and 65535.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiServerPort")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "apiServerPort"
+    )]
     pub api_server_port: Option<i64>,
     /// Bastion is the OpenStack instance to login the nodes
     ///
@@ -64,7 +85,11 @@ pub struct OpenStackClusterTemplateTemplateSpec {
     pub bastion: Option<OpenStackClusterTemplateTemplateSpecBastion>,
     /// ControlPlaneAvailabilityZones is the set of availability zones which
     /// control plane machines may be deployed to.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "controlPlaneAvailabilityZones")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "controlPlaneAvailabilityZones"
+    )]
     pub control_plane_availability_zones: Option<Vec<String>>,
     /// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
     /// It is normally populated automatically by the OpenStackCluster
@@ -72,13 +97,21 @@ pub struct OpenStackClusterTemplateTemplateSpec {
     /// control plane endpoint will use the values set here in preference to
     /// values set elsewhere.
     /// ControlPlaneEndpoint cannot be modified after ControlPlaneEndpoint.Host has been set.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "controlPlaneEndpoint")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "controlPlaneEndpoint"
+    )]
     pub control_plane_endpoint: Option<OpenStackClusterTemplateTemplateSpecControlPlaneEndpoint>,
     /// ControlPlaneOmitAvailabilityZone causes availability zone to be
     /// omitted when creating control plane nodes, allowing the Nova
     /// scheduler to make a decision on which availability zone to use based
     /// on other scheduling constraints
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "controlPlaneOmitAvailabilityZone")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "controlPlaneOmitAvailabilityZone"
+    )]
     pub control_plane_omit_availability_zone: Option<bool>,
     /// DisableAPIServerFloatingIP determines whether or not to attempt to attach a floating
     /// IP to the API server. This allows for the creation of clusters when attaching a floating
@@ -92,16 +125,28 @@ pub struct OpenStackClusterTemplateTemplateSpec {
     /// If not using a managed load balancer, cluster configuration will fail without additional
     /// configuration to manage the VIP on the control plane machines, which falls outside of
     /// the scope of this controller.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "disableAPIServerFloatingIP")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "disableAPIServerFloatingIP"
+    )]
     pub disable_api_server_floating_ip: Option<bool>,
     /// DisableExternalNetwork specifies whether or not to attempt to connect the cluster
     /// to an external network. This allows for the creation of clusters when connecting
     /// to an external network is not possible or desirable, e.g. if using a provider network.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "disableExternalNetwork")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "disableExternalNetwork"
+    )]
     pub disable_external_network: Option<bool>,
     /// DisablePortSecurity disables the port security of the network created for the
     /// Kubernetes cluster, which also disables SecurityGroups
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "disablePortSecurity")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "disablePortSecurity"
+    )]
     pub disable_port_security: Option<bool>,
     /// ExternalNetwork is the OpenStack Network to be used to get public internet to the VMs.
     /// This option is ignored if DisableExternalNetwork is set to true.
@@ -115,11 +160,19 @@ pub struct OpenStackClusterTemplateTemplateSpec {
     ///
     /// If ExternalNetwork is not defined and there are no external networks
     /// the controller will proceed as though DisableExternalNetwork was set.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "externalNetwork")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "externalNetwork"
+    )]
     pub external_network: Option<OpenStackClusterTemplateTemplateSpecExternalNetwork>,
     /// ExternalRouterIPs is an array of externalIPs on the respective subnets.
     /// This is necessary if the router needs a fixed ip in a specific subnet.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "externalRouterIPs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "externalRouterIPs"
+    )]
     pub external_router_i_ps: Option<Vec<OpenStackClusterTemplateTemplateSpecExternalRouterIPs>>,
     /// IdentityRef is a reference to a secret holding OpenStack credentials
     /// to be used when reconciling this cluster. It is also to reconcile
@@ -133,12 +186,20 @@ pub struct OpenStackClusterTemplateTemplateSpec {
     /// Kubernetes API server to function correctly.
     /// It's possible to add additional rules to the managed security groups.
     /// When defined to an empty struct, the managed security groups will be created with the default rules.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "managedSecurityGroups")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "managedSecurityGroups"
+    )]
     pub managed_security_groups: Option<OpenStackClusterTemplateTemplateSpecManagedSecurityGroups>,
     /// ManagedSubnets describe OpenStack Subnets to be created. Cluster actuator will create a network,
     /// subnets with the defined CIDR, and a router connected to these subnets. Currently only one IPv4
     /// subnet is supported. If you leave this empty, no network will be created.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "managedSubnets")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "managedSubnets"
+    )]
     pub managed_subnets: Option<Vec<OpenStackClusterTemplateTemplateSpecManagedSubnets>>,
     /// Network specifies an existing network to use if no ManagedSubnets
     /// are specified.
@@ -148,7 +209,11 @@ pub struct OpenStackClusterTemplateTemplateSpec {
     /// This value will be used only if the Cluster actuator creates the network.
     /// If left empty, the network will have the default MTU defined in Openstack network service.
     /// To use this field, the Openstack installation requires the net-mtu neutron API extension.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "networkMTU")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "networkMTU"
+    )]
     pub network_mtu: Option<i64>,
     /// Router specifies an existing router to be used if ManagedSubnets are
     /// specified. If specified, no new router will be created.
@@ -171,13 +236,25 @@ pub struct OpenStackClusterTemplateTemplateSpec {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct OpenStackClusterTemplateTemplateSpecApiServerLoadBalancer {
     /// AdditionalPorts adds additional tcp ports to the load balancer.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "additionalPorts")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "additionalPorts"
+    )]
     pub additional_ports: Option<Vec<i64>>,
     /// AllowedCIDRs restrict access to all API-Server listeners to the given address CIDRs.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "allowedCIDRs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "allowedCIDRs"
+    )]
     pub allowed_cid_rs: Option<Vec<String>>,
     /// AvailabilityZone is the failure domain that will be used to create the APIServerLoadBalancer Spec.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "availabilityZone")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "availabilityZone"
+    )]
     pub availability_zone: Option<String>,
     /// Enabled defines whether a load balancer should be created. This value
     /// defaults to true if an APIServerLoadBalancer is given.
@@ -229,7 +306,11 @@ pub struct OpenStackClusterTemplateTemplateSpecApiServerLoadBalancerNetworkFilte
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,
@@ -266,9 +347,17 @@ pub struct OpenStackClusterTemplateTemplateSpecApiServerLoadBalancerSubnetsFilte
     pub gateway_ip: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipVersion")]
     pub ip_version: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipv6AddressMode")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ipv6AddressMode"
+    )]
     pub ipv6_address_mode: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipv6RAMode")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ipv6RAMode"
+    )]
     pub ipv6_ra_mode: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -278,7 +367,11 @@ pub struct OpenStackClusterTemplateTemplateSpecApiServerLoadBalancerSubnetsFilte
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,
@@ -301,7 +394,11 @@ pub struct OpenStackClusterTemplateTemplateSpecApiServerLoadBalancerSubnetsFilte
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct OpenStackClusterTemplateTemplateSpecBastion {
     /// AvailabilityZone is the failure domain that will be used to create the Bastion Spec.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "availabilityZone")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "availabilityZone"
+    )]
     pub availability_zone: Option<String>,
     /// Enabled means that bastion is enabled. The bastion is enabled by
     /// default if this field is not specified. Set this field to false to disable the
@@ -315,7 +412,11 @@ pub struct OpenStackClusterTemplateTemplateSpecBastion {
     /// FloatingIP which will be associated to the bastion machine. It's the IP address, not UUID.
     /// The floating IP should already exist and should not be associated with a port. If FIP of this address does not
     /// exist, CAPO will try to create it, but by default only OpenStack administrators have privileges to do so.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "floatingIP")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "floatingIP"
+    )]
     pub floating_ip: Option<String>,
     /// Spec for the bastion itself
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -326,10 +427,19 @@ pub struct OpenStackClusterTemplateTemplateSpecBastion {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct OpenStackClusterTemplateTemplateSpecBastionSpec {
     /// AdditionalBlockDevices is a list of specifications for additional block devices to attach to the server instance
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "additionalBlockDevices")]
-    pub additional_block_devices: Option<Vec<OpenStackClusterTemplateTemplateSpecBastionSpecAdditionalBlockDevices>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "additionalBlockDevices"
+    )]
+    pub additional_block_devices:
+        Option<Vec<OpenStackClusterTemplateTemplateSpecBastionSpecAdditionalBlockDevices>>,
     /// Config Drive support
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "configDrive")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "configDrive"
+    )]
     pub config_drive: Option<bool>,
     /// The flavor reference for the flavor for your server instance.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -341,12 +451,21 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpec {
     /// floatingIPPoolRef is a reference to a IPPool that will be assigned
     /// to an IPAddressClaim. Once the IPAddressClaim is fulfilled, the FloatingIP
     /// will be assigned to the OpenStackMachine.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "floatingIPPoolRef")]
-    pub floating_ip_pool_ref: Option<OpenStackClusterTemplateTemplateSpecBastionSpecFloatingIpPoolRef>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "floatingIPPoolRef"
+    )]
+    pub floating_ip_pool_ref:
+        Option<OpenStackClusterTemplateTemplateSpecBastionSpecFloatingIpPoolRef>,
     /// IdentityRef is a reference to a secret holding OpenStack credentials
     /// to be used when reconciling this machine. If not specified, the
     /// credentials specified in the cluster will be used.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "identityRef")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "identityRef"
+    )]
     pub identity_ref: Option<OpenStackClusterTemplateTemplateSpecBastionSpecIdentityRef>,
     /// The image to use for your server instance.
     /// If the rootVolume is specified, this will be used when creating the root volume.
@@ -356,27 +475,57 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ports: Option<Vec<OpenStackClusterTemplateTemplateSpecBastionSpecPorts>>,
     /// ProviderID is the unique identifier as specified by the cloud provider.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "providerID")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "providerID"
+    )]
     pub provider_id: Option<String>,
     /// The volume metadata to boot from
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "rootVolume")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "rootVolume"
+    )]
     pub root_volume: Option<OpenStackClusterTemplateTemplateSpecBastionSpecRootVolume>,
     /// SchedulerHintAdditionalProperties are arbitrary key/value pairs that provide additional hints
     /// to the OpenStack scheduler. These hints can influence how instances are placed on the infrastructure,
     /// such as specifying certain host aggregates or availability zones.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "schedulerHintAdditionalProperties")]
-    pub scheduler_hint_additional_properties: Option<Vec<OpenStackClusterTemplateTemplateSpecBastionSpecSchedulerHintAdditionalProperties>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "schedulerHintAdditionalProperties"
+    )]
+    pub scheduler_hint_additional_properties: Option<
+        Vec<OpenStackClusterTemplateTemplateSpecBastionSpecSchedulerHintAdditionalProperties>,
+    >,
     /// The names of the security groups to assign to the instance
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "securityGroups")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "securityGroups"
+    )]
     pub security_groups: Option<Vec<OpenStackClusterTemplateTemplateSpecBastionSpecSecurityGroups>>,
     /// The server group to assign the machine to.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "serverGroup")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "serverGroup"
+    )]
     pub server_group: Option<OpenStackClusterTemplateTemplateSpecBastionSpecServerGroup>,
     /// Metadata mapping. Allows you to create a map of key value pairs to add to the server instance.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "serverMetadata")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "serverMetadata"
+    )]
     pub server_metadata: Option<Vec<OpenStackClusterTemplateTemplateSpecBastionSpecServerMetadata>>,
     /// The ssh key to inject in the instance
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "sshKeyName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "sshKeyName"
+    )]
     pub ssh_key_name: Option<String>,
     /// Tags which will be added to the machine and all dependent resources
     /// which support them. These are in addition to Tags defined on the
@@ -418,7 +567,8 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecAdditionalBlockDevices
     pub r#type: String,
     /// Volume contains additional storage options for a volume block device.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub volume: Option<OpenStackClusterTemplateTemplateSpecBastionSpecAdditionalBlockDevicesStorageVolume>,
+    pub volume:
+        Option<OpenStackClusterTemplateTemplateSpecBastionSpecAdditionalBlockDevicesStorageVolume>,
 }
 
 /// Volume contains additional storage options for a volume block device.
@@ -459,7 +609,8 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecAdditionalBlockDevices
 /// in. If not specified, the volume will be created without an explicit
 /// availability zone.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub enum OpenStackClusterTemplateTemplateSpecBastionSpecAdditionalBlockDevicesStorageVolumeAvailabilityZoneFrom {
+pub enum OpenStackClusterTemplateTemplateSpecBastionSpecAdditionalBlockDevicesStorageVolumeAvailabilityZoneFrom
+{
     Name,
     Machine,
 }
@@ -541,21 +692,34 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecImageImageRef {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct OpenStackClusterTemplateTemplateSpecBastionSpecPorts {
     /// AdminStateUp specifies whether the port should be created in the up (true) or down (false) state. The default is up.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "adminStateUp")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "adminStateUp"
+    )]
     pub admin_state_up: Option<bool>,
     /// AllowedAddressPairs is a list of address pairs which Neutron will
     /// allow the port to send traffic from in addition to the port's
     /// addresses. If not specified, the MAC Address will be the MAC Address
     /// of the port. Depending on the configuration of Neutron, it may be
     /// supported to specify a CIDR instead of a specific IP address.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "allowedAddressPairs")]
-    pub allowed_address_pairs: Option<Vec<OpenStackClusterTemplateTemplateSpecBastionSpecPortsAllowedAddressPairs>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "allowedAddressPairs"
+    )]
+    pub allowed_address_pairs:
+        Option<Vec<OpenStackClusterTemplateTemplateSpecBastionSpecPortsAllowedAddressPairs>>,
     /// Description is a human-readable description for the port.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     /// DisablePortSecurity enables or disables the port security when set.
     /// When not set, it takes the value of the corresponding field at the network level.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "disablePortSecurity")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "disablePortSecurity"
+    )]
     pub disable_port_security: Option<bool>,
     /// FixedIPs is a list of pairs of subnet and/or IP address to assign to the port. If specified, these must be subnets of the port's network.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "fixedIPs")]
@@ -564,10 +728,18 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecPorts {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "hostID")]
     pub host_id: Option<String>,
     /// MACAddress specifies the MAC address of the port. If not specified, the MAC address will be generated.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "macAddress")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "macAddress"
+    )]
     pub mac_address: Option<String>,
     /// NameSuffix will be appended to the name of the port if specified. If unspecified, instead the 0-based index of the port in the list is used.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "nameSuffix")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "nameSuffix"
+    )]
     pub name_suffix: Option<String>,
     /// Network is a query for an openstack network that the port will be created or discovered on.
     /// This will fail if the query returns more than one network.
@@ -583,11 +755,20 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecPorts {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profile: Option<OpenStackClusterTemplateTemplateSpecBastionSpecPortsProfile>,
     /// PropageteUplinkStatus enables or disables the propagate uplink status on the port.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "propagateUplinkStatus")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "propagateUplinkStatus"
+    )]
     pub propagate_uplink_status: Option<bool>,
     /// SecurityGroups is a list of the names, uuids, filters or any combination these of the security groups to assign to the instance.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "securityGroups")]
-    pub security_groups: Option<Vec<OpenStackClusterTemplateTemplateSpecBastionSpecPortsSecurityGroups>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "securityGroups"
+    )]
+    pub security_groups:
+        Option<Vec<OpenStackClusterTemplateTemplateSpecBastionSpecPortsSecurityGroups>>,
     /// Tags applied to the port (and corresponding trunk, if a trunk is configured.)
     /// These tags are applied in addition to the instance's tags, which will also be applied to the port.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -600,7 +781,11 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecPorts {
     /// Value specs are extra parameters to include in the API request with OpenStack.
     /// This is an extension point for the API, so what they do and if they are supported,
     /// depends on the specific OpenStack implementation.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "valueSpecs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "valueSpecs"
+    )]
     pub value_specs: Option<Vec<OpenStackClusterTemplateTemplateSpecBastionSpecPortsValueSpecs>>,
     /// VNICType specifies the type of vNIC which this port should be
     /// attached to. This is used to determine which mechanism driver(s) to
@@ -623,7 +808,11 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecPortsAllowedAddressPai
     pub ip_address: String,
     /// MACAddress is the MAC address of the allowed address pair. If not
     /// specified, the MAC address will be the MAC address of the port.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "macAddress")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "macAddress"
+    )]
     pub mac_address: Option<String>,
 }
 
@@ -664,9 +853,17 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecPortsFixedIPsSubnetFil
     pub gateway_ip: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipVersion")]
     pub ip_version: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipv6AddressMode")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ipv6AddressMode"
+    )]
     pub ipv6_address_mode: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipv6RAMode")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ipv6RAMode"
+    )]
     pub ipv6_ra_mode: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -676,7 +873,11 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecPortsFixedIPsSubnetFil
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,
@@ -716,7 +917,11 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecPortsNetworkFilter {
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,
@@ -743,7 +948,11 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecPortsProfile {
     /// OVSHWOffload enables or disables the OVS hardware offload feature.
     /// This flag is not required on OpenStack clouds since Yoga as Nova will set it automatically when the port is attached.
     /// See: https://bugs.launchpad.net/nova/+bug/2020813
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ovsHWOffload")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ovsHWOffload"
+    )]
     pub ovs_hw_offload: Option<bool>,
     /// TrustedVF enables or disables the “trusted mode” for the VF.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "trustedVF")]
@@ -774,7 +983,11 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecPortsSecurityGroupsFil
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,
@@ -807,8 +1020,13 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecRootVolume {
     /// AvailabilityZone is the volume availability zone to create the volume
     /// in. If not specified, the volume will be created without an explicit
     /// availability zone.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "availabilityZone")]
-    pub availability_zone: Option<OpenStackClusterTemplateTemplateSpecBastionSpecRootVolumeAvailabilityZone>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "availabilityZone"
+    )]
+    pub availability_zone:
+        Option<OpenStackClusterTemplateTemplateSpecBastionSpecRootVolumeAvailabilityZone>,
     /// SizeGiB is the size of the block device in gibibytes (GiB).
     #[serde(rename = "sizeGiB")]
     pub size_gi_b: i64,
@@ -856,7 +1074,8 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecSchedulerHintAdditiona
     pub name: String,
     /// Value is the value of the scheduler hint property, which can be of various types
     /// (e.g., bool, string, int). The type is indicated by the Value.Type field.
-    pub value: OpenStackClusterTemplateTemplateSpecBastionSpecSchedulerHintAdditionalPropertiesValue,
+    pub value:
+        OpenStackClusterTemplateTemplateSpecBastionSpecSchedulerHintAdditionalPropertiesValue,
 }
 
 /// Value is the value of the scheduler hint property, which can be of various types
@@ -878,7 +1097,8 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecSchedulerHintAdditiona
     /// Type represents the type of the value.
     /// Valid values are Bool, String, and Number.
     #[serde(rename = "type")]
-    pub r#type: OpenStackClusterTemplateTemplateSpecBastionSpecSchedulerHintAdditionalPropertiesValueType,
+    pub r#type:
+        OpenStackClusterTemplateTemplateSpecBastionSpecSchedulerHintAdditionalPropertiesValueType,
 }
 
 /// Value is the value of the scheduler hint property, which can be of various types
@@ -886,7 +1106,8 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecSchedulerHintAdditiona
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub enum OpenStackClusterTemplateTemplateSpecBastionSpecSchedulerHintAdditionalPropertiesValueType {
     Bool,
-    #[default] String,
+    #[default]
+    String,
     Number,
 }
 
@@ -914,7 +1135,11 @@ pub struct OpenStackClusterTemplateTemplateSpecBastionSpecSecurityGroupsFilter {
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,
@@ -1005,7 +1230,11 @@ pub struct OpenStackClusterTemplateTemplateSpecExternalNetworkFilter {
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,
@@ -1051,9 +1280,17 @@ pub struct OpenStackClusterTemplateTemplateSpecExternalRouterIPsSubnetFilter {
     pub gateway_ip: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipVersion")]
     pub ip_version: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipv6AddressMode")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ipv6AddressMode"
+    )]
     pub ipv6_address_mode: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipv6RAMode")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ipv6RAMode"
+    )]
     pub ipv6_ra_mode: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -1063,7 +1300,11 @@ pub struct OpenStackClusterTemplateTemplateSpecExternalRouterIPsSubnetFilter {
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,
@@ -1107,8 +1348,14 @@ pub struct OpenStackClusterTemplateTemplateSpecIdentityRef {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct OpenStackClusterTemplateTemplateSpecManagedSecurityGroups {
     /// allNodesSecurityGroupRules defines the rules that should be applied to all nodes.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "allNodesSecurityGroupRules")]
-    pub all_nodes_security_group_rules: Option<Vec<OpenStackClusterTemplateTemplateSpecManagedSecurityGroupsAllNodesSecurityGroupRules>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "allNodesSecurityGroupRules"
+    )]
+    pub all_nodes_security_group_rules: Option<
+        Vec<OpenStackClusterTemplateTemplateSpecManagedSecurityGroupsAllNodesSecurityGroupRules>,
+    >,
     /// AllowAllInClusterTraffic allows all ingress and egress traffic between cluster nodes when set to true.
     #[serde(rename = "allowAllInClusterTraffic")]
     pub allow_all_in_cluster_traffic: bool,
@@ -1138,27 +1385,47 @@ pub struct OpenStackClusterTemplateTemplateSpecManagedSecurityGroupsAllNodesSecu
     pub name: String,
     /// portRangeMax is a number in the range that is matched by the security group
     /// rule. The portRangeMin attribute constrains the portRangeMax attribute.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "portRangeMax")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "portRangeMax"
+    )]
     pub port_range_max: Option<i64>,
     /// portRangeMin is a number in the range that is matched by the security group
     /// rule. If the protocol is TCP or UDP, this value must be less than or equal
     /// to the value of the portRangeMax attribute.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "portRangeMin")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "portRangeMin"
+    )]
     pub port_range_min: Option<i64>,
     /// protocol is the protocol that is matched by the security group rule.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub protocol: Option<String>,
     /// remoteGroupID is the remote group ID to be associated with this security group rule.
     /// You can specify either remoteGroupID or remoteIPPrefix or remoteManagedGroups.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "remoteGroupID")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "remoteGroupID"
+    )]
     pub remote_group_id: Option<String>,
     /// remoteIPPrefix is the remote IP prefix to be associated with this security group rule.
     /// You can specify either remoteGroupID or remoteIPPrefix or remoteManagedGroups.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "remoteIPPrefix")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "remoteIPPrefix"
+    )]
     pub remote_ip_prefix: Option<String>,
     /// remoteManagedGroups is the remote managed groups to be associated with this security group rule.
     /// You can specify either remoteGroupID or remoteIPPrefix or remoteManagedGroups.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "remoteManagedGroups")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "remoteManagedGroups"
+    )]
     pub remote_managed_groups: Option<Vec<String>>,
 }
 
@@ -1167,14 +1434,23 @@ pub struct OpenStackClusterTemplateTemplateSpecManagedSubnets {
     /// AllocationPools is an array of AllocationPool objects that will be applied to OpenStack Subnet being created.
     /// If set, OpenStack will only allocate these IPs for Machines. It will still be possible to create ports from
     /// outside of these ranges manually.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "allocationPools")]
-    pub allocation_pools: Option<Vec<OpenStackClusterTemplateTemplateSpecManagedSubnetsAllocationPools>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "allocationPools"
+    )]
+    pub allocation_pools:
+        Option<Vec<OpenStackClusterTemplateTemplateSpecManagedSubnetsAllocationPools>>,
     /// CIDR is representing the IP address range used to create the subnet, e.g. 10.0.0.0/24.
     /// This field is required when defining a subnet.
     pub cidr: String,
     /// DNSNameservers holds a list of DNS server addresses that will be provided when creating
     /// the subnet. These addresses need to have the same IP version as CIDR.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "dnsNameservers")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "dnsNameservers"
+    )]
     pub dns_nameservers: Option<Vec<String>>,
 }
 
@@ -1211,7 +1487,11 @@ pub struct OpenStackClusterTemplateTemplateSpecNetworkFilter {
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,
@@ -1251,7 +1531,11 @@ pub struct OpenStackClusterTemplateTemplateSpecRouterFilter {
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,
@@ -1288,9 +1572,17 @@ pub struct OpenStackClusterTemplateTemplateSpecSubnetsFilter {
     pub gateway_ip: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipVersion")]
     pub ip_version: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipv6AddressMode")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ipv6AddressMode"
+    )]
     pub ipv6_address_mode: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipv6RAMode")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ipv6RAMode"
+    )]
     pub ipv6_ra_mode: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -1300,7 +1592,11 @@ pub struct OpenStackClusterTemplateTemplateSpecSubnetsFilter {
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,

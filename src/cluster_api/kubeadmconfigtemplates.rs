@@ -4,20 +4,25 @@
 
 #[allow(unused_imports)]
 mod prelude {
+    pub use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
     pub use kube::CustomResource;
     pub use schemars::JsonSchema;
-    pub use serde::{Serialize, Deserialize};
+    pub use serde::{Deserialize, Serialize};
     pub use std::collections::BTreeMap;
-    pub use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 }
 use self::prelude::*;
 
 /// KubeadmConfigTemplateSpec defines the desired state of KubeadmConfigTemplate.
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-#[kube(group = "bootstrap.cluster.x-k8s.io", version = "v1beta1", kind = "KubeadmConfigTemplate", plural = "kubeadmconfigtemplates")]
+#[kube(
+    group = "bootstrap.cluster.x-k8s.io",
+    version = "v1beta1",
+    kind = "KubeadmConfigTemplate",
+    plural = "kubeadmconfigtemplates"
+)]
 #[kube(namespaced)]
-#[kube(derive="Default")]
-#[kube(derive="PartialEq")]
+#[kube(derive = "Default")]
+#[kube(derive = "PartialEq")]
 pub struct KubeadmConfigTemplateSpec {
     /// KubeadmConfigTemplateResource defines the Template structure.
     pub template: KubeadmConfigTemplateTemplate,
@@ -59,7 +64,11 @@ pub struct KubeadmConfigTemplateTemplateMetadata {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct KubeadmConfigTemplateTemplateSpec {
     /// ClusterConfiguration along with InitConfiguration are the configurations necessary for the init command
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "clusterConfiguration")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "clusterConfiguration"
+    )]
     pub cluster_configuration: Option<KubeadmConfigTemplateTemplateSpecClusterConfiguration>,
     /// DiskSetup specifies options for the creation of partition tables and file systems on devices.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "diskSetup")]
@@ -74,10 +83,18 @@ pub struct KubeadmConfigTemplateTemplateSpec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ignition: Option<KubeadmConfigTemplateTemplateSpecIgnition>,
     /// InitConfiguration along with ClusterConfiguration are the configurations necessary for the init command
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "initConfiguration")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "initConfiguration"
+    )]
     pub init_configuration: Option<KubeadmConfigTemplateTemplateSpecInitConfiguration>,
     /// JoinConfiguration is the kubeadm configuration for the join command
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "joinConfiguration")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "joinConfiguration"
+    )]
     pub join_configuration: Option<KubeadmConfigTemplateTemplateSpecJoinConfiguration>,
     /// Mounts specifies a list of mount points to be setup.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -86,10 +103,18 @@ pub struct KubeadmConfigTemplateTemplateSpec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ntp: Option<KubeadmConfigTemplateTemplateSpecNtp>,
     /// PostKubeadmCommands specifies extra commands to run after kubeadm runs
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "postKubeadmCommands")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "postKubeadmCommands"
+    )]
     pub post_kubeadm_commands: Option<Vec<String>>,
     /// PreKubeadmCommands specifies extra commands to run before kubeadm runs
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "preKubeadmCommands")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "preKubeadmCommands"
+    )]
     pub pre_kubeadm_commands: Option<Vec<String>>,
     /// UseExperimentalRetryJoin replaces a basic kubeadm command with a shell
     /// script with retries for joins.
@@ -108,7 +133,11 @@ pub struct KubeadmConfigTemplateTemplateSpec {
     ///
     /// Deprecated: This experimental fix is no longer needed and this field will be removed in a future release.
     /// When removing also remove from staticcheck exclude-rules for SA1019 in golangci.yml
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "useExperimentalRetryJoin")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "useExperimentalRetryJoin"
+    )]
     pub use_experimental_retry_join: Option<bool>,
     /// Users specifies extra users to add
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -129,14 +158,26 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfiguration {
     /// Servers should convert recognized schemas to the latest internal value, and
     /// may reject unrecognized values.
     /// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiVersion")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "apiVersion"
+    )]
     pub api_version: Option<String>,
     /// CertificatesDir specifies where to store or look for all required certificates.
     /// NB: if not provided, this will default to `/etc/kubernetes/pki`
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "certificatesDir")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "certificatesDir"
+    )]
     pub certificates_dir: Option<String>,
     /// The cluster name
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "clusterName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "clusterName"
+    )]
     pub cluster_name: Option<String>,
     /// ControlPlaneEndpoint sets a stable IP address or DNS name for the control plane; it
     /// can be a valid IP address or a RFC-1123 DNS subdomain, both with optional TCP port.
@@ -150,11 +191,20 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfiguration {
     /// e.g.  in environments with enforced node recycling, the ControlPlaneEndpoint
     /// could be used for assigning a stable DNS to the control plane.
     /// NB: This value defaults to the first value in the Cluster object status.apiEndpoints array.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "controlPlaneEndpoint")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "controlPlaneEndpoint"
+    )]
     pub control_plane_endpoint: Option<String>,
     /// ControllerManager contains extra settings for the controller manager control plane component
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "controllerManager")]
-    pub controller_manager: Option<KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManager>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "controllerManager"
+    )]
+    pub controller_manager:
+        Option<KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManager>,
     /// DNS defines the options for the DNS add-on installed in the cluster.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dns: Option<KubeadmConfigTemplateTemplateSpecClusterConfigurationDns>,
@@ -163,7 +213,11 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfiguration {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub etcd: Option<KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcd>,
     /// FeatureGates enabled by the user.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "featureGates")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "featureGates"
+    )]
     pub feature_gates: Option<BTreeMap<String, bool>>,
     /// ImageRepository sets the container registry to pull images from.
     /// * If not set, the default registry of kubeadm will be used, i.e.
@@ -176,7 +230,11 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfiguration {
     /// * If the version is a CI build (kubernetes version starts with `ci/` or `ci-cross/`)
     ///  `gcr.io/k8s-staging-ci-images` will be used as a default for control plane components
     ///   and for kube-proxy, while `registry.k8s.io` will be used for all the other images.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "imageRepository")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "imageRepository"
+    )]
     pub image_repository: Option<String>,
     /// Kind is a string value representing the REST resource this object represents.
     /// Servers may infer this from the endpoint the client submits requests to.
@@ -187,7 +245,11 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfiguration {
     pub kind: Option<String>,
     /// KubernetesVersion is the target version of the control plane.
     /// NB: This value defaults to the Machine object spec.version
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "kubernetesVersion")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "kubernetesVersion"
+    )]
     pub kubernetes_version: Option<String>,
     /// Networking holds configuration for the networking topology of the cluster.
     /// NB: This value defaults to the Cluster object spec.clusterNetwork.
@@ -213,12 +275,22 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServer {
     /// Environment variables passed using ExtraEnvs will override any existing environment variables, or *_proxy environment variables that kubeadm adds by default.
     /// This option takes effect only on Kubernetes >=1.31.0.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "extraEnvs")]
-    pub extra_envs: Option<Vec<KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEnvs>>,
+    pub extra_envs:
+        Option<Vec<KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEnvs>>,
     /// ExtraVolumes is an extra set of host volumes, mounted to the control plane component.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "extraVolumes")]
-    pub extra_volumes: Option<Vec<KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraVolumes>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "extraVolumes"
+    )]
+    pub extra_volumes:
+        Option<Vec<KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraVolumes>>,
     /// TimeoutForControlPlane controls the timeout that we use for API server to appear
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "timeoutForControlPlane")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "timeoutForControlPlane"
+    )]
     pub timeout_for_control_plane: Option<String>,
 }
 
@@ -240,7 +312,8 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEn
     pub value: Option<String>,
     /// Source for the environment variable's value. Cannot be used if value is not empty.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "valueFrom")]
-    pub value_from: Option<KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEnvsValueFrom>,
+    pub value_from:
+        Option<KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEnvsValueFrom>,
 }
 
 /// Source for the environment variable's value. Cannot be used if value is not empty.
@@ -264,7 +337,8 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEn
 
 /// Selects a key of a ConfigMap.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEnvsValueFromConfigMapKeyRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEnvsValueFromConfigMapKeyRef
+{
     /// The key to select.
     pub key: String,
     /// Name of the referent.
@@ -284,9 +358,14 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEn
 /// Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
 /// spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEnvsValueFromFieldRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEnvsValueFromFieldRef
+{
     /// Version of the schema the FieldPath is written in terms of, defaults to "v1".
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiVersion")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "apiVersion"
+    )]
     pub api_version: Option<String>,
     /// Path of the field to select in the specified API version.
     #[serde(rename = "fieldPath")]
@@ -296,9 +375,14 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEn
 /// Selects a resource of the container: only resources limits and requests
 /// (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEnvsValueFromResourceFieldRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEnvsValueFromResourceFieldRef
+{
     /// Container name: required for volumes, optional for env vars
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "containerName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "containerName"
+    )]
     pub container_name: Option<String>,
     /// Specifies the output format of the exposed resources, defaults to "1"
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -309,7 +393,8 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEn
 
 /// Selects a key of a secret in the pod's namespace
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEnvsValueFromSecretKeyRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationApiServerExtraEnvsValueFromSecretKeyRef
+{
     /// The key of the secret to select from.  Must be a valid secret key.
     pub key: String,
     /// Name of the referent.
@@ -359,10 +444,18 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManage
     /// Environment variables passed using ExtraEnvs will override any existing environment variables, or *_proxy environment variables that kubeadm adds by default.
     /// This option takes effect only on Kubernetes >=1.31.0.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "extraEnvs")]
-    pub extra_envs: Option<Vec<KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManagerExtraEnvs>>,
+    pub extra_envs: Option<
+        Vec<KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManagerExtraEnvs>,
+    >,
     /// ExtraVolumes is an extra set of host volumes, mounted to the control plane component.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "extraVolumes")]
-    pub extra_volumes: Option<Vec<KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManagerExtraVolumes>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "extraVolumes"
+    )]
+    pub extra_volumes: Option<
+        Vec<KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManagerExtraVolumes>,
+    >,
 }
 
 /// EnvVar represents an environment variable present in a Container.
@@ -383,7 +476,9 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManage
     pub value: Option<String>,
     /// Source for the environment variable's value. Cannot be used if value is not empty.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "valueFrom")]
-    pub value_from: Option<KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManagerExtraEnvsValueFrom>,
+    pub value_from: Option<
+        KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManagerExtraEnvsValueFrom,
+    >,
 }
 
 /// Source for the environment variable's value. Cannot be used if value is not empty.
@@ -407,7 +502,8 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManage
 
 /// Selects a key of a ConfigMap.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManagerExtraEnvsValueFromConfigMapKeyRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManagerExtraEnvsValueFromConfigMapKeyRef
+{
     /// The key to select.
     pub key: String,
     /// Name of the referent.
@@ -427,9 +523,14 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManage
 /// Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
 /// spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManagerExtraEnvsValueFromFieldRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManagerExtraEnvsValueFromFieldRef
+{
     /// Version of the schema the FieldPath is written in terms of, defaults to "v1".
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiVersion")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "apiVersion"
+    )]
     pub api_version: Option<String>,
     /// Path of the field to select in the specified API version.
     #[serde(rename = "fieldPath")]
@@ -439,9 +540,14 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManage
 /// Selects a resource of the container: only resources limits and requests
 /// (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManagerExtraEnvsValueFromResourceFieldRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManagerExtraEnvsValueFromResourceFieldRef
+{
     /// Container name: required for volumes, optional for env vars
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "containerName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "containerName"
+    )]
     pub container_name: Option<String>,
     /// Specifies the output format of the exposed resources, defaults to "1"
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -452,7 +558,8 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManage
 
 /// Selects a key of a secret in the pod's namespace
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManagerExtraEnvsValueFromSecretKeyRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManagerExtraEnvsValueFromSecretKeyRef
+{
     /// The key of the secret to select from.  Must be a valid secret key.
     pub key: String,
     /// Name of the referent.
@@ -495,7 +602,11 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationControllerManage
 pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationDns {
     /// ImageRepository sets the container registry to pull images from.
     /// if not set, the ImageRepository defined in ClusterConfiguration will be used instead.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "imageRepository")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "imageRepository"
+    )]
     pub image_repository: Option<String>,
     /// ImageTag allows to specify a tag for the image.
     /// In case this value is set, kubeadm does not change automatically the version of the above components during upgrades.
@@ -553,20 +664,33 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocal {
     /// Environment variables passed using ExtraEnvs will override any existing environment variables, or *_proxy environment variables that kubeadm adds by default.
     /// This option takes effect only on Kubernetes >=1.31.0.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "extraEnvs")]
-    pub extra_envs: Option<Vec<KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEnvs>>,
+    pub extra_envs:
+        Option<Vec<KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEnvs>>,
     /// ImageRepository sets the container registry to pull images from.
     /// if not set, the ImageRepository defined in ClusterConfiguration will be used instead.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "imageRepository")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "imageRepository"
+    )]
     pub image_repository: Option<String>,
     /// ImageTag allows to specify a tag for the image.
     /// In case this value is set, kubeadm does not change automatically the version of the above components during upgrades.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "imageTag")]
     pub image_tag: Option<String>,
     /// PeerCertSANs sets extra Subject Alternative Names for the etcd peer signing cert.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "peerCertSANs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "peerCertSANs"
+    )]
     pub peer_cert_sa_ns: Option<Vec<String>>,
     /// ServerCertSANs sets extra Subject Alternative Names for the etcd server signing cert.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "serverCertSANs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "serverCertSANs"
+    )]
     pub server_cert_sa_ns: Option<Vec<String>>,
 }
 
@@ -588,7 +712,8 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEn
     pub value: Option<String>,
     /// Source for the environment variable's value. Cannot be used if value is not empty.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "valueFrom")]
-    pub value_from: Option<KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEnvsValueFrom>,
+    pub value_from:
+        Option<KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEnvsValueFrom>,
 }
 
 /// Source for the environment variable's value. Cannot be used if value is not empty.
@@ -612,7 +737,8 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEn
 
 /// Selects a key of a ConfigMap.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEnvsValueFromConfigMapKeyRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEnvsValueFromConfigMapKeyRef
+{
     /// The key to select.
     pub key: String,
     /// Name of the referent.
@@ -632,9 +758,14 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEn
 /// Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
 /// spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEnvsValueFromFieldRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEnvsValueFromFieldRef
+{
     /// Version of the schema the FieldPath is written in terms of, defaults to "v1".
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiVersion")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "apiVersion"
+    )]
     pub api_version: Option<String>,
     /// Path of the field to select in the specified API version.
     #[serde(rename = "fieldPath")]
@@ -644,9 +775,14 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEn
 /// Selects a resource of the container: only resources limits and requests
 /// (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEnvsValueFromResourceFieldRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEnvsValueFromResourceFieldRef
+{
     /// Container name: required for volumes, optional for env vars
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "containerName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "containerName"
+    )]
     pub container_name: Option<String>,
     /// Specifies the output format of the exposed resources, defaults to "1"
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -657,7 +793,8 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEn
 
 /// Selects a key of a secret in the pod's namespace
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEnvsValueFromSecretKeyRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationEtcdLocalExtraEnvsValueFromSecretKeyRef
+{
     /// The key of the secret to select from.  Must be a valid secret key.
     pub key: String,
     /// Name of the referent.
@@ -689,7 +826,11 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationNetworking {
     /// ServiceSubnet is the subnet used by k8s services.
     /// Defaults to a comma-delimited string of the Cluster object's spec.clusterNetwork.pods.cidrBlocks, or
     /// to "10.96.0.0/12" if that's unset.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "serviceSubnet")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "serviceSubnet"
+    )]
     pub service_subnet: Option<String>,
 }
 
@@ -705,10 +846,16 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationScheduler {
     /// Environment variables passed using ExtraEnvs will override any existing environment variables, or *_proxy environment variables that kubeadm adds by default.
     /// This option takes effect only on Kubernetes >=1.31.0.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "extraEnvs")]
-    pub extra_envs: Option<Vec<KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEnvs>>,
+    pub extra_envs:
+        Option<Vec<KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEnvs>>,
     /// ExtraVolumes is an extra set of host volumes, mounted to the control plane component.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "extraVolumes")]
-    pub extra_volumes: Option<Vec<KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraVolumes>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "extraVolumes"
+    )]
+    pub extra_volumes:
+        Option<Vec<KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraVolumes>>,
 }
 
 /// EnvVar represents an environment variable present in a Container.
@@ -729,7 +876,8 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEn
     pub value: Option<String>,
     /// Source for the environment variable's value. Cannot be used if value is not empty.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "valueFrom")]
-    pub value_from: Option<KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEnvsValueFrom>,
+    pub value_from:
+        Option<KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEnvsValueFrom>,
 }
 
 /// Source for the environment variable's value. Cannot be used if value is not empty.
@@ -753,7 +901,8 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEn
 
 /// Selects a key of a ConfigMap.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEnvsValueFromConfigMapKeyRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEnvsValueFromConfigMapKeyRef
+{
     /// The key to select.
     pub key: String,
     /// Name of the referent.
@@ -773,9 +922,14 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEn
 /// Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
 /// spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEnvsValueFromFieldRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEnvsValueFromFieldRef
+{
     /// Version of the schema the FieldPath is written in terms of, defaults to "v1".
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiVersion")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "apiVersion"
+    )]
     pub api_version: Option<String>,
     /// Path of the field to select in the specified API version.
     #[serde(rename = "fieldPath")]
@@ -785,9 +939,14 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEn
 /// Selects a resource of the container: only resources limits and requests
 /// (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEnvsValueFromResourceFieldRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEnvsValueFromResourceFieldRef
+{
     /// Container name: required for volumes, optional for env vars
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "containerName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "containerName"
+    )]
     pub container_name: Option<String>,
     /// Specifies the output format of the exposed resources, defaults to "1"
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -798,7 +957,8 @@ pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEn
 
 /// Selects a key of a secret in the pod's namespace
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEnvsValueFromSecretKeyRef {
+pub struct KubeadmConfigTemplateTemplateSpecClusterConfigurationSchedulerExtraEnvsValueFromSecretKeyRef
+{
     /// The key of the secret to select from.  Must be a valid secret key.
     pub key: String,
     /// Name of the referent.
@@ -902,7 +1062,11 @@ pub struct KubeadmConfigTemplateTemplateSpecFiles {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
     /// ContentFrom is a referenced source of content to populate the file.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "contentFrom")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "contentFrom"
+    )]
     pub content_from: Option<KubeadmConfigTemplateTemplateSpecFilesContentFrom>,
     /// Encoding specifies the encoding of the file contents.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -958,8 +1122,13 @@ pub enum KubeadmConfigTemplateTemplateSpecFormat {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct KubeadmConfigTemplateTemplateSpecIgnition {
     /// ContainerLinuxConfig contains CLC specific configuration.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "containerLinuxConfig")]
-    pub container_linux_config: Option<KubeadmConfigTemplateTemplateSpecIgnitionContainerLinuxConfig>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "containerLinuxConfig"
+    )]
+    pub container_linux_config:
+        Option<KubeadmConfigTemplateTemplateSpecIgnitionContainerLinuxConfig>,
 }
 
 /// ContainerLinuxConfig contains CLC specific configuration.
@@ -970,7 +1139,11 @@ pub struct KubeadmConfigTemplateTemplateSpecIgnitionContainerLinuxConfig {
     ///
     ///
     /// The data format is documented here: https://kinvolk.io/docs/flatcar-container-linux/latest/provisioning/cl-config/
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "additionalConfig")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "additionalConfig"
+    )]
     pub additional_config: Option<String>,
     /// Strict controls if AdditionalConfig should be strictly parsed. If so, warnings are treated as errors.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -984,12 +1157,21 @@ pub struct KubeadmConfigTemplateTemplateSpecInitConfiguration {
     /// Servers should convert recognized schemas to the latest internal value, and
     /// may reject unrecognized values.
     /// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiVersion")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "apiVersion"
+    )]
     pub api_version: Option<String>,
     /// BootstrapTokens is respected at `kubeadm init` time and describes a set of Bootstrap Tokens to create.
     /// This information IS NOT uploaded to the kubeadm cluster configmap, partly because of its sensitive nature
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "bootstrapTokens")]
-    pub bootstrap_tokens: Option<Vec<KubeadmConfigTemplateTemplateSpecInitConfigurationBootstrapTokens>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "bootstrapTokens"
+    )]
+    pub bootstrap_tokens:
+        Option<Vec<KubeadmConfigTemplateTemplateSpecInitConfigurationBootstrapTokens>>,
     /// Kind is a string value representing the REST resource this object represents.
     /// Servers may infer this from the endpoint the client submits requests to.
     /// Cannot be updated.
@@ -1003,13 +1185,23 @@ pub struct KubeadmConfigTemplateTemplateSpecInitConfiguration {
     /// configuration object lets you customize what IP/DNS name and port the local API server advertises it's accessible
     /// on. By default, kubeadm tries to auto-detect the IP of the default interface and use that, but in case that process
     /// fails you may set the desired value here.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "localAPIEndpoint")]
-    pub local_api_endpoint: Option<KubeadmConfigTemplateTemplateSpecInitConfigurationLocalApiEndpoint>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "localAPIEndpoint"
+    )]
+    pub local_api_endpoint:
+        Option<KubeadmConfigTemplateTemplateSpecInitConfigurationLocalApiEndpoint>,
     /// NodeRegistration holds fields that relate to registering the new control-plane node to the cluster.
     /// When used in the context of control plane nodes, NodeRegistration should remain consistent
     /// across both InitConfiguration and JoinConfiguration
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "nodeRegistration")]
-    pub node_registration: Option<KubeadmConfigTemplateTemplateSpecInitConfigurationNodeRegistration>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "nodeRegistration"
+    )]
+    pub node_registration:
+        Option<KubeadmConfigTemplateTemplateSpecInitConfigurationNodeRegistration>,
     /// Patches contains options related to applying patches to components deployed by kubeadm during
     /// "kubeadm init". The minimum kubernetes version needed to support Patches is v1.22
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1017,7 +1209,11 @@ pub struct KubeadmConfigTemplateTemplateSpecInitConfiguration {
     /// SkipPhases is a list of phases to skip during command execution.
     /// The list of phases can be obtained with the "kubeadm init --help" command.
     /// This option takes effect only on Kubernetes >=1.22.0.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "skipPhases")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "skipPhases"
+    )]
     pub skip_phases: Option<Vec<String>>,
 }
 
@@ -1058,7 +1254,11 @@ pub struct KubeadmConfigTemplateTemplateSpecInitConfigurationBootstrapTokens {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct KubeadmConfigTemplateTemplateSpecInitConfigurationLocalApiEndpoint {
     /// AdvertiseAddress sets the IP address for the API server to advertise.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "advertiseAddress")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "advertiseAddress"
+    )]
     pub advertise_address: Option<String>,
     /// BindPort sets the secure port for the API Server to bind to.
     /// Defaults to 6443.
@@ -1075,24 +1275,41 @@ pub struct KubeadmConfigTemplateTemplateSpecInitConfigurationNodeRegistration {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "criSocket")]
     pub cri_socket: Option<String>,
     /// IgnorePreflightErrors provides a slice of pre-flight errors to be ignored when the current node is registered.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ignorePreflightErrors")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ignorePreflightErrors"
+    )]
     pub ignore_preflight_errors: Option<Vec<String>>,
     /// ImagePullPolicy specifies the policy for image pulling
     /// during kubeadm "init" and "join" operations. The value of
     /// this field must be one of "Always", "IfNotPresent" or
     /// "Never". Defaults to "IfNotPresent". This can be used only
     /// with Kubernetes version equal to 1.22 and later.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "imagePullPolicy")]
-    pub image_pull_policy: Option<KubeadmConfigTemplateTemplateSpecInitConfigurationNodeRegistrationImagePullPolicy>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "imagePullPolicy"
+    )]
+    pub image_pull_policy:
+        Option<KubeadmConfigTemplateTemplateSpecInitConfigurationNodeRegistrationImagePullPolicy>,
     /// ImagePullSerial specifies if image pulling performed by kubeadm must be done serially or in parallel.
     /// This option takes effect only on Kubernetes >=1.31.0.
     /// Default: true (defaulted in kubeadm)
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "imagePullSerial")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "imagePullSerial"
+    )]
     pub image_pull_serial: Option<bool>,
     /// KubeletExtraArgs passes through extra arguments to the kubelet. The arguments here are passed to the kubelet command line via the environment file
     /// kubeadm writes at runtime for the kubelet to source. This overrides the generic base-level configuration in the kubelet-config-1.X ConfigMap
     /// Flags have higher priority when parsing. These values are local and specific to the node kubeadm is executing on.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "kubeletExtraArgs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "kubeletExtraArgs"
+    )]
     pub kubelet_extra_args: Option<BTreeMap<String, String>>,
     /// Name is the `.Metadata.Name` field of the Node API object that will be created in this `kubeadm init` or `kubeadm join` operation.
     /// This field is also used in the CommonName field of the kubelet's client certificate to the API server.
@@ -1103,7 +1320,8 @@ pub struct KubeadmConfigTemplateTemplateSpecInitConfigurationNodeRegistration {
     /// it will be defaulted to []v1.Taint{'node-role.kubernetes.io/master=""'}. If you don't want to taint your control-plane node, set this field to an
     /// empty slice, i.e. `taints: []` in the YAML file. This field is solely used for Node registration.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub taints: Option<Vec<KubeadmConfigTemplateTemplateSpecInitConfigurationNodeRegistrationTaints>>,
+    pub taints:
+        Option<Vec<KubeadmConfigTemplateTemplateSpecInitConfigurationNodeRegistrationTaints>>,
 }
 
 /// NodeRegistration holds fields that relate to registering the new control-plane node to the cluster.
@@ -1160,17 +1378,29 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfiguration {
     /// Servers should convert recognized schemas to the latest internal value, and
     /// may reject unrecognized values.
     /// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiVersion")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "apiVersion"
+    )]
     pub api_version: Option<String>,
     /// CACertPath is the path to the SSL certificate authority used to
     /// secure comunications between node and control-plane.
     /// Defaults to "/etc/kubernetes/pki/ca.crt".
     /// TODO: revisit when there is defaulting from k/k
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "caCertPath")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "caCertPath"
+    )]
     pub ca_cert_path: Option<String>,
     /// ControlPlane defines the additional control plane instance to be deployed on the joining node.
     /// If nil, no additional control plane instance will be deployed.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "controlPlane")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "controlPlane"
+    )]
     pub control_plane: Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationControlPlane>,
     /// Discovery specifies the options for the kubelet to use during the TLS Bootstrap process
     /// TODO: revisit when there is defaulting from k/k
@@ -1186,8 +1416,13 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfiguration {
     /// NodeRegistration holds fields that relate to registering the new control-plane node to the cluster.
     /// When used in the context of control plane nodes, NodeRegistration should remain consistent
     /// across both InitConfiguration and JoinConfiguration
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "nodeRegistration")]
-    pub node_registration: Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistration>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "nodeRegistration"
+    )]
+    pub node_registration:
+        Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistration>,
     /// Patches contains options related to applying patches to components deployed by kubeadm during
     /// "kubeadm join". The minimum kubernetes version needed to support Patches is v1.22
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1195,7 +1430,11 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfiguration {
     /// SkipPhases is a list of phases to skip during command execution.
     /// The list of phases can be obtained with the "kubeadm init --help" command.
     /// This option takes effect only on Kubernetes >=1.22.0.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "skipPhases")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "skipPhases"
+    )]
     pub skip_phases: Option<Vec<String>>,
 }
 
@@ -1204,15 +1443,24 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfiguration {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationControlPlane {
     /// LocalAPIEndpoint represents the endpoint of the API server instance to be deployed on this node.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "localAPIEndpoint")]
-    pub local_api_endpoint: Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationControlPlaneLocalApiEndpoint>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "localAPIEndpoint"
+    )]
+    pub local_api_endpoint:
+        Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationControlPlaneLocalApiEndpoint>,
 }
 
 /// LocalAPIEndpoint represents the endpoint of the API server instance to be deployed on this node.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationControlPlaneLocalApiEndpoint {
     /// AdvertiseAddress sets the IP address for the API server to advertise.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "advertiseAddress")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "advertiseAddress"
+    )]
     pub advertise_address: Option<String>,
     /// BindPort sets the secure port for the API Server to bind to.
     /// Defaults to 6443.
@@ -1226,8 +1474,13 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationControlPlaneLocalAp
 pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscovery {
     /// BootstrapToken is used to set the options for bootstrap token based discovery
     /// BootstrapToken and File are mutually exclusive
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "bootstrapToken")]
-    pub bootstrap_token: Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryBootstrapToken>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "bootstrapToken"
+    )]
+    pub bootstrap_token:
+        Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryBootstrapToken>,
     /// File is used to specify a file or URL to a kubeconfig file from which to load cluster information
     /// BootstrapToken and File are mutually exclusive
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1238,7 +1491,11 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscovery {
     /// TLSBootstrapToken is a token used for TLS bootstrapping.
     /// If .BootstrapToken is set, this field is defaulted to .BootstrapToken.Token, but can be overridden.
     /// If .File is set, this field **must be set** in case the KubeConfigFile does not contain any other authentication information
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "tlsBootstrapToken")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "tlsBootstrapToken"
+    )]
     pub tls_bootstrap_token: Option<String>,
 }
 
@@ -1247,7 +1504,11 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscovery {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryBootstrapToken {
     /// APIServerEndpoint is an IP or domain name to the API server from which info will be fetched.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiServerEndpoint")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "apiServerEndpoint"
+    )]
     pub api_server_endpoint: Option<String>,
     /// CACertHashes specifies a set of public key pins to verify
     /// when token-based discovery is used. The root CA found during discovery
@@ -1257,7 +1518,11 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryBootstrapT
     /// SHA-256 hash of the Subject Public Key Info (SPKI) object in DER-encoded
     /// ASN.1. These hashes can be calculated using, for example, OpenSSL:
     /// openssl x509 -pubkey -in ca.crt openssl rsa -pubin -outform der 2>&/dev/null | openssl dgst -sha256 -hex
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "caCertHashes")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "caCertHashes"
+    )]
     pub ca_cert_hashes: Option<Vec<String>>,
     /// Token is a token used to validate cluster information
     /// fetched from the control-plane.
@@ -1265,7 +1530,11 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryBootstrapT
     /// UnsafeSkipCAVerification allows token-based discovery
     /// without CA verification via CACertHashes. This can weaken
     /// the security of kubeadm since other nodes can impersonate the control-plane.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "unsafeSkipCAVerification")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "unsafeSkipCAVerification"
+    )]
     pub unsafe_skip_ca_verification: Option<bool>,
 }
 
@@ -1279,8 +1548,13 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFile {
     ///
     /// Host address (server field) information is automatically populated based on the Cluster's ControlPlaneEndpoint.
     /// Certificate Authority (certificate-authority-data field) is gathered from the cluster's CA secret.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "kubeConfig")]
-    pub kube_config: Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeConfig>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "kubeConfig"
+    )]
+    pub kube_config:
+        Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeConfig>,
     /// KubeConfigPath is used to specify the actual file path or URL to the kubeconfig file from which to load cluster information
     #[serde(rename = "kubeConfigPath")]
     pub kube_config_path: String,
@@ -1301,7 +1575,8 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeCo
     /// - Server with the Cluster's ControlPlaneEndpoint.
     /// - CertificateAuthorityData with the Cluster's CA certificate.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cluster: Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeConfigCluster>,
+    pub cluster:
+        Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeConfigCluster>,
     /// User contains information that describes identity information.
     /// This is used to tell the kubernetes cluster who you are.
     pub user: KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeConfigUser,
@@ -1319,10 +1594,18 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeCo
     ///
     ///
     /// Defaults to the Cluster's CA certificate if empty.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "certificateAuthorityData")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "certificateAuthorityData"
+    )]
     pub certificate_authority_data: Option<String>,
     /// InsecureSkipTLSVerify skips the validity check for the server's certificate. This will make your HTTPS connections insecure.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipTLSVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipTLSVerify"
+    )]
     pub insecure_skip_tls_verify: Option<bool>,
     /// ProxyURL is the URL to the proxy to be used for all requests made by this
     /// client. URLs with "http", "https", and "socks5" schemes are supported.  If
@@ -1343,7 +1626,11 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeCo
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub server: Option<String>,
     /// TLSServerName is used to check server certificate. If TLSServerName is empty, the hostname used to contact the server is used.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "tlsServerName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "tlsServerName"
+    )]
     pub tls_server_name: Option<String>,
 }
 
@@ -1352,16 +1639,24 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeCo
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeConfigUser {
     /// AuthProvider specifies a custom authentication plugin for the kubernetes cluster.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "authProvider")]
-    pub auth_provider: Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeConfigUserAuthProvider>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "authProvider"
+    )]
+    pub auth_provider: Option<
+        KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeConfigUserAuthProvider,
+    >,
     /// Exec specifies a custom exec-based authentication plugin for the kubernetes cluster.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub exec: Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeConfigUserExec>,
+    pub exec:
+        Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeConfigUserExec>,
 }
 
 /// AuthProvider specifies a custom authentication plugin for the kubernetes cluster.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeConfigUserAuthProvider {
+pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeConfigUserAuthProvider
+{
     /// Config holds the parameters for the authentication plugin.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub config: Option<BTreeMap<String, String>>,
@@ -1375,7 +1670,11 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeCo
     /// Preferred input version of the ExecInfo. The returned ExecCredentials MUST use
     /// the same encoding version as the input.
     /// Defaults to client.authentication.k8s.io/v1 if not set.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiVersion")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "apiVersion"
+    )]
     pub api_version: Option<String>,
     /// Arguments to pass to the command when executing it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1386,13 +1685,19 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeCo
     /// are unioned with the host's environment, as well as variables client-go uses
     /// to pass argument to the plugin.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub env: Option<Vec<KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeConfigUserExecEnv>>,
+    pub env: Option<
+        Vec<KubeadmConfigTemplateTemplateSpecJoinConfigurationDiscoveryFileKubeConfigUserExecEnv>,
+    >,
     /// ProvideClusterInfo determines whether or not to provide cluster information,
     /// which could potentially contain very large CA data, to this exec plugin as a
     /// part of the KUBERNETES_EXEC_INFO environment variable. By default, it is set
     /// to false. Package k8s.io/client-go/tools/auth/exec provides helper methods for
     /// reading this environment variable.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "provideClusterInfo")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "provideClusterInfo"
+    )]
     pub provide_cluster_info: Option<bool>,
 }
 
@@ -1413,24 +1718,41 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistration {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "criSocket")]
     pub cri_socket: Option<String>,
     /// IgnorePreflightErrors provides a slice of pre-flight errors to be ignored when the current node is registered.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ignorePreflightErrors")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ignorePreflightErrors"
+    )]
     pub ignore_preflight_errors: Option<Vec<String>>,
     /// ImagePullPolicy specifies the policy for image pulling
     /// during kubeadm "init" and "join" operations. The value of
     /// this field must be one of "Always", "IfNotPresent" or
     /// "Never". Defaults to "IfNotPresent". This can be used only
     /// with Kubernetes version equal to 1.22 and later.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "imagePullPolicy")]
-    pub image_pull_policy: Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistrationImagePullPolicy>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "imagePullPolicy"
+    )]
+    pub image_pull_policy:
+        Option<KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistrationImagePullPolicy>,
     /// ImagePullSerial specifies if image pulling performed by kubeadm must be done serially or in parallel.
     /// This option takes effect only on Kubernetes >=1.31.0.
     /// Default: true (defaulted in kubeadm)
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "imagePullSerial")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "imagePullSerial"
+    )]
     pub image_pull_serial: Option<bool>,
     /// KubeletExtraArgs passes through extra arguments to the kubelet. The arguments here are passed to the kubelet command line via the environment file
     /// kubeadm writes at runtime for the kubelet to source. This overrides the generic base-level configuration in the kubelet-config-1.X ConfigMap
     /// Flags have higher priority when parsing. These values are local and specific to the node kubeadm is executing on.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "kubeletExtraArgs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "kubeletExtraArgs"
+    )]
     pub kubelet_extra_args: Option<BTreeMap<String, String>>,
     /// Name is the `.Metadata.Name` field of the Node API object that will be created in this `kubeadm init` or `kubeadm join` operation.
     /// This field is also used in the CommonName field of the kubelet's client certificate to the API server.
@@ -1441,7 +1763,8 @@ pub struct KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistration {
     /// it will be defaulted to []v1.Taint{'node-role.kubernetes.io/master=""'}. If you don't want to taint your control-plane node, set this field to an
     /// empty slice, i.e. `taints: []` in the YAML file. This field is solely used for Node registration.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub taints: Option<Vec<KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistrationTaints>>,
+    pub taints:
+        Option<Vec<KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistrationTaints>>,
 }
 
 /// NodeRegistration holds fields that relate to registering the new control-plane node to the cluster.
@@ -1518,7 +1841,11 @@ pub struct KubeadmConfigTemplateTemplateSpecUsers {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inactive: Option<bool>,
     /// LockPassword specifies if password login should be disabled
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "lockPassword")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "lockPassword"
+    )]
     pub lock_password: Option<bool>,
     /// Name specifies the user name
     pub name: String,
@@ -1526,16 +1853,28 @@ pub struct KubeadmConfigTemplateTemplateSpecUsers {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub passwd: Option<String>,
     /// PasswdFrom is a referenced source of passwd to populate the passwd.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "passwdFrom")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "passwdFrom"
+    )]
     pub passwd_from: Option<KubeadmConfigTemplateTemplateSpecUsersPasswdFrom>,
     /// PrimaryGroup specifies the primary group for the user
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "primaryGroup")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "primaryGroup"
+    )]
     pub primary_group: Option<String>,
     /// Shell specifies the user's shell
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shell: Option<String>,
     /// SSHAuthorizedKeys specifies a list of ssh authorized keys for the user
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "sshAuthorizedKeys")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "sshAuthorizedKeys"
+    )]
     pub ssh_authorized_keys: Option<Vec<String>>,
     /// Sudo specifies a sudo role for the user
     #[serde(default, skip_serializing_if = "Option::is_none")]

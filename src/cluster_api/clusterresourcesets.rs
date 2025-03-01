@@ -4,21 +4,26 @@
 
 #[allow(unused_imports)]
 mod prelude {
+    pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;
     pub use kube::CustomResource;
     pub use schemars::JsonSchema;
-    pub use serde::{Serialize, Deserialize};
+    pub use serde::{Deserialize, Serialize};
     pub use std::collections::BTreeMap;
-    pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;
 }
 use self::prelude::*;
 
 /// ClusterResourceSetSpec defines the desired state of ClusterResourceSet.
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-#[kube(group = "addons.cluster.x-k8s.io", version = "v1beta1", kind = "ClusterResourceSet", plural = "clusterresourcesets")]
+#[kube(
+    group = "addons.cluster.x-k8s.io",
+    version = "v1beta1",
+    kind = "ClusterResourceSet",
+    plural = "clusterresourcesets"
+)]
 #[kube(namespaced)]
 #[kube(status = "ClusterResourceSetStatus")]
-#[kube(derive="Default")]
-#[kube(derive="PartialEq")]
+#[kube(derive = "Default")]
+#[kube(derive = "PartialEq")]
 pub struct ClusterResourceSetSpec {
     /// Label selector for Clusters. The Clusters that are
     /// selected by this will be the ones affected by this ClusterResourceSet.
@@ -41,12 +46,20 @@ pub struct ClusterResourceSetSpec {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct ClusterResourceSetClusterSelector {
     /// matchExpressions is a list of label selector requirements. The requirements are ANDed.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "matchExpressions")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "matchExpressions"
+    )]
     pub match_expressions: Option<Vec<ClusterResourceSetClusterSelectorMatchExpressions>>,
     /// matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
     /// map is equivalent to an element of matchExpressions, whose key field is "key", the
     /// operator is "In", and the values array contains only "value". The requirements are ANDed.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "matchLabels")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "matchLabels"
+    )]
     pub match_labels: Option<BTreeMap<String, String>>,
 }
 
@@ -80,7 +93,8 @@ pub struct ClusterResourceSetResources {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub enum ClusterResourceSetResourcesKind {
     Secret,
-    #[default] ConfigMap,
+    #[default]
+    ConfigMap,
 }
 
 /// ClusterResourceSetSpec defines the desired state of ClusterResourceSet.
@@ -97,6 +111,10 @@ pub struct ClusterResourceSetStatus {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub conditions: Option<Vec<Condition>>,
     /// ObservedGeneration reflects the generation of the most recently observed ClusterResourceSet.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "observedGeneration")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "observedGeneration"
+    )]
     pub observed_generation: Option<i64>,
 }

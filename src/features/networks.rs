@@ -155,7 +155,7 @@ mod tests {
     use super::*;
     use crate::{
         cluster_api::openstackclustertemplates::OpenStackClusterTemplateTemplateSpecManagedSubnets,
-        features::test::{default_values, TestClusterResources}
+        features::test::{default_values, TestClusterResources},
     };
     use pretty_assertions::assert_eq;
 

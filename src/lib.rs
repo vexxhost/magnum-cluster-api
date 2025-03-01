@@ -1,8 +1,8 @@
-mod builder;
 mod client;
 mod cluster_api;
 mod features;
 mod models;
+mod resources;
 
 use pyo3::{prelude::*, Bound};
 

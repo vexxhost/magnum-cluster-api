@@ -104,7 +104,7 @@ mod tests {
             OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalPropertiesValue,
             OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalPropertiesValueType,
         },
-        features::test::{default_values, TestClusterResources}
+        features::test::{default_values, TestClusterResources},
     };
     use pretty_assertions::assert_eq;
 

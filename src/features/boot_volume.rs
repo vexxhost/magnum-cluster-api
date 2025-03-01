@@ -92,7 +92,10 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.boot_volume = BootVolumeConfig::builder().r#type("ssd".into()).size(10).build();
+        values.boot_volume = BootVolumeConfig::builder()
+            .r#type("ssd".into())
+            .size(10)
+            .build();
 
         let patches = feature.patches();
 
@@ -133,7 +136,10 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.boot_volume = BootVolumeConfig::builder().r#type("ssd".into()).size(0).build();
+        values.boot_volume = BootVolumeConfig::builder()
+            .r#type("ssd".into())
+            .size(0)
+            .build();
 
         let patches = feature.patches();
 

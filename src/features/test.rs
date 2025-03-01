@@ -1,5 +1,4 @@
 use crate::{
-    builder::Values,
     cluster_api::{
         clusterclasses::{
             ClusterClassPatches, ClusterClassPatchesDefinitionsJsonPatches,
@@ -15,6 +14,7 @@ use crate::{
         KUBEADM_CONFIG_TEMPLATE, KUBEADM_CONTROL_PLANE_TEMPLATE, OPENSTACK_CLUSTER_TEMPLATE,
         OPENSTACK_MACHINE_TEMPLATE,
     },
+    resources::Values,
 };
 use base64::prelude::*;
 use indoc::indoc;

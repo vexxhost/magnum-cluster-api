@@ -194,7 +194,10 @@ mod tests {
             kcpt_ca_file.encoding,
             Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64)
         );
-        assert_eq!(kcpt_ca_file.content, Some(values.cloud_ca_certificate.clone()));
+        assert_eq!(
+            kcpt_ca_file.content,
+            Some(values.cloud_ca_certificate.clone())
+        );
 
         let kcpt_ccm_file = kcpt_files
             .iter()
@@ -232,7 +235,10 @@ mod tests {
             kct_ca_file.encoding,
             Some(KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64)
         );
-        assert_eq!(kct_ca_file.content, Some(values.cloud_ca_certificate.clone()));
+        assert_eq!(
+            kct_ca_file.content,
+            Some(values.cloud_ca_certificate.clone())
+        );
 
         let kct_ccm_file = kct_files
             .iter()

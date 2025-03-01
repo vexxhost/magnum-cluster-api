@@ -1,11 +1,11 @@
 use crate::{
-    builder::ClusterClassBuilder,
     client,
     cluster_api::clusterresourcesets::{
         ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
         ClusterResourceSetResourcesKind, ClusterResourceSetSpec,
     },
     features,
+    resources::ClusterClassBuilder,
 };
 use k8s_openapi::api::core::v1::Namespace;
 use kube::core::ObjectMeta;

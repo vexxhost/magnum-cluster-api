@@ -6,16 +6,21 @@
 mod prelude {
     pub use kube::CustomResource;
     pub use schemars::JsonSchema;
-    pub use serde::{Serialize, Deserialize};
+    pub use serde::{Deserialize, Serialize};
 }
 use self::prelude::*;
 
 /// OpenStackMachineTemplateSpec defines the desired state of OpenStackMachineTemplate.
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-#[kube(group = "infrastructure.cluster.x-k8s.io", version = "v1beta1", kind = "OpenStackMachineTemplate", plural = "openstackmachinetemplates")]
+#[kube(
+    group = "infrastructure.cluster.x-k8s.io",
+    version = "v1beta1",
+    kind = "OpenStackMachineTemplate",
+    plural = "openstackmachinetemplates"
+)]
 #[kube(namespaced)]
-#[kube(derive="Default")]
-#[kube(derive="PartialEq")]
+#[kube(derive = "Default")]
+#[kube(derive = "PartialEq")]
 pub struct OpenStackMachineTemplateSpec {
     /// OpenStackMachineTemplateResource describes the data needed to create a OpenStackMachine from a template.
     pub template: OpenStackMachineTemplateTemplate,
@@ -32,10 +37,19 @@ pub struct OpenStackMachineTemplateTemplate {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct OpenStackMachineTemplateTemplateSpec {
     /// AdditionalBlockDevices is a list of specifications for additional block devices to attach to the server instance
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "additionalBlockDevices")]
-    pub additional_block_devices: Option<Vec<OpenStackMachineTemplateTemplateSpecAdditionalBlockDevices>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "additionalBlockDevices"
+    )]
+    pub additional_block_devices:
+        Option<Vec<OpenStackMachineTemplateTemplateSpecAdditionalBlockDevices>>,
     /// Config Drive support
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "configDrive")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "configDrive"
+    )]
     pub config_drive: Option<bool>,
     /// The flavor reference for the flavor for your server instance.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -47,12 +61,20 @@ pub struct OpenStackMachineTemplateTemplateSpec {
     /// floatingIPPoolRef is a reference to a IPPool that will be assigned
     /// to an IPAddressClaim. Once the IPAddressClaim is fulfilled, the FloatingIP
     /// will be assigned to the OpenStackMachine.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "floatingIPPoolRef")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "floatingIPPoolRef"
+    )]
     pub floating_ip_pool_ref: Option<OpenStackMachineTemplateTemplateSpecFloatingIpPoolRef>,
     /// IdentityRef is a reference to a secret holding OpenStack credentials
     /// to be used when reconciling this machine. If not specified, the
     /// credentials specified in the cluster will be used.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "identityRef")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "identityRef"
+    )]
     pub identity_ref: Option<OpenStackMachineTemplateTemplateSpecIdentityRef>,
     /// The image to use for your server instance.
     /// If the rootVolume is specified, this will be used when creating the root volume.
@@ -62,27 +84,56 @@ pub struct OpenStackMachineTemplateTemplateSpec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ports: Option<Vec<OpenStackMachineTemplateTemplateSpecPorts>>,
     /// ProviderID is the unique identifier as specified by the cloud provider.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "providerID")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "providerID"
+    )]
     pub provider_id: Option<String>,
     /// The volume metadata to boot from
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "rootVolume")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "rootVolume"
+    )]
     pub root_volume: Option<OpenStackMachineTemplateTemplateSpecRootVolume>,
     /// SchedulerHintAdditionalProperties are arbitrary key/value pairs that provide additional hints
     /// to the OpenStack scheduler. These hints can influence how instances are placed on the infrastructure,
     /// such as specifying certain host aggregates or availability zones.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "schedulerHintAdditionalProperties")]
-    pub scheduler_hint_additional_properties: Option<Vec<OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalProperties>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "schedulerHintAdditionalProperties"
+    )]
+    pub scheduler_hint_additional_properties:
+        Option<Vec<OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalProperties>>,
     /// The names of the security groups to assign to the instance
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "securityGroups")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "securityGroups"
+    )]
     pub security_groups: Option<Vec<OpenStackMachineTemplateTemplateSpecSecurityGroups>>,
     /// The server group to assign the machine to.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "serverGroup")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "serverGroup"
+    )]
     pub server_group: Option<OpenStackMachineTemplateTemplateSpecServerGroup>,
     /// Metadata mapping. Allows you to create a map of key value pairs to add to the server instance.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "serverMetadata")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "serverMetadata"
+    )]
     pub server_metadata: Option<Vec<OpenStackMachineTemplateTemplateSpecServerMetadata>>,
     /// The ssh key to inject in the instance
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "sshKeyName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "sshKeyName"
+    )]
     pub ssh_key_name: Option<String>,
     /// Tags which will be added to the machine and all dependent resources
     /// which support them. These are in addition to Tags defined on the
@@ -133,8 +184,14 @@ pub struct OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolu
     /// AvailabilityZone is the volume availability zone to create the volume
     /// in. If not specified, the volume will be created without an explicit
     /// availability zone.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "availabilityZone")]
-    pub availability_zone: Option<OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZone>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "availabilityZone"
+    )]
+    pub availability_zone: Option<
+        OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZone,
+    >,
     /// Type is the Cinder volume type of the volume.
     /// If omitted, the default Cinder volume type that is configured in the OpenStack cloud
     /// will be used.
@@ -153,7 +210,9 @@ pub struct OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolu
     /// the volume will use the value of FailureDomain, if any, from the
     /// associated Machine.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub from: Option<OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZoneFrom>,
+    pub from: Option<
+        OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZoneFrom,
+    >,
     /// Name is the name of a volume availability zone to use. It is required
     /// if From is "Name". The volume availability zone name may not contain
     /// spaces.
@@ -165,7 +224,8 @@ pub struct OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolu
 /// in. If not specified, the volume will be created without an explicit
 /// availability zone.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub enum OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZoneFrom {
+pub enum OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZoneFrom
+{
     Name,
     Machine,
 }
@@ -247,21 +307,34 @@ pub struct OpenStackMachineTemplateTemplateSpecImageImageRef {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub struct OpenStackMachineTemplateTemplateSpecPorts {
     /// AdminStateUp specifies whether the port should be created in the up (true) or down (false) state. The default is up.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "adminStateUp")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "adminStateUp"
+    )]
     pub admin_state_up: Option<bool>,
     /// AllowedAddressPairs is a list of address pairs which Neutron will
     /// allow the port to send traffic from in addition to the port's
     /// addresses. If not specified, the MAC Address will be the MAC Address
     /// of the port. Depending on the configuration of Neutron, it may be
     /// supported to specify a CIDR instead of a specific IP address.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "allowedAddressPairs")]
-    pub allowed_address_pairs: Option<Vec<OpenStackMachineTemplateTemplateSpecPortsAllowedAddressPairs>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "allowedAddressPairs"
+    )]
+    pub allowed_address_pairs:
+        Option<Vec<OpenStackMachineTemplateTemplateSpecPortsAllowedAddressPairs>>,
     /// Description is a human-readable description for the port.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     /// DisablePortSecurity enables or disables the port security when set.
     /// When not set, it takes the value of the corresponding field at the network level.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "disablePortSecurity")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "disablePortSecurity"
+    )]
     pub disable_port_security: Option<bool>,
     /// FixedIPs is a list of pairs of subnet and/or IP address to assign to the port. If specified, these must be subnets of the port's network.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "fixedIPs")]
@@ -270,10 +343,18 @@ pub struct OpenStackMachineTemplateTemplateSpecPorts {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "hostID")]
     pub host_id: Option<String>,
     /// MACAddress specifies the MAC address of the port. If not specified, the MAC address will be generated.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "macAddress")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "macAddress"
+    )]
     pub mac_address: Option<String>,
     /// NameSuffix will be appended to the name of the port if specified. If unspecified, instead the 0-based index of the port in the list is used.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "nameSuffix")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "nameSuffix"
+    )]
     pub name_suffix: Option<String>,
     /// Network is a query for an openstack network that the port will be created or discovered on.
     /// This will fail if the query returns more than one network.
@@ -289,10 +370,18 @@ pub struct OpenStackMachineTemplateTemplateSpecPorts {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profile: Option<OpenStackMachineTemplateTemplateSpecPortsProfile>,
     /// PropageteUplinkStatus enables or disables the propagate uplink status on the port.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "propagateUplinkStatus")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "propagateUplinkStatus"
+    )]
     pub propagate_uplink_status: Option<bool>,
     /// SecurityGroups is a list of the names, uuids, filters or any combination these of the security groups to assign to the instance.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "securityGroups")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "securityGroups"
+    )]
     pub security_groups: Option<Vec<OpenStackMachineTemplateTemplateSpecPortsSecurityGroups>>,
     /// Tags applied to the port (and corresponding trunk, if a trunk is configured.)
     /// These tags are applied in addition to the instance's tags, which will also be applied to the port.
@@ -306,7 +395,11 @@ pub struct OpenStackMachineTemplateTemplateSpecPorts {
     /// Value specs are extra parameters to include in the API request with OpenStack.
     /// This is an extension point for the API, so what they do and if they are supported,
     /// depends on the specific OpenStack implementation.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "valueSpecs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "valueSpecs"
+    )]
     pub value_specs: Option<Vec<OpenStackMachineTemplateTemplateSpecPortsValueSpecs>>,
     /// VNICType specifies the type of vNIC which this port should be
     /// attached to. This is used to determine which mechanism driver(s) to
@@ -329,7 +422,11 @@ pub struct OpenStackMachineTemplateTemplateSpecPortsAllowedAddressPairs {
     pub ip_address: String,
     /// MACAddress is the MAC address of the allowed address pair. If not
     /// specified, the MAC address will be the MAC address of the port.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "macAddress")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "macAddress"
+    )]
     pub mac_address: Option<String>,
 }
 
@@ -370,9 +467,17 @@ pub struct OpenStackMachineTemplateTemplateSpecPortsFixedIPsSubnetFilter {
     pub gateway_ip: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipVersion")]
     pub ip_version: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipv6AddressMode")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ipv6AddressMode"
+    )]
     pub ipv6_address_mode: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ipv6RAMode")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ipv6RAMode"
+    )]
     pub ipv6_ra_mode: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -382,7 +487,11 @@ pub struct OpenStackMachineTemplateTemplateSpecPortsFixedIPsSubnetFilter {
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,
@@ -422,7 +531,11 @@ pub struct OpenStackMachineTemplateTemplateSpecPortsNetworkFilter {
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,
@@ -449,7 +562,11 @@ pub struct OpenStackMachineTemplateTemplateSpecPortsProfile {
     /// OVSHWOffload enables or disables the OVS hardware offload feature.
     /// This flag is not required on OpenStack clouds since Yoga as Nova will set it automatically when the port is attached.
     /// See: https://bugs.launchpad.net/nova/+bug/2020813
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ovsHWOffload")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ovsHWOffload"
+    )]
     pub ovs_hw_offload: Option<bool>,
     /// TrustedVF enables or disables the “trusted mode” for the VF.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "trustedVF")]
@@ -480,7 +597,11 @@ pub struct OpenStackMachineTemplateTemplateSpecPortsSecurityGroupsFilter {
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,
@@ -513,7 +634,11 @@ pub struct OpenStackMachineTemplateTemplateSpecRootVolume {
     /// AvailabilityZone is the volume availability zone to create the volume
     /// in. If not specified, the volume will be created without an explicit
     /// availability zone.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "availabilityZone")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "availabilityZone"
+    )]
     pub availability_zone: Option<OpenStackMachineTemplateTemplateSpecRootVolumeAvailabilityZone>,
     /// SizeGiB is the size of the block device in gibibytes (GiB).
     #[serde(rename = "sizeGiB")]
@@ -592,7 +717,8 @@ pub struct OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalProperties
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, JsonSchema)]
 pub enum OpenStackMachineTemplateTemplateSpecSchedulerHintAdditionalPropertiesValueType {
     Bool,
-    #[default] String,
+    #[default]
+    String,
     Number,
 }
 
@@ -620,7 +746,11 @@ pub struct OpenStackMachineTemplateTemplateSpecSecurityGroupsFilter {
     pub not_tags: Option<Vec<String>>,
     /// NotTagsAny is a list of tags to filter by. If specified, resources
     /// which contain any of the given tags will be excluded from the result.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "notTagsAny")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "notTagsAny"
+    )]
     pub not_tags_any: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "projectID")]
     pub project_id: Option<String>,
