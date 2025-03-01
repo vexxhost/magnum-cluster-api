@@ -23,14 +23,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let mut has_marker = false;
                 for attr in &item_struct.attrs {
                     if attr.path.is_ident("derive") {
-                        if let Ok(meta) = attr.parse_meta() {
-                            if let Meta::List(meta_list) = meta {
-                                for nested in meta_list.nested.iter() {
-                                    if let NestedMeta::Meta(Meta::Path(path)) = nested {
-                                        if let Some(ident) = path.get_ident() {
-                                            if ident == "ClusterFeatureValues" {
-                                                has_marker = true;
-                                            }
+                        if let Ok(Meta::List(meta_list)) = attr.parse_meta() {
+                            for nested in meta_list.nested.iter() {
+                                if let NestedMeta::Meta(Meta::Path(path)) = nested {
+                                    if let Some(ident) = path.get_ident() {
+                                        if ident == "ClusterFeatureValues" {
+                                            has_marker = true;
                                         }
                                     }
                                 }
@@ -53,14 +51,22 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                             let qualified_ty = match &field.ty {
                                 Type::Path(type_path) => {
-                                    let type_name = type_path.clone().into_token_stream().to_string();
-                                    if type_name == "String" || type_name == "i64" || type_name == "bool" || type_name == "Vec < String >" {
+                                    let type_name =
+                                        type_path.clone().into_token_stream().to_string();
+                                    if type_name == "String"
+                                        || type_name == "i64"
+                                        || type_name == "bool"
+                                        || type_name == "Vec < String >"
+                                    {
                                         quote! { #ty }
                                     } else {
-                                        println!("cargo-warning: {} is not a primitive type", type_name);
+                                        println!(
+                                            "cargo-warning: {} is not a primitive type",
+                                            type_name
+                                        );
                                         quote! { crate::features::#mod_ident::#ty }
                                     }
-                                },
+                                }
                                 _ => quote! { #field.ty },
                             };
 

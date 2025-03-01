@@ -160,7 +160,6 @@ impl ClusterClassBuilder {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use serde_json::json;
 
     #[test]
     fn test_default() {
@@ -182,8 +181,5 @@ mod tests {
         assert_eq!(cluster_class.spec.patches.is_some(), true);
         assert_eq!(cluster_class.spec.variables.is_some(), true);
         assert_eq!(cluster_class.spec.workers.is_some(), true);
-
-        println!("{}", json!(cluster_class.spec.variables));
-        assert_eq!(true, false);
     }
 }

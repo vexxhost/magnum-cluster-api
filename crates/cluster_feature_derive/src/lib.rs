@@ -29,14 +29,12 @@ pub fn derive_cluster_variable_values(input: TokenStream) -> TokenStream {
         let mut rename_value: Option<String> = None;
         for attr in &field.attrs {
             if attr.path.is_ident("serde") {
-                if let Ok(meta) = attr.parse_meta() {
-                    if let Meta::List(meta_list) = meta {
-                        for nested in meta_list.nested.iter() {
-                            if let NestedMeta::Meta(Meta::NameValue(nv)) = nested {
-                                if nv.path.is_ident("rename") {
-                                    if let Lit::Str(lit_str) = &nv.lit {
-                                        rename_value = Some(lit_str.value());
-                                    }
+                if let Ok(Meta::List(meta_list)) = attr.parse_meta() {
+                    for nested in meta_list.nested.iter() {
+                        if let NestedMeta::Meta(Meta::NameValue(nv)) = nested {
+                            if nv.path.is_ident("rename") {
+                                if let Lit::Str(lit_str) = &nv.lit {
+                                    rename_value = Some(lit_str.value());
                                 }
                             }
                         }
