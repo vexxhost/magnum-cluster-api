@@ -10,14 +10,10 @@ use crate::{
         openstackmachinetemplates::OpenStackMachineTemplate,
     },
     features::{
-        api_server_load_balancer, audit_log, boot_volume, openid_connect, operating_system,
         KUBEADM_CONFIG_TEMPLATE, KUBEADM_CONTROL_PLANE_TEMPLATE, OPENSTACK_CLUSTER_TEMPLATE,
         OPENSTACK_MACHINE_TEMPLATE,
     },
-    resources::Values,
 };
-use base64::prelude::*;
-use indoc::indoc;
 use json_patch::{patch, AddOperation, Patch, PatchOperation, RemoveOperation, ReplaceOperation};
 use jsonptr::PointerBuf;
 use kube::Resource;
@@ -318,116 +314,4 @@ impl TestClusterResources {
                 })
             });
     }
-}
-
-pub fn default_values() -> Values {
-    Values::builder()
-        .api_server_load_balancer(
-            api_server_load_balancer::APIServerLoadBalancerConfig::builder()
-                .enabled(true)
-                .provider("amphora".into())
-                .build(),
-        )
-        .audit_log(
-            audit_log::AuditLogConfig::builder()
-                .enabled(false)
-                .max_age("30".to_string())
-                .max_backup("10".to_string())
-                .max_size("100".to_string())
-                .build(),
-        )
-        .boot_volume(boot_volume::BootVolumeConfig::builder().r#type("nvme".into()).size(0).build())
-        .cloud_ca_certificate(
-            BASE64_STANDARD.encode(indoc!(
-                r#"
-                -----BEGIN CERTIFICATE-----
-                MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzZz5z5z5z5z5z5z5z5z
-                -----END CERTIFICATE-----
-                "#
-            )),
-        )
-        .cloud_controller_manager_config(
-            BASE64_STANDARD.encode(indoc!(
-                r#"
-                [Global]
-                auth-url=https://auth.vexxhost.net
-                region=sjc1
-                application-credential-id=foo
-                application-credential-secret=bar
-                tls-insecure=true
-                ca-file=/etc/config/ca.crt
-                [LoadBalancer]
-                lb-provider=amphora
-                lb-method=ROUND_ROBIN
-                create-monitor=true
-                "#,
-            ),
-        ))
-        .cluster_identity_ref_name("identity-ref-name".into())
-        .containerd_config(
-            BASE64_STANDARD.encode(indoc! {r#"
-                # Use config version 2 to enable new configuration fields.
-                # Config file is parsed as version 1 by default.
-                version = 2
-
-                imports = ["/etc/containerd/conf.d/*.toml"]
-
-                [plugins]
-                [plugins."io.containerd.grpc.v1.cri"]
-                    sandbox_image = "{sandbox_image}"
-                [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
-                    runtime_type = "io.containerd.runc.v2"
-                [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
-                    SystemdCgroup = true
-            "#})
-        )
-        .systemd_proxy_config(
-            BASE64_STANDARD.encode(indoc! {r#"
-                [Service]
-                Environment="http_proxy=http://proxy.internal:3128"
-                Environment="HTTP_PROXY=http://proxy.internal:3128"
-                Environment="https_proxy=https://proxy.internal:3129"
-                Environment="HTTPS_PROXY=https://proxy.internal:3129"
-                Environment="no_proxy=localhost,"
-                Environment="NO_PROXY=localhost,"
-            "#})
-        )
-        .control_plane_availability_zones(vec!["zone1".into(), "zone2".into()])
-        .disable_api_server_floating_ip(true)
-        .external_network_id("external-network-id".into())
-        .control_plane_flavor("control-plane".into())
-        .flavor("worker".into())
-        .image_repository("registry.example.com/cluster-api".into())
-        .image_uuid("bar".into())
-        .enable_keystone_auth(true)
-        .node_cidr("10.0.0.0/24".into())
-        .dns_nameservers(vec!["1.1.1.1".into()])
-        .fixed_network_id("".into())
-        .fixed_subnet_id("".into())
-        .openid_connect(
-            openid_connect::OpenIdConnectConfig::builder()
-                .issuer_url("https://example.com".to_string())
-                .client_id("client-id".to_string())
-                .username_claim("email".to_string())
-                .username_prefix("email:".to_string())
-                .groups_claim("groups".to_string())
-                .groups_prefix("groups:".to_string())
-                .build(),
-        )
-        .operating_system(operating_system::OperatingSystem::Ubuntu)
-        .apt_proxy_config("bar".into())
-        .server_group_id("server-group-1".into())
-        .is_server_group_diff_failure_domain(true)
-        .ssh_key_name("my-key".into())
-        .api_server_tls_cipher_suites("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305".into())
-        .api_server_sans("".into())
-        .kubelet_tls_cipher_suites("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305".into())
-        .enable_docker_volume(false)
-        .docker_volume_size(0)
-        .docker_volume_type("".into())
-        .enable_etcd_volume(false)
-        .etcd_volume_size(0)
-        .etcd_volume_type("".into())
-        .availability_zone("az1".into())
-        .build()
 }

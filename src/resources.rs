@@ -14,6 +14,7 @@ use crate::{
             ClusterClassWorkersMachineDeploymentsTemplateBootstrap,
             ClusterClassWorkersMachineDeploymentsTemplateInfrastructure,
         },
+        clusters::ClusterTopologyVariables,
         kubeadmconfigtemplates::KubeadmConfigTemplate,
         kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate,
         openstackclustertemplates::OpenStackClusterTemplate,
@@ -152,6 +153,26 @@ impl ClusterClassBuilder {
     }
 }
 
+impl Into<Vec<ClusterTopologyVariables>> for Values {
+    fn into(self) -> Vec<ClusterTopologyVariables> {
+        let json_values = serde_json::to_value(self).expect("Failed to serialize values");
+
+        if let serde_json::Value::Object(map) = json_values {
+            // For each (key, value) pair in the map,
+            // create a ClusterTopologyVariables instance.
+            map.into_iter()
+                .map(|(key, value)| ClusterTopologyVariables {
+                    name: key,
+                    value,
+                    ..Default::default()
+                })
+                .collect()
+        } else {
+            panic!("Expected Values to serialize to a JSON object");
+        }
+    }
+}
+
 #[cfg(test)]
 pub mod fixtures {
     use super::Values;
@@ -277,7 +298,9 @@ pub mod fixtures {
 #[cfg(test)]
 mod tests {
     use super::{fixtures::default_values, *};
+    use crate::cluster_api::clusters::ClusterTopologyVariables;
     use pretty_assertions::assert_eq;
+    use serde_json::json;
 
     #[test]
     fn test_default_cluster_class() {
@@ -296,5 +319,142 @@ mod tests {
         assert_eq!(cluster_class.spec.patches.is_some(), true);
         assert_eq!(cluster_class.spec.variables.is_some(), true);
         assert_eq!(cluster_class.spec.workers.is_some(), true);
+    }
+
+    #[test]
+    fn test_convert_values_to_cluster_topology_variables() {
+        let values = default_values();
+        let variables: Vec<ClusterTopologyVariables> = values.into();
+
+        assert_eq!(variables.len(), 36);
+
+        for var in &variables {
+            match var.name.as_str() {
+                "apiServerLoadBalancer" => {
+                    assert_eq!(var.value, json!(&default_values().api_server_load_balancer));
+                }
+                "auditLog" => {
+                    assert_eq!(var.value, json!(default_values().audit_log));
+                }
+                "bootVolume" => {
+                    assert_eq!(var.value, json!(default_values().boot_volume));
+                }
+                "cloudCaCert" => {
+                    assert_eq!(var.value, json!(default_values().cloud_ca_certificate));
+                }
+                "cloudControllerManagerConfig" => {
+                    assert_eq!(
+                        var.value,
+                        json!(default_values().cloud_controller_manager_config)
+                    );
+                }
+                "clusterIdentityRefName" => {
+                    assert_eq!(var.value, json!(default_values().cluster_identity_ref_name));
+                }
+                "containerdConfig" => {
+                    assert_eq!(var.value, json!(default_values().containerd_config));
+                }
+                "systemdProxyConfig" => {
+                    assert_eq!(var.value, json!(default_values().systemd_proxy_config));
+                }
+                "controlPlaneAvailabilityZones" => {
+                    assert_eq!(
+                        var.value,
+                        json!(default_values().control_plane_availability_zones)
+                    );
+                }
+                "disableAPIServerFloatingIP" => {
+                    assert_eq!(
+                        var.value,
+                        json!(default_values().disable_api_server_floating_ip)
+                    );
+                }
+                "externalNetworkId" => {
+                    assert_eq!(var.value, json!(default_values().external_network_id));
+                }
+                "controlPlaneFlavor" => {
+                    assert_eq!(var.value, json!(default_values().control_plane_flavor));
+                }
+                "flavor" => {
+                    assert_eq!(var.value, json!(default_values().flavor));
+                }
+                "imageRepository" => {
+                    assert_eq!(var.value, json!(default_values().image_repository));
+                }
+                "imageUUID" => {
+                    assert_eq!(var.value, json!(default_values().image_uuid));
+                }
+                "enableKeystoneAuth" => {
+                    assert_eq!(var.value, json!(default_values().enable_keystone_auth));
+                }
+                "nodeCidr" => {
+                    assert_eq!(var.value, json!(default_values().node_cidr));
+                }
+                "dnsNameservers" => {
+                    assert_eq!(var.value, json!(default_values().dns_nameservers));
+                }
+                "fixedNetworkId" => {
+                    assert_eq!(var.value, json!(default_values().fixed_network_id));
+                }
+                "fixedSubnetId" => {
+                    assert_eq!(var.value, json!(default_values().fixed_subnet_id));
+                }
+                "openidConnect" => {
+                    assert_eq!(var.value, json!(default_values().openid_connect));
+                }
+                "operatingSystem" => {
+                    assert_eq!(var.value, json!(default_values().operating_system));
+                }
+                "aptProxyConfig" => {
+                    assert_eq!(var.value, json!(default_values().apt_proxy_config));
+                }
+                "serverGroupId" => {
+                    assert_eq!(var.value, json!(default_values().server_group_id));
+                }
+                "isServerGroupDiffFailureDomain" => {
+                    assert_eq!(
+                        var.value,
+                        json!(default_values().is_server_group_diff_failure_domain)
+                    );
+                }
+                "sshKeyName" => {
+                    assert_eq!(var.value, json!(default_values().ssh_key_name));
+                }
+                "apiServerTLSCipherSuites" => {
+                    assert_eq!(
+                        var.value,
+                        json!(default_values().api_server_tls_cipher_suites)
+                    );
+                }
+                "kubeletTLSCipherSuites" => {
+                    assert_eq!(var.value, json!(default_values().kubelet_tls_cipher_suites));
+                }
+                "apiServerSANs" => {
+                    assert_eq!(var.value, json!(default_values().api_server_sans));
+                }
+                "enableDockerVolume" => {
+                    assert_eq!(var.value, json!(default_values().enable_docker_volume));
+                }
+                "dockerVolumeSize" => {
+                    assert_eq!(var.value, json!(default_values().docker_volume_size));
+                }
+                "dockerVolumeType" => {
+                    assert_eq!(var.value, json!(default_values().docker_volume_type));
+                }
+                "enableEtcdVolume" => {
+                    assert_eq!(var.value, json!(default_values().enable_etcd_volume));
+                }
+                "etcdVolumeSize" => {
+                    assert_eq!(var.value, json!(default_values().etcd_volume_size));
+                }
+                "etcdVolumeType" => {
+                    assert_eq!(var.value, json!(default_values().etcd_volume_type));
+                }
+                "availabilityZone" => {
+                    assert_eq!(var.value, json!(default_values().availability_zone));
+                }
+                other => panic!("Unexpected field name: {}", other),
+            }
+        }
     }
 }
