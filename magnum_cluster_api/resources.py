@@ -1110,20 +1110,11 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "enableDockerVolume",
-                            "value": utils.get_cluster_label_as_int(
-                                self.cluster,
-                                "docker_volume_size",
-                                0,
-                            )
-                            > 0,
+                            "value": self.cluster.docker_volume_size is not None,
                         },
                         {
                             "name": "dockerVolumeSize",
-                            "value": utils.get_cluster_label_as_int(
-                                self.cluster,
-                                "docker_volume_size",
-                                0,
-                            ),
+                            "value": self.cluster.docker_volume_size or 0,
                         },
                         {
                             "name": "dockerVolumeType",
