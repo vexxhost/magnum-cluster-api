@@ -153,9 +153,9 @@ impl ClusterClassBuilder {
     }
 }
 
-impl Into<Vec<ClusterTopologyVariables>> for Values {
-    fn into(self) -> Vec<ClusterTopologyVariables> {
-        let json_values = serde_json::to_value(self).expect("Failed to serialize values");
+impl From<Values> for Vec<ClusterTopologyVariables> {
+    fn from(values: Values) -> Self {
+        let json_values = serde_json::to_value(values).expect("Failed to serialize values");
 
         if let serde_json::Value::Object(map) = json_values {
             // For each (key, value) pair in the map,
