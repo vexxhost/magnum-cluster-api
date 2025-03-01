@@ -153,7 +153,7 @@ mod tests {
     use super::*;
     use crate::{
         cluster_api::kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes,
-        features::test::{default_values, TestClusterResources},
+        features::test::TestClusterResources, resources::fixtures::default_values,
     };
     use maplit::btreemap;
     use pretty_assertions::assert_eq;

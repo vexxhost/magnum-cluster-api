@@ -136,7 +136,8 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test::{default_values, ApplyPatch, TestClusterResources};
+    use crate::features::test::{ApplyPatch, TestClusterResources};
+    use crate::resources::fixtures::default_values;
     use k8s_openapi::api::core::v1::Pod;
     use pretty_assertions::assert_eq;
     use std::fs::File;
