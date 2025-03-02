@@ -113,7 +113,6 @@ impl ClusterFeaturePatches for Feature {
                                 ..Default::default()
                             }
                         ],
-                        ..Default::default()
                     },
                     ClusterClassPatchesDefinitions {
                         selector: ClusterClassPatchesDefinitionsSelector {
@@ -146,7 +145,6 @@ impl ClusterFeaturePatches for Feature {
                                 ..Default::default()
                             }
                         ],
-                        ..Default::default()
                     },
                 ]),
                 ..Default::default()
