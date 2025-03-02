@@ -91,21 +91,8 @@ pub fn template<T: Serialize>(
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use super::*;
     use serde::Serialize;
-    use serde_yaml::Value;
-    use test_case::test_case;
-
-    const CLUSTER_SCOPED_RESOURCES: &[&str] = &[
-        "APIServer",
-        "CSIDriver",
-        "ClusterRole",
-        "ClusterRoleBinding",
-        "Installation",
-        "StorageClass",
-    ];
 
     #[derive(Serialize)]
     struct DummyValues {

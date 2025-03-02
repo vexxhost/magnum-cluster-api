@@ -5,7 +5,7 @@ use kube::{
     api::{Api, ApiResource, DynamicObject, GroupVersionKind, PostParams},
     core::{
         gvk::ParseGroupVersionError, ClusterResourceScope, GroupVersion, NamespaceResourceScope,
-        ObjectMeta, Resource,
+        Resource,
     },
     Client, Config, ResourceExt,
 };

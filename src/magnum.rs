@@ -7,12 +7,22 @@ use kube::api::ObjectMeta;
 use maplit::btreemap;
 use pyo3::prelude::*;
 use serde::Deserialize;
+use typed_builder::TypedBuilder;
 
-#[derive(Clone, Default, Deserialize)]
+#[derive(Clone, Default, Deserialize, TypedBuilder)]
 pub struct ClusterLabels {
     /// The prefix of the container images to use for the cluster, which
     /// defaults to the upstream images if not set.
+    #[builder(default)]
     pub container_infra_prefix: Option<String>,
+
+    /// The tag of the Cilium container image to use for the cluster.
+    #[builder(default="v1.15.3".to_owned())]
+    pub cilium_tag: String,
+
+    /// The IP address range to use for the Cilium IPAM pool.
+    #[builder(default="10.100.0.0/16".to_owned())]
+    pub cilium_ipv4pool: String
 }
 
 #[pyclass]
