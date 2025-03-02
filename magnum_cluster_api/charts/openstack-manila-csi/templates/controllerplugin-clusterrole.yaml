@@ -1,0 +1,11 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ include "openstack-manila-csi.controllerplugin.fullname" . }}
+  labels:
+    {{- include "openstack-manila-csi.controllerplugin.labels" .  | nindent 4 }}
+aggregationRule:
+  clusterRoleSelectors:
+    - matchLabels:
+        rbac.manila.csi.openstack.org/aggregate-to-controller-{{ include "openstack-manila-csi.name" . }}: "true"
+rules: []
