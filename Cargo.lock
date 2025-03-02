@@ -1014,7 +1014,6 @@ dependencies = [
  "jsonptr",
  "k8s-openapi",
  "kube",
- "log",
  "maplit",
  "once_cell",
  "pretty_assertions",
