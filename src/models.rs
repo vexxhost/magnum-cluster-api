@@ -8,7 +8,7 @@ use crate::{
     resources::ClusterClassBuilder,
 };
 use k8s_openapi::api::core::v1::Namespace;
-use kube::core::ObjectMeta;
+use kube::{core::ObjectMeta, Api};
 use maplit::btreemap;
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
@@ -117,7 +117,7 @@ impl MagnumCluster {
         Ok(())
     }
 
-    fn create_cluster(&self, py: Python<'_>) -> PyResult<()> {
+    fn create(&self, py: Python<'_>) -> PyResult<()> {
         let client = client::KubeClient::new()?;
 
         py.allow_threads(|| {
@@ -140,8 +140,10 @@ impl MagnumCluster {
 
         py.allow_threads(|| {
             GLOBAL_RUNTIME.block_on(async move {
+                let api: Api<ClusterResourceSet> =
+                    Api::namespaced(client.client.clone(), &self.namespace);
                 client
-                    .delete_cluster_resource(Namespace::from(self))
+                    .delete_resource(api, &ClusterResourceSet::from(self).metadata.name.unwrap())
                     .await
                     .unwrap()
             })
