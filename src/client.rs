@@ -152,41 +152,6 @@ impl KubeClient {
             Err(e) => Err(KubeClientError::Api(e)),
         }
     }
-
-    pub async fn delete_cluster_resource<T>(&self, resource: T) -> Result<(), KubeClientError>
-    where
-        T: Resource<Scope = ClusterResourceScope, DynamicType = ()>
-            + Clone
-            + std::fmt::Debug
-            + for<'de> Deserialize<'de>
-            + Serialize,
-    {
-        let client = self.client.to_owned();
-        let api: Api<T> = Api::all(client);
-        let name = resource.name_any();
-
-        self.delete_resource(api, &name).await
-    }
-
-    pub async fn delete_namespaced_resource<T>(
-        &self,
-        namespace: &str,
-        resource: T,
-    ) -> Result<(), KubeClientError>
-    where
-        T: Resource<Scope = NamespaceResourceScope, DynamicType = ()>
-            + k8s_openapi::Metadata<Ty = ObjectMeta>
-            + Clone
-            + std::fmt::Debug
-            + for<'de> Deserialize<'de>
-            + Serialize,
-    {
-        let client = self.client.to_owned();
-        let api: Api<T> = Api::namespaced(client, namespace);
-        let name = resource.name_any();
-
-        self.delete_resource(api, &name).await
-    }
 }
 
 #[pymethods]
