@@ -1,0 +1,10 @@
+- hosts: all
+  roles:
+    - ensure-rust
+
+  tasks:
+    - name: Ensure required packages are installed
+      become: true
+      ansible.builtin.apt:
+        name: ["build-essential"]
+        state: present

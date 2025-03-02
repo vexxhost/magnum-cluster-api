@@ -1,0 +1,6 @@
+- hosts: all
+  tasks:
+    - name: Run "cargo clippy"
+      ansible.builtin.command: cargo clippy -- -Dwarnings
+      args:
+        chdir: "{{ zuul.project.src_dir }}"

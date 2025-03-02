@@ -1,0 +1,9 @@
+[package]
+name = "serde_gtmpl"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gtmpl_value = "0.5.1"
+serde = { version = "1.0.218", features = ["derive"] }
+serde_json = "1.0.139"
