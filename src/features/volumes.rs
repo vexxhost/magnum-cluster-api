@@ -229,7 +229,7 @@ impl ClusterFeaturePatches for Feature {
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/kubeadmConfigSpec/mounts/-".into(),
-                                value: Some(serde_yaml::to_string(&vec!["LABEL=etcd_disk".to_string(), "/var/lib/etcd".to_string()]).unwrap().into()),
+                                value: Some(json!(&vec!["LABEL=etcd_disk".to_string(), "/var/lib/etcd".to_string()])),
                                 ..Default::default()
                             },
                         ],
@@ -294,7 +294,7 @@ impl ClusterFeaturePatches for Feature {
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/kubeadmConfigSpec/mounts/-".into(),
-                                value: Some(serde_yaml::to_string(&vec!["LABEL=docker_disk".to_string(), "/var/lib/containerd".to_string()]).unwrap().into()),
+                                value: Some(json!(&vec!["LABEL=docker_disk".to_string(), "/var/lib/containerd".to_string()])),
                                 ..Default::default()
                             },
                         ],
@@ -314,7 +314,7 @@ impl ClusterFeaturePatches for Feature {
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/mounts/-".into(),
-                                value: Some(serde_yaml::to_string(&vec!["LABEL=docker_disk".to_string(), "/var/lib/containerd".to_string()]).unwrap().into()),
+                                value: Some(json!(&vec!["LABEL=docker_disk".to_string(), "/var/lib/containerd".to_string()])),
                                 ..Default::default()
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
@@ -570,11 +570,10 @@ mod tests {
                 .kubeadm_config_spec
                 .mounts
                 .expect("mounts should be set"),
-            vec![serde_yaml::to_string(&vec![
+            vec![vec![
                 "LABEL=etcd_disk".to_string(),
                 "/var/lib/etcd".to_string()
-            ])
-            .unwrap()]
+            ]]
         );
 
         let kct_spec = resources
@@ -597,7 +596,7 @@ mod tests {
 
         assert_eq!(
             kct_spec.clone().mounts.expect("mounts should be set"),
-            Vec::<String>::new()
+            Vec::<Vec<String>>::new()
         );
     }
 
@@ -705,11 +704,10 @@ mod tests {
                 .kubeadm_config_spec
                 .mounts
                 .expect("mounts should be set"),
-            vec![serde_yaml::to_string(&vec![
+            vec![vec![
                 "LABEL=docker_disk".to_string(),
                 "/var/lib/containerd".to_string()
-            ])
-            .unwrap()]
+            ]]
         );
 
         let kct_spec = resources
@@ -749,11 +747,10 @@ mod tests {
 
         assert_eq!(
             kct_spec.clone().mounts.expect("mounts should be set"),
-            vec![serde_yaml::to_string(&vec![
+            vec![vec![
                 "LABEL=docker_disk".to_string(),
                 "/var/lib/containerd".to_string()
-            ])
-            .unwrap()]
+            ]]
         );
     }
 
@@ -898,16 +895,11 @@ mod tests {
                 .mounts
                 .expect("mounts should be set"),
             vec![
-                serde_yaml::to_string(&vec![
-                    "LABEL=etcd_disk".to_string(),
-                    "/var/lib/etcd".to_string()
-                ])
-                .unwrap(),
-                serde_yaml::to_string(&vec![
+                vec!["LABEL=etcd_disk".to_string(), "/var/lib/etcd".to_string()],
+                vec![
                     "LABEL=docker_disk".to_string(),
                     "/var/lib/containerd".to_string()
-                ])
-                .unwrap()
+                ]
             ]
         );
 
@@ -948,11 +940,10 @@ mod tests {
 
         assert_eq!(
             kct_spec.clone().mounts.expect("mounts should be set"),
-            vec![serde_yaml::to_string(&vec![
+            vec![vec![
                 "LABEL=docker_disk".to_string(),
                 "/var/lib/containerd".to_string()
-            ])
-            .unwrap()]
+            ]]
         );
     }
 }

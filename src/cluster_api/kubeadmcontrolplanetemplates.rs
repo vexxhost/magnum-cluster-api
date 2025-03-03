@@ -156,7 +156,7 @@ pub struct KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpec {
         Option<KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecJoinConfiguration>,
     /// Mounts specifies a list of mount points to be setup.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mounts: Option<Vec<String>>,
+    pub mounts: Option<Vec<Vec<String>>>,
     /// NTP specifies NTP configuration
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ntp: Option<KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecNtp>,
