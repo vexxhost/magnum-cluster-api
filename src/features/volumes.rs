@@ -175,8 +175,10 @@ impl ClusterFeaturePatches for Feature {
                                             type: Volume
                                             volume:
                                                 type: "{{ .etcdVolumeType }}"
+                                                {{- if .availabilityZone }}
                                                 availabilityZone:
                                                   name: "{{ .availabilityZone }}"
+                                                {{- end }}
                                         "#
                                     )
                                     .into(),
@@ -237,20 +239,11 @@ impl ClusterFeaturePatches for Feature {
                                 op: "add".into(),
                                 path: "/spec/template/spec/kubeadmConfigSpec/mounts/-".into(),
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                    template: Some("LABEL=etcd_disk".into()),
+                                    template: Some(serde_yaml::to_string(&vec!["LABEL=etcd_disk".to_string(), "/var/lib/etcd".to_string()]).unwrap()),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
                             },
-                            ClusterClassPatchesDefinitionsJsonPatches {
-                                op: "add".into(),
-                                path: "/spec/template/spec/kubeadmConfigSpec/mounts/-".into(),
-                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                    template: Some("/var/lib/etcd".into()),
-                                    ..Default::default()
-                                }),
-                                ..Default::default()
-                            }
                         ],
                     },
                 ]),
@@ -286,8 +279,10 @@ impl ClusterFeaturePatches for Feature {
                                                 type: Volume
                                                 volume:
                                                     type: "{{ .dockerVolumeType }}"
+                                                    {{- if .availabilityZone }}
                                                     availabilityZone:
                                                       name: "{{ .availabilityZone }}"
+                                                    {{- end }}
                                             "#
                                         )
                                         .into(),
@@ -312,20 +307,11 @@ impl ClusterFeaturePatches for Feature {
                                 op: "add".into(),
                                 path: "/spec/template/spec/kubeadmConfigSpec/mounts/-".into(),
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                    template: Some("LABEL=docker_disk".into()),
+                                    template: Some(serde_yaml::to_string(&vec!["LABEL=docker_disk".to_string(), "/var/lib/containerd".to_string()]).unwrap()),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
                             },
-                            ClusterClassPatchesDefinitionsJsonPatches {
-                                op: "add".into(),
-                                path: "/spec/template/spec/kubeadmConfigSpec/mounts/-".into(),
-                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                    template: Some("/var/lib/containerd".into()),
-                                    ..Default::default()
-                                }),
-                                ..Default::default()
-                            }
                         ],
                     },
                     ClusterClassPatchesDefinitions {
@@ -344,16 +330,7 @@ impl ClusterFeaturePatches for Feature {
                                 op: "add".into(),
                                 path: "/spec/template/spec/mounts/-".into(),
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                    template: Some("LABEL=docker_disk".into()),
-                                    ..Default::default()
-                                }),
-                                ..Default::default()
-                            },
-                            ClusterClassPatchesDefinitionsJsonPatches {
-                                op: "add".into(),
-                                path: "/spec/template/spec/mounts/-".into(),
-                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                    template: Some("/var/lib/containerd".into()),
+                                    template: Some(serde_yaml::to_string(&vec!["LABEL=docker_disk".to_string(), "/var/lib/containerd".to_string()]).unwrap()),
                                     ..Default::default()
                                 }),
                                 ..Default::default()
@@ -641,7 +618,7 @@ mod tests {
                 .kubeadm_config_spec
                 .mounts
                 .expect("mounts should be set"),
-            vec!["LABEL=etcd_disk".to_string(), "/var/lib/etcd".to_string()]
+            vec![vec!["LABEL=etcd_disk".to_string(), "/var/lib/etcd".to_string()]]
         );
 
         let kct_spec = resources
@@ -772,10 +749,10 @@ mod tests {
                 .kubeadm_config_spec
                 .mounts
                 .expect("mounts should be set"),
-            vec![
+            vec![vec![
                 "LABEL=docker_disk".to_string(),
                 "/var/lib/containerd".to_string()
-            ]
+            ]]
         );
 
         let kct_spec = resources
@@ -815,10 +792,10 @@ mod tests {
 
         assert_eq!(
             kct_spec.clone().mounts.expect("mounts should be set"),
-            vec![
+            vec![vec![
                 "LABEL=docker_disk".to_string(),
                 "/var/lib/containerd".to_string()
-            ]
+            ]]
         );
     }
 
@@ -962,11 +939,13 @@ mod tests {
                 .kubeadm_config_spec
                 .mounts
                 .expect("mounts should be set"),
-            vec![
+            vec![vec![
                 "LABEL=etcd_disk".to_string(),
                 "/var/lib/etcd".to_string(),
+            ],vec![
                 "LABEL=docker_disk".to_string(),
                 "/var/lib/containerd".to_string()
+            ]
             ]
         );
 
@@ -1007,9 +986,10 @@ mod tests {
 
         assert_eq!(
             kct_spec.clone().mounts.expect("mounts should be set"),
-            vec![
+            vec![vec![
                 "LABEL=docker_disk".to_string(),
                 "/var/lib/containerd".to_string()
+            ]
             ]
         );
     }
