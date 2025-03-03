@@ -7,5 +7,5 @@ site
 *.rej
 .tox
 .stestr
-/target
+target
 *.so

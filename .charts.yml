@@ -7,3 +7,15 @@ charts:
     version: 1.15.3
     repository:
       url: https://helm.cilium.io/
+  - name: openstack-cinder-csi
+    version: 2.32.0
+    repository:
+      url: https://kubernetes.github.io/cloud-provider-openstack
+  - name: openstack-manila-csi
+    version: 2.32.0
+    repository:
+      url: https://kubernetes.github.io/cloud-provider-openstack
+  - name: tigera-operator
+    version: 3.29.2
+    repository:
+      url: https://docs.tigera.io/calico/charts

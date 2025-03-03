@@ -1,0 +1,12 @@
+[package]
+name = "cluster_feature_derive"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+heck = "0.5.0"
+quote = "1.0.38"
+syn = "1"
+
+[lib]
+proc-macro = true

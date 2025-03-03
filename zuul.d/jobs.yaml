@@ -11,6 +11,21 @@
     pre-run: zuul.d/playbooks/tox/pre.yml
 
 - job:
+    name: magnum-cluster-api-cargo
+    abstract: true
+    pre-run: zuul.d/playbooks/cargo/pre.yml
+
+- job:
+    name: magnum-cluster-api-cargo-clippy
+    parent: magnum-cluster-api-cargo
+    run: zuul.d/playbooks/cargo/clippy.yml
+
+- job:
+    name: magnum-cluster-api-cargo-test
+    parent: magnum-cluster-api-cargo
+    run: zuul.d/playbooks/cargo/test.yml
+
+- job:
     name: magnum-cluster-api-tox-linters
     parent: magnum-cluster-api-tox
     vars:
@@ -83,7 +98,7 @@
           /etc/magnum/magnum.conf:
             cluster_template:
               kubernetes_allowed_network_drivers: calico,cilium
-              kubernetes_default_network_driver: calico
+              kubernetes_default_network_driver: cilium
             nova_client:
               api_version: 2.15
       devstack_services:

@@ -5,11 +5,10 @@ use kube::{
     api::{Api, ApiResource, DynamicObject, GroupVersionKind, PostParams},
     core::{
         gvk::ParseGroupVersionError, ClusterResourceScope, GroupVersion, NamespaceResourceScope,
-        ObjectMeta, Resource,
+        Resource,
     },
     Client, Config, ResourceExt,
 };
-use log::info;
 use once_cell::sync::Lazy;
 use pyo3::{
     create_exception, exceptions, exceptions::PyException, prelude::*, types::PyDict, Bound,
@@ -152,41 +151,6 @@ impl KubeClient {
             Err(kube::Error::Api(ref err)) if err.code == 404 => Ok(()),
             Err(e) => Err(KubeClientError::Api(e)),
         }
-    }
-
-    pub async fn delete_cluster_resource<T>(&self, resource: T) -> Result<(), KubeClientError>
-    where
-        T: Resource<Scope = ClusterResourceScope, DynamicType = ()>
-            + Clone
-            + std::fmt::Debug
-            + for<'de> Deserialize<'de>
-            + Serialize,
-    {
-        let client = self.client.to_owned();
-        let api: Api<T> = Api::all(client);
-        let name = resource.name_any();
-
-        self.delete_resource(api, &name).await
-    }
-
-    pub async fn delete_namespaced_resource<T>(
-        &self,
-        namespace: &str,
-        resource: T,
-    ) -> Result<(), KubeClientError>
-    where
-        T: Resource<Scope = NamespaceResourceScope, DynamicType = ()>
-            + k8s_openapi::Metadata<Ty = ObjectMeta>
-            + Clone
-            + std::fmt::Debug
-            + for<'de> Deserialize<'de>
-            + Serialize,
-    {
-        let client = self.client.to_owned();
-        let api: Api<T> = Api::namespaced(client, namespace);
-        let name = resource.name_any();
-
-        self.delete_resource(api, &name).await
     }
 }
 

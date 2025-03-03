@@ -168,6 +168,7 @@ class TestDriver:
         mock_osc,
         mock_certificates,
         mock_get_server_group,
+        mock_magnum_cluster,
     ):
         ubuntu_driver._kube_client = mock.MagicMock()
 
@@ -209,9 +210,6 @@ class TestDriver:
             ubuntu_driver.create_cluster(context, self.cluster, 60)
 
             assert ubuntu_driver._kube_client.create_or_update.call_args_list == [
-                mock.call(
-                    resources.Namespace(ubuntu_driver._kube_client).get_resource()
-                ),
                 mock.call(
                     resources.CloudConfigSecret(
                         context,
@@ -256,41 +254,11 @@ class TestDriver:
                     ).get_resource()
                 ),
                 mock.call(
-                    resources.KubeadmControlPlaneTemplate(
-                        ubuntu_driver._kube_client, "magnum-system"
-                    ).get_resource()
-                ),
-                mock.call(
-                    resources.KubeadmConfigTemplate(
-                        ubuntu_driver._kube_client, "magnum-system"
-                    ).get_resource()
-                ),
-                mock.call(
-                    resources.OpenStackMachineTemplate(
-                        ubuntu_driver._kube_client, "magnum-system"
-                    ).get_resource()
-                ),
-                mock.call(
-                    resources.OpenStackClusterTemplate(
-                        ubuntu_driver._kube_client, "magnum-system"
-                    ).get_resource()
-                ),
-                mock.call(
-                    resources.ClusterClass(
-                        ubuntu_driver._kube_client, "magnum-system"
-                    ).get_resource()
-                ),
-                mock.call(
                     resources.ClusterResourcesConfigMap(
                         context,
                         ubuntu_driver._kube_client,
                         ubuntu_driver.k8s_api,
                         self.cluster,
-                    ).get_resource()
-                ),
-                mock.call(
-                    resources.ClusterResourceSet(
-                        ubuntu_driver._kube_client, self.cluster
                     ).get_resource()
                 ),
                 mock.call(

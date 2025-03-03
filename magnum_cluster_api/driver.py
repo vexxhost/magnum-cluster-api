@@ -66,13 +66,22 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
-        utils.validate_cluster(context, cluster)
-        resources.Namespace(self.kube_client).apply()
+        magnum_cluster = magnum_cluster_api.MagnumCluster(
+            cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
+        )
+        magnum_cluster.apply_cluster_class()
 
-        return self._create_cluster(context, cluster)
+        utils.validate_cluster(context, cluster)
+
+        return self._create_cluster(context, cluster, magnum_cluster)
 
     @cluster_lock_wrapper
-    def _create_cluster(self, context, cluster: magnum_objects.Cluster):
+    def _create_cluster(
+        self,
+        context,
+        cluster: magnum_objects.Cluster,
+        magnum_cluster: magnum_cluster_api.MagnumCluster,
+    ):
         osc = clients.get_openstack_api(context)
 
         credential = osc.keystone().client.application_credentials.create(
@@ -109,6 +118,7 @@ class BaseDriver(driver.Driver):
             cluster,
             skip_auto_scaling_release=True,
         )
+        magnum_cluster.create()
         resources.Cluster(context, self.kube_client, self.k8s_api, cluster).apply(),
 
     def _get_cluster_status_reason(self, capi_cluster):
@@ -383,6 +393,10 @@ class BaseDriver(driver.Driver):
         # NOTE(mnaser): We run a full apply on the cluster regardless of the changes, since
         #               the expectation is that running an upgrade operation will change
         #               the cluster in some way.
+        magnum_cluster = magnum_cluster_api.MagnumCluster(
+            cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
+        )
+        magnum_cluster.apply_cluster_class()
         resources.apply_cluster_from_magnum_cluster(
             context, self.kube_client, self.k8s_api, cluster
         )
@@ -413,7 +427,10 @@ class BaseDriver(driver.Driver):
         #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/pull/990
         utils.delete_loadbalancers(context, cluster)
 
-        resources.ClusterResourceSet(self.kube_client, cluster).delete()
+        magnum_cluster = magnum_cluster_api.MagnumCluster(
+            cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
+        )
+        magnum_cluster.delete()
         resources.ClusterResourcesConfigMap(
             context, self.kube_client, self.k8s_api, cluster
         ).delete()
