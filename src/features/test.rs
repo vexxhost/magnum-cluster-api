@@ -197,6 +197,7 @@ impl<T: Resource + Serialize + DeserializeOwned> ApplyPatch for T {
     fn apply_patch(&mut self, p: &Patch) {
         let mut doc = json!(self);
         patch(&mut doc, p).expect("patch should apply");
+        println!("{:?}", p);
         *self = serde_json::from_value(doc).expect("doc should be a valid object")
     }
 }
