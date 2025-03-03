@@ -1,5 +1,5 @@
 use crate::{
-    addons::{ClusterAddon, ClusterAddonValuesError, ClusterValues},
+    addons::{ClusterAddon, ClusterAddonValuesError, ClusterAddonValues},
     magnum,
 };
 use docker_image::DockerImage;
@@ -95,7 +95,7 @@ impl TryFrom<magnum::Cluster> for CiliumValues {
     }
 }
 
-impl ClusterValues for CiliumValues {
+impl ClusterAddonValues for CiliumValues {
     fn defaults() -> Result<Self, ClusterAddonValuesError> {
         let file = File::open("magnum_cluster_api/charts/cilium/values.yaml")?;
         let values: CiliumValues = serde_yaml::from_reader(file)?;
@@ -280,10 +280,10 @@ impl ClusterAddon for Addon {
     }
 
     fn enabled(&self) -> bool {
-        todo!()
+        self.cluster.cluster_template.network_driver == "cilium"
     }
 
-    fn manifests<T: ClusterValues + Serialize>(
+    fn manifests<T: ClusterAddonValues + Serialize>(
         &self,
         values: &T,
     ) -> Result<Vec<serde_yaml::Value>, helm::HelmTemplateError> {
@@ -331,6 +331,9 @@ mod tests {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
             labels: magnum::ClusterLabels::builder().build(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
         };
 
         let values: CiliumValues = cluster.clone().try_into().expect("failed to create values");
@@ -421,6 +424,9 @@ mod tests {
             labels: magnum::ClusterLabels::builder()
                 .container_infra_prefix(Some("registry.example.com".to_string()))
                 .build(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
         };
 
         let values: CiliumValues = cluster.clone().try_into().expect("failed to create values");
@@ -505,26 +511,13 @@ mod tests {
     }
 
     #[test]
-    fn get_manifests_with_no_custom_registry() {
+    fn test_get_manifests() {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
             labels: magnum::ClusterLabels::builder().build(),
-        };
-
-        let addon = Addon::new(cluster.clone());
-        let values: CiliumValues = cluster.clone().try_into().expect("failed to create values");
-        let manifests = addon.manifests(&values).expect("failed to get manifests");
-
-        assert_eq!(manifests.len(), 14);
-    }
-
-    #[test]
-    fn get_manifests_with_custom_registry() {
-        let cluster = magnum::Cluster {
-            uuid: "sample-uuid".to_string(),
-            labels: magnum::ClusterLabels::builder()
-                .container_infra_prefix(Some("registry.example.com".to_string()))
-                .build(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
         };
 
         let addon = Addon::new(cluster.clone());

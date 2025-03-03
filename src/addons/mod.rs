@@ -1,20 +1,21 @@
+use crate::magnum;
 use docker_image::DockerImage;
 use serde::Serialize;
 use thiserror::Error;
-use crate::magnum;
 
+pub mod calico;
 pub mod cilium;
 
 trait ClusterAddon {
     fn new(cluster: magnum::Cluster) -> Self;
     fn enabled(&self) -> bool;
-    fn manifests<T: ClusterValues + Serialize>(
+    fn manifests<T: ClusterAddonValues + Serialize>(
         &self,
         values: &T,
     ) -> Result<Vec<serde_yaml::Value>, helm::HelmTemplateError>;
 }
 
-trait ClusterValues {
+trait ClusterAddonValues {
     fn defaults() -> Result<Self, ClusterAddonValuesError>
     where
         Self: Sized;

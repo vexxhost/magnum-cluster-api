@@ -9,6 +9,12 @@ use pyo3::prelude::*;
 use serde::Deserialize;
 use typed_builder::TypedBuilder;
 
+#[pyclass]
+#[derive(Clone)]
+pub struct ClusterTemplate {
+    pub network_driver: String,
+}
+
 #[derive(Clone, Default, Deserialize, TypedBuilder)]
 pub struct ClusterLabels {
     /// The prefix of the container images to use for the cluster, which
@@ -22,13 +28,18 @@ pub struct ClusterLabels {
 
     /// The IP address range to use for the Cilium IPAM pool.
     #[builder(default="10.100.0.0/16".to_owned())]
-    pub cilium_ipv4pool: String
+    pub cilium_ipv4pool: String,
+
+    /// The tag of the Calico container image to use for the cluster.
+    #[builder(default="v3.29.2".to_owned())]
+    pub calico_tag: String,
 }
 
 #[pyclass]
 #[derive(Clone)]
 pub struct Cluster {
     pub uuid: String,
+    pub cluster_template: ClusterTemplate,
     pub labels: ClusterLabels,
 }
 
@@ -95,6 +106,9 @@ mod tests {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
+            cluster_template: ClusterTemplate {
+                network_driver: "calico".to_string()
+            }
         };
 
         let object_meta: ObjectMeta = cluster.into();
@@ -107,6 +121,9 @@ mod tests {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
+            cluster_template: ClusterTemplate {
+                network_driver: "calico".to_string()
+            }
         };
 
         let crs: ClusterResourceSet = cluster.clone().into();
@@ -180,6 +197,9 @@ mod tests {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
+            cluster_template: ClusterTemplate {
+                network_driver: "calico".to_string()
+            }
         };
 
         let config_map: ConfigMap = cluster.clone().into();

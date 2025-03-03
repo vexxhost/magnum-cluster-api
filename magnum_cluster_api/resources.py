@@ -45,8 +45,6 @@ from magnum_cluster_api import (
 from magnum_cluster_api.integrations import cinder, cloud_provider, manila
 
 CONF = cfg.CONF
-CALICO_TAG = "v3.24.2"
-CILIUM_TAG = "v1.15.3"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
@@ -229,9 +227,6 @@ class ClusterResourcesConfigMap(ClusterBase):
         manifests_path = pkg_resources.resource_filename(
             "magnum_cluster_api", "manifests"
         )
-        calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
-        cilium_version = self.cluster.labels.get("cilium_tag", CILIUM_TAG)
-
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
 
         osc = clients.get_openstack_api(self.context)
@@ -252,21 +247,6 @@ class ClusterResourcesConfigMap(ClusterBase):
                 for manifest in glob.glob(os.path.join(manifests_path, "ccm/*.yaml"))
             },
         }
-
-        if self.cluster.cluster_template.network_driver == "cilium":
-            # TODO
-
-        if self.cluster.cluster_template.network_driver == "calico":
-            data = {
-                **data,
-                **{
-                    "calico.yml": image_utils.update_manifest_images(
-                        self.cluster.uuid,
-                        os.path.join(manifests_path, f"calico/{calico_version}.yaml"),
-                        repository=repository,
-                    )
-                },
-            }
 
         if cinder.is_enabled(self.cluster):
             volume_types = osc.cinder().volume_types.list()
@@ -796,22 +776,6 @@ class Cluster(ClusterBase):
     @property
     def name(self) -> str:
         return self.cluster.stack_id
-
-    @property
-    def labels(self) -> dict:
-        labels = {}
-        if self.cluster.cluster_template.network_driver == "calico":
-            cni_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
-            labels = {
-                "cni": f"calico-{cni_version}",
-            }
-        if self.cluster.cluster_template.network_driver == "cilium":
-            cni_version = self.cluster.labels.get("cilium_tag", CILIUM_TAG)
-            labels = {
-                "cni": f"cilium-{cni_version}",
-            }
-
-        return {**super().labels, **labels}
 
     def get_or_none(self) -> objects.Cluster:
         return objects.Cluster.objects(

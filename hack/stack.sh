@@ -97,7 +97,7 @@ MANILA_USE_SERVICE_INSTANCE_PASSWORD=True
 [[post-config|/etc/magnum/magnum.conf]]
 [cluster_template]
 kubernetes_allowed_network_drivers = calico,cilium
-kubernetes_default_network_driver = calico
+kubernetes_default_network_driver = cilium
 [nova_client]
 api_version = 2.15
 EOF
