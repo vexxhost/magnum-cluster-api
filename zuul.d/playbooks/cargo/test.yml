@@ -1,0 +1,6 @@
+- hosts: all
+  tasks:
+    - name: Run "cargo test"
+      ansible.builtin.command: cargo test
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
