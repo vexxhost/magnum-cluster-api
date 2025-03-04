@@ -1,0 +1,13 @@
+diff --git a/magnum_cluster_api/charts/cluster-autoscaler/values.yaml b/magnum_cluster_api/charts/cluster-autoscaler/values.yaml
+index f414ae65..209f3d0f 100644
+--- a/magnum_cluster_api/charts/cluster-autoscaler/values.yaml
++++ b/magnum_cluster_api/charts/cluster-autoscaler/values.yaml
+@@ -167,6 +167,8 @@ extraArgs:
+   logtostderr: true
+   stderrthreshold: info
+   v: 4
++  # to scale-up auto_scaling_enabled cluster
++  enforce-node-group-min-size: true
+   # write-status-configmap: true
+   # status-config-map-name: cluster-autoscaler-status
+   # leader-elect: true
