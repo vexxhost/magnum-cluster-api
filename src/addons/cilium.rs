@@ -97,8 +97,8 @@ impl TryFrom<magnum::Cluster> for CiliumValues {
 
 impl ClusterAddonValues for CiliumValues {
     fn defaults() -> Result<Self, ClusterAddonValuesError> {
-        let file = File::open("magnum_cluster_api/charts/cilium/values.yaml")?;
-        let values: CiliumValues = serde_yaml::from_reader(file)?;
+        let file = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/magnum_cluster_api/charts/cilium/values.yaml"));
+        let values: CiliumValues = serde_yaml::from_str(&file)?;
 
         Ok(values)
     }
