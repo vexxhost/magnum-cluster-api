@@ -1,42 +1,48 @@
-use crate::cluster_api::clusterresourcesets::{
-    ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
-    ClusterResourceSetResourcesKind, ClusterResourceSetSpec,
+use crate::{
+    addons::{cilium, ClusterAddon},
+    cluster_api::clusterresourcesets::{
+        ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
+        ClusterResourceSetResourcesKind, ClusterResourceSetSpec,
+    },
 };
 use k8s_openapi::api::core::v1::ConfigMap;
 use kube::api::ObjectMeta;
 use maplit::btreemap;
 use pyo3::prelude::*;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use typed_builder::TypedBuilder;
 
-#[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Deserialize, FromPyObject)]
 pub struct ClusterTemplate {
     pub network_driver: String,
 }
 
-#[derive(Clone, Default, Deserialize, TypedBuilder)]
+#[derive(Clone, Default, Deserialize, FromPyObject, TypedBuilder)]
+#[pyo3(from_item_all)]
 pub struct ClusterLabels {
     /// The prefix of the container images to use for the cluster, which
     /// defaults to the upstream images if not set.
     #[builder(default)]
+    #[pyo3(default)]
     pub container_infra_prefix: Option<String>,
 
     /// The tag of the Cilium container image to use for the cluster.
     #[builder(default="v1.15.3".to_owned())]
+    #[pyo3(default="v1.15.3".to_owned())]
     pub cilium_tag: String,
 
     /// The IP address range to use for the Cilium IPAM pool.
     #[builder(default="10.100.0.0/16".to_owned())]
+    #[pyo3(default="10.100.0.0/16".to_owned())]
     pub cilium_ipv4pool: String,
 
-    /// The tag of the Calico container image to use for the cluster.
-    #[builder(default="v3.29.2".to_owned())]
-    pub calico_tag: String,
+    /// The Kubernetes version to use for the cluster.
+    #[builder(default="v1.30.0".to_owned())]
+    pub kube_tag: String,
 }
 
-#[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Deserialize, FromPyObject)]
 pub struct Cluster {
     pub uuid: String,
     pub cluster_template: ClusterTemplate,
@@ -76,8 +82,30 @@ impl From<Cluster> for ClusterResourceSet {
 
 impl From<Cluster> for ConfigMap {
     fn from(cluster: Cluster) -> Self {
+        let mut data = BTreeMap::<String, String>::new();
+
+        // TODO(mnaser): Implement an inventory of addons
+        let cilium = cilium::Addon::new(cluster.clone());
+        if cilium.enabled() {
+            let mut buffer = Vec::new();
+            let mut ser = serde_yaml::Serializer::new(&mut buffer);
+
+            for manifest in cilium
+                .manifests(&cilium::CiliumValues::try_from(cluster.clone()).unwrap())
+                .unwrap()
+            {
+                manifest.serialize(&mut ser).unwrap();
+            }
+
+            data.insert(
+                "cilium.yaml".to_owned(),
+                buffer.iter().map(|b| *b as char).collect(),
+            );
+        }
+
         ConfigMap {
             metadata: cluster.clone().into(),
+            data: Some(data),
             ..Default::default()
         }
     }
@@ -107,8 +135,8 @@ mod tests {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
             cluster_template: ClusterTemplate {
-                network_driver: "calico".to_string()
-            }
+                network_driver: "calico".to_string(),
+            },
         };
 
         let object_meta: ObjectMeta = cluster.into();
@@ -122,8 +150,8 @@ mod tests {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
             cluster_template: ClusterTemplate {
-                network_driver: "calico".to_string()
-            }
+                network_driver: "calico".to_string(),
+            },
         };
 
         let crs: ClusterResourceSet = cluster.clone().into();
@@ -198,8 +226,8 @@ mod tests {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
             cluster_template: ClusterTemplate {
-                network_driver: "calico".to_string()
-            }
+                network_driver: "calico".to_string(),
+            },
         };
 
         let config_map: ConfigMap = cluster.clone().into();

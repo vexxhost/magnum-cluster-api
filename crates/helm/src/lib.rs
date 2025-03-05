@@ -82,7 +82,7 @@ pub fn template<T: Serialize>(
     let output_str = String::from_utf8_lossy(&output.stdout).into_owned();
 
     let docs: Vec<serde_yaml::Value> = serde_yaml::Deserializer::from_str(&output_str)
-        .map(|doc| serde_yaml::Value::deserialize(doc))
+        .map(serde_yaml::Value::deserialize)
         .collect::<Result<_, _>>()
         .map_err(HelmTemplateError::Deserialization)?;
 
