@@ -101,7 +101,7 @@ impl ClusterAddonValues for CiliumValues {
             env!("CARGO_MANIFEST_DIR"),
             "/magnum_cluster_api/charts/cilium/values.yaml"
         ));
-        let values: CiliumValues = serde_yaml::from_str(&file)?;
+        let values: CiliumValues = serde_yaml::from_str(file)?;
 
         Ok(values)
     }
