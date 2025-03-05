@@ -1315,7 +1315,7 @@ dependencies = [
 [[package]]
 name = "pyo3"
 version = "0.23.3"
-source = "git+https://github.com/PyO3/pyo3.git?rev=refs%2Fpull%2F4829%2Fhead#4e6f1f7e8ebe45ecc6c4b3816e5ec6f3c47044e6"
+source = "git+https://github.com/PyO3/pyo3.git?rev=21132a8e77dbce1597b80f6c0ff6fbcf36c93852#21132a8e77dbce1597b80f6c0ff6fbcf36c93852"
 dependencies = [
  "cfg-if",
  "indoc",
@@ -1333,7 +1333,7 @@ dependencies = [
 [[package]]
 name = "pyo3-build-config"
 version = "0.23.3"
-source = "git+https://github.com/PyO3/pyo3.git?rev=refs%2Fpull%2F4829%2Fhead#4e6f1f7e8ebe45ecc6c4b3816e5ec6f3c47044e6"
+source = "git+https://github.com/PyO3/pyo3.git?rev=21132a8e77dbce1597b80f6c0ff6fbcf36c93852#21132a8e77dbce1597b80f6c0ff6fbcf36c93852"
 dependencies = [
  "once_cell",
  "target-lexicon",
@@ -1342,7 +1342,7 @@ dependencies = [
 [[package]]
 name = "pyo3-ffi"
 version = "0.23.3"
-source = "git+https://github.com/PyO3/pyo3.git?rev=refs%2Fpull%2F4829%2Fhead#4e6f1f7e8ebe45ecc6c4b3816e5ec6f3c47044e6"
+source = "git+https://github.com/PyO3/pyo3.git?rev=21132a8e77dbce1597b80f6c0ff6fbcf36c93852#21132a8e77dbce1597b80f6c0ff6fbcf36c93852"
 dependencies = [
  "libc",
  "pyo3-build-config",
@@ -1362,7 +1362,7 @@ dependencies = [
 [[package]]
 name = "pyo3-macros"
 version = "0.23.3"
-source = "git+https://github.com/PyO3/pyo3.git?rev=refs%2Fpull%2F4829%2Fhead#4e6f1f7e8ebe45ecc6c4b3816e5ec6f3c47044e6"
+source = "git+https://github.com/PyO3/pyo3.git?rev=21132a8e77dbce1597b80f6c0ff6fbcf36c93852#21132a8e77dbce1597b80f6c0ff6fbcf36c93852"
 dependencies = [
  "proc-macro2",
  "pyo3-macros-backend",
@@ -1373,7 +1373,7 @@ dependencies = [
 [[package]]
 name = "pyo3-macros-backend"
 version = "0.23.3"
-source = "git+https://github.com/PyO3/pyo3.git?rev=refs%2Fpull%2F4829%2Fhead#4e6f1f7e8ebe45ecc6c4b3816e5ec6f3c47044e6"
+source = "git+https://github.com/PyO3/pyo3.git?rev=21132a8e77dbce1597b80f6c0ff6fbcf36c93852#21132a8e77dbce1597b80f6c0ff6fbcf36c93852"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
