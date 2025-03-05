@@ -11,7 +11,7 @@ pub trait ClusterAddon {
     fn manifests<T: ClusterAddonValues + Serialize>(
         &self,
         values: &T,
-    ) -> Result<Vec<serde_yaml::Value>, helm::HelmTemplateError>;
+    ) -> Result<String, helm::HelmTemplateError>;
 }
 
 pub trait ClusterAddonValues {

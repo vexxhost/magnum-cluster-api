@@ -9,7 +9,7 @@ use k8s_openapi::api::core::v1::ConfigMap;
 use kube::api::ObjectMeta;
 use maplit::btreemap;
 use pyo3::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::collections::BTreeMap;
 use typed_builder::TypedBuilder;
 
@@ -87,19 +87,11 @@ impl From<Cluster> for ConfigMap {
         // TODO(mnaser): Implement an inventory of addons
         let cilium = cilium::Addon::new(cluster.clone());
         if cilium.enabled() {
-            let mut buffer = Vec::new();
-            let mut ser = serde_yaml::Serializer::new(&mut buffer);
-
-            for manifest in cilium
-                .manifests(&cilium::CiliumValues::try_from(cluster.clone()).unwrap())
-                .unwrap()
-            {
-                manifest.serialize(&mut ser).unwrap();
-            }
-
             data.insert(
                 "cilium.yaml".to_owned(),
-                buffer.iter().map(|b| *b as char).collect(),
+                cilium
+                    .manifests(&cilium::CiliumValues::try_from(cluster.clone()).unwrap())
+                    .unwrap(),
             );
         }
 
@@ -195,7 +187,13 @@ mod tests {
             docs.unwrap_err()
         );
 
-        for doc in docs.unwrap() {
+        let docs = docs.unwrap();
+        let docs: Vec<serde_yaml::Value> = serde_yaml::Deserializer::from_str(&docs)
+            .map(serde_yaml::Value::deserialize)
+            .collect::<Result<_, _>>()
+            .expect("failed to parse rendered documents");
+
+        for doc in docs {
             if CLUSTER_SCOPED_RESOURCES.contains(&doc.get("kind").unwrap().as_str().unwrap()) {
                 continue;
             }

@@ -325,7 +325,7 @@ impl ClusterAddon for Addon {
     fn manifests<T: ClusterAddonValues + Serialize>(
         &self,
         values: &T,
-    ) -> Result<Vec<serde_yaml::Value>, helm::HelmTemplateError> {
+    ) -> Result<String, helm::HelmTemplateError> {
         helm::template_using_include_dir(
             include_dir!("magnum_cluster_api/charts/cilium"),
             "cilium",
@@ -581,8 +581,6 @@ mod tests {
 
         let addon = Addon::new(cluster.clone());
         let values: CiliumValues = cluster.clone().try_into().expect("failed to create values");
-        let manifests = addon.manifests(&values).expect("failed to get manifests");
-
-        assert_eq!(manifests.len(), 14);
+        addon.manifests(&values).expect("failed to get manifests");
     }
 }

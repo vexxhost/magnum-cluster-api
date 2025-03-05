@@ -1,5 +1,5 @@
 use include_dir::Dir;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -53,7 +53,7 @@ pub fn template<T: Serialize>(
     name: &str,
     namespace: &str,
     values: &T,
-) -> Result<Vec<serde_yaml::Value>, HelmTemplateError> {
+) -> Result<String, HelmTemplateError> {
     let yaml_values = serde_yaml::to_string(values)?;
 
     let mut child = Command::new("helm")
@@ -87,14 +87,7 @@ pub fn template<T: Serialize>(
         return Err(HelmTemplateError::HelmCommand(error_str));
     }
 
-    let output_str = String::from_utf8_lossy(&output.stdout).into_owned();
-
-    let docs: Vec<serde_yaml::Value> = serde_yaml::Deserializer::from_str(&output_str)
-        .map(serde_yaml::Value::deserialize)
-        .collect::<Result<_, _>>()
-        .map_err(HelmTemplateError::Deserialization)?;
-
-    Ok(docs)
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
 /// This is a helper function which allows you to use a `Dir` from the `include_dir` crate
@@ -104,7 +97,7 @@ pub fn template_using_include_dir<T: Serialize>(
     name: &str,
     namespace: &str,
     values: &T,
-) -> Result<Vec<serde_yaml::Value>, HelmTemplateError> {
+) -> Result<String, HelmTemplateError> {
     let tmp_dir = TempDir::new().map_err(HelmTemplateError::TempDir)?;
     chart
         .extract(tmp_dir.path())
