@@ -1,7 +1,7 @@
-diff --git a/magnum_cluster_api/charts/cluster-autoscaler/values.yaml b/magnum_cluster_api/charts/cluster-autoscaler/values.yaml
+diff --git a/cluster-autoscaler/values.yaml b/cluster-autoscaler/values.yaml
 index f414ae65..209f3d0f 100644
---- a/magnum_cluster_api/charts/cluster-autoscaler/values.yaml
-+++ b/magnum_cluster_api/charts/cluster-autoscaler/values.yaml
+--- a/cluster-autoscaler/values.yaml
++++ b/cluster-autoscaler/values.yaml
 @@ -167,6 +167,8 @@ extraArgs:
    logtostderr: true
    stderrthreshold: info
