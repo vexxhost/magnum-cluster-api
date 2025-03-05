@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.26.3...v0.27.0) (2025-03-03)
+
+
+### Features
+
+* Migrate ClusterClass & friends to Rust ([#519](https://github.com/vexxhost/magnum-cluster-api/issues/519)) ([d586a38](https://github.com/vexxhost/magnum-cluster-api/commit/d586a38a27534cf7438018c712c0aec57311ced7))
+
 ## [0.26.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.26.2...v0.26.3) (2025-02-28)
 
 

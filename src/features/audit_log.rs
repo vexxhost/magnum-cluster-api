@@ -22,6 +22,7 @@ use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use typed_builder::TypedBuilder;
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
@@ -105,33 +106,23 @@ impl ClusterFeaturePatches for Feature {
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-".into(),
-                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                    template: Some(
-                                        serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes {
-                                            name: "audit-policy".to_string(),
-                                            host_path: "/etc/kubernetes/audit-policy".to_string(),
-                                            mount_path: "/etc/kubernetes/audit-policy".to_string(),
-                                            ..Default::default()
-                                        }).unwrap(),
-                                    ),
+                                value: Some(json!(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes {
+                                    name: "audit-policy".to_string(),
+                                    host_path: "/etc/kubernetes/audit-policy".to_string(),
+                                    mount_path: "/etc/kubernetes/audit-policy".to_string(),
                                     ..Default::default()
-                                }),
+                                })),
                                 ..Default::default()
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-".into(),
-                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                    template: Some(
-                                        serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes {
-                                            name: "audit-logs".to_string(),
-                                            host_path: "/var/log/kubernetes/audit".to_string(),
-                                            mount_path: "/var/log/audit".to_string(),
-                                            ..Default::default()
-                                        }).unwrap(),
-                                    ),
+                                value: Some(json!(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServerExtraVolumes {
+                                    name: "audit-logs".to_string(),
+                                    host_path: "/var/log/kubernetes/audit".to_string(),
+                                    mount_path: "/var/log/audit".to_string(),
                                     ..Default::default()
-                                }),
+                                })),
                                 ..Default::default()
                             },
                         ],
