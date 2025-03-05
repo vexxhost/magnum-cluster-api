@@ -17,6 +17,7 @@ cluster_feature_derive = { path = "crates/cluster_feature_derive" }
 docker-image = "0.2.1"
 helm = { path = "crates/helm" }
 ignition-config = "0.5.0"
+include_dir = "0.7.4"
 indoc = "2.0.5"
 inventory = "0.3.19"
 json-patch = "3.0.1"

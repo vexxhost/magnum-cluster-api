@@ -3,8 +3,8 @@ use crate::{
     magnum,
 };
 use docker_image::DockerImage;
+use include_dir::include_dir;
 use serde::{Deserialize, Serialize};
-use std::{fs::File, path::PathBuf};
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct CiliumValues {
@@ -97,7 +97,10 @@ impl TryFrom<magnum::Cluster> for CiliumValues {
 
 impl ClusterAddonValues for CiliumValues {
     fn defaults() -> Result<Self, ClusterAddonValuesError> {
-        let file = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/magnum_cluster_api/charts/cilium/values.yaml"));
+        let file = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/magnum_cluster_api/charts/cilium/values.yaml"
+        ));
         let values: CiliumValues = serde_yaml::from_str(&file)?;
 
         Ok(values)
@@ -323,8 +326,8 @@ impl ClusterAddon for Addon {
         &self,
         values: &T,
     ) -> Result<Vec<serde_yaml::Value>, helm::HelmTemplateError> {
-        helm::template(
-            &PathBuf::from("magnum_cluster_api/charts/cilium"),
+        helm::template_using_include_dir(
+            include_dir!("magnum_cluster_api/charts/cilium"),
             "cilium",
             "kube-system",
             values,
