@@ -1,7 +1,9 @@
+use include_dir::Dir;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use tempfile::TempDir;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -26,6 +28,12 @@ pub enum HelmTemplateError {
 
     #[error("failed to deserialize helm output: {0}")]
     Deserialization(serde_yaml::Error),
+
+    #[error("failed to create temporary directory: {0}")]
+    TempDir(std::io::Error),
+
+    #[error("failed to extract chart: {0}")]
+    Extract(std::io::Error),
 }
 
 /// Runs `helm template` for the given chart, feeding in the provided
@@ -87,6 +95,22 @@ pub fn template<T: Serialize>(
         .map_err(HelmTemplateError::Deserialization)?;
 
     Ok(docs)
+}
+
+/// This is a helper function which allows you to use a `Dir` from the `include_dir` crate
+/// as the source for the chart.
+pub fn template_using_include_dir<T: Serialize>(
+    chart: Dir,
+    name: &str,
+    namespace: &str,
+    values: &T,
+) -> Result<Vec<serde_yaml::Value>, HelmTemplateError> {
+    let tmp_dir = TempDir::new().map_err(HelmTemplateError::TempDir)?;
+    chart
+        .extract(tmp_dir.path())
+        .map_err(HelmTemplateError::Extract)?;
+
+    template(&tmp_dir.path().to_path_buf(), name, namespace, values)
 }
 
 #[cfg(test)]
