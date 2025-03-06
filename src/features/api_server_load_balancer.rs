@@ -24,7 +24,15 @@ use typed_builder::TypedBuilder;
 #[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
 pub struct APIServerLoadBalancerConfig {
     pub enabled: bool,
+
     pub provider: String,
+
+    #[builder(default)]
+    pub flavor: Option<String>,
+
+    #[builder(default)]
+    #[serde(rename = "availabilityZone")]
+    pub availability_zone: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
@@ -70,17 +78,23 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resources::fixtures::default_values;
     use crate::features::test::TestClusterResources;
+    use crate::resources::fixtures::default_values;
     use pretty_assertions::assert_eq;
 
     #[test]
     fn test_patches() {
         let feature = Feature {};
 
-        let values = default_values();
-        let patches = feature.patches();
+        let mut values = default_values();
+        values.api_server_load_balancer = APIServerLoadBalancerConfig::builder()
+            .enabled(true)
+            .provider("octavia".into())
+            .flavor(Some("ha".into()))
+            .availability_zone(Some("zone-1".into()))
+            .build();
 
+        let patches = feature.patches();
         let mut resources = TestClusterResources::new();
         resources.apply_patches(&patches, &values);
 
@@ -99,6 +113,14 @@ mod tests {
         assert_eq!(
             api_server_load_balancer.provider,
             Some(values.api_server_load_balancer.provider)
+        );
+        assert_eq!(
+            api_server_load_balancer.flavor,
+            values.api_server_load_balancer.flavor
+        );
+        assert_eq!(
+            api_server_load_balancer.availability_zone,
+            values.api_server_load_balancer.availability_zone
         );
     }
 }
