@@ -826,6 +826,19 @@ class Cluster(ClusterBase):
                 DEFAULT_POD_CIDR,
             )
 
+        api_server_load_balancer = {
+            "enabled": self.cluster.master_lb_enabled,
+            "provider": self.cluster.labels.get("octavia_provider", "amphora")
+        }
+        if self.cluster.labels.get("api_server_lb_availability_zone"):
+            api_server_load_balancer["availabilityZone"] = self.cluster.labels.get(
+                "api_server_lb_availability_zone"
+            )
+        if self.cluster.labels.get("api_server_lb_flavor"):
+            api_server_load_balancer["flavor"] = self.cluster.labels.get(
+                "api_server_lb_flavor"
+            )
+
         return {
             "metadata": {
                 "labels": self.labels,
@@ -868,18 +881,7 @@ class Cluster(ClusterBase):
                     "variables": [
                         {
                             "name": "apiServerLoadBalancer",
-                            "value": {
-                                "enabled": self.cluster.master_lb_enabled,
-                                "provider": self.cluster.labels.get(
-                                    "octavia_provider", "amphora"
-                                ),
-                                "availabilityZone": self.cluster.labels.get(
-                                    "api_lb_availability_zone", ""
-                                ),			
-                                "flavor": self.cluster.labels.get(
-                                    "api_lb_flavor", ""
-                                ),	
-                            },
+                            "value": api_server_load_balancer,
                         },
                         {
                             "name": "apiServerTLSCipherSuites",
@@ -893,7 +895,7 @@ class Cluster(ClusterBase):
                             "value": self.cluster.labels.get(
                                 "api_server_floating_ip", ""
                             ),
-                        },     
+                        },
                         {
                             "name": "openidConnect",
                             "value": {
