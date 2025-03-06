@@ -1,5 +1,6 @@
 - hosts: all
   tasks:
+    - shell: "{{ zuul.project.src_dir }}/hack/setup-helm.sh"
     - name: Run "cargo test"
       ansible.builtin.command: cargo test
       args:

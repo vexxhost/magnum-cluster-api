@@ -1,0 +1,14 @@
+[package]
+name = "helm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+include_dir = "0.7.4"
+serde = "1.0.218"
+serde_yaml = "0.9.34"
+tempfile = "3.17.1"
+thiserror = "2.0.11"
+
+[dev-dependencies]
+serde = { version = "1.0.218", features = ["derive"] }

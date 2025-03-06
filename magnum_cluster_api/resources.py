@@ -46,7 +46,6 @@ from magnum_cluster_api.integrations import cinder, cloud_provider, manila
 
 CONF = cfg.CONF
 CALICO_TAG = "v3.24.2"
-CILIUM_TAG = "v1.15.3"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
@@ -230,13 +229,15 @@ class ClusterResourcesConfigMap(ClusterBase):
             "magnum_cluster_api", "manifests"
         )
         calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
-        cilium_version = self.cluster.labels.get("cilium_tag", CILIUM_TAG)
 
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
 
         osc = clients.get_openstack_api(self.context)
 
+        data = magnum_cluster_api.MagnumCluster.get_config_data(self.cluster)
+
         data = {
+            **data,
             **{
                 os.path.basename(manifest): image_utils.update_manifest_images(
                     self.cluster.uuid,
@@ -252,56 +253,6 @@ class ClusterResourcesConfigMap(ClusterBase):
                 for manifest in glob.glob(os.path.join(manifests_path, "ccm/*.yaml"))
             },
         }
-
-        if self.cluster.cluster_template.network_driver == "cilium":
-            data = {
-                **data,
-                **{
-                    "cilium.yml": helm.TemplateReleaseCommand(
-                        namespace="kube-system",
-                        release_name="cilium",
-                        chart_ref=os.path.join(
-                            pkg_resources.resource_filename(
-                                "magnum_cluster_api", "charts"
-                            ),
-                            "cilium/",
-                        ),
-                        values={
-                            "cni": {"chainingMode": "portmap"},
-                            "image": {
-                                "tag": cilium_version,
-                            },
-                            # NOTE(okozachenko): cilium has a limitation https://github.com/cilium/cilium/issues/9207
-                            #                    Because of that, it fails on the test
-                            #                    `Services should serve endpoints on same port and different protocols`.
-                            #                    https://github.com/kubernetes/kubernetes/pull/120069#issuecomment-2111252221
-                            "k8s": {"serviceProxyName": "cilium"},
-                            "operator": {
-                                "image": {
-                                    "tag": cilium_version,
-                                },
-                            },
-                            # NOTE(okozachenko): For users who run with kube-proxy (i.e. with Cilium's kube-proxy
-                            #                    replacement disabled), the ClusterIP service loadbalancing when a
-                            #                    request is sent from a pod running in a non-host network namespace
-                            #                    is still performed at the pod network interface (until
-                            #                    https://github.com/cilium/cilium/issues/16197 is fixed). For this
-                            #                    case the session affinity support is disabled by default.
-                            "sessionAffinity": "true",
-                            "ipam": {
-                                "operator": {
-                                    "clusterPoolIPv4PodCIDRList": [
-                                        self.cluster.labels.get(
-                                            "cilium_ipv4pool",
-                                            DEFAULT_POD_CIDR,
-                                        ),
-                                    ],
-                                },
-                            },
-                        },
-                    )(repository=repository)
-                },
-            }
 
         if self.cluster.cluster_template.network_driver == "calico":
             data = {
@@ -851,11 +802,6 @@ class Cluster(ClusterBase):
             cni_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
             labels = {
                 "cni": f"calico-{cni_version}",
-            }
-        if self.cluster.cluster_template.network_driver == "cilium":
-            cni_version = self.cluster.labels.get("cilium_tag", CILIUM_TAG)
-            labels = {
-                "cni": f"cilium-{cni_version}",
             }
 
         return {**super().labels, **labels}
