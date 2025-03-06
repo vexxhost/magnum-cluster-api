@@ -826,6 +826,19 @@ class Cluster(ClusterBase):
                 DEFAULT_POD_CIDR,
             )
 
+        api_server_load_balancer = {
+            "enabled": self.cluster.master_lb_enabled,
+            "provider": self.cluster.labels.get("octavia_provider", "amphora")
+        }
+        if self.cluster.labels.get("api_server_lb_availability_zone"):
+            api_server_load_balancer["availabilityZone"] = self.cluster.labels.get(
+                "api_server_lb_availability_zone"
+            )
+        if self.cluster.labels.get("api_server_lb_flavor"):
+            api_server_load_balancer["flavor"] = self.cluster.labels.get(
+                "api_server_lb_flavor"
+            )
+
         return {
             "metadata": {
                 "labels": self.labels,
@@ -868,18 +881,19 @@ class Cluster(ClusterBase):
                     "variables": [
                         {
                             "name": "apiServerLoadBalancer",
-                            "value": {
-                                "enabled": self.cluster.master_lb_enabled,
-                                "provider": self.cluster.labels.get(
-                                    "octavia_provider", "amphora"
-                                ),
-                            },
+                            "value": api_server_load_balancer,
                         },
                         {
                             "name": "apiServerTLSCipherSuites",
                             "value": self.cluster.labels.get(
                                 "api_server_tls_cipher_suites",
                                 "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",  # noqa: E501
+                            ),
+                        },
+                        {
+                            "name": "apiServerFloatingIP",
+                            "value": self.cluster.labels.get(
+                                "api_server_floating_ip", ""
                             ),
                         },
                         {
