@@ -491,7 +491,7 @@ def get_keystone_auth_default_policy(cluster: magnum_objects.Cluster):
 
     try:
         with open(CONF.kubernetes.keystone_auth_default_policy) as f:
-            return json.loads(f.read())
+            return json.loads(f.read().replace("$PROJECT_ID", cluster.project_id))
     except Exception:
         return default_policy
 
