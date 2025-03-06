@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "magnum-cluster-api"
-version = "0.26.0"
+version = "0.27.0"
 description = "Cluster API driver for Magnum"
 readme = "README.md"
 license = "Apache-2.0"
@@ -57,6 +57,7 @@ dev = [
   "pytest-mock>=3.6.1",
   "responses>=0.25.0",
   "types-PyYAML",
+  "stestr"
 ]
 
 [project.scripts]
