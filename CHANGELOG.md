@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.27.0...v0.27.1) (2025-03-06)
+
+
+### Bug Fixes
+
+* replace $PROJECT_ID in the template ([#525](https://github.com/vexxhost/magnum-cluster-api/issues/525)) ([70835e4](https://github.com/vexxhost/magnum-cluster-api/commit/70835e4c0e25aa0ed82fc45a7d2410a6da810315))
+
 ## [0.27.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.26.3...v0.27.0) (2025-03-03)
 
 
