@@ -47,6 +47,7 @@ use maplit::btreemap;
 use schemars::{gen::SchemaGenerator, JsonSchema};
 use std::sync::LazyLock;
 
+pub mod api_server_floating_ip;
 pub mod api_server_load_balancer;
 pub mod audit_log;
 pub mod boot_volume;
