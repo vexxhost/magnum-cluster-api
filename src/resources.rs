@@ -175,9 +175,11 @@ impl From<Values> for Vec<ClusterTopologyVariables> {
 
 #[cfg(test)]
 pub mod fixtures {
-    use super::Values;
-    use crate::features::{
-        api_server_load_balancer, audit_log, boot_volume, openid_connect, operating_system,
+    use crate::{
+        features::{
+            api_server_load_balancer, audit_log, boot_volume, openid_connect, operating_system,
+        },
+        resources::Values,
     };
     use base64::prelude::*;
     use indoc::indoc;
@@ -297,8 +299,10 @@ pub mod fixtures {
 
 #[cfg(test)]
 mod tests {
-    use super::{fixtures::default_values, *};
-    use crate::cluster_api::clusters::ClusterTopologyVariables;
+    use super::*;
+    use crate::{
+        cluster_api::clusters::ClusterTopologyVariables, resources::fixtures::default_values,
+    };
     use pretty_assertions::assert_eq;
     use serde_json::json;
 

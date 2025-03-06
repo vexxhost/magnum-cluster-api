@@ -4,14 +4,15 @@ use crate::{
         ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
         ClusterResourceSetResourcesKind, ClusterResourceSetSpec,
     },
-    features,
+    features, magnum,
     resources::ClusterClassBuilder,
 };
-use k8s_openapi::api::core::v1::Namespace;
+use k8s_openapi::api::core::v1::{ConfigMap, Namespace};
 use kube::{core::ObjectMeta, Api};
 use maplit::btreemap;
 use once_cell::sync::Lazy;
-use pyo3::prelude::*;
+use pyo3::{prelude::*, types::PyType};
+use std::collections::BTreeMap;
 use tokio::runtime::Runtime;
 
 static GLOBAL_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
@@ -50,6 +51,18 @@ impl MagnumCluster {
             namespace: namespace.to_string(),
             cluster_class_name: cluster_class_name.to_string(),
         })
+    }
+
+    #[classmethod]
+    #[pyo3(signature = (cluster))]
+    fn get_config_data(
+        _cls: &Bound<'_, PyType>,
+        cluster: PyObject,
+        py: Python<'_>,
+    ) -> PyResult<Option<BTreeMap<String, String>>> {
+        let cluster: magnum::Cluster = cluster.extract(py)?;
+        let config_map = ConfigMap::from(cluster);
+        Ok(config_map.data)
     }
 
     fn apply_cluster_class(&self, py: Python<'_>) -> PyResult<()> {

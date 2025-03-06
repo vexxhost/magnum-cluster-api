@@ -14,7 +14,10 @@ heck = "0.4"
 backoff = { version = "0.4.0", features = ["tokio"] }
 base64 = "0.22.1"
 cluster_feature_derive = { path = "crates/cluster_feature_derive" }
+docker-image = "0.2.1"
+helm = { path = "crates/helm" }
 ignition-config = "0.5.0"
+include_dir = "0.7.4"
 indoc = "2.0.5"
 inventory = "0.3.19"
 json-patch = "3.0.1"
@@ -35,12 +38,17 @@ typed-builder = "0.20.0"
 
 [dependencies.pyo3]
 version = "0.23.1"
-features = ["abi3-py38", "extension-module"]
+features = ["abi3-py38", "extension-module", "serde"]
 
 [dev-dependencies]
 gtmpl = "0.7.1"
 pretty_assertions = "1.4.1"
+rstest = "0.25.0"
 serde_gtmpl = { path = "crates/serde_gtmpl" }
 
+[patch.crates-io.pyo3]
+git = "https://github.com/PyO3/pyo3.git"
+rev = "21132a8e77dbce1597b80f6c0ff6fbcf36c93852"
+
 [workspace]
-members = ["crates/cluster_feature_derive", "crates/serde_gtmpl"]
+members = ["crates/cluster_feature_derive", "crates/helm", "crates/serde_gtmpl"]
