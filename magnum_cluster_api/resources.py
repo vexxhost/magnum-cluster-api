@@ -96,6 +96,7 @@ class ClusterAutoscalerHelmRelease:
                     "stderrthreshold": info,
                     "v": 4,
                     "enforce-node-group-min-size": true
+                },
             },
         )
 
