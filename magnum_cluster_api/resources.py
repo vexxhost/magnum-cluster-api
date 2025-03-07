@@ -91,6 +91,11 @@ class ClusterAutoscalerHelmRelease:
                 "nodeSelector": {
                     "openstack-control-plane": "enabled",
                 },
+                "extraArgs": {
+                    "logtostderr": true,
+                    "stderrthreshold": info,
+                    "v": 4,
+                    "enforce-node-group-min-size": true
             },
         )
 
