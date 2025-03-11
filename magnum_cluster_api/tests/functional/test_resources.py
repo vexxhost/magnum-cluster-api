@@ -75,6 +75,12 @@ class ResourceBaseTestCase(base.BaseTestCase):
         )
         self.useFixture(
             fixtures.MockPatch(
+                "magnum_cluster_api.utils.get_hw_scsi_model",
+                return_value="",
+            )
+        )
+        self.useFixture(
+            fixtures.MockPatch(
                 "magnum_cluster_api.utils.ensure_controlplane_server_group",
                 return_value=uuidutils.generate_uuid(),
             )
