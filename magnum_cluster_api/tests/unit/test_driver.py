@@ -80,6 +80,11 @@ class TestDriver:
             return_value=uuidutils.generate_uuid(),
         )
 
+        mocker.patch(
+            "magnum_cluster_api.utils.get_hw_disk_bus",
+            return_value="",
+        )
+
     def _assert_node_group_status(self, expected_status):
         assert self.node_group.status == expected_status
         self.node_group.save.assert_called_once()

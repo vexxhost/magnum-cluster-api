@@ -33,6 +33,9 @@ use serde_json::json;
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
+    #[serde(rename = "hardwareDiskBus")]
+    pub hardware_disk_bus: String,
+
     #[serde(rename = "enableDockerVolume")]
     pub enable_docker_volume: bool,
 
@@ -202,28 +205,38 @@ impl ClusterFeaturePatches for Feature {
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/kubeadmConfigSpec/diskSetup/partitions/-".into(),
-                                value: Some(json!(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupPartitions {
-                                    device: "/dev/vdb".into(),
-                                    layout: true,
-                                    overwrite: Some(false),
-                                    table_type: Some("gpt".into()),
-                                })),
+                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                    template: Some(
+                                        serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupPartitions {
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
+                                            layout: true,
+                                            overwrite: Some(false),
+                                            table_type: Some("gpt".into()),
+                                        }).unwrap(),
+                                    ),
+                                    ..Default::default()
+                                }),
                                 ..Default::default()
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/kubeadmConfigSpec/diskSetup/filesystems/-".into(),
-                                value: Some(json!(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupFilesystems {
-                                    device: "/dev/vdb".into(),
-                                    extra_opts: Some(vec![
-                                        "-F".into(),
-                                        "-E".into(),
-                                        "lazy_itable_init=1,lazy_journal_init=1".into(),
-                                    ]),
-                                    filesystem: "ext4".into(),
-                                    label: "etcd_disk".into(),
+                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                    template: Some(
+                                        serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupFilesystems {
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
+                                            extra_opts: Some(vec![
+                                                "-F".into(),
+                                                "-E".into(),
+                                                "lazy_itable_init=1,lazy_journal_init=1".into(),
+                                            ]),
+                                            filesystem: "ext4".into(),
+                                            label: "etcd_disk".into(),
+                                            ..Default::default()
+                                        }).unwrap(),
+                                    ),
                                     ..Default::default()
-                                })),
+                                }),
                                 ..Default::default()
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
@@ -320,28 +333,38 @@ impl ClusterFeaturePatches for Feature {
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/diskSetup/partitions/-".into(),
-                                value: Some(json!(&KubeadmConfigTemplateTemplateSpecDiskSetupPartitions {
-                                    device: "/dev/vdb".into(),
-                                    layout: true,
-                                    overwrite: Some(false),
-                                    table_type: Some("gpt".into()),
-                                })),
+                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                    template: Some(
+                                        serde_yaml::to_string(&KubeadmConfigTemplateTemplateSpecDiskSetupPartitions {
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
+                                            layout: true,
+                                            overwrite: Some(false),
+                                            table_type: Some("gpt".into()),
+                                        }).unwrap(),
+                                    ),
+                                    ..Default::default()
+                                }),
                                 ..Default::default()
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/diskSetup/filesystems/-".into(),
-                                value: Some(json!(&KubeadmConfigTemplateTemplateSpecDiskSetupFilesystems {
-                                    device: "/dev/vdb".into(),
-                                    extra_opts: Some(vec![
-                                        "-F".into(),
-                                        "-E".into(),
-                                        "lazy_itable_init=1,lazy_journal_init=1".into(),
-                                    ]),
-                                    filesystem: "ext4".into(),
-                                    label: "docker_disk".into(),
+                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                    template: Some(
+                                        serde_yaml::to_string(&KubeadmConfigTemplateTemplateSpecDiskSetupFilesystems {
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
+                                            extra_opts: Some(vec![
+                                                "-F".into(),
+                                                "-E".into(),
+                                                "lazy_itable_init=1,lazy_journal_init=1".into(),
+                                            ]),
+                                            filesystem: "ext4".into(),
+                                            label: "docker_disk".into(),
+                                            ..Default::default()
+                                        }).unwrap(),
+                                    ),
                                     ..Default::default()
-                                })),
+                                }),
                                 ..Default::default()
                             },
                         ],
@@ -366,28 +389,38 @@ impl ClusterFeaturePatches for Feature {
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/kubeadmConfigSpec/diskSetup/partitions/-".into(),
-                                value: Some(json!(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupPartitions {
-                                    device: "/dev/vdc".into(),
-                                    layout: true,
-                                    overwrite: Some(false),
-                                    table_type: Some("gpt".into()),
-                                })),
+                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                    template: Some(
+                                        serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupPartitions {
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}c"#.into(),
+                                            layout: true,
+                                            overwrite: Some(false),
+                                            table_type: Some("gpt".into()),
+                                        }).unwrap(),
+                                    ),
+                                    ..Default::default()
+                                }),
                                 ..Default::default()
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/kubeadmConfigSpec/diskSetup/filesystems/-".into(),
-                                value: Some(json!(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupFilesystems {
-                                    device: "/dev/vdc".into(),
-                                    extra_opts: Some(vec![
-                                        "-F".into(),
-                                        "-E".into(),
-                                        "lazy_itable_init=1,lazy_journal_init=1".into(),
-                                    ]),
-                                    filesystem: "ext4".into(),
-                                    label: "docker_disk".into(),
+                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                    template: Some(
+                                        serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupFilesystems {
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}c"#.into(),
+                                            extra_opts: Some(vec![
+                                                "-F".into(),
+                                                "-E".into(),
+                                                "lazy_itable_init=1,lazy_journal_init=1".into(),
+                                            ]),
+                                            filesystem: "ext4".into(),
+                                            label: "docker_disk".into(),
+                                            ..Default::default()
+                                        }).unwrap(),
+                                    ),
                                     ..Default::default()
-                                })),
+                                }),
                                 ..Default::default()
                             },
                         ],
@@ -412,28 +445,38 @@ impl ClusterFeaturePatches for Feature {
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/kubeadmConfigSpec/diskSetup/partitions/-".into(),
-                                value: Some(json!(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupPartitions {
-                                    device: "/dev/vdb".into(),
-                                    layout: true,
-                                    overwrite: Some(false),
-                                    table_type: Some("gpt".into()),
-                                })),
+                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                    template: Some(
+                                        serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupPartitions {
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
+                                            layout: true,
+                                            overwrite: Some(false),
+                                            table_type: Some("gpt".into()),
+                                        }).unwrap(),
+                                    ),
+                                    ..Default::default()
+                                }),
                                 ..Default::default()
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
                                 path: "/spec/template/spec/kubeadmConfigSpec/diskSetup/filesystems/-".into(),
-                                value: Some(json!(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupFilesystems {
-                                    device: "/dev/vdb".into(),
-                                    extra_opts: Some(vec![
-                                        "-F".into(),
-                                        "-E".into(),
-                                        "lazy_itable_init=1,lazy_journal_init=1".into(),
-                                    ]),
-                                    filesystem: "ext4".into(),
-                                    label: "docker_disk".into(),
+                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                    template: Some(
+                                        serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupFilesystems {
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
+                                            extra_opts: Some(vec![
+                                                "-F".into(),
+                                                "-E".into(),
+                                                "lazy_itable_init=1,lazy_journal_init=1".into(),
+                                            ]),
+                                            filesystem: "ext4".into(),
+                                            label: "docker_disk".into(),
+                                            ..Default::default()
+                                        }).unwrap(),
+                                    ),
                                     ..Default::default()
-                                })),
+                                }),
                                 ..Default::default()
                             },
                         ],
@@ -925,6 +968,200 @@ mod tests {
                 filesystems: Some(vec![
                     KubeadmConfigTemplateTemplateSpecDiskSetupFilesystems {
                         device: "/dev/vdb".into(),
+                        extra_opts: Some(vec![
+                            "-F".into(),
+                            "-E".into(),
+                            "lazy_itable_init=1,lazy_journal_init=1".into(),
+                        ]),
+                        filesystem: "ext4".into(),
+                        label: "docker_disk".into(),
+                        ..Default::default()
+                    }
+                ])
+            }
+        );
+
+        assert_eq!(
+            kct_spec.clone().mounts.expect("mounts should be set"),
+            vec![vec![
+                "LABEL=docker_disk".to_string(),
+                "/var/lib/containerd".to_string()
+            ]]
+        );
+    }
+
+    #[test]
+    fn test_patches_with_etcd_and_docker_scsi_volumes() {
+        let feature = Feature {};
+
+        let mut values = default_values();
+        values.hardware_disk_bus = "scsi".to_string();
+        values.enable_etcd_volume = true;
+        values.etcd_volume_size = 80;
+        values.etcd_volume_type = "nvme".into();
+        values.enable_docker_volume = true;
+        values.docker_volume_size = 160;
+        values.docker_volume_type = "ssd".into();
+
+        let patches = feature.patches();
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
+
+        assert_eq!(
+            resources
+                .control_plane_openstack_machine_template
+                .spec
+                .template
+                .spec
+                .additional_block_devices
+                .expect("additional block devices should be set"),
+                vec![
+                    OpenStackMachineTemplateTemplateSpecAdditionalBlockDevices {
+                        name: "etcd".into(),
+                        size_gi_b: values.clone().etcd_volume_size,
+                        storage: OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorage {
+                            r#type: "Volume".into(),
+                            volume: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolume {
+                                r#type: Some(values.clone().etcd_volume_type),
+                                availability_zone: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZone {
+                                    name: Some(values.clone().availability_zone),
+                                    ..Default::default()
+                                })
+                            })
+                        }
+                    },
+                    OpenStackMachineTemplateTemplateSpecAdditionalBlockDevices {
+                        name: "docker".into(),
+                        size_gi_b: values.clone().docker_volume_size,
+                        storage: OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorage {
+                            r#type: "Volume".into(),
+                            volume: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolume {
+                                r#type: Some(values.clone().docker_volume_type),
+                                availability_zone: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZone {
+                                    name: Some(values.clone().availability_zone),
+                                    ..Default::default()
+                                })
+                            })
+                        }
+                    }
+                ]
+        );
+
+        assert_eq!(
+            resources
+                .worker_openstack_machine_template
+                .spec
+                .template
+                .spec
+                .additional_block_devices
+                .expect("additional block devices should be set"),
+                vec![OpenStackMachineTemplateTemplateSpecAdditionalBlockDevices {
+                    name: "docker".into(),
+                    size_gi_b: values.docker_volume_size,
+                    storage: OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorage {
+                        r#type: "Volume".into(),
+                        volume: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolume {
+                            r#type: Some(values.clone().docker_volume_type),
+                            availability_zone: Some(OpenStackMachineTemplateTemplateSpecAdditionalBlockDevicesStorageVolumeAvailabilityZone {
+                                name: Some(values.clone().availability_zone),
+                                ..Default::default()
+                            })
+                        })
+                    }
+                }]
+        );
+
+        assert_eq!(
+            resources
+                .kubeadm_control_plane_template
+                .spec
+                .template
+                .spec
+                .kubeadm_config_spec
+                .disk_setup
+                .expect("disk setup should be set"),
+            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetup {
+                partitions: Some(vec![
+                    KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupPartitions {
+                        device: "/dev/sdb".into(),
+                        layout: true,
+                        overwrite: Some(false),
+                        table_type: Some("gpt".into()),
+                    },
+                    KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupPartitions {
+                        device: "/dev/sdc".into(),
+                        layout: true,
+                        overwrite: Some(false),
+                        table_type: Some("gpt".into()),
+                    }
+                ]),
+                filesystems: Some(vec![
+                    KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupFilesystems {
+                        device: "/dev/sdb".into(),
+                        extra_opts: Some(vec![
+                            "-F".into(),
+                            "-E".into(),
+                            "lazy_itable_init=1,lazy_journal_init=1".into(),
+                        ]),
+                        filesystem: "ext4".into(),
+                        label: "etcd_disk".into(),
+                        ..Default::default()
+                    },
+                    KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupFilesystems {
+                        device: "/dev/sdc".into(),
+                        extra_opts: Some(vec![
+                            "-F".into(),
+                            "-E".into(),
+                            "lazy_itable_init=1,lazy_journal_init=1".into(),
+                        ]),
+                        filesystem: "ext4".into(),
+                        label: "docker_disk".into(),
+                        ..Default::default()
+                    }
+                ])
+            }
+        );
+
+        assert_eq!(
+            resources
+                .kubeadm_control_plane_template
+                .spec
+                .template
+                .spec
+                .kubeadm_config_spec
+                .mounts
+                .expect("mounts should be set"),
+            vec![
+                vec!["LABEL=etcd_disk".to_string(), "/var/lib/etcd".to_string()],
+                vec![
+                    "LABEL=docker_disk".to_string(),
+                    "/var/lib/containerd".to_string()
+                ]
+            ]
+        );
+
+        let kct_spec = resources
+            .kubeadm_config_template
+            .spec
+            .template
+            .spec
+            .expect("kubeadm config spec should be set");
+
+        assert_eq!(
+            kct_spec
+                .clone()
+                .disk_setup
+                .expect("disk setup should be set"),
+            KubeadmConfigTemplateTemplateSpecDiskSetup {
+                partitions: Some(vec![KubeadmConfigTemplateTemplateSpecDiskSetupPartitions {
+                    device: "/dev/sdb".into(),
+                    layout: true,
+                    overwrite: Some(false),
+                    table_type: Some("gpt".into()),
+                }]),
+                filesystems: Some(vec![
+                    KubeadmConfigTemplateTemplateSpecDiskSetupFilesystems {
+                        device: "/dev/sdb".into(),
                         extra_opts: Some(vec![
                             "-F".into(),
                             "-E".into(),
