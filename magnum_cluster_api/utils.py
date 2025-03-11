@@ -373,16 +373,14 @@ def format_event_message(event: pykube.Event):
 
 
 def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
-    """Lookup a flavor, ensuring that it is a flavor name"""
+    """Lookup a flavor either by name or id."""
 
     if flavor is None:
         return
     flavor_list = cli.nova().flavors.list()
     for f in flavor_list:
-        if f.name == flavor:
+        if f.name == flavor or f.id == flavor:
             return f
-        if f.id == flavor:
-            raise mcapi_exceptions.OpenstackFlavorInvalidName(flavor=flavor)
     raise exception.FlavorNotFound(flavor=flavor)
 
 
@@ -394,11 +392,6 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
     # Check master count
     if (cluster.master_count % 2) == 0:
         raise mcapi_exceptions.ClusterMasterCountEven
-
-    # Validate flavors
-    osc = clients.get_openstack_api(ctx)
-    lookup_flavor(osc, cluster.master_flavor_id)
-    lookup_flavor(osc, cluster.flavor_id)
 
     # Check if fixed_network exists
     if cluster.fixed_network:
@@ -435,12 +428,9 @@ def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
 
 
 def validate_nodegroup(
-    nodegroup: magnum_objects.NodeGroup, ctx: context.RequestContext
+    nodegroup: magnum_objects.NodeGroup
 ):
     validate_nodegroup_name(nodegroup)
-    # Validate flavors
-    osc = clients.get_openstack_api(ctx)
-    lookup_flavor(osc, nodegroup.flavor_id)
 
 
 def get_operating_system(cluster: magnum_objects.Cluster):

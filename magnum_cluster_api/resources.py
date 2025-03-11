@@ -668,6 +668,10 @@ def mutate_machine_deployment(
         "node.cluster.x-k8s.io/nodegroup": node_group.name,
     }
 
+    # Lookup the flavor from Nova
+    osc = clients.get_openstack_api(context)
+    flavor = utils.lookup_flavor(osc, node_group.flavor_id)
+
     # Replicas (or min/max if auto-scaling is enabled)
     if auto_scaling_enabled:
         machine_deployment["replicas"] = None
@@ -720,8 +724,8 @@ def mutate_machine_deployment(
                         },
                     },
                     {
-                        "name": "flavor",
-                        "value": node_group.flavor_id,
+                        "name": "flavorID",
+                        "value": flavor.id,
                     },
                     {
                         "name": "imageRepository",
@@ -832,6 +836,10 @@ class Cluster(ClusterBase):
                 "cilium_ipv4pool",
                 DEFAULT_POD_CIDR,
             )
+
+        # Lookup the flavor from Nova
+        control_plane_flavor = utils.lookup_flavor(osc, self.cluster.master_flavor_id)
+        worker_flavor = utils.lookup_flavor(osc, self.cluster.flavor_id)
 
         return {
             "metadata": {
@@ -982,8 +990,8 @@ class Cluster(ClusterBase):
                             ),
                         },
                         {
-                            "name": "controlPlaneFlavor",
-                            "value": self.cluster.master_flavor_id,
+                            "name": "controlPlaneFlavorID",
+                            "value": control_plane_flavor.id,
                         },
                         {
                             "name": "disableAPIServerFloatingIP",
@@ -1019,8 +1027,8 @@ class Cluster(ClusterBase):
                             or "",
                         },
                         {
-                            "name": "flavor",
-                            "value": self.cluster.flavor_id,
+                            "name": "flavorID",
+                            "value": worker_flavor.id,
                         },
                         {
                             "name": "imageRepository",
