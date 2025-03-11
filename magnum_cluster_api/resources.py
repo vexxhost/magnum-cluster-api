@@ -738,7 +738,7 @@ def mutate_machine_deployment(
                     },
                     {
                         "name": "flavorID",
-                        "value": flavor.id,
+                        "value": flavor.uuid,
                     },
                     {
                         "name": "imageRepository",
@@ -1002,7 +1002,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "controlPlaneFlavorID",
-                            "value": control_plane_flavor.id,
+                            "value": control_plane_flavor.uuid,
                         },
                         {
                             "name": "disableAPIServerFloatingIP",
@@ -1039,7 +1039,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "flavorID",
-                            "value": worker_flavor.id,
+                            "value": worker_flavor.uuid,
                         },
                         {
                             "name": "imageRepository",
