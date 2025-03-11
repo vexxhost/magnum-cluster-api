@@ -283,7 +283,7 @@ pub static OPENSTACK_MACHINE_TEMPLATE: LazyLock<OpenStackMachineTemplate> =
         spec: OpenStackMachineTemplateSpec {
             template: OpenStackMachineTemplateTemplate {
                 spec: OpenStackMachineTemplateTemplateSpec {
-                    flavor: Some("PLACEHOLDER".to_string()),
+                    flavor_id: Some("PLACEHOLDER".to_string()),
                     identity_ref: Some(OpenStackMachineTemplateTemplateSpecIdentityRef {
                         name: "PLACEHOLDER".to_string(),
                         cloud_name: "default".to_string(),
