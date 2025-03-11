@@ -28,6 +28,7 @@ from magnum.api import attr_validator  # type: ignore
 from magnum.common import context, exception, neutron, octavia  # type: ignore
 from magnum.common import utils as magnum_utils
 from novaclient import exceptions as nova_exception  # type: ignore
+from novaclient.v2 import flavors  # type: ignore
 from oslo_config import cfg  # type: ignore
 from oslo_serialization import base64  # type: ignore
 from oslo_utils import strutils, uuidutils  # type: ignore
@@ -371,15 +372,15 @@ def format_event_message(event: pykube.Event):
     )
 
 
-def validate_flavor_name(cli: clients.OpenStackClients, flavor: str):
-    """Check if a flavor with this specified name exists"""
+def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
+    """Lookup a flavor, ensuring that it is a flavor name"""
 
     if flavor is None:
         return
     flavor_list = cli.nova().flavors.list()
     for f in flavor_list:
         if f.name == flavor:
-            return
+            return f
         if f.id == flavor:
             raise mcapi_exceptions.OpenstackFlavorInvalidName(flavor=flavor)
     raise exception.FlavorNotFound(flavor=flavor)
@@ -396,8 +397,8 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
 
     # Validate flavors
     osc = clients.get_openstack_api(ctx)
-    validate_flavor_name(osc, cluster.master_flavor_id)
-    validate_flavor_name(osc, cluster.flavor_id)
+    lookup_flavor(osc, cluster.master_flavor_id)
+    lookup_flavor(osc, cluster.flavor_id)
 
     # Check if fixed_network exists
     if cluster.fixed_network:
@@ -439,7 +440,7 @@ def validate_nodegroup(
     validate_nodegroup_name(nodegroup)
     # Validate flavors
     osc = clients.get_openstack_api(ctx)
-    validate_flavor_name(osc, nodegroup.flavor_id)
+    lookup_flavor(osc, nodegroup.flavor_id)
 
 
 def get_operating_system(cluster: magnum_objects.Cluster):
