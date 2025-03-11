@@ -460,14 +460,14 @@ def get_image_uuid(image_ref: str, ctx: context.RequestContext):
     return image_obj.get("id")
 
 
-def get_hw_scsi_model(ctx: context.RequestContext, image_ref: str):
-    """Get image uuid from image ref
+def get_hw_disk_bus(ctx: context.RequestContext, image_ref: str):
+    """Get hw_disk_bus from image ref
 
     :param image_ref: Image id or name
     """
     osc = clients.get_openstack_api(ctx)
     image_obj = attr_validator.validate_image(osc, image_ref)
-    return image_obj.get("hw_scsi_model", "")
+    return image_obj.get("hw_disk_bus", "")
 
 
 def convert_to_rfc1123(input: str) -> str:

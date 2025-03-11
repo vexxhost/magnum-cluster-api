@@ -735,8 +735,8 @@ def mutate_machine_deployment(
                         "value": utils.get_image_uuid(node_group.image_id, context),
                     },
                     {
-                        "name": "hardwareSCSIModel",
-                        "value": utils.get_hw_scsi_model(
+                        "name": "hardwareDiskBus",
+                        "value": utils.get_hw_disk_bus(
                             context,
                             node_group.image_id,
                         ),
@@ -1062,8 +1062,8 @@ class Cluster(ClusterBase):
                             "value": utils.get_operating_system(self.cluster),
                         },
                         {
-                            "name": "hardwareSCSIModel",
-                            "value": utils.get_hw_scsi_model(
+                            "name": "hardwareDiskBus",
+                            "value": utils.get_hw_disk_bus(
                                 self.context,
                                 self.cluster.default_ng_master.image_id,
                             ),

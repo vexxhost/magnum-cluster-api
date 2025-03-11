@@ -33,8 +33,8 @@ use serde_json::json;
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
-    #[serde(rename = "hardwareSCSIModel")]
-    pub hardware_scsi_model: String,
+    #[serde(rename = "hardwareDiskBus")]
+    pub hardware_disk_bus: String,
 
     #[serde(rename = "enableDockerVolume")]
     pub enable_docker_volume: bool,
@@ -208,7 +208,7 @@ impl ClusterFeaturePatches for Feature {
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                                     template: Some(
                                         serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupPartitions {
-                                            device: r#"{{ if eq .hardwareSCSIModel "virtio-scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
                                             layout: true,
                                             overwrite: Some(false),
                                             table_type: Some("gpt".into()),
@@ -224,7 +224,7 @@ impl ClusterFeaturePatches for Feature {
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                                     template: Some(
                                         serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupFilesystems {
-                                            device: r#"{{ if eq .hardwareSCSIModel "virtio-scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
                                             extra_opts: Some(vec![
                                                 "-F".into(),
                                                 "-E".into(),
@@ -336,7 +336,7 @@ impl ClusterFeaturePatches for Feature {
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                                     template: Some(
                                         serde_yaml::to_string(&KubeadmConfigTemplateTemplateSpecDiskSetupPartitions {
-                                            device: r#"{{ if eq .hardwareSCSIModel "virtio-scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
                                             layout: true,
                                             overwrite: Some(false),
                                             table_type: Some("gpt".into()),
@@ -352,7 +352,7 @@ impl ClusterFeaturePatches for Feature {
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                                     template: Some(
                                         serde_yaml::to_string(&KubeadmConfigTemplateTemplateSpecDiskSetupFilesystems {
-                                            device: r#"{{ if eq .hardwareSCSIModel "virtio-scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
                                             extra_opts: Some(vec![
                                                 "-F".into(),
                                                 "-E".into(),
@@ -392,7 +392,7 @@ impl ClusterFeaturePatches for Feature {
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                                     template: Some(
                                         serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupPartitions {
-                                            device: r#"{{ if eq .hardwareSCSIModel "virtio-scsi" }}/dev/sd{{ else }}/dev/vd{{end}}c"#.into(),
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}c"#.into(),
                                             layout: true,
                                             overwrite: Some(false),
                                             table_type: Some("gpt".into()),
@@ -408,7 +408,7 @@ impl ClusterFeaturePatches for Feature {
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                                     template: Some(
                                         serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupFilesystems {
-                                            device: r#"{{ if eq .hardwareSCSIModel "virtio-scsi" }}/dev/sd{{ else }}/dev/vd{{end}}c"#.into(),
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}c"#.into(),
                                             extra_opts: Some(vec![
                                                 "-F".into(),
                                                 "-E".into(),
@@ -448,7 +448,7 @@ impl ClusterFeaturePatches for Feature {
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                                     template: Some(
                                         serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupPartitions {
-                                            device: r#"{{ if eq .hardwareSCSIModel "virtio-scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
                                             layout: true,
                                             overwrite: Some(false),
                                             table_type: Some("gpt".into()),
@@ -464,7 +464,7 @@ impl ClusterFeaturePatches for Feature {
                                 value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                                     template: Some(
                                         serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecDiskSetupFilesystems {
-                                            device: r#"{{ if eq .hardwareSCSIModel "virtio-scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
+                                            device: r#"{{ if eq .hardwareDiskBus "scsi" }}/dev/sd{{ else }}/dev/vd{{end}}b"#.into(),
                                             extra_opts: Some(vec![
                                                 "-F".into(),
                                                 "-E".into(),
@@ -995,7 +995,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.hardware_scsi_model = "virtio-scsi".to_string();
+        values.hardware_disk_bus = "scsi".to_string();
         values.enable_etcd_volume = true;
         values.etcd_volume_size = 80;
         values.etcd_volume_type = "nvme".into();
