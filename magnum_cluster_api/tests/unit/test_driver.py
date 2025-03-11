@@ -21,6 +21,7 @@ import pytest
 import responses
 from magnum.objects import fields  # type: ignore
 from magnum.tests.unit.objects import utils  # type: ignore
+from novaclient.v2 import flavors  # type: ignore
 from oslo_serialization import base64, jsonutils  # type: ignore
 from oslo_utils import uuidutils  # type: ignore
 from responses import matchers
@@ -67,7 +68,7 @@ class TestDriver:
 
         mocker.patch(
             "magnum_cluster_api.utils.lookup_flavor",
-            return_value=True,
+            return_value=flavors.Flavor(),
         )
 
         mocker.patch(
@@ -76,13 +77,8 @@ class TestDriver:
         )
 
         mocker.patch(
-            "magnum_cluster_api.utils.get_image_uuid",
-            return_value=uuidutils.generate_uuid(),
-        )
-
-        mocker.patch(
-            "magnum_cluster_api.utils.get_hw_disk_bus",
-            return_value="",
+            "magnum_cluster_api.utils.lookup_image",
+            return_value={"id": uuidutils.generate_uuid()},
         )
 
     def _assert_node_group_status(self, expected_status):

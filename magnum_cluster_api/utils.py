@@ -384,6 +384,15 @@ def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
     raise exception.FlavorNotFound(flavor=flavor)
 
 
+def lookup_image(cli: clients.OpenStackClients, image_ref: str) -> dict:
+    """
+    Get image object from image ref
+
+    :param image_ref: Image id or name
+    """
+    return attr_validator.validate_image(cli, image_ref)
+
+
 def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluster):
     # Check network driver
     if cluster.cluster_template.network_driver not in ["cilium", "calico"]:
@@ -439,26 +448,6 @@ def get_operating_system(cluster: magnum_objects.Cluster):
         if cluster_distro.startswith(ops):
             return ops
     return None
-
-
-def get_image_uuid(image_ref: str, ctx: context.RequestContext):
-    """Get image uuid from image ref
-
-    :param image_ref: Image id or name
-    """
-    osc = clients.get_openstack_api(ctx)
-    image_obj = attr_validator.validate_image(osc, image_ref)
-    return image_obj.get("id")
-
-
-def get_hw_disk_bus(ctx: context.RequestContext, image_ref: str):
-    """Get hw_disk_bus from image ref
-
-    :param image_ref: Image id or name
-    """
-    osc = clients.get_openstack_api(ctx)
-    image_obj = attr_validator.validate_image(osc, image_ref)
-    return image_obj.get("hw_disk_bus", "")
 
 
 def convert_to_rfc1123(input: str) -> str:

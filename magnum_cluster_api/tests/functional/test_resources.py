@@ -69,14 +69,8 @@ class ResourceBaseTestCase(base.BaseTestCase):
         )
         self.useFixture(
             fixtures.MockPatch(
-                "magnum_cluster_api.utils.get_image_uuid",
-                return_value=uuidutils.generate_uuid(),
-            )
-        )
-        self.useFixture(
-            fixtures.MockPatch(
-                "magnum_cluster_api.utils.get_hw_disk_bus",
-                return_value="",
+                "magnum_cluster_api.utils.lookup_image",
+                return_value={"id": uuidutils.generate_uuid()},
             )
         )
         self.useFixture(

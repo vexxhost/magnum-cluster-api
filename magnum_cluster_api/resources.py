@@ -668,9 +668,10 @@ def mutate_machine_deployment(
         "node.cluster.x-k8s.io/nodegroup": node_group.name,
     }
 
-    # Lookup the flavor from Nova
+    # Lookup the node group resources
     osc = clients.get_openstack_api(context)
     flavor = utils.lookup_flavor(osc, node_group.flavor_id)
+    image = utils.lookup_image(osc, node_group.image_id)
 
     # Replicas (or min/max if auto-scaling is enabled)
     if auto_scaling_enabled:
@@ -736,14 +737,11 @@ def mutate_machine_deployment(
                     },
                     {
                         "name": "imageUUID",
-                        "value": utils.get_image_uuid(node_group.image_id, context),
+                        "value": image.get("id"),
                     },
                     {
                         "name": "hardwareDiskBus",
-                        "value": utils.get_hw_disk_bus(
-                            context,
-                            node_group.image_id,
-                        ),
+                        "value": image.get("hw_disk_bus", ""),
                     },
                     # NOTE(oleks): Override using MachineDeployment-level variables for node groups
                     {
@@ -840,6 +838,7 @@ class Cluster(ClusterBase):
         # Lookup the flavor from Nova
         control_plane_flavor = utils.lookup_flavor(osc, self.cluster.master_flavor_id)
         worker_flavor = utils.lookup_flavor(osc, self.cluster.flavor_id)
+        image = utils.lookup_image(osc, self.cluster.default_ng_master.image_idd)
 
         return {
             "metadata": {
@@ -1038,10 +1037,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "imageUUID",
-                            "value": utils.get_image_uuid(
-                                self.cluster.default_ng_master.image_id,
-                                self.context,
-                            ),
+                            "value": image.get("id"),
                         },
                         {
                             "name": "kubeletTLSCipherSuites",
@@ -1071,10 +1067,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "hardwareDiskBus",
-                            "value": utils.get_hw_disk_bus(
-                                self.context,
-                                self.cluster.default_ng_master.image_id,
-                            ),
+                            "value": image.get("hw_disk_bus", ""),
                         },
                         {
                             "name": "enableDockerVolume",
