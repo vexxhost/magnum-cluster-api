@@ -7,7 +7,7 @@ pub trait ToGtmplValue {
 
 fn json_to_gtmpl_value(json: &serde_json::Value) -> gtmpl_value::Value {
     match json {
-        serde_json::Value::Null => unimplemented!(),
+        serde_json::Value::Null => gtmpl_value::Value::Nil,
         serde_json::Value::Bool(b) => (*b).into(),
         serde_json::Value::Number(n) => {
             if let Some(i) = n.as_i64() {
