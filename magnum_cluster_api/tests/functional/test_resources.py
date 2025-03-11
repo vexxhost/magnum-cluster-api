@@ -74,7 +74,7 @@ class ResourceBaseTestCase(base.BaseTestCase):
                 return_value=flavors.Flavor(
                     None,
                     {
-                        "uuid": uuidutils.generate_uuid(),
+                        "id": uuidutils.generate_uuid(),
                         "disk": 10,
                         "ram": 1024,
                         "vcpus": 1,

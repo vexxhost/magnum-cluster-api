@@ -70,12 +70,7 @@ class TestDriver:
             "magnum_cluster_api.utils.lookup_flavor",
             return_value=flavors.Flavor(
                 None,
-                {
-                    "uuid": uuidutils.generate_uuid(),
-                    "disk": 10,
-                    "ram": 1024,
-                    "vcpus": 1,
-                },
+                {"id": uuidutils.generate_uuid(), "disk": 10, "ram": 1024, "vcpus": 1},
             ),
         )
 

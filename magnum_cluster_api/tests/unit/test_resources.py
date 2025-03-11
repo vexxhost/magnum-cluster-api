@@ -67,7 +67,7 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
     mock_lookup_flavor.return_value = flavors.Flavor(
         None,
-        {"uuid": uuidutils.generate_uuid(), "disk": 10, "ram": 1024, "vcpus": 1},
+        {"id": uuidutils.generate_uuid(), "disk": 10, "ram": 1024, "vcpus": 1},
     )
 
     mock_ensure_worker_server_group = mocker.patch(
@@ -114,7 +114,7 @@ class TestExistingMutateMachineDeployment:
         mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
         mock_lookup_flavor.return_value = flavors.Flavor(
             None,
-            {"uuid": uuidutils.generate_uuid(), "disk": 10, "ram": 1024, "vcpus": 1},
+            {"id": uuidutils.generate_uuid(), "disk": 10, "ram": 1024, "vcpus": 1},
         )
 
     def _assert_no_mutations(self, md):
