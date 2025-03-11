@@ -14,6 +14,7 @@
 
 import abc
 import glob
+import math
 import os
 import types
 import typing
@@ -675,13 +676,24 @@ def mutate_machine_deployment(
 
     # Replicas (or min/max if auto-scaling is enabled)
     if auto_scaling_enabled:
+        boot_volume_size = utils.get_node_group_label_as_int(
+            node_group,
+            "boot_volume_size",
+            CONF.cinder.default_boot_volume_size,
+        )
+        if boot_volume_size == 0:
+            boot_volume_size = flavor.disk
+
         machine_deployment["replicas"] = None
         machine_deployment["metadata"]["annotations"] = {
-            AUTOSCALE_ANNOTATION_MIN: str(
-                utils.get_node_group_min_node_count(node_group)
-            ),
+            AUTOSCALE_ANNOTATION_MIN: str(node_group.min_node_count),
             AUTOSCALE_ANNOTATION_MAX: str(
                 utils.get_node_group_max_node_count(node_group)
+            ),
+            "capacity.cluster-autoscaler.kubernetes.io/memory": f"{math.ceil(flavor.ram / 1024)}G",
+            "capacity.cluster-autoscaler.kubernetes.io/cpu": str(flavor.vcpus),
+            "capacity.cluster-autoscaler.kubernetes.io/ephemeral-disk": str(
+                boot_volume_size
             ),
         }
     else:

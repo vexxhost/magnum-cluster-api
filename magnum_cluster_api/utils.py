@@ -281,15 +281,6 @@ def generate_apt_proxy_config(cluster: magnum_objects.Cluster):
         return ""
 
 
-def get_node_group_min_node_count(
-    node_group: magnum_objects.NodeGroup,
-    default=1,
-) -> int:
-    if node_group.min_node_count == 0:
-        return default
-    return node_group.min_node_count
-
-
 def get_node_group_max_node_count(
     node_group: magnum_objects.NodeGroup,
 ) -> int:
@@ -297,7 +288,7 @@ def get_node_group_max_node_count(
         return get_node_group_label_as_int(
             node_group,
             "max_node_count",
-            get_node_group_min_node_count(node_group) + 1,
+            node_group.min_node_count + 1,
         )
     return node_group.max_node_count
 
@@ -436,9 +427,7 @@ def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
         raise mcapi_exceptions.MachineInvalidName(name=nodegroup.name)
 
 
-def validate_nodegroup(
-    nodegroup: magnum_objects.NodeGroup
-):
+def validate_nodegroup(nodegroup: magnum_objects.NodeGroup):
     validate_nodegroup_name(nodegroup)
 
 
