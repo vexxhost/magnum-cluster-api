@@ -8,6 +8,7 @@ import shortuuid
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.common import context as magnum_context  # type: ignore
 from magnum.tests.unit.db import utils  # type: ignore
+from novaclient.v2 import flavors  # type: ignore
 from oslo_utils import uuidutils  # type: ignore
 from oslotest import base  # type: ignore
 from tenacity import retry, retry_if_exception_type, stop_after_delay, wait_fixed
@@ -65,6 +66,15 @@ class ResourceBaseTestCase(base.BaseTestCase):
             fixtures.MockPatch(
                 "magnum_cluster_api.utils.generate_cloud_controller_manager_config",
                 return_value="fake-config",
+            )
+        )
+        self.useFixture(
+            fixtures.MockPatch(
+                "magnum_cluster_api.utils.lookup_flavor",
+                return_value=flavors.Flavor(
+                    None,
+                    {"id": uuidutils.generate_uuid(), "disk": 10, "ram": 1024, "vcpus": 1},
+                ),
             )
         )
         self.useFixture(
