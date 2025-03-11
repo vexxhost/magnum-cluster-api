@@ -22,11 +22,11 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
-    #[serde(rename = "controlPlaneFlavor")]
-    pub control_plane_flavor: String,
+    #[serde(rename = "controlPlaneFlavorID")]
+    pub control_plane_flavor_id: String,
 
-    #[serde(rename = "flavor")]
-    pub flavor: String,
+    #[serde(rename = "flavorID")]
+    pub flavor_id: String,
 }
 
 pub struct Feature {}
@@ -48,9 +48,9 @@ impl ClusterFeaturePatches for Feature {
                     json_patches: vec![
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
-                            path: "/spec/template/spec/flavor".into(),
+                            path: "/spec/template/spec/flavorID".into(),
                             value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                variable: Some("controlPlaneFlavor".into()),
+                                variable: Some("controlPlaneFlavorID".into()),
                                 ..Default::default()
                             }),
                             ..Default::default()
@@ -71,9 +71,9 @@ impl ClusterFeaturePatches for Feature {
                     json_patches: vec![
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
-                            path: "/spec/template/spec/flavor".into(),
+                            path: "/spec/template/spec/flavorID".into(),
                             value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                variable: Some("flavor".into()),
+                                variable: Some("flavorID".into()),
                                 ..Default::default()
                             }),
                             ..Default::default()
@@ -113,8 +113,8 @@ mod tests {
                 .spec
                 .template
                 .spec
-                .flavor,
-            Some(values.control_plane_flavor)
+                .flavor_id,
+            Some(values.control_plane_flavor_id)
         );
 
         assert_eq!(
@@ -123,8 +123,8 @@ mod tests {
                 .spec
                 .template
                 .spec
-                .flavor,
-            Some(values.flavor)
+                .flavor_id,
+            Some(values.flavor_id)
         );
     }
 }
