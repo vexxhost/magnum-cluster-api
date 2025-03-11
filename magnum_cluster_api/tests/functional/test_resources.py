@@ -73,7 +73,12 @@ class ResourceBaseTestCase(base.BaseTestCase):
                 "magnum_cluster_api.utils.lookup_flavor",
                 return_value=flavors.Flavor(
                     None,
-                    {"id": uuidutils.generate_uuid(), "disk": 10, "ram": 1024, "vcpus": 1},
+                    {
+                        "id": uuidutils.generate_uuid(),
+                        "disk": 10,
+                        "ram": 1024,
+                        "vcpus": 1,
+                    },
                 ),
             )
         )
