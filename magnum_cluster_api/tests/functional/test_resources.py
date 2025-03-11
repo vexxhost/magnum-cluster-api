@@ -75,7 +75,7 @@ class ResourceBaseTestCase(base.BaseTestCase):
         )
         self.useFixture(
             fixtures.MockPatch(
-                "magnum_cluster_api.utils.get_hw_scsi_model",
+                "magnum_cluster_api.utils.get_hw_disk_bus",
                 return_value="",
             )
         )
