@@ -850,7 +850,7 @@ class Cluster(ClusterBase):
         # Lookup the flavor from Nova
         control_plane_flavor = utils.lookup_flavor(osc, self.cluster.master_flavor_id)
         worker_flavor = utils.lookup_flavor(osc, self.cluster.flavor_id)
-        image = utils.lookup_image(osc, self.cluster.default_ng_master.image_idd)
+        image = utils.lookup_image(osc, self.cluster.default_ng_master.image_id)
 
         return {
             "metadata": {

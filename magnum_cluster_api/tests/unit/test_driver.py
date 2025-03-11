@@ -68,7 +68,10 @@ class TestDriver:
 
         mocker.patch(
             "magnum_cluster_api.utils.lookup_flavor",
-            return_value=flavors.Flavor(),
+            return_value=flavors.Flavor(
+                None,
+                {"id": uuidutils.generate_uuid(), "disk": 10, "ram": 1024, "vcpus": 1},
+            ),
         )
 
         mocker.patch(
