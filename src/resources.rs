@@ -286,6 +286,7 @@ pub mod fixtures {
             .api_server_tls_cipher_suites("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305".into())
             .api_server_sans("".into())
             .kubelet_tls_cipher_suites("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305".into())
+            .hardware_scsi_model("".into())
             .enable_docker_volume(false)
             .docker_volume_size(0)
             .docker_volume_type("".into())
@@ -330,7 +331,7 @@ mod tests {
         let values = default_values();
         let variables: Vec<ClusterTopologyVariables> = values.into();
 
-        assert_eq!(variables.len(), 36);
+        assert_eq!(variables.len(), 37);
 
         for var in &variables {
             match var.name.as_str() {
@@ -435,7 +436,10 @@ mod tests {
                 }
                 "apiServerSANs" => {
                     assert_eq!(var.value, json!(default_values().api_server_sans));
-                }
+                },
+                "hardwareSCSIModel" => {
+                    assert_eq!(var.value, json!(default_values().hardware_scsi_model));
+                },
                 "enableDockerVolume" => {
                     assert_eq!(var.value, json!(default_values().enable_docker_volume));
                 }
