@@ -16,7 +16,6 @@ import pytest
 from magnum.objects import fields
 from magnum.tests.unit.objects import utils
 from novaclient.v2 import flavors  # type: ignore
-from oslo_utils import uuidutils  # type: ignore
 
 from magnum_cluster_api import resources
 
