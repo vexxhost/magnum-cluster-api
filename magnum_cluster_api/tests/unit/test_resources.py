@@ -62,6 +62,9 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     mock_get_image_uuid = mocker.patch("magnum_cluster_api.utils.get_image_uuid")
     mock_get_image_uuid.return_value = "foo"
 
+    mock_get_hw_disk_bus = mocker.patch("magnum_cluster_api.utils.get_hw_disk_bus")
+    mock_get_hw_disk_bus.return_value = ""
+
     mock_ensure_worker_server_group = mocker.patch(
         "magnum_cluster_api.utils.ensure_worker_server_group"
     )

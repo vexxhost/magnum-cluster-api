@@ -734,6 +734,13 @@ def mutate_machine_deployment(
                         "name": "imageUUID",
                         "value": utils.get_image_uuid(node_group.image_id, context),
                     },
+                    {
+                        "name": "hardwareDiskBus",
+                        "value": utils.get_hw_disk_bus(
+                            context,
+                            node_group.image_id,
+                        ),
+                    },
                     # NOTE(oleks): Override using MachineDeployment-level variables for node groups
                     {
                         "name": "serverGroupId",
@@ -1067,6 +1074,13 @@ class Cluster(ClusterBase):
                         {
                             "name": "operatingSystem",
                             "value": utils.get_operating_system(self.cluster),
+                        },
+                        {
+                            "name": "hardwareDiskBus",
+                            "value": utils.get_hw_disk_bus(
+                                self.context,
+                                self.cluster.default_ng_master.image_id,
+                            ),
                         },
                         {
                             "name": "enableDockerVolume",
