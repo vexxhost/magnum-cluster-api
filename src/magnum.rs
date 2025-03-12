@@ -5,7 +5,7 @@ use crate::{
         ClusterResourceSetResourcesKind, ClusterResourceSetSpec,
     },
 };
-use k8s_openapi::api::core::v1::ConfigMap;
+use k8s_openapi::api::core::v1::Secret;
 use kube::api::ObjectMeta;
 use maplit::btreemap;
 use pyo3::prelude::*;
@@ -76,7 +76,7 @@ impl From<Cluster> for ClusterResourceSet {
                     match_expressions: None,
                 },
                 resources: Some(vec![ClusterResourceSetResources {
-                    kind: ClusterResourceSetResourcesKind::ConfigMap,
+                    kind: ClusterResourceSetResourcesKind::Secret,
                     name: cluster.uuid.to_owned(),
                 }]),
                 strategy: None,
@@ -86,7 +86,7 @@ impl From<Cluster> for ClusterResourceSet {
     }
 }
 
-impl From<Cluster> for ConfigMap {
+impl From<Cluster> for Secret {
     fn from(cluster: Cluster) -> Self {
         let mut data = BTreeMap::<String, String>::new();
 
@@ -115,9 +115,9 @@ impl From<Cluster> for ConfigMap {
             );
         }
 
-        ConfigMap {
+        Secret {
             metadata: cluster.clone().into(),
-            data: Some(data),
+            string_data: Some(data),
             ..Default::default()
         }
     }
@@ -179,7 +179,7 @@ mod tests {
         assert_eq!(
             crs.spec.resources,
             Some(vec![ClusterResourceSetResources {
-                kind: ClusterResourceSetResourcesKind::ConfigMap,
+                kind: ClusterResourceSetResourcesKind::Secret,
                 name: cluster.uuid.clone(),
             }])
         );
@@ -239,7 +239,7 @@ mod tests {
     }
 
     #[test]
-    fn test_config_map_from_cluster() {
+    fn test_secret_from_cluster() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
@@ -248,7 +248,7 @@ mod tests {
             },
         };
 
-        let config_map: ConfigMap = cluster.clone().into();
+        let config_map: Secret = cluster.clone().into();
 
         assert_eq!(config_map.metadata.name, Some(cluster.uuid.clone()));
     }

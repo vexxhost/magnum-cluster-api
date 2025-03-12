@@ -276,8 +276,6 @@ mod tests {
         let addon = Addon::new(cluster.clone());
         let values: CloudControllerManagerValues =
             cluster.clone().try_into().expect("failed to create values");
-        let x = addon.manifests(&values).expect("failed to get manifests");
-        println!("{}", x);
-        assert_eq!(false, true);
+        addon.manifests(&values).expect("failed to get manifests");
     }
 }

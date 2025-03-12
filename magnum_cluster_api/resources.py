@@ -202,7 +202,7 @@ class ClusterBase(Base):
         }
 
 
-class ClusterResourcesConfigMap(ClusterBase):
+class ClusterResourcesSecret(ClusterBase):
     def __init__(
         self,
         context: context.RequestContext,
@@ -223,7 +223,7 @@ class ClusterResourcesConfigMap(ClusterBase):
 
     @property
     def kind(self) -> str:
-        return "ConfigMap"
+        return "Secret"
 
     def get_object(self) -> dict:
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
@@ -438,11 +438,11 @@ class ClusterResourcesConfigMap(ClusterBase):
             }
 
         return {
-            "data": data,
+            "stringData": data,
         }
 
     def get_or_none(self) -> objects.Cluster:
-        return pykube.ConfigMap.objects(
+        return pykube.Secret.objects(
             self.pykube_api, namespace="magnum-system"
         ).get_or_none(name=self.name)
 
@@ -1180,7 +1180,7 @@ def apply_cluster_from_magnum_cluster(
     """
 
     ClusterServerGroups(context, cluster).apply()
-    ClusterResourcesConfigMap(context, api, pykube_api, cluster).apply()
+    ClusterResourcesSecret(context, api, pykube_api, cluster).apply()
 
     if not skip_auto_scaling_release and utils.get_auto_scaling_enabled(cluster):
         ClusterAutoscalerHelmRelease(api, cluster).apply()
