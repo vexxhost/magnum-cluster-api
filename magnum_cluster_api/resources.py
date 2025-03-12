@@ -975,16 +975,6 @@ class Cluster(ClusterBase):
                             ),
                         },
                         {
-                            "name": "cloudControllerManagerConfig",
-                            "value": base64.encode_as_text(
-                                utils.generate_cloud_controller_manager_config(
-                                    self.context,
-                                    self.pykube_api,
-                                    self.cluster,
-                                )
-                            ),
-                        },
-                        {
                             "name": "systemdProxyConfig",
                             "value": base64.encode_as_text(
                                 utils.generate_systemd_proxy_config(self.cluster)

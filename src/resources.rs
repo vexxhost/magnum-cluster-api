@@ -201,23 +201,6 @@ pub mod fixtures {
                     .build(),
             )
             .boot_volume(boot_volume::BootVolumeConfig::builder().r#type("nvme".into()).size(0).build())
-            .cloud_controller_manager_config(
-                BASE64_STANDARD.encode(indoc!(
-                    r#"
-                    [Global]
-                    auth-url=https://auth.vexxhost.net
-                    region=sjc1
-                    application-credential-id=foo
-                    application-credential-secret=bar
-                    tls-insecure=true
-                    ca-file=/etc/config/ca.crt
-                    [LoadBalancer]
-                    lb-provider=amphora
-                    lb-method=ROUND_ROBIN
-                    create-monitor=true
-                    "#,
-                ),
-            ))
             .cluster_identity_ref_name("identity-ref-name".into())
             .containerd_config(
                 BASE64_STANDARD.encode(indoc! {r#"
@@ -322,7 +305,7 @@ mod tests {
         let values = default_values();
         let variables: Vec<ClusterTopologyVariables> = values.into();
 
-        assert_eq!(variables.len(), 36);
+        assert_eq!(variables.len(), 35);
 
         for var in &variables {
             match var.name.as_str() {
@@ -334,12 +317,6 @@ mod tests {
                 }
                 "bootVolume" => {
                     assert_eq!(var.value, json!(default_values().boot_volume));
-                }
-                "cloudControllerManagerConfig" => {
-                    assert_eq!(
-                        var.value,
-                        json!(default_values().cloud_controller_manager_config)
-                    );
                 }
                 "clusterIdentityRefName" => {
                     assert_eq!(var.value, json!(default_values().cluster_identity_ref_name));
