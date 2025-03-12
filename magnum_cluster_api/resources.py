@@ -25,6 +25,7 @@ import pykube  # type: ignore
 import yaml
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.common import context, neutron  # type: ignore
+from magnum.common import utils as magnum_utils  # type: ignore
 from magnum.common.cert_manager import cert_manager  # type: ignore
 from magnum.common.x509 import operations as x509  # type: ignore
 from magnum.conductor.handlers.common import (
@@ -250,7 +251,7 @@ class ClusterResourcesSecret(ClusterBase):
                                 self.pykube_api,
                                 self.cluster,
                             ),
-                            "ca.crt": utils.get_cloud_ca_cert(),
+                            "ca.crt": magnum_utils.get_openstack_ca(),
                         },
                     }
                 ),
@@ -427,7 +428,7 @@ class ClusterResourcesSecret(ClusterBase):
                             "conf": {
                                 "auth_url": auth_url
                                 + ("" if auth_url.endswith("/v3") else "/v3"),
-                                "ca_cert": utils.get_cloud_ca_cert(),
+                                "ca_cert": magnum_utils.get_openstack_ca(),
                                 "policy": utils.get_keystone_auth_default_policy(
                                     self.cluster
                                 ),
@@ -972,10 +973,6 @@ class Cluster(ClusterBase):
                             "value": utils.get_cluster_api_cloud_config_secret_name(
                                 self.cluster
                             ),
-                        },
-                        {
-                            "name": "cloudCaCert",
-                            "value": base64.encode_as_text(utils.get_cloud_ca_cert()),
                         },
                         {
                             "name": "cloudControllerManagerConfig",
