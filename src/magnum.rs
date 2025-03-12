@@ -1,5 +1,5 @@
 use crate::{
-    addons::{cilium, ClusterAddon},
+    addons::{cilium, cloud_controller_manager, ClusterAddon},
     cluster_api::clusterresourcesets::{
         ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
         ClusterResourceSetResourcesKind, ClusterResourceSetSpec,
@@ -36,6 +36,12 @@ pub struct ClusterLabels {
     #[builder(default="10.100.0.0/16".to_owned())]
     #[pyo3(default="10.100.0.0/16".to_owned())]
     pub cilium_ipv4pool: String,
+
+    /// The tag to use for the OpenStack cloud controller provider
+    /// when bootstrapping the cluster.
+    #[builder(default="v1.30.0".to_owned())]
+    #[pyo3(default="v1.30.0".to_owned())]
+    pub cloud_provider_tag: String,
 
     /// The Kubernetes version to use for the cluster.
     #[builder(default="v1.30.0".to_owned())]
@@ -85,6 +91,20 @@ impl From<Cluster> for ConfigMap {
         let mut data = BTreeMap::<String, String>::new();
 
         // TODO(mnaser): Implement an inventory of addons
+        let ccm = cloud_controller_manager::Addon::new(cluster.clone());
+        if ccm.enabled() {
+            data.insert(
+                "cloud-controller-manager.yaml".to_owned(),
+                ccm.manifests(
+                    &cloud_controller_manager::CloudControllerManagerValues::try_from(
+                        cluster.clone(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap(),
+            );
+        }
+
         let cilium = cilium::Addon::new(cluster.clone());
         if cilium.enabled() {
             data.insert(
