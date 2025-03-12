@@ -258,7 +258,7 @@ class TestDriver:
                     ).get_resource()
                 ),
                 mock.call(
-                    resources.ClusterResourcesConfigMap(
+                    resources.ClusterResourcesSecret(
                         context,
                         ubuntu_driver._kube_client,
                         ubuntu_driver.k8s_api,

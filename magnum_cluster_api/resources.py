@@ -25,6 +25,7 @@ import pykube  # type: ignore
 import yaml
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.common import context, neutron  # type: ignore
+from magnum.common import utils as magnum_utils  # type: ignore
 from magnum.common.cert_manager import cert_manager  # type: ignore
 from magnum.common.x509 import operations as x509  # type: ignore
 from magnum.conductor.handlers.common import (
@@ -43,7 +44,7 @@ from magnum_cluster_api import (
     objects,
     utils,
 )
-from magnum_cluster_api.integrations import cinder, cloud_provider, manila
+from magnum_cluster_api.integrations import cinder, manila
 
 CONF = cfg.CONF
 CALICO_TAG = "v3.24.2"
@@ -208,7 +209,7 @@ class ClusterBase(Base):
         }
 
 
-class ClusterResourcesConfigMap(ClusterBase):
+class ClusterResourcesSecret(ClusterBase):
     def __init__(
         self,
         context: context.RequestContext,
@@ -229,39 +230,42 @@ class ClusterResourcesConfigMap(ClusterBase):
 
     @property
     def kind(self) -> str:
-        return "ConfigMap"
+        return "Secret"
 
     def get_object(self) -> dict:
+        repository = utils.get_cluster_container_infra_prefix(self.cluster)
         manifests_path = pkg_resources.resource_filename(
             "magnum_cluster_api", "manifests"
         )
-        calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
-
-        repository = utils.get_cluster_container_infra_prefix(self.cluster)
-
-        osc = clients.get_openstack_api(self.context)
 
         data = magnum_cluster_api.MagnumCluster.get_config_data(self.cluster)
 
         data = {
             **data,
             **{
-                os.path.basename(manifest): image_utils.update_manifest_images(
-                    self.cluster.uuid,
-                    manifest,
-                    repository=repository,
-                    replacements=[
-                        (
-                            "docker.io/k8scloudprovider/openstack-cloud-controller-manager:latest",
-                            cloud_provider.get_image(self.cluster),
-                        ),
-                    ],
-                )
-                for manifest in glob.glob(os.path.join(manifests_path, "ccm/*.yaml"))
+                "cloud-config-secret.yaml": yaml.dump(
+                    {
+                        "apiVersion": pykube.Secret.version,
+                        "kind": pykube.Secret.kind,
+                        "metadata": {
+                            "name": "cloud-config",
+                            "namespace": "kube-system",
+                        },
+                        "stringData": {
+                            "cloud.conf": utils.generate_cloud_controller_manager_config(
+                                self.context,
+                                self.pykube_api,
+                                self.cluster,
+                            ),
+                            "ca.crt": magnum_utils.get_openstack_ca(),
+                        },
+                    }
+                ),
             },
         }
 
         if self.cluster.cluster_template.network_driver == "calico":
+            calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
             data = {
                 **data,
                 **{
@@ -272,6 +276,8 @@ class ClusterResourcesConfigMap(ClusterBase):
                     )
                 },
             }
+
+        osc = clients.get_openstack_api(self.context)
 
         if cinder.is_enabled(self.cluster):
             volume_types = osc.cinder().volume_types.list()
@@ -428,7 +434,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                             "conf": {
                                 "auth_url": auth_url
                                 + ("" if auth_url.endswith("/v3") else "/v3"),
-                                "ca_cert": utils.get_cloud_ca_cert(),
+                                "ca_cert": magnum_utils.get_openstack_ca(),
                                 "policy": utils.get_keystone_auth_default_policy(
                                     self.cluster
                                 ),
@@ -439,11 +445,12 @@ class ClusterResourcesConfigMap(ClusterBase):
             }
 
         return {
-            "data": data,
+            "type": "addons.cluster.x-k8s.io/resource-set",
+            "stringData": data,
         }
 
     def get_or_none(self) -> objects.Cluster:
-        return pykube.ConfigMap.objects(
+        return pykube.Secret.objects(
             self.pykube_api, namespace="magnum-system"
         ).get_or_none(name=self.name)
 
@@ -975,20 +982,6 @@ class Cluster(ClusterBase):
                             ),
                         },
                         {
-                            "name": "cloudCaCert",
-                            "value": base64.encode_as_text(utils.get_cloud_ca_cert()),
-                        },
-                        {
-                            "name": "cloudControllerManagerConfig",
-                            "value": base64.encode_as_text(
-                                utils.generate_cloud_controller_manager_config(
-                                    self.context,
-                                    self.pykube_api,
-                                    self.cluster,
-                                )
-                            ),
-                        },
-                        {
                             "name": "systemdProxyConfig",
                             "value": base64.encode_as_text(
                                 utils.generate_systemd_proxy_config(self.cluster)
@@ -1181,7 +1174,7 @@ def apply_cluster_from_magnum_cluster(
     """
 
     ClusterServerGroups(context, cluster).apply()
-    ClusterResourcesConfigMap(context, api, pykube_api, cluster).apply()
+    ClusterResourcesSecret(context, api, pykube_api, cluster).apply()
 
     if not skip_auto_scaling_release and utils.get_auto_scaling_enabled(cluster):
         ClusterAutoscalerHelmRelease(api, cluster).apply()

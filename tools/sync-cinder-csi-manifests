@@ -42,34 +42,6 @@ for manifest in MANIFESTS:
     #               them to be a list of YAML documents.
     for doc in yaml.safe_load_all(r.text):
         if doc["kind"] == "Deployment":
-            # NOTE(mnaser): Use `/etc/kuberentes/cloud.conf` instead of the
-            #               default mounted secret.
-            doc["spec"]["template"]["spec"]["containers"][5]["volumeMounts"][1][
-                "mountPath"
-            ] = "/etc/config/cloud.conf"
-            doc["spec"]["template"]["spec"]["volumes"][1]["hostPath"] = {
-                "type": "File",
-                "path": "/etc/kubernetes/cloud.conf",
-            }
-            del doc["spec"]["template"]["spec"]["volumes"][1]["secret"]
-
-            # NOTE(okozachenko1203): Add `/etc/kuberentes/cloud_ca.crt`.
-            doc["spec"]["template"]["spec"]["containers"][5]["volumeMounts"].append(
-                {
-                    "name": "cloud-ca-cert-volume",
-                    "readOnly": True,
-                    "mountPath": "/etc/config/ca.crt",
-                }
-            )
-            doc["spec"]["template"]["spec"]["volumes"].append(
-                {
-                    "name": "cloud-ca-cert-volume",
-                    "hostPath": {
-                        "type": "File",
-                        "path": "/etc/kubernetes/cloud_ca.crt",
-                    },
-                }
-            )
             doc["spec"]["template"]["spec"]["tolerations"] = [
                 {
                     "effect": "NoSchedule",
@@ -80,48 +52,6 @@ for manifest in MANIFESTS:
                     "key": "node-role.kubernetes.io/control-plane",
                 },
             ]
-
-            # NOTE(mnaser): We need to run as root in order to read the `cloud.conf`
-            #               file from the host.
-            doc["spec"]["template"]["spec"]["securityContext"] = {
-                "runAsUser": 0,
-            }
-
-        if doc["kind"] == "DaemonSet":
-            # NOTE(mnaser): Use `/etc/kuberentes/cloud.conf` instead of the
-            #               default mounted secret.
-            doc["spec"]["template"]["spec"]["containers"][2]["volumeMounts"][3][
-                "mountPath"
-            ] = "/etc/config/cloud.conf"
-            doc["spec"]["template"]["spec"]["volumes"][4]["hostPath"] = {
-                "type": "File",
-                "path": "/etc/kubernetes/cloud.conf",
-            }
-            del doc["spec"]["template"]["spec"]["volumes"][4]["secret"]
-
-            # NOTE(okozachenko1203): Add `/etc/kuberentes/cloud_ca.crt`.
-            doc["spec"]["template"]["spec"]["containers"][2]["volumeMounts"].append(
-                {
-                    "name": "cloud-ca-cert-volume",
-                    "readOnly": True,
-                    "mountPath": "/etc/config/ca.crt",
-                }
-            )
-            doc["spec"]["template"]["spec"]["volumes"].append(
-                {
-                    "name": "cloud-ca-cert-volume",
-                    "hostPath": {
-                        "type": "File",
-                        "path": "/etc/kubernetes/cloud_ca.crt",
-                    },
-                }
-            )
-
-            # NOTE(mnaser): We need to run as root in order to read the `cloud.conf`
-            #               file from the host.
-            doc["spec"]["template"]["spec"]["securityContext"] = {
-                "runAsUser": 0,
-            }
 
         if doc["kind"] == "List":
             for item in doc["items"]:

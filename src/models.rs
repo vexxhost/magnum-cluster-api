@@ -7,7 +7,7 @@ use crate::{
     features, magnum,
     resources::ClusterClassBuilder,
 };
-use k8s_openapi::api::core::v1::{ConfigMap, Namespace};
+use k8s_openapi::api::core::v1::{Namespace, Secret};
 use kube::{core::ObjectMeta, Api};
 use maplit::btreemap;
 use once_cell::sync::Lazy;
@@ -61,8 +61,8 @@ impl MagnumCluster {
         py: Python<'_>,
     ) -> PyResult<Option<BTreeMap<String, String>>> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
-        let config_map = ConfigMap::from(cluster);
-        Ok(config_map.data)
+        let config_map = Secret::from(cluster);
+        Ok(config_map.string_data)
     }
 
     fn apply_cluster_class(&self, py: Python<'_>) -> PyResult<()> {
@@ -194,7 +194,7 @@ impl From<&MagnumCluster> for ClusterResourceSet {
                     match_expressions: None,
                 },
                 resources: Some(vec![ClusterResourceSetResources {
-                    kind: ClusterResourceSetResourcesKind::ConfigMap,
+                    kind: ClusterResourceSetResourcesKind::Secret,
                     name: cluster.uuid.to_owned(),
                 }]),
                 strategy: None,
@@ -249,7 +249,7 @@ mod tests {
         assert_eq!(
             crs.spec.resources,
             Some(vec![ClusterResourceSetResources {
-                kind: ClusterResourceSetResourcesKind::ConfigMap,
+                kind: ClusterResourceSetResourcesKind::Secret,
                 name: cluster.uuid.clone(),
             }])
         );

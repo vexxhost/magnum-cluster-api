@@ -1,11 +1,11 @@
 use crate::{
-    addons::{cilium, ClusterAddon},
+    addons::{cilium, cloud_controller_manager, ClusterAddon},
     cluster_api::clusterresourcesets::{
         ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
         ClusterResourceSetResourcesKind, ClusterResourceSetSpec,
     },
 };
-use k8s_openapi::api::core::v1::ConfigMap;
+use k8s_openapi::api::core::v1::Secret;
 use kube::api::ObjectMeta;
 use maplit::btreemap;
 use pyo3::prelude::*;
@@ -36,6 +36,12 @@ pub struct ClusterLabels {
     #[builder(default="10.100.0.0/16".to_owned())]
     #[pyo3(default="10.100.0.0/16".to_owned())]
     pub cilium_ipv4pool: String,
+
+    /// The tag to use for the OpenStack cloud controller provider
+    /// when bootstrapping the cluster.
+    #[builder(default="v1.30.0".to_owned())]
+    #[pyo3(default="v1.30.0".to_owned())]
+    pub cloud_provider_tag: String,
 
     /// The Kubernetes version to use for the cluster.
     #[builder(default="v1.30.0".to_owned())]
@@ -70,7 +76,7 @@ impl From<Cluster> for ClusterResourceSet {
                     match_expressions: None,
                 },
                 resources: Some(vec![ClusterResourceSetResources {
-                    kind: ClusterResourceSetResourcesKind::ConfigMap,
+                    kind: ClusterResourceSetResourcesKind::Secret,
                     name: cluster.uuid.to_owned(),
                 }]),
                 strategy: None,
@@ -80,11 +86,25 @@ impl From<Cluster> for ClusterResourceSet {
     }
 }
 
-impl From<Cluster> for ConfigMap {
+impl From<Cluster> for Secret {
     fn from(cluster: Cluster) -> Self {
         let mut data = BTreeMap::<String, String>::new();
 
         // TODO(mnaser): Implement an inventory of addons
+        let ccm = cloud_controller_manager::Addon::new(cluster.clone());
+        if ccm.enabled() {
+            data.insert(
+                "cloud-controller-manager.yaml".to_owned(),
+                ccm.manifests(
+                    &cloud_controller_manager::CloudControllerManagerValues::try_from(
+                        cluster.clone(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap(),
+            );
+        }
+
         let cilium = cilium::Addon::new(cluster.clone());
         if cilium.enabled() {
             data.insert(
@@ -95,9 +115,10 @@ impl From<Cluster> for ConfigMap {
             );
         }
 
-        ConfigMap {
+        Secret {
             metadata: cluster.clone().into(),
-            data: Some(data),
+            type_: Some("addons.cluster.x-k8s.io/resource-set".into()),
+            string_data: Some(data),
             ..Default::default()
         }
     }
@@ -159,7 +180,7 @@ mod tests {
         assert_eq!(
             crs.spec.resources,
             Some(vec![ClusterResourceSetResources {
-                kind: ClusterResourceSetResourcesKind::ConfigMap,
+                kind: ClusterResourceSetResourcesKind::Secret,
                 name: cluster.uuid.clone(),
             }])
         );
@@ -219,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    fn test_config_map_from_cluster() {
+    fn test_secret_from_cluster() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
@@ -228,8 +249,12 @@ mod tests {
             },
         };
 
-        let config_map: ConfigMap = cluster.clone().into();
+        let secret: Secret = cluster.clone().into();
 
-        assert_eq!(config_map.metadata.name, Some(cluster.uuid.clone()));
+        assert_eq!(secret.metadata.name, Some(cluster.uuid.clone()));
+        assert_eq!(
+            secret.type_,
+            Some("addons.cluster.x-k8s.io/resource-set".into())
+        );
     }
 }

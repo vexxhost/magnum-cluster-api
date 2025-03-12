@@ -24,6 +24,7 @@
                 uv
                 python311Packages.tox
                 kubernetes-helm
+                patchutils
               ];
             };
         }

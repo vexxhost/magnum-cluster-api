@@ -431,7 +431,7 @@ class BaseDriver(driver.Driver):
             cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
         )
         magnum_cluster.delete()
-        resources.ClusterResourcesConfigMap(
+        resources.ClusterResourcesSecret(
             context, self.kube_client, self.k8s_api, cluster
         ).delete()
         resources.Cluster(context, self.kube_client, self.k8s_api, cluster).delete()

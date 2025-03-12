@@ -49,17 +49,6 @@ def test__get_calico_images():
         )
 
 
-def test__get_cloud_provider_images():
-    manifests_path = pkg_resources.resource_filename("magnum_cluster_api", "manifests")
-    ccm_path = os.path.join(
-        manifests_path, "ccm/openstack-cloud-controller-manager-ds.yaml"
-    )
-
-    assert _get_images_from_manifests(ccm_path).issubset(
-        image_loader._get_cloud_provider_images()
-    )
-
-
 def test__get_infra_images():
     manifests_path = pkg_resources.resource_filename("magnum_cluster_api", "manifests")
 
