@@ -43,7 +43,7 @@ from magnum_cluster_api import (
     objects,
     utils,
 )
-from magnum_cluster_api.integrations import cinder, cloud_provider, manila
+from magnum_cluster_api.integrations import cinder, manila
 
 CONF = cfg.CONF
 CALICO_TAG = "v3.24.2"
