@@ -147,7 +147,7 @@ impl ToRenderedValue for ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                     }
                 }
 
-                unimplemented!("variable should be present in values");
+                unimplemented!("variable {} should be present in values", variable);
             }
         }
 

@@ -453,7 +453,7 @@ class BaseDriver(driver.Driver):
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
-        utils.validate_nodegroup(nodegroup, context)
+        utils.validate_nodegroup(nodegroup)
         utils.ensure_worker_server_group(
             ctx=context, cluster=cluster, node_group=nodegroup
         )
@@ -585,7 +585,7 @@ class BaseDriver(driver.Driver):
         cluster: magnum_objects.Cluster,
         nodegroup: magnum_objects.NodeGroup,
     ):
-        utils.validate_nodegroup(nodegroup, context)
+        utils.validate_nodegroup(nodegroup)
         utils.ensure_worker_server_group(
             ctx=context, cluster=cluster, node_group=nodegroup
         )
