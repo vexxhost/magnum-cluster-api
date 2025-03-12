@@ -15,6 +15,7 @@
 import pytest
 from magnum.objects import fields
 from magnum.tests.unit.objects import utils
+from novaclient.v2 import flavors  # type: ignore
 
 from magnum_cluster_api import resources
 
@@ -59,11 +60,14 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     )
     mock_get_default_boot_volume_type.return_value = "foo"
 
-    mock_get_image_uuid = mocker.patch("magnum_cluster_api.utils.get_image_uuid")
-    mock_get_image_uuid.return_value = "foo"
+    mock_lookup_image = mocker.patch("magnum_cluster_api.utils.lookup_image")
+    mock_lookup_image.return_value = {"id": "foo"}
 
-    mock_get_hw_disk_bus = mocker.patch("magnum_cluster_api.utils.get_hw_disk_bus")
-    mock_get_hw_disk_bus.return_value = ""
+    mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
+    mock_lookup_flavor.return_value = flavors.Flavor(
+        None,
+        {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
+    )
 
     mock_ensure_worker_server_group = mocker.patch(
         "magnum_cluster_api.utils.ensure_worker_server_group"
@@ -90,7 +94,7 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
 )
 class TestExistingMutateMachineDeployment:
     @pytest.fixture(autouse=True)
-    def setup(self, auto_scaling_enabled, auto_healing_enabled, context):
+    def setup(self, auto_scaling_enabled, auto_healing_enabled, context, mocker):
         self.cluster = utils.get_test_cluster(context, labels={})
         if auto_scaling_enabled is not None:
             self.cluster.labels["auto_scaling_enabled"] = str(auto_scaling_enabled)
@@ -102,6 +106,15 @@ class TestExistingMutateMachineDeployment:
         if auto_scaling_enabled is not None:
             self.node_group.min_node_count = 1
             self.node_group.max_node_count = 3
+
+        mock_lookup_image = mocker.patch("magnum_cluster_api.utils.lookup_image")
+        mock_lookup_image.return_value = {"id": "foo"}
+
+        mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
+        mock_lookup_flavor.return_value = flavors.Flavor(
+            None,
+            {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
+        )
 
     def _assert_no_mutations(self, md):
         assert md["name"] == self.node_group.name
