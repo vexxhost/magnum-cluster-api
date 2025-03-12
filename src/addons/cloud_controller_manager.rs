@@ -81,7 +81,7 @@ impl TryFrom<magnum::Cluster> for CloudControllerManagerValues {
                 ),
                 tag: cluster.labels.cloud_provider_tag,
             },
-            secret: CloudControllerManagerSecretValues { enabled: false },
+            secret: CloudControllerManagerSecretValues { create: false },
             extra_volumes: vec![
                 Volume {
                     name: "k8s-certs".to_string(),
@@ -99,22 +99,6 @@ impl TryFrom<magnum::Cluster> for CloudControllerManagerValues {
                     }),
                     ..Default::default()
                 },
-                Volume {
-                    name: "cloud-config-volume".to_string(),
-                    host_path: Some(HostPathVolumeSource {
-                        path: "/etc/kubernetes/cloud.conf".to_string(),
-                        type_: Some("File".to_string()),
-                    }),
-                    ..Default::default()
-                },
-                Volume {
-                    name: "cloud-ca-cert-volume".to_string(),
-                    host_path: Some(HostPathVolumeSource {
-                        path: "/etc/kubernetes/cloud_ca.crt".to_string(),
-                        type_: Some("File".to_string()),
-                    }),
-                    ..Default::default()
-                },
             ],
             extra_volume_mounts: vec![
                 VolumeMount {
@@ -126,18 +110,6 @@ impl TryFrom<magnum::Cluster> for CloudControllerManagerValues {
                 VolumeMount {
                     name: "ca-certs".to_string(),
                     mount_path: "/etc/ssl/certs".to_string(),
-                    read_only: Some(true),
-                    ..Default::default()
-                },
-                VolumeMount {
-                    name: "cloud-config-volume".to_string(),
-                    mount_path: "/etc/config/cloud.conf".to_string(),
-                    read_only: Some(true),
-                    ..Default::default()
-                },
-                VolumeMount {
-                    name: "cloud-ca-cert-volume".to_string(),
-                    mount_path: "/etc/config/ca.crt".to_string(),
                     read_only: Some(true),
                     ..Default::default()
                 },
@@ -155,7 +127,7 @@ pub struct CloudControllerManagerImageValues {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct CloudControllerManagerSecretValues {
-    enabled: bool,
+    create: bool,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -249,7 +221,7 @@ mod tests {
         let values: CloudControllerManagerValues =
             cluster.clone().try_into().expect("failed to create values");
 
-        assert_eq!(values.secret.enabled, false);
+        assert_eq!(values.secret.create, false);
         assert_eq!(
             values.extra_volumes,
             vec![
@@ -269,22 +241,6 @@ mod tests {
                     }),
                     ..Default::default()
                 },
-                Volume {
-                    name: "cloud-config-volume".to_string(),
-                    host_path: Some(HostPathVolumeSource {
-                        path: "/etc/kubernetes/cloud.conf".to_string(),
-                        type_: Some("File".to_string()),
-                    }),
-                    ..Default::default()
-                },
-                Volume {
-                    name: "cloud-ca-cert-volume".to_string(),
-                    host_path: Some(HostPathVolumeSource {
-                        path: "/etc/kubernetes/cloud_ca.crt".to_string(),
-                        type_: Some("File".to_string()),
-                    }),
-                    ..Default::default()
-                },
             ]
         );
         assert_eq!(
@@ -299,18 +255,6 @@ mod tests {
                 VolumeMount {
                     name: "ca-certs".to_string(),
                     mount_path: "/etc/ssl/certs".to_string(),
-                    read_only: Some(true),
-                    ..Default::default()
-                },
-                VolumeMount {
-                    name: "cloud-config-volume".to_string(),
-                    mount_path: "/etc/config/cloud.conf".to_string(),
-                    read_only: Some(true),
-                    ..Default::default()
-                },
-                VolumeMount {
-                    name: "cloud-ca-cert-volume".to_string(),
-                    mount_path: "/etc/config/ca.crt".to_string(),
                     read_only: Some(true),
                     ..Default::default()
                 },
@@ -332,6 +276,8 @@ mod tests {
         let addon = Addon::new(cluster.clone());
         let values: CloudControllerManagerValues =
             cluster.clone().try_into().expect("failed to create values");
-        addon.manifests(&values).expect("failed to get manifests");
+        let x = addon.manifests(&values).expect("failed to get manifests");
+        println!("{}", x);
+        assert_eq!(false, true);
     }
 }

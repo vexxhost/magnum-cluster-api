@@ -61,7 +61,7 @@ impl ClusterFeaturePatches for Feature {
                                 template: Some(
                                     serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles {
                                         path: "/etc/kubernetes/cloud_ca.crt".to_string(),
-                                        owner: Some("1001:1001".into()),
+                                        owner: Some("root:root".into()),
                                         permissions: Some("0600".to_string()),
                                         encoding: Some(
                                             KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64,
@@ -81,7 +81,7 @@ impl ClusterFeaturePatches for Feature {
                                 template: Some(
                                     serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles {
                                         path: "/etc/kubernetes/cloud.conf".to_string(),
-                                        owner: Some("1001:1001".into()),
+                                        owner: Some("root:root".into()),
                                         permissions: Some("0600".to_string()),
                                         encoding: Some(
                                             KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64,
@@ -115,7 +115,7 @@ impl ClusterFeaturePatches for Feature {
                                 template: Some(
                                     serde_yaml::to_string(&KubeadmConfigTemplateTemplateSpecFiles {
                                         path: "/etc/kubernetes/cloud_ca.crt".to_string(),
-                                        owner: Some("1001:1001".into()),
+                                        owner: Some("root:root".into()),
                                         permissions: Some("0600".to_string()),
                                         encoding: Some(
                                             KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64,
@@ -135,7 +135,7 @@ impl ClusterFeaturePatches for Feature {
                                 template: Some(
                                     serde_yaml::to_string(&KubeadmConfigTemplateTemplateSpecFiles {
                                         path: "/etc/kubernetes/cloud.conf".to_string(),
-                                        owner: Some("1001:1001".into()),
+                                        owner: Some("root:root".into()),
                                         permissions: Some("0600".to_string()),
                                         encoding: Some(
                                             KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64,
@@ -189,7 +189,7 @@ mod tests {
             .find(|f| f.path == "/etc/kubernetes/cloud_ca.crt")
             .expect("file should be set");
         assert_eq!(kcpt_ca_file.path, "/etc/kubernetes/cloud_ca.crt");
-        assert_eq!(kcpt_ca_file.owner.as_deref(), Some("1001:1001"));
+        assert_eq!(kcpt_ca_file.owner.as_deref(), Some("root:root"));
         assert_eq!(kcpt_ca_file.permissions.as_deref(), Some("0600"));
         assert_eq!(
             kcpt_ca_file.encoding,
@@ -205,7 +205,7 @@ mod tests {
             .find(|f| f.path == "/etc/kubernetes/cloud.conf")
             .expect("file should be set");
         assert_eq!(kcpt_ccm_file.path, "/etc/kubernetes/cloud.conf");
-        assert_eq!(kcpt_ccm_file.owner.as_deref(), Some("1001:1001"));
+        assert_eq!(kcpt_ccm_file.owner.as_deref(), Some("root:root"));
         assert_eq!(kcpt_ccm_file.permissions.as_deref(), Some("0600"));
         assert_eq!(
             kcpt_ccm_file.encoding,
@@ -230,7 +230,7 @@ mod tests {
             .find(|f| f.path == "/etc/kubernetes/cloud_ca.crt")
             .expect("file should be set");
         assert_eq!(kct_ca_file.path, "/etc/kubernetes/cloud_ca.crt");
-        assert_eq!(kct_ca_file.owner.as_deref(), Some("1001:1001"));
+        assert_eq!(kct_ca_file.owner.as_deref(), Some("root:root"));
         assert_eq!(kct_ca_file.permissions.as_deref(), Some("0600"));
         assert_eq!(
             kct_ca_file.encoding,
@@ -246,7 +246,7 @@ mod tests {
             .find(|f| f.path == "/etc/kubernetes/cloud.conf")
             .expect("file should be set");
         assert_eq!(kct_ccm_file.path, "/etc/kubernetes/cloud.conf");
-        assert_eq!(kct_ccm_file.owner.as_deref(), Some("1001:1001"));
+        assert_eq!(kct_ccm_file.owner.as_deref(), Some("root:root"));
         assert_eq!(kct_ccm_file.permissions.as_deref(), Some("0600"));
         assert_eq!(
             kct_ccm_file.encoding,

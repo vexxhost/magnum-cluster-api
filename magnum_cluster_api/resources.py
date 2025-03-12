@@ -233,6 +233,30 @@ class ClusterResourcesConfigMap(ClusterBase):
 
         data = magnum_cluster_api.MagnumCluster.get_config_data(self.cluster)
 
+        data = {
+            **data,
+            **{
+                "cloud-config-secret.yaml": yaml.dump(
+                    {
+                        "apiVersion": pykube.Secret.version,
+                        "kind": pykube.Secret.kind,
+                        "metadata": {
+                            "name": "cloud-config",
+                            "namespace": "kube-system",
+                        },
+                        "stringData": {
+                            "cloud.conf": utils.generate_cloud_controller_manager_config(
+                                self.context,
+                                self.pykube_api,
+                                self.cluster,
+                            ),
+                            "ca.crt": utils.get_cloud_ca_cert(),
+                        },
+                    }
+                ),
+            },
+        }
+
         if self.cluster.cluster_template.network_driver == "calico":
             calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
             data = {
