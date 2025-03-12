@@ -93,13 +93,6 @@ def cluster_exists(api: pykube.HTTPClient, name: str) -> bool:
         return False
 
 
-def get_cloud_ca_cert() -> str:
-    """
-    Get cloud ca certificate.
-    """
-    return magnum_utils.get_openstack_ca()
-
-
 def get_capi_client_ca_cert() -> str:
     ca_file = CONF.capi_client.ca_file
 
@@ -148,7 +141,7 @@ def generate_cloud_controller_manager_config(
         application-credential-id={cloud_config["clouds"]["default"]["auth"]["application_credential_id"]}
         application-credential-secret={cloud_config["clouds"]["default"]["auth"]["application_credential_secret"]}
         tls-insecure={"false" if CONF.drivers.verify_ca else "true"}
-        {"ca-file=/etc/config/ca.crt" if get_cloud_ca_cert() else ""}
+        {"ca-file=/etc/config/ca.crt" if magnum_utils.get_openstack_ca() else ""}
         [LoadBalancer]
         lb-provider={octavia_provider}
         lb-method={octavia_lb_algorithm}
@@ -188,7 +181,7 @@ def generate_manila_csi_cloud_config(
         ),
     }
 
-    if get_cloud_ca_cert():
+    if magnum_utils.get_openstack_ca():
         config["os-certAuthorityPath"] = "/etc/config/ca.crt"
 
     return config

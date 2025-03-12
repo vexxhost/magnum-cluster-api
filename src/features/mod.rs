@@ -51,7 +51,6 @@ pub mod api_server_floating_ip;
 pub mod api_server_load_balancer;
 pub mod audit_log;
 pub mod boot_volume;
-pub mod cloud_controller_manager;
 pub mod cluster_identity;
 pub mod containerd_config;
 pub mod control_plane_availability_zones;

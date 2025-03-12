@@ -7,3 +7,7 @@ charts:
     version: 1.15.3
     repository:
       url: https://helm.cilium.io/
+  - name: openstack-cloud-controller-manager
+    version: 2.32.0
+    repository:
+      url: https://kubernetes.github.io/cloud-provider-openstack

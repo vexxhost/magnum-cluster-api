@@ -74,20 +74,26 @@ for manifest in MANIFESTS:
                 "path"
             ] = "/var/lib/kubelet/plugins/csi-nfsplugin"
 
-            # NOTE(okozachenko1203): Add `/etc/kuberentes/cloud_ca.crt`.
+            # NOTE(okozachenko1203): Add CA certificate.
             doc["spec"]["template"]["spec"]["containers"][3]["volumeMounts"].append(
                 {
-                    "name": "cloud-ca-cert-volume",
+                    "name": "cloud-config-volume",
+                    "mountPath": "/etc/config",
                     "readOnly": True,
-                    "mountPath": "/etc/config/ca.crt",
                 }
             )
             doc["spec"]["template"]["spec"]["volumes"].append(
                 {
-                    "name": "cloud-ca-cert-volume",
-                    "hostPath": {
-                        "type": "File",
-                        "path": "/etc/kubernetes/cloud_ca.crt",
+                    "name": "cloud-config-volume",
+                    "secret": {
+                        "secretName": "cloud-config",
+                        "defaultMode": 420,
+                        "items": [
+                            {
+                                "key": "ca.crt",
+                                "path": "ca.crt",
+                            }
+                        ],
                     },
                 }
             )

@@ -80,15 +80,10 @@ spec:
         - mountPath: /dev
           mountPropagation: HostToContainer
           name: pods-probe-dir
-        - mountPath: /etc/config/cloud.conf
+        - mountPath: /etc/config
           name: secret-cinderplugin
           readOnly: true
-        - mountPath: /etc/config/ca.crt
-          name: cloud-ca-cert-volume
-          readOnly: true
       hostNetwork: true
-      securityContext:
-        runAsUser: 0
       serviceAccount: csi-cinder-node-sa
       tolerations:
       - operator: Exists
@@ -109,11 +104,6 @@ spec:
           path: /dev
           type: Directory
         name: pods-probe-dir
-      - hostPath:
-          path: /etc/kubernetes/cloud.conf
-          type: File
-        name: secret-cinderplugin
-      - hostPath:
-          path: /etc/kubernetes/cloud_ca.crt
-          type: File
-        name: cloud-ca-cert-volume
+      - name: secret-cinderplugin
+        secret:
+          secretName: cloud-config

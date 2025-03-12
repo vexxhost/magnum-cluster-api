@@ -4,6 +4,7 @@ use serde::Serialize;
 use thiserror::Error;
 
 pub mod cilium;
+pub mod cloud_controller_manager;
 
 pub trait ClusterAddon {
     fn new(cluster: magnum::Cluster) -> Self;

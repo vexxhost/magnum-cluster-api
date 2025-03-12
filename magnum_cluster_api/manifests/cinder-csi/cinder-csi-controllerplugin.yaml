@@ -118,14 +118,9 @@ spec:
         volumeMounts:
         - mountPath: /csi
           name: socket-dir
-        - mountPath: /etc/config/cloud.conf
+        - mountPath: /etc/config
           name: secret-cinderplugin
           readOnly: true
-        - mountPath: /etc/config/ca.crt
-          name: cloud-ca-cert-volume
-          readOnly: true
-      securityContext:
-        runAsUser: 0
       serviceAccount: csi-cinder-controller-sa
       tolerations:
       - effect: NoSchedule
@@ -135,11 +130,6 @@ spec:
       volumes:
       - emptyDir: null
         name: socket-dir
-      - hostPath:
-          path: /etc/kubernetes/cloud.conf
-          type: File
-        name: secret-cinderplugin
-      - hostPath:
-          path: /etc/kubernetes/cloud_ca.crt
-          type: File
-        name: cloud-ca-cert-volume
+      - name: secret-cinderplugin
+        secret:
+          secretName: cloud-config
