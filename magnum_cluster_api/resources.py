@@ -226,18 +226,15 @@ class ClusterResourcesConfigMap(ClusterBase):
         return "ConfigMap"
 
     def get_object(self) -> dict:
+        repository = utils.get_cluster_container_infra_prefix(self.cluster)
         manifests_path = pkg_resources.resource_filename(
             "magnum_cluster_api", "manifests"
         )
-        calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
-
-        repository = utils.get_cluster_container_infra_prefix(self.cluster)
-
-        osc = clients.get_openstack_api(self.context)
 
         data = magnum_cluster_api.MagnumCluster.get_config_data(self.cluster)
 
         if self.cluster.cluster_template.network_driver == "calico":
+            calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
             data = {
                 **data,
                 **{
@@ -248,6 +245,8 @@ class ClusterResourcesConfigMap(ClusterBase):
                     )
                 },
             }
+
+        osc = clients.get_openstack_api(self.context)
 
         if cinder.is_enabled(self.cluster):
             volume_types = osc.cinder().volume_types.list()
