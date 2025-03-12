@@ -117,6 +117,7 @@ impl From<Cluster> for Secret {
 
         Secret {
             metadata: cluster.clone().into(),
+            type_: Some("addons.cluster.x-k8s.io/resource-set".into()),
             string_data: Some(data),
             ..Default::default()
         }
@@ -248,8 +249,12 @@ mod tests {
             },
         };
 
-        let config_map: Secret = cluster.clone().into();
+        let secret: Secret = cluster.clone().into();
 
-        assert_eq!(config_map.metadata.name, Some(cluster.uuid.clone()));
+        assert_eq!(secret.metadata.name, Some(cluster.uuid.clone()));
+        assert_eq!(
+            secret.type_,
+            Some("addons.cluster.x-k8s.io/resource-set".into())
+        );
     }
 }

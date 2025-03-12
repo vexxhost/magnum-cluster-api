@@ -439,6 +439,7 @@ class ClusterResourcesSecret(ClusterBase):
             }
 
         return {
+            "type": "addons.cluster.x-k8s.io/resource-set",
             "stringData": data,
         }
 
