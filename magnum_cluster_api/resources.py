@@ -237,24 +237,6 @@ class ClusterResourcesConfigMap(ClusterBase):
 
         data = magnum_cluster_api.MagnumCluster.get_config_data(self.cluster)
 
-        data = {
-            **data,
-            **{
-                os.path.basename(manifest): image_utils.update_manifest_images(
-                    self.cluster.uuid,
-                    manifest,
-                    repository=repository,
-                    replacements=[
-                        (
-                            "docker.io/k8scloudprovider/openstack-cloud-controller-manager:latest",
-                            cloud_provider.get_image(self.cluster),
-                        ),
-                    ],
-                )
-                for manifest in glob.glob(os.path.join(manifests_path, "ccm/*.yaml"))
-            },
-        }
-
         if self.cluster.cluster_template.network_driver == "calico":
             data = {
                 **data,
