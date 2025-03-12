@@ -25,6 +25,49 @@ pub struct CiliumValues {
     clustermesh: CiliumClustermeshValues,
 }
 
+impl ClusterAddonValues for CiliumValues {
+    fn defaults() -> Result<Self, ClusterAddonValuesError> {
+        let file = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/magnum_cluster_api/charts/cilium/values.yaml"
+        ));
+        let values: CiliumValues = serde_yaml::from_str(file)?;
+
+        Ok(values)
+    }
+
+    // fn get_images() -> Result<Vec<DockerImage>, ClusterAddonValuesError> {
+    //     let values = Self::defaults()?;
+
+    //     Ok(vec![
+    //         values.image.into(),
+    //         values.certgen.image.into(),
+    //         values.hubble.relay.image.into(),
+    //         values.hubble.ui.backend.image.into(),
+    //         values.hubble.ui.frontend.image.into(),
+    //         values.envoy.image.into(),
+    //         values.etcd.image.into(),
+    //         values.operator.image.into(),
+    //         values.nodeinit.image.into(),
+    //         values.preflight.image.into(),
+    //         values.clustermesh.apiserver.image.into(),
+    //     ])
+    // }
+
+    fn get_mirrored_image_name(image: DockerImage, registry: &Option<String>) -> String {
+        match registry {
+            Some(ref registry) => {
+                format!(
+                    "{}/{}",
+                    registry.trim_end_matches('/'),
+                    image.name.replace("cilium/", "cilium-")
+                )
+            }
+            None => image.to_string(),
+        }
+    }
+}
+
 impl TryFrom<magnum::Cluster> for CiliumValues {
     type Error = ClusterAddonValuesError;
 
@@ -92,49 +135,6 @@ impl TryFrom<magnum::Cluster> for CiliumValues {
                 },
             },
         })
-    }
-}
-
-impl ClusterAddonValues for CiliumValues {
-    fn defaults() -> Result<Self, ClusterAddonValuesError> {
-        let file = include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/magnum_cluster_api/charts/cilium/values.yaml"
-        ));
-        let values: CiliumValues = serde_yaml::from_str(file)?;
-
-        Ok(values)
-    }
-
-    // fn get_images() -> Result<Vec<DockerImage>, ClusterAddonValuesError> {
-    //     let values = Self::defaults()?;
-
-    //     Ok(vec![
-    //         values.image.into(),
-    //         values.certgen.image.into(),
-    //         values.hubble.relay.image.into(),
-    //         values.hubble.ui.backend.image.into(),
-    //         values.hubble.ui.frontend.image.into(),
-    //         values.envoy.image.into(),
-    //         values.etcd.image.into(),
-    //         values.operator.image.into(),
-    //         values.nodeinit.image.into(),
-    //         values.preflight.image.into(),
-    //         values.clustermesh.apiserver.image.into(),
-    //     ])
-    // }
-
-    fn get_mirrored_image_name(image: DockerImage, registry: &Option<String>) -> String {
-        match registry {
-            Some(ref registry) => {
-                format!(
-                    "{}/{}",
-                    registry.trim_end_matches('/'),
-                    image.name.replace("cilium/", "cilium-")
-                )
-            }
-            None => image.to_string(),
-        }
     }
 }
 
