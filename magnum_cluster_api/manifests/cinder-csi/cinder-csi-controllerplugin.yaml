@@ -27,7 +27,7 @@ spec:
         env:
         - name: ADDRESS
           value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        image: registry.k8s.io/sig-storage/csi-attacher:v4.2.0
+        image: registry.k8s.io/sig-storage/csi-attacher:v4.7.0
         imagePullPolicy: IfNotPresent
         name: csi-attacher
         volumeMounts:
@@ -43,7 +43,7 @@ spec:
         env:
         - name: ADDRESS
           value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        image: registry.k8s.io/sig-storage/csi-provisioner:v3.4.1
+        image: registry.k8s.io/sig-storage/csi-provisioner:v5.1.0
         imagePullPolicy: IfNotPresent
         name: csi-provisioner
         volumeMounts:
@@ -57,7 +57,7 @@ spec:
         env:
         - name: ADDRESS
           value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        image: registry.k8s.io/sig-storage/csi-snapshotter:v6.2.1
+        image: registry.k8s.io/sig-storage/csi-snapshotter:v8.1.0
         imagePullPolicy: Always
         name: csi-snapshotter
         volumeMounts:
@@ -71,7 +71,7 @@ spec:
         env:
         - name: ADDRESS
           value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        image: registry.k8s.io/sig-storage/csi-resizer:v1.8.0
+        image: registry.k8s.io/sig-storage/csi-resizer:v1.12.0
         imagePullPolicy: IfNotPresent
         name: csi-resizer
         volumeMounts:
@@ -82,7 +82,7 @@ spec:
         env:
         - name: ADDRESS
           value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        image: registry.k8s.io/sig-storage/livenessprobe:v2.9.0
+        image: registry.k8s.io/sig-storage/livenessprobe:v2.14.0
         name: liveness-probe
         volumeMounts:
         - mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -92,6 +92,7 @@ spec:
         - --endpoint=$(CSI_ENDPOINT)
         - --cloud-config=$(CLOUD_CONFIG)
         - --cluster=$(CLUSTER_NAME)
+        - --pvc-annotations
         - --v=1
         env:
         - name: CSI_ENDPOINT
@@ -100,7 +101,7 @@ spec:
           value: /etc/config/cloud.conf
         - name: CLUSTER_NAME
           value: kubernetes
-        image: registry.k8s.io/provider-os/cinder-csi-plugin:v1.28.0
+        image: registry.k8s.io/provider-os/cinder-csi-plugin:v1.32.0
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 5
@@ -127,6 +128,11 @@ spec:
       securityContext:
         runAsUser: 0
       serviceAccount: csi-cinder-controller-sa
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
       volumes:
       - emptyDir: null
         name: socket-dir

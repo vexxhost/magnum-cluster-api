@@ -25,7 +25,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.6.3
+        image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.12.0
         imagePullPolicy: IfNotPresent
         name: node-driver-registrar
         volumeMounts:
@@ -35,7 +35,7 @@ spec:
           name: registration-dir
       - args:
         - --csi-address=/csi/csi.sock
-        image: registry.k8s.io/sig-storage/livenessprobe:v2.9.0
+        image: registry.k8s.io/sig-storage/livenessprobe:v2.14.0
         name: liveness-probe
         volumeMounts:
         - mountPath: /csi
@@ -43,6 +43,7 @@ spec:
       - args:
         - /bin/cinder-csi-plugin
         - --endpoint=$(CSI_ENDPOINT)
+        - --provide-controller-service=false
         - --cloud-config=$(CLOUD_CONFIG)
         - --v=1
         env:
@@ -50,7 +51,7 @@ spec:
           value: unix://csi/csi.sock
         - name: CLOUD_CONFIG
           value: /etc/config/cloud.conf
-        image: registry.k8s.io/provider-os/cinder-csi-plugin:v1.28.0
+        image: registry.k8s.io/provider-os/cinder-csi-plugin:v1.32.0
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 5

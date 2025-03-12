@@ -69,6 +69,16 @@ for manifest in MANIFESTS:
                     },
                 }
             )
+            doc["spec"]["template"]["spec"]["tolerations"] = [
+                {
+                    "effect": "NoSchedule",
+                    "key": "node-role.kubernetes.io/master",
+                },
+                {
+                    "effect": "NoSchedule",
+                    "key": "node-role.kubernetes.io/control-plane",
+                }
+            ]
 
             # NOTE(mnaser): We need to run as root in order to read the `cloud.conf`
             #               file from the host.

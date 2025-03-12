@@ -38,10 +38,11 @@ spec:
       containers:
       - args:
         - --csi-address=$(ADDRESS)
+        - --extra-create-metadata
         env:
         - name: ADDRESS
           value: unix:///var/lib/kubelet/plugins/manila.csi.openstack.org/csi-controllerplugin.sock
-        image: registry.k8s.io/sig-storage/csi-provisioner:v3.0.0
+        image: registry.k8s.io/sig-storage/csi-provisioner:v5.1.0
         imagePullPolicy: IfNotPresent
         name: provisioner
         volumeMounts:
@@ -52,7 +53,7 @@ spec:
         env:
         - name: ADDRESS
           value: unix:///var/lib/kubelet/plugins/manila.csi.openstack.org/csi-controllerplugin.sock
-        image: registry.k8s.io/sig-storage/csi-snapshotter:v5.0.1
+        image: registry.k8s.io/sig-storage/csi-snapshotter:v8.1.0
         imagePullPolicy: IfNotPresent
         name: snapshotter
         volumeMounts:
@@ -64,7 +65,7 @@ spec:
         env:
         - name: ADDRESS
           value: unix:///var/lib/kubelet/plugins/manila.csi.openstack.org/csi-controllerplugin.sock
-        image: registry.k8s.io/sig-storage/csi-resizer:v1.8.0
+        image: registry.k8s.io/sig-storage/csi-resizer:v1.12.0
         imagePullPolicy: IfNotPresent
         name: resizer
         volumeMounts:
@@ -73,8 +74,9 @@ spec:
       - command:
         - /bin/sh
         - -c
-        - /bin/manila-csi-plugin --nodeid=$(NODE_ID) --endpoint=$(CSI_ENDPOINT) --drivername=$(DRIVER_NAME)
+        - /bin/manila-csi-plugin --endpoint=$(CSI_ENDPOINT) --drivername=$(DRIVER_NAME)
           --share-protocol-selector=$(MANILA_SHARE_PROTO) --fwdendpoint=$(FWD_CSI_ENDPOINT)
+          --pvc-annotations
         env:
         - name: DRIVER_NAME
           value: manila.csi.openstack.org
@@ -109,6 +111,11 @@ spec:
           name: cloud-ca-cert-volume
           readOnly: true
       serviceAccountName: openstack-manila-csi-controllerplugin
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
       volumes:
       - hostPath:
           path: /var/lib/kubelet/plugins/manila.csi.openstack.org

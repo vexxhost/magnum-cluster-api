@@ -91,6 +91,17 @@ for manifest in MANIFESTS:
                 }
             )
 
+            doc["spec"]["template"]["spec"]["tolerations"] = [
+                {
+                    "effect": "NoSchedule",
+                    "key": "node-role.kubernetes.io/master",
+                },
+                {
+                    "effect": "NoSchedule",
+                    "key": "node-role.kubernetes.io/control-plane",
+                }
+            ]
+
         if doc["kind"] == "DaemonSet":
             doc["spec"]["template"]["spec"]["containers"][1]["env"][3][
                 "value"
