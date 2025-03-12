@@ -127,6 +127,11 @@ spec:
       securityContext:
         runAsUser: 0
       serviceAccount: csi-cinder-controller-sa
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
       volumes:
       - emptyDir: null
         name: socket-dir
