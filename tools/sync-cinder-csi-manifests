@@ -20,6 +20,7 @@
 import requests
 import yaml
 
+MANIFESTS_GIT_REF = "v1.28.0"
 MANIFESTS = set(
     [
         "cinder-csi-controllerplugin-rbac.yaml",
@@ -32,7 +33,7 @@ MANIFESTS = set(
 
 
 for manifest in MANIFESTS:
-    url = f"https://raw.githubusercontent.com/kubernetes/cloud-provider-openstack/master/manifests/cinder-csi-plugin/{manifest}"  # noqa E501
+    url = f"https://raw.githubusercontent.com/kubernetes/cloud-provider-openstack/{MANIFESTS_GIT_REF}/manifests/cinder-csi-plugin/{manifest}"  # noqa E501
 
     docs = []
     r = requests.get(url)
@@ -77,7 +78,7 @@ for manifest in MANIFESTS:
                 {
                     "effect": "NoSchedule",
                     "key": "node-role.kubernetes.io/control-plane",
-                }
+                },
             ]
 
             # NOTE(mnaser): We need to run as root in order to read the `cloud.conf`

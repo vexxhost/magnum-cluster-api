@@ -26,7 +26,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.12.0
+        image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.4.0
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -44,7 +44,7 @@ spec:
       - command:
         - /bin/sh
         - -c
-        - /bin/manila-csi-plugin --endpoint=$(CSI_ENDPOINT) --drivername=$(DRIVER_NAME)
+        - /bin/manila-csi-plugin --nodeid=$(NODE_ID) --endpoint=$(CSI_ENDPOINT) --drivername=$(DRIVER_NAME)
           --share-protocol-selector=$(MANILA_SHARE_PROTO) --fwdendpoint=$(FWD_CSI_ENDPOINT)
         env:
         - name: DRIVER_NAME

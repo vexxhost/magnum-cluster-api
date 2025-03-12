@@ -20,6 +20,7 @@
 import requests
 import yaml
 
+MANIFESTS_GIT_REF = "v1.28.0"
 MANIFESTS = set(
     [
         "csi-controllerplugin-rbac.yaml",
@@ -52,7 +53,7 @@ def set_namespace(doc, namespace="kube-system"):
 
 
 for manifest in MANIFESTS:
-    url = f"https://raw.githubusercontent.com/kubernetes/cloud-provider-openstack/master/manifests/manila-csi-plugin/{manifest}"  # noqa E501
+    url = f"https://raw.githubusercontent.com/kubernetes/cloud-provider-openstack/{MANIFESTS_GIT_REF}/manifests/manila-csi-plugin/{manifest}"  # noqa E501
 
     docs = []
     r = requests.get(url)
@@ -99,7 +100,7 @@ for manifest in MANIFESTS:
                 {
                     "effect": "NoSchedule",
                     "key": "node-role.kubernetes.io/control-plane",
-                }
+                },
             ]
 
         if doc["kind"] == "DaemonSet":
