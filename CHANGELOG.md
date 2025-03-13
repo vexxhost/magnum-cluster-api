@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.29.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.28.0...v0.29.0) (2025-03-12)
+
+
+### Features
+
+* add autoscale from zero ([#530](https://github.com/vexxhost/magnum-cluster-api/issues/530)) ([36d6776](https://github.com/vexxhost/magnum-cluster-api/commit/36d6776ed8ffbe378a0734ec39775ba2d571d89c))
+* add tolerations for csi controllerPlugin manifests ([#533](https://github.com/vexxhost/magnum-cluster-api/issues/533)) ([c991d55](https://github.com/vexxhost/magnum-cluster-api/commit/c991d552006ef44b60c2b026554cf7e45e5d459b))
+
+
+### Bug Fixes
+
+* force scale-up cluster nodegroup when node_count &lt; min_node_count ([#528](https://github.com/vexxhost/magnum-cluster-api/issues/528)) ([828c20e](https://github.com/vexxhost/magnum-cluster-api/commit/828c20ef26a912836eb004b2651f4ba948bb551c))
+* use correct cloud_provider_tag ([#532](https://github.com/vexxhost/magnum-cluster-api/issues/532)) ([ab5cb64](https://github.com/vexxhost/magnum-cluster-api/commit/ab5cb64bbd86d7eace43b524b6fd140da29d5a36))
+
 ## [0.28.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.27.0...v0.28.0) (2025-03-11)
 
 
