@@ -47,7 +47,7 @@ from magnum_cluster_api import (
 from magnum_cluster_api.integrations import cinder, manila
 
 CONF = cfg.CONF
-CALICO_TAG = "v3.24.2"
+CALICO_TAG = "v3.29.2"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
