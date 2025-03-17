@@ -12,7 +12,13 @@
       "matchDatasources": ["github-releases"],
       "matchPackageNames": ["projectcalico/calico"],
       "extractVersionTemplate": "^v(?<version>.*)$",
-      "versioningTemplate": "semver"
+      "versioningTemplate": "semver",
+      "postUpgradeTasks": {
+        "fileFilters": ["magnum_cluster_api/manifests/calico/{{{newValue}}}.yaml"],
+        "commands": [
+          "curl -o magnum_cluster_api/manifests/calico/{{{newValue}}}.yaml https://raw.githubusercontent.com/projectcalico/calico/v{{{newValue}}}/manifests/calico.yaml"
+        ]
+      }
     }
   ],
   "customManagers": [
@@ -23,13 +29,7 @@
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "projectcalico/calico",
       "versioningTemplate": "semver",
-      "autoReplaceStringTemplate": "CALICO_TAG = \"v{{{newValue}}}\"",
-      "postUpgradeTasks": {
-        "fileFilters": ["magnum_cluster_api/manifests/calico/{{{newValue}}}.yaml"],
-        "commands": [
-          "curl -o magnum_cluster_api/manifests/calico/{{{newValue}}}.yaml https://raw.githubusercontent.com/projectcalico/calico/v{{{newValue}}}/manifests/calico.yaml"
-        ]
-      }
+      "autoReplaceStringTemplate": "CALICO_TAG = \"v{{{newValue}}}\""
     }
   ]
 }
