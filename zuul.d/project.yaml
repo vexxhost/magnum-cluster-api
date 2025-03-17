@@ -16,6 +16,7 @@
         - magnum-cluster-api-tox-linters
         - magnum-cluster-api-tox-unit
     templates:
+      - renovate
       - magnum-cluster-api-flatcar
       - magnum-cluster-api-rockylinux-8
       - magnum-cluster-api-rockylinux-9
