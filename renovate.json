@@ -12,7 +12,7 @@
       "matchDatasources": ["github-releases"],
       "matchPackageNames": ["projectcalico/calico"],
       "postUpgradeTasks": {
-        "fileFilters": ["magnum_cluster_api/manifests/calico/{{{newValue}}}.yaml"],
+        "fileFilters": ["magnum_cluster_api/manifests/calico/*.yaml"],
         "commands": [
           "curl -o magnum_cluster_api/manifests/calico/{{{newValue}}}.yaml https://raw.githubusercontent.com/projectcalico/calico/v{{{newValue}}}/manifests/calico.yaml"
         ]
