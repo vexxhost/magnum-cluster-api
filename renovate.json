@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:base"],
+  "extends": ["config:recommended"],
   "baseBranches": ["main"],
   "packageRules": [
     {
@@ -11,8 +11,6 @@
       "enabled": true,
       "matchDatasources": ["github-releases"],
       "matchPackageNames": ["projectcalico/calico"],
-      "extractVersionTemplate": "^v(?<version>.*)$",
-      "versioningTemplate": "semver",
       "postUpgradeTasks": {
         "fileFilters": ["magnum_cluster_api/manifests/calico/{{{newValue}}}.yaml"],
         "commands": [
