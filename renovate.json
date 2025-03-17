@@ -30,6 +30,7 @@
       "matchStrings": ["CALICO_TAG = \"v(?<currentValue>.*?)\""],
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "projectcalico/calico",
+      "depTypeTemplate": "requires",
       "versioningTemplate": "semver",
       "autoReplaceStringTemplate": "CALICO_TAG = \"v{{{newValue}}}\""
     }
