@@ -9,6 +9,10 @@
     },
     {
       "enabled": true,
+      "matchDatasources": ["crate"]
+    },
+    {
+      "enabled": true,
       "matchDatasources": ["github-releases"],
       "matchPackageNames": ["projectcalico/calico"],
       "postUpgradeTasks": {
