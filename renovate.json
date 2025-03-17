@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:base"],
+  "baseBranches": ["main"],
+  "packageRules": [
+    {
+      "enabled": false,
+      "matchPackagePatterns": ["*"]
+    },
+    {
+      "enabled": true,
+      "matchDatasources": ["github-releases"],
+      "matchPackageNames": ["projectcalico/calico"],
+      "extractVersionTemplate": "^v(?<version>.*)$",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["magnum_cluster_api/resources.py"],
+      "matchStrings": ["CALICO_TAG = \"v(?<currentValue>.*?)\""],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "projectcalico/calico",
+      "versioningTemplate": "semver",
+      "autoReplaceStringTemplate": "CALICO_TAG = \"v{{{newValue}}}\"",
+      "postUpgradeTasks": {
+        "fileFilters": ["magnum_cluster_api/manifests/calico/{{{newValue}}}.yaml"],
+        "commands": [
+          "curl -o magnum_cluster_api/manifests/calico/{{{newValue}}}.yaml https://raw.githubusercontent.com/projectcalico/calico/v{{{newValue}}}/manifests/calico.yaml"
+        ]
+      }
+    }
+  ]
+}
