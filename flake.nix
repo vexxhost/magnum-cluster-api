@@ -25,6 +25,7 @@
                 python311Packages.tox
                 kubernetes-helm
                 patchutils
+                renovate
               ];
             };
         }
