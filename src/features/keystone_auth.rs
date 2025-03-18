@@ -17,8 +17,7 @@ use crate::{
     },
 };
 use cluster_feature_derive::ClusterFeatureValues;
-use json_patch::{AddOperation, PatchOperation};
-use jsonptr::PointerBuf;
+use json_patch::{jsonptr::PointerBuf, AddOperation, PatchOperation};
 use kube::CustomResourceExt;
 use serde::{Deserialize, Serialize};
 use serde_json::json;

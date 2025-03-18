@@ -14,8 +14,10 @@ use crate::{
         OPENSTACK_MACHINE_TEMPLATE,
     },
 };
-use json_patch::{patch, AddOperation, Patch, PatchOperation, RemoveOperation, ReplaceOperation};
-use jsonptr::PointerBuf;
+use json_patch::{
+    jsonptr::PointerBuf, patch, AddOperation, Patch, PatchOperation, RemoveOperation,
+    ReplaceOperation,
+};
 use kube::Resource;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_gtmpl::ToGtmplValue;
