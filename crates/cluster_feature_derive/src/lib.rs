@@ -2,7 +2,7 @@ extern crate proc_macro;
 use heck::ToSnakeCase;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Lit, Meta, NestedMeta};
+use syn::{parse_macro_input, DeriveInput, Token};
 
 #[proc_macro_derive(ClusterFeatureValues, attributes(serde))]
 pub fn derive_cluster_variable_values(input: TokenStream) -> TokenStream {
@@ -27,21 +27,23 @@ pub fn derive_cluster_variable_values(input: TokenStream) -> TokenStream {
         let field_ident = field.ident.as_ref().unwrap();
         // Look for a serde(rename = "...") attribute on the field.
         let mut rename_value: Option<String> = None;
+
         for attr in &field.attrs {
-            if attr.path.is_ident("serde") {
-                if let Ok(Meta::List(meta_list)) = attr.parse_meta() {
-                    for nested in meta_list.nested.iter() {
-                        if let NestedMeta::Meta(Meta::NameValue(nv)) = nested {
-                            if nv.path.is_ident("rename") {
-                                if let Lit::Str(lit_str) = &nv.lit {
-                                    rename_value = Some(lit_str.value());
-                                }
-                            }
-                        }
+            if attr.path().is_ident("serde") {
+                let _ = attr.parse_nested_meta(|meta| {
+                    if meta.path.is_ident("rename") {
+                        // Parse the "=" token
+                        let _: Token![=] = meta.input.parse()?;
+
+                        // Parse the string literal
+                        let lit: syn::LitStr = meta.input.parse()?;
+                        rename_value = Some(lit.value());
                     }
-                }
+                    Ok(())
+                });
             }
         }
+
         // Use the rename value if present; otherwise, use the field name in snake_case.
         let var_name = match rename_value {
             Some(ref s) => s.clone(),

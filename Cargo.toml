@@ -5,7 +5,7 @@ edition = "2021"
 
 [build-dependencies]
 glob = "0.3"
-syn = { version = "1", features = ["full", "parsing"] }
+syn = { version = "2.0.100", features = ["full", "parsing"] }
 quote = "1.0"
 proc-macro2 = "1.0"
 heck = "0.5"
