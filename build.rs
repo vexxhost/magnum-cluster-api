@@ -2,7 +2,7 @@ use glob::glob;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use std::{env, error::Error, fs, path::Path};
-use syn::{parse_file, Ident, Item, Meta, NestedMeta, Type};
+use syn::{parse_file, Ident, Item, Type};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let pattern = "src/features/*.rs";
@@ -22,18 +22,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                 // Look for a `#[derive(..., ClusterFeatureValues, ...)]` attribute.
                 let mut has_marker = false;
                 for attr in &item_struct.attrs {
-                    if attr.path.is_ident("derive") {
-                        if let Ok(Meta::List(meta_list)) = attr.parse_meta() {
-                            for nested in meta_list.nested.iter() {
-                                if let NestedMeta::Meta(Meta::Path(path)) = nested {
-                                    if let Some(ident) = path.get_ident() {
-                                        if ident == "ClusterFeatureValues" {
-                                            has_marker = true;
-                                        }
-                                    }
-                                }
+                    if attr.path().is_ident("derive") {
+                        let _ = attr.parse_nested_meta(|meta| {
+                            if meta.path.is_ident("ClusterFeatureValues") {
+                                has_marker = true;
                             }
-                        }
+                            Ok(())
+                        });
                     }
                 }
                 if !has_marker {
