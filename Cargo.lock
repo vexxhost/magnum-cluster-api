@@ -205,7 +205,7 @@ dependencies = [
 name = "cluster_feature_derive"
 version = "0.1.0"
 dependencies = [
- "heck 0.5.0",
+ "heck",
  "quote",
  "syn 1.0.109",
 ]
@@ -624,12 +624,6 @@ checksum = "54b4a22553d4242c49fddb9ba998a99962b5cc6f22cb5a3482bec22522403ce4"
 dependencies = [
  "http",
 ]
-
-[[package]]
-name = "heck"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
 name = "heck"
@@ -1087,7 +1081,7 @@ dependencies = [
  "docker-image",
  "glob",
  "gtmpl",
- "heck 0.4.1",
+ "heck",
  "helm",
  "ignition-config",
  "include_dir",
@@ -1431,7 +1425,7 @@ name = "pyo3-macros-backend"
 version = "0.23.3"
 source = "git+https://github.com/PyO3/pyo3.git?rev=21132a8e77dbce1597b80f6c0ff6fbcf36c93852#21132a8e77dbce1597b80f6c0ff6fbcf36c93852"
 dependencies = [
- "heck 0.5.0",
+ "heck",
  "proc-macro2",
  "pyo3-build-config",
  "quote",
