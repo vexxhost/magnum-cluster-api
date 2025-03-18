@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 heck = "0.5.0"
 quote = "1.0.38"
-syn = "1"
+syn = "2"
 
 [lib]
 proc-macro = true
