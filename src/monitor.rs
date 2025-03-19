@@ -155,8 +155,10 @@ impl Monitor {
         let kcp_api: Api<KubeadmControlPlane> =
             Api::namespaced(self.client.clone(), "magnum-system");
 
-        let (machines, kcp_list) = GLOBAL_RUNTIME.block_on(async {
-            futures::join!(machine_api.list(&list_params), kcp_api.list(&list_params))
+        let (machines, kcp_list) = py.allow_threads(|| {
+            GLOBAL_RUNTIME.block_on(async {
+                futures::join!(machine_api.list(&list_params), kcp_api.list(&list_params))
+            })
         });
 
         let machines = machines.map_err(MonitorError::GetMachines)?;
