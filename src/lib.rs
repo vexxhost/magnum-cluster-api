@@ -25,6 +25,7 @@ fn magnum_cluster_api(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_class::<client::KubeClient>()?;
     m.add_class::<models::MagnumCluster>()?;
+    m.add_class::<monitor::Monitor>()?;
 
     Ok(())
 }
