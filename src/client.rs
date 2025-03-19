@@ -158,24 +158,7 @@ impl KubeClient {
 impl KubeClient {
     #[new]
     pub fn new() -> PyResult<Self> {
-        let client = GLOBAL_RUNTIME.block_on(async {
-            let config = Config::infer()
-                .await
-                .map_err(|e: kube::config::InferConfigError| {
-                    PyErr::new::<exceptions::PyValueError, _>(format!(
-                        "Failed to load KUBECONFIG: {}",
-                        e
-                    ))
-                })?;
-
-            Client::try_from(config).map_err(|e| {
-                PyErr::new::<exceptions::PyRuntimeError, _>(format!(
-                    "Failed to create client: {}",
-                    e
-                ))
-            })
-        })?;
-
+        let client = crate::kube::new()?;
         Ok(KubeClient { client })
     }
 
