@@ -4,5 +4,6 @@ pub mod clusterresourcesets;
 pub mod clusters;
 pub mod kubeadmconfigtemplates;
 pub mod kubeadmcontrolplanetemplates;
+pub mod machines;
 pub mod openstackclustertemplates;
 pub mod openstackmachinetemplates;
