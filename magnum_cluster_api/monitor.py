@@ -18,7 +18,7 @@ from oslo_log import log as logging  # type: ignore
 from oslo_utils import strutils  # type: ignore
 
 from magnum_cluster_api import clients, objects, utils
-from magnum_cluster_api.magnum_cluster_api import Monitor
+from magnum_cluster_api.magnum_cluster_api import Monitor as RustMonitor
 
 LOG = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ class Monitor(monitors.MonitorBase):
             node_group.save()
 
     def poll_health_status(self):
-        rust_monitor = Monitor(self.cluster)
+        rust_monitor = RustMonitor(self.cluster)
         self.data = rust_monitor.poll_health_status()
 
         self.poll_nodegroup_replicas()
