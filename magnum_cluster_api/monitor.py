@@ -13,9 +13,7 @@
 # under the License.
 
 from magnum.conductor import monitors  # type: ignore
-from magnum.objects import fields  # type: ignore
 from oslo_log import log as logging  # type: ignore
-from oslo_utils import strutils  # type: ignore
 
 from magnum_cluster_api import clients, objects, utils
 from magnum_cluster_api.magnum_cluster_api import Monitor as RustMonitor
