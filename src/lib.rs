@@ -4,6 +4,7 @@ mod cluster_api;
 mod features;
 mod magnum;
 mod models;
+mod monitor;
 mod resources;
 
 use pyo3::{prelude::*, Bound};
