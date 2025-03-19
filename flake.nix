@@ -21,12 +21,14 @@
               buildInputs = with pkgs; [
                 bashInteractive
                 cargo
+                clippy
                 glibcLocales
                 kind
                 kubernetes-helm
                 patchutils
                 python311Packages.tox
                 renovate
+                rust-analyzer
                 rustc
                 rustfmt
                 uv
