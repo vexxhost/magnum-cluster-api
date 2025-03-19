@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.29.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.29.0...v0.29.1) (2025-03-19)
+
+
+### Bug Fixes
+
+* Add API status + misc status fixes ([#573](https://github.com/vexxhost/magnum-cluster-api/issues/573)) ([c5b9e39](https://github.com/vexxhost/magnum-cluster-api/commit/c5b9e39282846d2a552aa1200db6161abf9dff40))
+* **deps:** update rust crate kube to 0.99.0 ([#551](https://github.com/vexxhost/magnum-cluster-api/issues/551)) ([9a0a206](https://github.com/vexxhost/magnum-cluster-api/commit/9a0a20663edb784d555a89a2ea9197b714418bc0))
+* **deps:** update rust crate once_cell to v1.21.1 ([#553](https://github.com/vexxhost/magnum-cluster-api/issues/553)) ([89def56](https://github.com/vexxhost/magnum-cluster-api/commit/89def56f1c2ba97b01f4f3e1b761424200a628a1))
+* **deps:** update rust crate quote to v1.0.40 ([#543](https://github.com/vexxhost/magnum-cluster-api/issues/543)) ([430296b](https://github.com/vexxhost/magnum-cluster-api/commit/430296b654c2a9188c4e91568a8492213e5c7c22))
+* **deps:** update rust crate serde to v1.0.219 ([#559](https://github.com/vexxhost/magnum-cluster-api/issues/559)) ([937d566](https://github.com/vexxhost/magnum-cluster-api/commit/937d5663eaccdd0c3ec1aa31d9aa1281595d220f))
+* **deps:** update rust crate tempfile to v3.19.0 ([#556](https://github.com/vexxhost/magnum-cluster-api/issues/556)) ([069fc63](https://github.com/vexxhost/magnum-cluster-api/commit/069fc63990dd1a7a900a31d358f1c72004c6d996))
+* **deps:** update rust crate tempfile to v3.19.1 ([#575](https://github.com/vexxhost/magnum-cluster-api/issues/575)) ([b4ae110](https://github.com/vexxhost/magnum-cluster-api/commit/b4ae110ef6e9eb6683319b0254d1759d3e7e3ab9))
+* **deps:** update rust crate tokio to v1.44.1 ([#557](https://github.com/vexxhost/magnum-cluster-api/issues/557)) ([2c70a93](https://github.com/vexxhost/magnum-cluster-api/commit/2c70a93ea4f59267acfe7bbc433d6095199fe44b))
+* **deps:** update rust crate typed-builder to v0.20.1 ([#546](https://github.com/vexxhost/magnum-cluster-api/issues/546)) ([94a8afc](https://github.com/vexxhost/magnum-cluster-api/commit/94a8afc993a8e98e6f725fe03d68c8eac3421fd4))
+
 ## [0.29.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.28.0...v0.29.0) (2025-03-12)
 
 
