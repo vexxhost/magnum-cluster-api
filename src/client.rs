@@ -1,4 +1,4 @@
-use crate::cluster_api::clusters::Cluster;
+use crate::{cluster_api::clusters::Cluster, GLOBAL_RUNTIME};
 use backoff::{future::retry, ExponentialBackoff};
 use k8s_openapi::serde::{de::DeserializeOwned, Deserialize, Serialize};
 use kube::{
@@ -7,24 +7,15 @@ use kube::{
         gvk::ParseGroupVersionError, ClusterResourceScope, GroupVersion, NamespaceResourceScope,
         Resource,
     },
-    Client, Config, ResourceExt,
+    Client, ResourceExt,
 };
-use once_cell::sync::Lazy;
 use pyo3::{
-    create_exception, exceptions, exceptions::PyException, prelude::*, types::PyDict, Bound,
+    create_exception, exceptions::PyException, prelude::*, types::PyDict, Bound,
 };
 use std::{fmt::Debug, str::FromStr};
 use thiserror::Error;
-use tokio::runtime::Runtime;
 
 create_exception!(magnum_cluster_api, KubeError, PyException);
-
-static GLOBAL_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("Failed to create Tokio runtime")
-});
 
 #[pyclass]
 pub struct KubeClient {
@@ -158,24 +149,7 @@ impl KubeClient {
 impl KubeClient {
     #[new]
     pub fn new() -> PyResult<Self> {
-        let client = GLOBAL_RUNTIME.block_on(async {
-            let config = Config::infer()
-                .await
-                .map_err(|e: kube::config::InferConfigError| {
-                    PyErr::new::<exceptions::PyValueError, _>(format!(
-                        "Failed to load KUBECONFIG: {}",
-                        e
-                    ))
-                })?;
-
-            Client::try_from(config).map_err(|e| {
-                PyErr::new::<exceptions::PyRuntimeError, _>(format!(
-                    "Failed to create client: {}",
-                    e
-                ))
-            })
-        })?;
-
+        let client = crate::kube::new()?;
         Ok(KubeClient { client })
     }
 

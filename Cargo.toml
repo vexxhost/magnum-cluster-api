@@ -15,6 +15,7 @@ backoff = { version = "0.4.0", features = ["tokio"] }
 base64 = "0.22.1"
 cluster_feature_derive = { path = "crates/cluster_feature_derive" }
 docker-image = "0.2.1"
+futures = "0.3.31"
 helm = { path = "crates/helm" }
 ignition-config = "0.5.0"
 include_dir = "0.7.4"
