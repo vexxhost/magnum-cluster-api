@@ -5,22 +5,13 @@ use crate::{
         ClusterResourceSetResourcesKind, ClusterResourceSetSpec,
     },
     features, magnum,
-    resources::ClusterClassBuilder,
+    resources::ClusterClassBuilder, GLOBAL_RUNTIME,
 };
 use k8s_openapi::api::core::v1::{Namespace, Secret};
 use kube::{core::ObjectMeta, Api};
 use maplit::btreemap;
-use once_cell::sync::Lazy;
 use pyo3::{prelude::*, types::PyType};
 use std::collections::BTreeMap;
-use tokio::runtime::Runtime;
-
-static GLOBAL_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("Failed to create Tokio runtime")
-});
 
 #[pyclass]
 pub struct MagnumCluster {

@@ -370,6 +370,7 @@ mod tests {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
             labels: magnum::ClusterLabels::builder().build(),
+            stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
@@ -473,6 +474,7 @@ mod tests {
             labels: magnum::ClusterLabels::builder()
                 .container_infra_prefix(Some("registry.example.com".to_string()))
                 .build(),
+            stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
@@ -574,6 +576,7 @@ mod tests {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
             labels: magnum::ClusterLabels::builder().build(),
+            stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },

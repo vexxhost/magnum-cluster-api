@@ -52,6 +52,7 @@ pub struct ClusterLabels {
 pub struct Cluster {
     pub uuid: String,
     pub cluster_template: ClusterTemplate,
+    pub stack_id: Option<String>,
     pub labels: ClusterLabels,
 }
 
@@ -147,6 +148,7 @@ mod tests {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
+            stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
@@ -162,6 +164,7 @@ mod tests {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
+            stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
@@ -244,6 +247,7 @@ mod tests {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
+            stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
