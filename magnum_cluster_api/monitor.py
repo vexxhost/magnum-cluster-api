@@ -18,6 +18,7 @@ from oslo_log import log as logging  # type: ignore
 from oslo_utils import strutils  # type: ignore
 
 from magnum_cluster_api import clients, objects, utils
+from magnum_cluster_api.magnum_cluster_api import Monitor
 
 LOG = logging.getLogger(__name__)
 
@@ -46,35 +47,7 @@ class Monitor(monitors.MonitorBase):
             node_group.save()
 
     def poll_health_status(self):
-        k8s_api = clients.get_pykube_api()
-        self.data = {
-            "health_status": fields.ClusterHealthStatus.UNKNOWN,
-            "health_status_reason": {},
-        }
-
-        machines = objects.Machine.objects(k8s_api).filter(
-            namespace="magnum-system",
-            selector={
-                "cluster.x-k8s.io/cluster-name": self.cluster.stack_id,
-            },
-        )
-
-        if len(machines) == 0:
-            return
-
-        for machine in machines:
-            condition_map = {
-                c["type"]: c["status"] for c in machine.obj["status"]["conditions"]
-            }
-
-            node_healthy = condition_map.get("NodeHealthy", False)
-            health_status = strutils.bool_from_string(node_healthy)
-            self.data["health_status_reason"][f"{machine.name}.Ready"] = health_status
-
-            if health_status is False:
-                self.data["health_status"] = fields.ClusterHealthStatus.UNHEALTHY
-
-        if self.data["health_status"] == fields.ClusterHealthStatus.UNKNOWN:
-            self.data["health_status"] = fields.ClusterHealthStatus.HEALTHY
+        rust_monitor = Monitor(self.cluster)
+        self.data = rust_monitor.poll_health_status()
 
         self.poll_nodegroup_replicas()
