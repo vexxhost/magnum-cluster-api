@@ -99,7 +99,7 @@ pub struct KubeadmControlPlaneKubeadmConfigSpec {
     pub join_configuration: Option<KubeadmControlPlaneKubeadmConfigSpecJoinConfiguration>,
     /// mounts specifies a list of mount points to be setup.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mounts: Option<Vec<String>>,
+    pub mounts: Option<Vec<Vec<String>>>,
     /// ntp specifies NTP configuration
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ntp: Option<KubeadmControlPlaneKubeadmConfigSpecNtp>,
