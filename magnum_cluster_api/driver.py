@@ -438,6 +438,11 @@ class BaseDriver(driver.Driver):
         resources.Cluster(context, self.kube_client, self.k8s_api, cluster).delete()
         resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).delete()
 
+    # magnum-cluster-api driver supports control plane resize
+    def validate_master_resize(self, node_count):
+        if node_count % 2 == 0 or node_count < 1:
+            raise magnum_exception.MasterNGSizeInvalid(requested_size=node_count)
+
     @cluster_lock_wrapper
     def create_nodegroup(
         self,
@@ -593,19 +598,32 @@ class BaseDriver(driver.Driver):
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 
-        current_md_spec = cluster_resource.get_machine_deployment_spec(nodegroup.name)
-        target_md_spec = resources.mutate_machine_deployment(
-            context,
-            cluster,
-            nodegroup,
-            cluster_resource.get_machine_deployment_spec(nodegroup.name),
-        )
+        if nodegroup.role == "master":
+            current_count = cluster_resource.obj["spec"]["topology"]["controlPlane"][
+                "replicas"
+            ]
+            if current_count == nodegroup.node_count:
+                return
 
-        if current_md_spec == target_md_spec:
-            return
+            cluster_resource.obj["spec"]["topology"]["controlPlane"][
+                "replicas"
+            ] = nodegroup.node_count
+            utils.kube_apply_patch(cluster_resource)
 
-        cluster_resource.set_machine_deployment_spec(nodegroup.name, target_md_spec)
-        utils.kube_apply_patch(cluster_resource)
+        else:
+            current_md_spec = cluster_resource.get_machine_deployment_spec(nodegroup.name)
+            target_md_spec = resources.mutate_machine_deployment(
+                context,
+                cluster,
+                nodegroup,
+                cluster_resource.get_machine_deployment_spec(nodegroup.name),
+            )
+
+            if current_md_spec == target_md_spec:
+                return
+
+            cluster_resource.set_machine_deployment_spec(nodegroup.name, target_md_spec)
+            utils.kube_apply_patch(cluster_resource)
 
         nodegroup.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
         nodegroup.save()
@@ -651,11 +669,6 @@ class BaseDriver(driver.Driver):
         ]
 
         utils.kube_apply_patch(cluster_resource)
-
-    def validate_master_resize(self, node_count):
-        if node_count % 2 == 0 or node_count < 1:
-            raise magnum_exception.MasterNGSizeInvalid(
-                requested_size=node_count)
 
     @cluster_lock_wrapper
     def get_monitor(self, context, cluster: magnum_objects.Cluster):
