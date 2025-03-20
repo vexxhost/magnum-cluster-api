@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import keystoneauth1  # type: ignore
 from magnum import objects as magnum_objects  # type: ignore
+from magnum.common import exception as magnum_exception  # type: ignore
 from magnum.conductor import scale_manager  # type: ignore
 from magnum.drivers.common import driver  # type: ignore
 from magnum.objects import fields  # type: ignore
@@ -650,6 +651,11 @@ class BaseDriver(driver.Driver):
         ]
 
         utils.kube_apply_patch(cluster_resource)
+
+    def validate_master_resize(self, node_count):
+        if node_count % 2 == 0 or node_count < 1:
+            raise magnum_exception.MasterNGSizeInvalid(
+                requested_size=node_count)
 
     @cluster_lock_wrapper
     def get_monitor(self, context, cluster: magnum_objects.Cluster):
