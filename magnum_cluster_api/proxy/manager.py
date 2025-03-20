@@ -291,7 +291,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
                     "Kubeconfig secret %s does not exist",
                     cluster.kubeconfig_secret_name,
                 )
-                return
+                continue
 
             # Get the kubeconfig from the secret
             kubeconfig = base64.b64decode(secret.obj["data"]["value"]).decode("utf-8")
