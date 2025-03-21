@@ -80,7 +80,7 @@ impl From<Cluster> for ClusterResourceSet {
                     kind: ClusterResourceSetResourcesKind::Secret,
                     name: cluster.uuid.to_owned(),
                 }]),
-                strategy: None,
+                strategy: "Reconcile".to_string(),
             },
             status: "Reconcile".to_string(),
         }
