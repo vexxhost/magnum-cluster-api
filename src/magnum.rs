@@ -82,7 +82,7 @@ impl From<Cluster> for ClusterResourceSet {
                 }]),
                 strategy: None,
             },
-            status: None,
+            status: "Reconcile".to_string(),
         }
     }
 }

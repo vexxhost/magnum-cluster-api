@@ -121,7 +121,7 @@ impl MagnumCluster {
         Ok(())
     }
 
-    fn create(&self, py: Python<'_>) -> PyResult<()> {
+    fn create_or_update(&self, py: Python<'_>) -> PyResult<()> {
         let client = client::KubeClient::new()?;
 
         py.allow_threads(|| {
