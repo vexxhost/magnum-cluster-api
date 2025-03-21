@@ -2,7 +2,7 @@ use crate::{
     addons::{cilium, cloud_controller_manager, ClusterAddon},
     cluster_api::clusterresourcesets::{
         ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
-        ClusterResourceSetResourcesKind, ClusterResourceSetSpec,
+        ClusterResourceSetResourcesKind, ClusterResourceSetSpec, ClusterResourceSetStrategy,
     },
 };
 use k8s_openapi::api::core::v1::Secret;
@@ -80,9 +80,9 @@ impl From<Cluster> for ClusterResourceSet {
                     kind: ClusterResourceSetResourcesKind::Secret,
                     name: cluster.uuid.to_owned(),
                 }]),
-                strategy: "Reconcile".to_string(),
+                strategy: Some(ClusterResourceSetStrategy::Reconcile),
             },
-            status: "Reconcile".to_string(),
+            status: None,
         }
     }
 }
