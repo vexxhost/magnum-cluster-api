@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.29.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.29.1...v0.29.2) (2025-03-21)
+
+
+### Bug Fixes
+
+* continue, dont return in sync_kubeconfigs ([#582](https://github.com/vexxhost/magnum-cluster-api/issues/582)) ([77e4f82](https://github.com/vexxhost/magnum-cluster-api/commit/77e4f8285434f5c4380995cfd40e3bd89d7232a8))
+* **deps:** update rust crate typed-builder to 0.21.0 ([#584](https://github.com/vexxhost/magnum-cluster-api/issues/584)) ([102800f](https://github.com/vexxhost/magnum-cluster-api/commit/102800fdacb6cb27401c9a51e9941fee230aa156))
+
 ## [0.29.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.29.0...v0.29.1) (2025-03-19)
 
 
