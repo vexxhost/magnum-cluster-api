@@ -118,7 +118,7 @@ class BaseDriver(driver.Driver):
             cluster,
             skip_auto_scaling_release=True,
         )
-        magnum_cluster.create()
+        magnum_cluster.create_or_update()
         resources.Cluster(context, self.kube_client, self.k8s_api, cluster).apply(),
 
     def _get_cluster_status_reason(self, capi_cluster):
@@ -397,6 +397,7 @@ class BaseDriver(driver.Driver):
             cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
         )
         magnum_cluster.apply_cluster_class()
+        magnum_cluster.create_or_update()
         resources.apply_cluster_from_magnum_cluster(
             context, self.kube_client, self.k8s_api, cluster
         )
