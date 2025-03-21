@@ -611,7 +611,9 @@ class BaseDriver(driver.Driver):
             utils.kube_apply_patch(cluster_resource)
 
         else:
-            current_md_spec = cluster_resource.get_machine_deployment_spec(nodegroup.name)
+            current_md_spec = cluster_resource.get_machine_deployment_spec(
+                nodegroup.name
+            )
             target_md_spec = resources.mutate_machine_deployment(
                 context,
                 cluster,
