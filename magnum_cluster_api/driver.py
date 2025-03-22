@@ -173,9 +173,7 @@ class BaseDriver(driver.Driver):
         if updated_replicas != replicas:
             nodegroup.status = f"{action}_IN_PROGRESS"
         elif (
-            updated_replicas == replicas
-            and nodegroup.node_count == replicas
-            and ready
+            updated_replicas == replicas and nodegroup.node_count == replicas and ready
         ):
             nodegroup.status = f"{action}_COMPLETE"
         nodegroup.status_reason = failure_message
