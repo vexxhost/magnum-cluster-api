@@ -6,8 +6,9 @@ use docker_image::DockerImage;
 use include_dir::include_dir;
 use k8s_openapi::api::core::v1::{HostPathVolumeSource, Volume, VolumeMount};
 use serde::{Deserialize, Serialize};
+use typed_builder::TypedBuilder;
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize, TypedBuilder)]
 pub struct CloudControllerManagerValues {
     image: CloudControllerManagerImageValues,
 
@@ -72,17 +73,22 @@ impl TryFrom<magnum::Cluster> for CloudControllerManagerValues {
         let values = Self::defaults()?;
 
         let image = DockerImage::parse(&values.image.repository)?;
-
-        Ok(Self {
-            image: CloudControllerManagerImageValues {
-                repository: Self::get_mirrored_image_name(
-                    image,
-                    &cluster.labels.container_infra_prefix,
-                ),
-                tag: cluster.labels.cloud_provider_tag,
-            },
-            secret: CloudControllerManagerSecretValues { create: false },
-            extra_volumes: vec![
+        let values = Self::builder()
+            .image(
+                CloudControllerManagerImageValues::builder()
+                    .repository(Self::get_mirrored_image_name(
+                        image,
+                        &cluster.labels.container_infra_prefix,
+                    ))
+                    .tag(cluster.labels.cloud_provider_tag)
+                    .build(),
+            )
+            .secret(
+                CloudControllerManagerSecretValues::builder()
+                    .create(false)
+                    .build(),
+            )
+            .extra_volumes(vec![
                 Volume {
                     name: "k8s-certs".to_string(),
                     host_path: Some(HostPathVolumeSource {
@@ -99,8 +105,8 @@ impl TryFrom<magnum::Cluster> for CloudControllerManagerValues {
                     }),
                     ..Default::default()
                 },
-            ],
-            extra_volume_mounts: vec![
+            ])
+            .extra_volume_mounts(vec![
                 VolumeMount {
                     name: "k8s-certs".to_string(),
                     mount_path: "/etc/kubernetes/pki".to_string(),
@@ -113,24 +119,30 @@ impl TryFrom<magnum::Cluster> for CloudControllerManagerValues {
                     read_only: Some(true),
                     ..Default::default()
                 },
-            ],
-            cluster: CloudControllerManagerClusterValues { name: cluster.uuid },
-        })
+            ])
+            .cluster(
+                CloudControllerManagerClusterValues::builder()
+                    .name(cluster.uuid)
+                    .build(),
+            )
+            .build();
+
+        Ok(values)
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize, TypedBuilder)]
 pub struct CloudControllerManagerImageValues {
     repository: String,
     tag: String,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize, TypedBuilder)]
 pub struct CloudControllerManagerSecretValues {
     create: bool,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize, TypedBuilder)]
 pub struct CloudControllerManagerClusterValues {
     name: String,
 }
