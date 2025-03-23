@@ -1,14 +1,15 @@
 use crate::{
-    client,
+    clients::kubernetes::{self, ClientHelpers},
     cluster_api::clusterresourcesets::{
         ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
         ClusterResourceSetResourcesKind, ClusterResourceSetSpec,
     },
     features, magnum,
-    resources::ClusterClassBuilder, GLOBAL_RUNTIME,
+    resources::ClusterClassBuilder,
+    GLOBAL_RUNTIME,
 };
 use k8s_openapi::api::core::v1::{Namespace, Secret};
-use kube::{core::ObjectMeta, Api};
+use kube::{core::ObjectMeta, Api, Client};
 use maplit::btreemap;
 use pyo3::{prelude::*, types::PyType};
 use std::collections::BTreeMap;
@@ -56,8 +57,8 @@ impl MagnumCluster {
         Ok(config_map.string_data)
     }
 
-    fn apply_cluster_class(&self, py: Python<'_>) -> PyResult<()> {
-        let client = client::KubeClient::new()?;
+    fn apply_cluster_class(&self, py: Python<'_>) -> Result<(), kubernetes::Error> {
+        let client = GLOBAL_RUNTIME.block_on(async { Client::try_default().await })?;
 
         let metadata = ObjectMeta {
             name: Some(self.cluster_class_name.clone()),
@@ -81,79 +82,69 @@ impl MagnumCluster {
 
         py.allow_threads(|| {
             GLOBAL_RUNTIME.block_on(async move {
-                // TODO: get rid of the unwraps here
                 client
                     .create_or_update_cluster_resource(Namespace::from(self))
-                    .await
-                    .unwrap();
+                    .await?;
                 client
                     .create_or_update_namespaced_resource(
                         &self.namespace,
                         openstack_cluster_template,
                     )
-                    .await
-                    .unwrap();
+                    .await?;
                 client
                     .create_or_update_namespaced_resource(
                         &self.namespace,
                         openstack_machine_template,
                     )
-                    .await
-                    .unwrap();
+                    .await?;
                 client
                     .create_or_update_namespaced_resource(
                         &self.namespace,
                         kubeadm_control_plane_template,
                     )
-                    .await
-                    .unwrap();
+                    .await?;
                 client
                     .create_or_update_namespaced_resource(&self.namespace, kubeadm_config_template)
-                    .await
-                    .unwrap();
+                    .await?;
                 client
                     .create_or_update_namespaced_resource(&self.namespace, cluster_class)
-                    .await
-                    .unwrap();
-            })
-        });
+                    .await?;
 
-        Ok(())
+                Ok(())
+            })
+        })
     }
 
-    fn create(&self, py: Python<'_>) -> PyResult<()> {
-        let client = client::KubeClient::new()?;
+    fn create(&self, py: Python<'_>) -> Result<(), kubernetes::Error> {
+        let client = GLOBAL_RUNTIME.block_on(async { Client::try_default().await })?;
 
         py.allow_threads(|| {
-            GLOBAL_RUNTIME.block_on(async move {
+            GLOBAL_RUNTIME.block_on(async {
                 client
                     .create_or_update_namespaced_resource(
                         &self.namespace,
                         ClusterResourceSet::from(self),
                     )
-                    .await
-                    .unwrap();
-            })
-        });
+                    .await?;
 
-        Ok(())
+                Ok(())
+            })
+        })
     }
 
-    fn delete(&self, py: Python<'_>) -> PyResult<()> {
-        let client = client::KubeClient::new()?;
+    fn delete(&self, py: Python<'_>) -> Result<(), kubernetes::Error> {
+        let client = GLOBAL_RUNTIME.block_on(async { Client::try_default().await })?;
 
         py.allow_threads(|| {
-            GLOBAL_RUNTIME.block_on(async move {
-                let api: Api<ClusterResourceSet> =
-                    Api::namespaced(client.client.clone(), &self.namespace);
+            GLOBAL_RUNTIME.block_on(async {
+                let api: Api<ClusterResourceSet> = Api::namespaced(client.clone(), &self.namespace);
                 client
                     .delete_resource(api, &ClusterResourceSet::from(self).metadata.name.unwrap())
-                    .await
-                    .unwrap()
-            })
-        });
+                    .await?;
 
-        Ok(())
+                Ok(())
+            })
+        })
     }
 }
 
