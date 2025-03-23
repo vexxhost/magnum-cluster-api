@@ -135,23 +135,24 @@ pub struct CloudControllerManagerClusterValues {
     name: String,
 }
 
-pub struct Addon {}
+pub struct Addon {
+    cluster: magnum::Cluster,
+}
 
 impl Addon {}
 
 impl ClusterAddon for Addon {
-    fn new(_cluster: magnum::Cluster) -> Self {
-        Self {}
+    fn new(cluster: magnum::Cluster) -> Self {
+        Self { cluster }
     }
 
     fn enabled(&self) -> bool {
         true
     }
 
-    fn manifests<T: ClusterAddonValues + Serialize>(
-        &self,
-        values: &T,
-    ) -> Result<String, helm::HelmTemplateError> {
+    fn manifests(&self) -> Result<String, helm::HelmTemplateError> {
+        let values = &CloudControllerManagerValues::try_from(self.cluster.clone())
+            .expect("failed to create values");
         helm::template_using_include_dir(
             include_dir!("magnum_cluster_api/charts/openstack-cloud-controller-manager"),
             "openstack-ccm",
@@ -278,8 +279,6 @@ mod tests {
         };
 
         let addon = Addon::new(cluster.clone());
-        let values: CloudControllerManagerValues =
-            cluster.clone().try_into().expect("failed to create values");
-        addon.manifests(&values).expect("failed to get manifests");
+        addon.manifests().expect("failed to get manifests");
     }
 }
