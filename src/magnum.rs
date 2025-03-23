@@ -1,5 +1,5 @@
 use crate::{
-    addons::{cilium, cloud_controller_manager, ClusterAddon},
+    addons::{cilium, ClusterAddon},
     cluster_api::clusterresourcesets::{
         ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
         ClusterResourceSetResourcesKind, ClusterResourceSetSpec, ClusterResourceSetStrategy,
@@ -8,7 +8,7 @@ use crate::{
 use k8s_openapi::api::core::v1::Secret;
 use kube::api::ObjectMeta;
 use maplit::btreemap;
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyRuntimeError, prelude::*};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use thiserror::Error;
@@ -66,17 +66,23 @@ pub enum ClusterError {
     ManifestRender(#[from] helm::HelmTemplateError),
 }
 
-impl From<Cluster> for ObjectMeta {
-    fn from(cluster: Cluster) -> Self {
+impl From<ClusterError> for PyErr {
+    fn from(err: ClusterError) -> PyErr {
+        PyErr::new::<PyRuntimeError, _>(err.to_string())
+    }
+}
+
+impl From<&Cluster> for ObjectMeta {
+    fn from(cluster: &Cluster) -> Self {
         ObjectMeta {
-            name: Some(cluster.uuid),
+            name: Some(cluster.uuid.clone()),
             ..Default::default()
         }
     }
 }
 
 impl Cluster {
-    fn cloud_provider_resource_name(&self) -> Result<String, ClusterError> {
+    pub fn cloud_provider_resource_name(&self) -> Result<String, ClusterError> {
         let stack_id = self
             .stack_id
             .clone()
@@ -131,10 +137,10 @@ impl Cluster {
     }
 }
 
-impl From<Cluster> for ClusterResourceSet {
-    fn from(cluster: Cluster) -> Self {
+impl From<&Cluster> for ClusterResourceSet {
+    fn from(cluster: &Cluster) -> Self {
         ClusterResourceSet {
-            metadata: cluster.clone().into(),
+            metadata: cluster.into(),
             spec: ClusterResourceSetSpec {
                 cluster_selector: ClusterResourceSetClusterSelector {
                     match_labels: Some(btreemap! {
@@ -153,18 +159,9 @@ impl From<Cluster> for ClusterResourceSet {
     }
 }
 
-impl From<Cluster> for Secret {
-    fn from(cluster: Cluster) -> Self {
+impl From<&Cluster> for Secret {
+    fn from(cluster: &Cluster) -> Self {
         let mut data = BTreeMap::<String, String>::new();
-
-        // TODO(mnaser): Implement an inventory of addons
-        let ccm = cloud_controller_manager::Addon::new(cluster.clone());
-        if ccm.enabled() {
-            data.insert(
-                "cloud-controller-manager.yaml".to_owned(),
-                ccm.manifests().unwrap(),
-            );
-        }
 
         let cilium = cilium::Addon::new(cluster.clone());
         if cilium.enabled() {
@@ -172,7 +169,7 @@ impl From<Cluster> for Secret {
         }
 
         Secret {
-            metadata: cluster.clone().into(),
+            metadata: cluster.into(),
             type_: Some("addons.cluster.x-k8s.io/resource-set".into()),
             string_data: Some(data),
             ..Default::default()
@@ -203,7 +200,7 @@ mod tests {
 
     #[test]
     fn test_object_meta_from_cluster() {
-        let cluster = Cluster {
+        let cluster = &Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
@@ -408,7 +405,7 @@ mod tests {
 
     #[test]
     fn test_cluster_resource_set_from_cluster() {
-        let cluster = Cluster {
+        let cluster = &Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
@@ -417,7 +414,7 @@ mod tests {
             },
         };
 
-        let crs: ClusterResourceSet = cluster.clone().into();
+        let crs: ClusterResourceSet = cluster.into();
 
         assert_eq!(crs.metadata.name, Some(cluster.uuid.clone()));
         assert_eq!(
@@ -491,7 +488,7 @@ mod tests {
 
     #[test]
     fn test_secret_from_cluster() {
-        let cluster = Cluster {
+        let cluster = &Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
@@ -500,7 +497,7 @@ mod tests {
             },
         };
 
-        let secret: Secret = cluster.clone().into();
+        let secret: Secret = cluster.into();
 
         assert_eq!(secret.metadata.name, Some(cluster.uuid.clone()));
         assert_eq!(

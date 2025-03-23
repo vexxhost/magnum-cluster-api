@@ -65,8 +65,8 @@ class ClusterFixture(fixtures.Fixture):
                 self.mutate_callback(resource)
             return resource
 
-        magnum_cluster_api.MagnumCluster(
-            self.magnum_cluster, resources.CLUSTER_CLASS_NAME, namespace=self.namespace
+        magnum_cluster_api.Driver(
+            self.namespace, resources.CLUSTER_CLASS_NAME
         ).apply_cluster_class()
 
         self.cluster.get_resource = get_resource_override
