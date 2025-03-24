@@ -78,6 +78,8 @@ magnum_cluster_api = "magnum_cluster_api.conf:list_opts"
 module-name = "magnum_cluster_api"
 
 [tool.uv]
+# https://github.com/astral-sh/uv/issues/12440
+build-constraint-dependencies = ["setuptools<78"]
 cache-keys = [{file = "pyproject.toml"}, {file = "rust/Cargo.toml"}, {file = "**/*.rs"}]
 # Uncomment to build rust code in development mode
 # config-settings = { build-args = '--profile=dev' }
