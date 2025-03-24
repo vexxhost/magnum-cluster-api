@@ -172,7 +172,7 @@ class TestDriver:
         mock_osc,
         mock_certificates,
         mock_get_server_group,
-        mock_magnum_cluster,
+        mock_rust_driver,
     ):
         ubuntu_driver._kube_client = mock.MagicMock()
 
@@ -258,7 +258,15 @@ class TestDriver:
                     ).get_resource()
                 ),
                 mock.call(
-                    resources.ClusterResourcesSecret(
+                    resources.LegacyClusterResourcesSecret(
+                        context,
+                        ubuntu_driver._kube_client,
+                        ubuntu_driver.k8s_api,
+                        self.cluster,
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.CloudProviderClusterResourcesSecret(
                         context,
                         ubuntu_driver._kube_client,
                         ubuntu_driver.k8s_api,

@@ -20,6 +20,7 @@
 
               buildInputs = with pkgs; [
                 bashInteractive
+                black
                 cargo
                 clippy
                 glibcLocales

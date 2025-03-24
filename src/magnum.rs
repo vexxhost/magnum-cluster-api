@@ -1,16 +1,17 @@
 use crate::{
-    addons::{cilium, cloud_controller_manager, ClusterAddon},
+    addons::{cilium, ClusterAddon},
     cluster_api::clusterresourcesets::{
         ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
-        ClusterResourceSetResourcesKind, ClusterResourceSetSpec,
+        ClusterResourceSetResourcesKind, ClusterResourceSetSpec, ClusterResourceSetStrategy,
     },
 };
 use k8s_openapi::api::core::v1::Secret;
 use kube::api::ObjectMeta;
 use maplit::btreemap;
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyRuntimeError, prelude::*};
 use serde::Deserialize;
 use std::collections::BTreeMap;
+use thiserror::Error;
 use typed_builder::TypedBuilder;
 
 #[derive(Clone, Deserialize, FromPyObject)]
@@ -48,6 +49,21 @@ pub struct ClusterLabels {
     pub kube_tag: String,
 }
 
+#[derive(Debug, Error)]
+pub enum ClusterError {
+    #[error("missing stack id for cluster: {0}")]
+    MissingStackId(String),
+
+    #[error(transparent)]
+    ManifestRender(#[from] helm::HelmTemplateError),
+}
+
+impl From<ClusterError> for PyErr {
+    fn from(err: ClusterError) -> PyErr {
+        PyErr::new::<PyRuntimeError, _>(err.to_string())
+    }
+}
+
 #[derive(Clone, Deserialize, FromPyObject)]
 pub struct Cluster {
     pub uuid: String,
@@ -65,8 +81,62 @@ impl From<Cluster> for ObjectMeta {
     }
 }
 
-impl From<Cluster> for ClusterResourceSet {
-    fn from(cluster: Cluster) -> Self {
+impl Cluster {
+    fn stack_id(&self) -> Result<String, ClusterError> {
+        self.stack_id
+            .clone()
+            .ok_or_else(|| ClusterError::MissingStackId(self.uuid.clone()))
+    }
+
+    pub fn cloud_provider_resource_name(&self) -> Result<String, ClusterError> {
+        Ok(format!("{}-cloud-provider", self.stack_id()?))
+    }
+
+    pub fn cloud_provider_cluster_resource_set(&self) -> Result<ClusterResourceSet, ClusterError> {
+        let resource_name = self.cloud_provider_resource_name()?;
+
+        Ok(ClusterResourceSet {
+            metadata: ObjectMeta {
+                name: Some(resource_name.clone()),
+                ..Default::default()
+            },
+            spec: ClusterResourceSetSpec {
+                cluster_selector: ClusterResourceSetClusterSelector {
+                    match_labels: Some(btreemap! {
+                        "cluster-uuid".to_owned() => self.uuid.to_owned(),
+                    }),
+                    match_expressions: None,
+                },
+                resources: Some(vec![ClusterResourceSetResources {
+                    kind: ClusterResourceSetResourcesKind::Secret,
+                    name: resource_name.clone(),
+                }]),
+                strategy: Some(ClusterResourceSetStrategy::Reconcile),
+            },
+            status: None,
+        })
+    }
+
+    pub fn cloud_provider_secret<T: ClusterAddon>(
+        &self,
+        addon: &T,
+    ) -> Result<Secret, ClusterError> {
+        Ok(Secret {
+            metadata: ObjectMeta {
+                name: Some(self.cloud_provider_resource_name()?),
+                ..Default::default()
+            },
+            type_: Some("addons.cluster.x-k8s.io/resource-set".into()),
+            string_data: Some(btreemap! {
+                "cloud-controller-manager.yaml".to_owned() => addon.manifests()?,
+            }),
+            ..Default::default()
+        })
+    }
+}
+
+impl From<&Cluster> for ClusterResourceSet {
+    fn from(cluster: &Cluster) -> Self {
         ClusterResourceSet {
             metadata: cluster.clone().into(),
             spec: ClusterResourceSetSpec {
@@ -91,29 +161,9 @@ impl From<Cluster> for Secret {
     fn from(cluster: Cluster) -> Self {
         let mut data = BTreeMap::<String, String>::new();
 
-        // TODO(mnaser): Implement an inventory of addons
-        let ccm = cloud_controller_manager::Addon::new(cluster.clone());
-        if ccm.enabled() {
-            data.insert(
-                "cloud-controller-manager.yaml".to_owned(),
-                ccm.manifests(
-                    &cloud_controller_manager::CloudControllerManagerValues::try_from(
-                        cluster.clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap(),
-            );
-        }
-
         let cilium = cilium::Addon::new(cluster.clone());
         if cilium.enabled() {
-            data.insert(
-                "cilium.yaml".to_owned(),
-                cilium
-                    .manifests(&cilium::CiliumValues::try_from(cluster.clone()).unwrap())
-                    .unwrap(),
-            );
+            data.insert("cilium.yaml".to_owned(), cilium.manifests().unwrap());
         }
 
         Secret {
@@ -128,6 +178,7 @@ impl From<Cluster> for Secret {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::addons;
     use pretty_assertions::assert_eq;
     use rstest::rstest;
     use serde::Serialize;
@@ -160,8 +211,166 @@ mod tests {
     }
 
     #[test]
-    fn test_cluster_resource_set_from_cluster() {
+    fn test_cluster_stack_id() {
         let cluster = Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: ClusterLabels::builder().build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: ClusterTemplate {
+                network_driver: "calico".to_string(),
+            },
+        };
+
+        let result = cluster.stack_id().expect("failed to get stack id");
+        assert_eq!(result, "kube-abcde");
+    }
+
+    #[test]
+    fn test_cluster_stack_id_missing() {
+        let cluster = Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: ClusterLabels::builder().build(),
+            stack_id: None,
+            cluster_template: ClusterTemplate {
+                network_driver: "calico".to_string(),
+            },
+        };
+
+        let result = cluster
+            .stack_id()
+            .expect_err("expected missing stack id error");
+
+        match result {
+            ClusterError::MissingStackId(uuid) => {
+                assert_eq!(uuid, "sample-uuid");
+            }
+            _ => panic!("Expected ClusterError::MissingStackId, got different error"),
+        }
+    }
+
+    #[test]
+    fn test_cluster_cloud_provider_resource_name() {
+        let cluster = Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: ClusterLabels::builder().build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: ClusterTemplate {
+                network_driver: "calico".to_string(),
+            },
+        };
+
+        let result = cluster
+            .cloud_provider_resource_name()
+            .expect("failed to get resource name");
+        assert_eq!(result, "kube-abcde-cloud-provider");
+    }
+
+    #[test]
+    fn test_cluster_cloud_provider_cluster_resource_set() {
+        let cluster = Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: ClusterLabels::builder().build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: ClusterTemplate {
+                network_driver: "calico".to_string(),
+            },
+        };
+
+        let result = cluster
+            .cloud_provider_cluster_resource_set()
+            .expect("failed to generate crs");
+
+        let expected_resource_name = format!("kube-abcde-cloud-provider");
+        let expected = ClusterResourceSet {
+            metadata: ObjectMeta {
+                name: Some(expected_resource_name.clone()),
+                ..Default::default()
+            },
+            spec: ClusterResourceSetSpec {
+                cluster_selector: ClusterResourceSetClusterSelector {
+                    match_labels: Some(btreemap! {
+                        "cluster-uuid".to_owned() => cluster.uuid,
+                    }),
+                    match_expressions: None,
+                },
+                resources: Some(vec![ClusterResourceSetResources {
+                    kind: ClusterResourceSetResourcesKind::Secret,
+                    name: expected_resource_name.clone(),
+                }]),
+                strategy: Some(ClusterResourceSetStrategy::Reconcile),
+            },
+            status: None,
+        };
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_cluster_cloud_provider_secret() {
+        let cluster = Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: ClusterLabels::builder().build(),
+            stack_id: Some("kube-abcde".to_string()),
+            cluster_template: ClusterTemplate {
+                network_driver: "calico".to_string(),
+            },
+        };
+
+        let mut mock_addon = addons::MockClusterAddon::default();
+        mock_addon
+            .expect_manifests()
+            .return_once(|| Ok("blah".to_string()));
+
+        let result = cluster
+            .cloud_provider_secret(&mock_addon)
+            .expect("failed to generate secret");
+
+        let expected = Secret {
+            metadata: ObjectMeta {
+                name: Some("kube-abcde-cloud-provider".into()),
+                ..Default::default()
+            },
+            type_: Some("addons.cluster.x-k8s.io/resource-set".into()),
+            string_data: Some(btreemap! {
+                "cloud-controller-manager.yaml".to_owned() => "blah".to_owned(),
+            }),
+            ..Default::default()
+        };
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_cluster_cloud_provider_secret_manifest_render_failure() {
+        let cluster = Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: ClusterLabels::builder().build(),
+            stack_id: Some("kube-abcde".to_string()),
+            cluster_template: ClusterTemplate {
+                network_driver: "calico".to_string(),
+            },
+        };
+        let mut mock_addon = addons::MockClusterAddon::default();
+        mock_addon.expect_manifests().return_once(|| {
+            Err(helm::HelmTemplateError::HelmCommand(
+                "helm template failed".to_string(),
+            ))
+        });
+
+        let result = cluster.cloud_provider_secret(&mock_addon);
+
+        assert!(result.is_err());
+        match result {
+            Err(ClusterError::ManifestRender(helm::HelmTemplateError::HelmCommand(e))) => {
+                assert_eq!(e, "helm template failed");
+            }
+            _ => panic!("Expected ClusterError::ManifestRender, got different error"),
+        }
+    }
+
+    #[test]
+    fn test_cluster_resource_set_from_cluster() {
+        let cluster = &Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
@@ -170,7 +379,7 @@ mod tests {
             },
         };
 
-        let crs: ClusterResourceSet = cluster.clone().into();
+        let crs: ClusterResourceSet = cluster.into();
 
         assert_eq!(crs.metadata.name, Some(cluster.uuid.clone()));
         assert_eq!(
