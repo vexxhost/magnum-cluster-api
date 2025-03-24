@@ -8,6 +8,7 @@ use kube::{
 use pyo3::{exceptions::PyRuntimeError, PyErr};
 use std::fmt::Debug;
 
+#[derive(Debug)]
 pub struct Error(kube::Error);
 
 impl From<Error> for PyErr {
