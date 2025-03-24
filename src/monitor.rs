@@ -1,9 +1,10 @@
 use crate::{
+    clients::kubernetes,
     cluster_api::{kubeadmcontrolplane::KubeadmControlPlane, machines::Machine},
     magnum, GLOBAL_RUNTIME,
 };
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
-use kube::{api::ListParams, Api};
+use kube::{api::ListParams, Api, Client};
 use maplit::btreemap;
 use pyo3::{create_exception, exceptions::PyException, prelude::*, types::PyDict};
 use std::collections::HashMap;
@@ -121,7 +122,9 @@ impl Monitor {
     #[new]
     #[pyo3(signature = (cluster))]
     fn new(py: Python<'_>, cluster: PyObject) -> PyResult<Self> {
-        let client = crate::kube::new()?;
+        let client = GLOBAL_RUNTIME
+            .block_on(async { Client::try_default().await })
+            .map_err(kubernetes::Error::from)?;
         let cluster: magnum::Cluster = cluster.extract(py)?;
         Ok(Self { client, cluster })
     }
