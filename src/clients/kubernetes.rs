@@ -145,3 +145,93 @@ impl ClientHelpers for Client {
         }
     }
 }
+
+#[cfg(test)]
+pub mod fixtures {
+    use crate::{
+        clients::openstack::{CloudConfig, CloudConfigFile},
+        magnum,
+    };
+    use http::{Request, Response};
+    use k8s_openapi::{api::core::v1::Secret, ByteString};
+    use kube::{api::ObjectMeta, client::Body, Client, Error};
+    use maplit::{btreemap, hashmap};
+
+    type ApiServerHandle = tower_test::mock::Handle<Request<Body>, Response<Body>>;
+    pub struct ApiServerVerifier(ApiServerHandle);
+
+    pub enum Scenario {
+        GetClusterIdentitySecret(magnum::Cluster, CloudConfig),
+        RadioSilence,
+    }
+
+    impl ApiServerVerifier {
+        pub fn run(self, scenario: Scenario) -> tokio::task::JoinHandle<()> {
+            tokio::spawn(async move {
+                match scenario {
+                    Scenario::GetClusterIdentitySecret(cluster, cloud_config) => {
+                        self.handle_get_cluster_identity_secret(&cluster, &cloud_config)
+                            .await
+                    }
+                    Scenario::RadioSilence => Ok(self),
+                }
+                .expect("scenario completed without errors");
+            })
+        }
+
+        async fn handle_get_cluster_identity_secret(
+            mut self,
+            cluster: &magnum::Cluster,
+            cloud_config: &CloudConfig,
+        ) -> Result<Self, Error> {
+            let (request, send) = self.0.next_request().await.expect("service not called");
+
+            let secret_name = cluster
+                .cloud_identity_secret_name()
+                .expect("failed to get cloud identity secret name");
+            let secret_namespace = cluster.namespace();
+
+            assert_eq!(request.method(), http::Method::GET);
+            assert_eq!(
+                request.uri().to_string(),
+                format!(
+                    "/api/v1/namespaces/{}/secrets/{}",
+                    secret_namespace, secret_name
+                )
+            );
+
+            let clouds_yaml = CloudConfigFile::builder()
+                .clouds(hashmap! {
+                    "default".to_owned() => cloud_config.clone(),
+                })
+                .build();
+
+            let secret = Secret {
+                metadata: ObjectMeta {
+                    name: Some(secret_name),
+                    namespace: Some(secret_namespace.to_string()),
+                    ..Default::default()
+                },
+                data: Some(btreemap! {
+                    "clouds.yaml".to_owned() => ByteString(serde_yaml::to_string(&clouds_yaml).expect("failed to serialize clouds.yaml").into_bytes()),
+                }),
+                ..Default::default()
+            };
+
+            send.send_response(
+                Response::builder()
+                    .body(Body::from(serde_json::to_vec(&secret).unwrap()))
+                    .unwrap(),
+            );
+
+            Ok(self)
+        }
+    }
+
+    pub fn get_test_client() -> (Client, ApiServerVerifier) {
+        let (mock_service, handle) = tower_test::mock::pair::<Request<Body>, Response<Body>>();
+        let client = Client::new(mock_service, "default");
+
+        (client, ApiServerVerifier(handle))
+    }
+}

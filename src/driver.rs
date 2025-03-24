@@ -114,7 +114,7 @@ impl Driver {
                 self.client
                     .create_or_update_namespaced_resource(
                         &self.namespace,
-                        cluster.cloud_provider_secret(&addon)?,
+                        cluster.cloud_provider_secret(&self.client, &addon).await?,
                     )
                     .await?;
                 self.client
@@ -232,15 +232,14 @@ impl From<&Driver> for Namespace {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use http::{Request, Response};
+    use crate::clients::kubernetes::fixtures;
     use k8s_openapi::api::core::v1::Namespace;
-    use kube::client::Body;
     use pretty_assertions::assert_eq;
 
     #[tokio::test]
     async fn test_namespace_for_driver() {
-        let (mocksvc, _handle) = tower_test::mock::pair::<Request<Body>, Response<Body>>();
-        let client = Client::new(mocksvc, "default");
+        let (client, api_server) = fixtures::get_test_client();
+        api_server.run(fixtures::Scenario::RadioSilence);
 
         let cluster = Driver {
             client: client.clone(),
