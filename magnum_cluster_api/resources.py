@@ -209,7 +209,75 @@ class ClusterBase(Base):
         }
 
 
-class ClusterResourcesSecret(ClusterBase):
+class CloudProviderClusterResourcesSecret(ClusterBase):
+    def __init__(
+        self,
+        context: context.RequestContext,
+        api: magnum_cluster_api.KubeClient,
+        pykube_api: pykube.HTTPClient,
+        cluster: magnum_objects.Cluster,
+        namespace: str = "magnum-system",
+    ):
+        self.context = context
+        self.api = api
+        self.pykube_api = pykube_api
+        self.cluster = cluster
+        self.namespace = namespace
+
+    @property
+    def api_version(self) -> str:
+        return "v1"
+
+    @property
+    def kind(self) -> str:
+        return "Secret"
+
+    @property
+    def name(self) -> str:
+        return f"{self.cluster.stack_id}-cloud-provider"
+
+    def get_object(self) -> dict:
+        data = {
+            **magnum_cluster_api.Driver.get_cloud_provider_cluster_resource_secret_data(self.cluster),
+            **{
+                "cloud-config-secret.yaml": yaml.dump(
+                    {
+                        "apiVersion": pykube.Secret.version,
+                        "kind": pykube.Secret.kind,
+                        "metadata": {
+                            "name": "cloud-config",
+                            "namespace": "kube-system",
+                        },
+                        "stringData": {
+                            "cloud.conf": utils.generate_cloud_controller_manager_config(
+                                self.context,
+                                self.pykube_api,
+                                self.cluster,
+                            ),
+                            "ca.crt": magnum_utils.get_openstack_ca(),
+                        },
+                    }
+                ),
+            },
+        }
+
+        return {
+            "type": "addons.cluster.x-k8s.io/resource-set",
+            "stringData": data,
+        }
+
+    def get_or_none(self) -> objects.Cluster:
+        return pykube.Secret.objects(
+            self.pykube_api, namespace=self.namespace
+        ).get_or_none(name=self.name)
+
+    def delete(self):
+        cr_cm = self.get_or_none()
+        if cr_cm:
+            cr_cm.delete()
+
+
+class LegacyClusterResourcesSecret(ClusterBase):
     def __init__(
         self,
         context: context.RequestContext,
@@ -238,7 +306,7 @@ class ClusterResourcesSecret(ClusterBase):
             "magnum_cluster_api", "manifests"
         )
 
-        data = magnum_cluster_api.Driver.get_config_data(self.cluster)
+        data = magnum_cluster_api.Driver.get_legacy_cluster_resource_secret_data(self.cluster)
 
         data = {
             **data,
@@ -1174,7 +1242,8 @@ def apply_cluster_from_magnum_cluster(
     """
 
     ClusterServerGroups(context, cluster).apply()
-    ClusterResourcesSecret(context, api, pykube_api, cluster).apply()
+    LegacyClusterResourcesSecret(context, api, pykube_api, cluster).apply()
+    CloudProviderClusterResourcesSecret(context, api, pykube_api, cluster).apply()
 
     if not skip_auto_scaling_release and utils.get_auto_scaling_enabled(cluster):
         ClusterAutoscalerHelmRelease(api, cluster).apply()

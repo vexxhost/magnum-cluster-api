@@ -258,7 +258,15 @@ class TestDriver:
                     ).get_resource()
                 ),
                 mock.call(
-                    resources.ClusterResourcesSecret(
+                    resources.LegacyClusterResourcesSecret(
+                        context,
+                        ubuntu_driver._kube_client,
+                        ubuntu_driver.k8s_api,
+                        self.cluster,
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.CloudProviderClusterResourcesSecret(
                         context,
                         ubuntu_driver._kube_client,
                         ubuntu_driver.k8s_api,

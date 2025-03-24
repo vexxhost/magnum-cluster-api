@@ -1,9 +1,11 @@
 use std::collections::BTreeMap;
 
 use crate::{
+    addons::{self, ClusterAddon},
     clients::kubernetes::{self, ClientHelpers},
     cluster_api::clusterresourcesets::ClusterResourceSet,
-    features, magnum,
+    features,
+    magnum::{self},
     resources::ClusterClassBuilder,
     GLOBAL_RUNTIME,
 };
@@ -198,7 +200,7 @@ impl Driver {
     //               migrated all the code to Rust.
     #[classmethod]
     #[pyo3(signature = (cluster))]
-    fn get_config_data(
+    fn get_legacy_cluster_resource_secret_data(
         _cls: &Bound<'_, PyType>,
         cluster: PyObject,
         py: Python<'_>,
@@ -206,6 +208,21 @@ impl Driver {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
         Ok(Secret::from(cluster).string_data)
+    }
+
+    // TODO(mnaser): We should move this out of the Python-facing implementation once we have
+    //               migrated all the code to Rust.
+    #[classmethod]
+    #[pyo3(signature = (cluster))]
+    fn get_cloud_provider_cluster_resource_secret_data(
+        _cls: &Bound<'_, PyType>,
+        cluster: PyObject,
+        py: Python<'_>,
+    ) -> PyResult<Option<BTreeMap<String, String>>> {
+        let cluster: magnum::Cluster = cluster.extract(py)?;
+
+        let addon = addons::cloud_controller_manager::Addon::new(cluster.clone());
+        Ok(cluster.cloud_provider_secret(&addon)?.string_data)
     }
 
     fn create_cluster(&self, py: Python<'_>, cluster: PyObject) -> PyResult<()> {

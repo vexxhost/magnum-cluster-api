@@ -1,5 +1,5 @@
 use crate::{
-    addons::{cilium, cloud_controller_manager, ClusterAddon},
+    addons::{cilium, ClusterAddon},
     cluster_api::clusterresourcesets::{
         ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
         ClusterResourceSetResourcesKind, ClusterResourceSetSpec, ClusterResourceSetStrategy,
@@ -117,7 +117,7 @@ impl Cluster {
         })
     }
 
-    pub async fn cloud_provider_secret<T: ClusterAddon>(
+    pub fn cloud_provider_secret<T: ClusterAddon>(
         &self,
         addon: &T,
     ) -> Result<Secret, ClusterError> {
@@ -160,15 +160,6 @@ impl From<&Cluster> for ClusterResourceSet {
 impl From<Cluster> for Secret {
     fn from(cluster: Cluster) -> Self {
         let mut data = BTreeMap::<String, String>::new();
-
-        // TODO(mnaser): Implement an inventory of addons
-        let ccm = cloud_controller_manager::Addon::new(cluster.clone());
-        if ccm.enabled() {
-            data.insert(
-                "cloud-controller-manager.yaml".to_owned(),
-                ccm.manifests().unwrap(),
-            );
-        }
 
         let cilium = cilium::Addon::new(cluster.clone());
         if cilium.enabled() {
@@ -314,8 +305,8 @@ mod tests {
         assert_eq!(expected, result);
     }
 
-    #[tokio::test]
-    async fn test_cluster_cloud_provider_secret() {
+    #[test]
+    fn test_cluster_cloud_provider_secret() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::builder().build(),
@@ -332,7 +323,6 @@ mod tests {
 
         let result = cluster
             .cloud_provider_secret(&mock_addon)
-            .await
             .expect("failed to generate secret");
 
         let expected = Secret {
@@ -350,8 +340,8 @@ mod tests {
         assert_eq!(expected, result);
     }
 
-    #[tokio::test]
-    async fn test_cluster_cloud_provider_secret_manifest_render_failure() {
+    #[test]
+    fn test_cluster_cloud_provider_secret_manifest_render_failure() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::builder().build(),
@@ -367,7 +357,7 @@ mod tests {
             ))
         });
 
-        let result = cluster.cloud_provider_secret(&mock_addon).await;
+        let result = cluster.cloud_provider_secret(&mock_addon);
 
         assert!(result.is_err());
         match result {
