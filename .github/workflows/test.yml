@@ -59,4 +59,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install package using constraints
-        run: uv pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} ./dist/*.whl
+        run: |
+          uv venv
+          uv pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} ./dist/*.whl
