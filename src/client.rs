@@ -1,4 +1,4 @@
-use crate::{cluster_api::clusters::Cluster, GLOBAL_RUNTIME};
+use crate::{clients::kubernetes, cluster_api::clusters::Cluster, GLOBAL_RUNTIME};
 use backoff::{future::retry, ExponentialBackoff};
 use k8s_openapi::serde::{de::DeserializeOwned, Deserialize, Serialize};
 use kube::{
@@ -9,9 +9,7 @@ use kube::{
     },
     Client, ResourceExt,
 };
-use pyo3::{
-    create_exception, exceptions::PyException, prelude::*, types::PyDict, Bound,
-};
+use pyo3::{create_exception, exceptions::PyException, prelude::*, types::PyDict, Bound};
 use std::{fmt::Debug, str::FromStr};
 use thiserror::Error;
 
@@ -148,8 +146,8 @@ impl KubeClient {
 #[pymethods]
 impl KubeClient {
     #[new]
-    pub fn new() -> PyResult<Self> {
-        let client = crate::kube::new()?;
+    pub fn new() -> Result<Self, kubernetes::Error> {
+        let client = GLOBAL_RUNTIME.block_on(async { Client::try_default().await })?;
         Ok(KubeClient { client })
     }
 

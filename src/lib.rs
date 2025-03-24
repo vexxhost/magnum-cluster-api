@@ -1,8 +1,8 @@
 mod addons;
 mod client;
+mod clients;
 mod cluster_api;
 mod features;
-mod kube;
 mod magnum;
 mod models;
 mod monitor;
