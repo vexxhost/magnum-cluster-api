@@ -146,34 +146,3 @@ impl ClientHelpers for Client {
         }
     }
 }
-
-#[cfg(test)]
-pub mod fixtures {
-    use http::{Request, Response};
-    use kube::{client::Body, Client, Error};
-
-    type ApiServerHandle = tower_test::mock::Handle<Request<Body>, Response<Body>>;
-    pub struct ApiServerVerifier(ApiServerHandle);
-
-    pub enum Scenario {
-        RadioSilence,
-    }
-
-    impl ApiServerVerifier {
-        pub fn run(self, scenario: Scenario) -> tokio::task::JoinHandle<()> {
-            tokio::spawn(async move {
-                match scenario {
-                    Scenario::RadioSilence => Ok::<ApiServerVerifier, Error>(self),
-                }
-                .expect("scenario completed without errors");
-            })
-        }
-    }
-
-    pub fn get_test_client() -> (Client, ApiServerVerifier) {
-        let (mock_service, handle) = tower_test::mock::pair::<Request<Body>, Response<Body>>();
-        let client = Client::new(mock_service, "default");
-
-        (client, ApiServerVerifier(handle))
-    }
-}
