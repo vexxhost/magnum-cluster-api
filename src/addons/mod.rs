@@ -1,18 +1,15 @@
 use crate::magnum;
 use docker_image::DockerImage;
-use serde::Serialize;
 use thiserror::Error;
 
 pub mod cilium;
 pub mod cloud_controller_manager;
 
+#[cfg_attr(test, mockall::automock)]
 pub trait ClusterAddon {
     fn new(cluster: magnum::Cluster) -> Self;
     fn enabled(&self) -> bool;
-    fn manifests<T: ClusterAddonValues + Serialize>(
-        &self,
-        values: &T,
-    ) -> Result<String, helm::HelmTemplateError>;
+    fn manifests(&self) -> Result<String, helm::HelmTemplateError>;
 }
 
 pub trait ClusterAddonValues {
