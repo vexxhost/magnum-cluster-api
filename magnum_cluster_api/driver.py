@@ -45,7 +45,9 @@ def cluster_lock_wrapper(func):
 class BaseDriver(driver.Driver):
     def __init__(self):
         self.k8s_api = clients.get_pykube_api()
-        self.rust_driver = magnum_cluster_api.Driver("magnum-system", resources.CLUSTER_CLASS_NAME)
+        self.rust_driver = magnum_cluster_api.Driver(
+            "magnum-system", resources.CLUSTER_CLASS_NAME
+        )
 
     @property
     def kube_client(self):

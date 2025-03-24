@@ -238,7 +238,9 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
 
     def get_object(self) -> dict:
         data = {
-            **magnum_cluster_api.Driver.get_cloud_provider_cluster_resource_secret_data(self.cluster),
+            **magnum_cluster_api.Driver.get_cloud_provider_cluster_resource_secret_data(
+                self.cluster
+            ),
             **{
                 "cloud-config-secret.yaml": yaml.dump(
                     {
@@ -306,7 +308,9 @@ class LegacyClusterResourcesSecret(ClusterBase):
             "magnum_cluster_api", "manifests"
         )
 
-        data = magnum_cluster_api.Driver.get_legacy_cluster_resource_secret_data(self.cluster)
+        data = magnum_cluster_api.Driver.get_legacy_cluster_resource_secret_data(
+            self.cluster
+        )
 
         data = {
             **data,
