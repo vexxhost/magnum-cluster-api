@@ -172,7 +172,7 @@ class TestDriver:
         mock_osc,
         mock_certificates,
         mock_get_server_group,
-        mock_magnum_cluster,
+        mock_rust_driver,
     ):
         ubuntu_driver._kube_client = mock.MagicMock()
 

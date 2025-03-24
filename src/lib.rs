@@ -2,9 +2,9 @@ mod addons;
 mod client;
 mod clients;
 mod cluster_api;
+mod driver;
 mod features;
 mod magnum;
-mod models;
 mod monitor;
 mod resources;
 
@@ -24,7 +24,7 @@ fn magnum_cluster_api(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
 
     m.add_class::<client::KubeClient>()?;
-    m.add_class::<models::MagnumCluster>()?;
+    m.add_class::<driver::Driver>()?;
     m.add_class::<monitor::Monitor>()?;
 
     Ok(())

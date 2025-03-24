@@ -135,8 +135,8 @@ impl Cluster {
     }
 }
 
-impl From<Cluster> for ClusterResourceSet {
-    fn from(cluster: Cluster) -> Self {
+impl From<&Cluster> for ClusterResourceSet {
+    fn from(cluster: &Cluster) -> Self {
         ClusterResourceSet {
             metadata: cluster.clone().into(),
             spec: ClusterResourceSetSpec {
@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_cluster_resource_set_from_cluster() {
-        let cluster = Cluster {
+        let cluster = &Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
@@ -389,7 +389,7 @@ mod tests {
             },
         };
 
-        let crs: ClusterResourceSet = cluster.clone().into();
+        let crs: ClusterResourceSet = cluster.into();
 
         assert_eq!(crs.metadata.name, Some(cluster.uuid.clone()));
         assert_eq!(

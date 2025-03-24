@@ -238,7 +238,7 @@ class ClusterResourcesSecret(ClusterBase):
             "magnum_cluster_api", "manifests"
         )
 
-        data = magnum_cluster_api.MagnumCluster.get_config_data(self.cluster)
+        data = magnum_cluster_api.Driver.get_config_data(self.cluster)
 
         data = {
             **data,
