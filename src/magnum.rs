@@ -96,24 +96,13 @@ impl From<Cluster> for Secret {
         if ccm.enabled() {
             data.insert(
                 "cloud-controller-manager.yaml".to_owned(),
-                ccm.manifests(
-                    &cloud_controller_manager::CloudControllerManagerValues::try_from(
-                        cluster.clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap(),
+                ccm.manifests().unwrap(),
             );
         }
 
         let cilium = cilium::Addon::new(cluster.clone());
         if cilium.enabled() {
-            data.insert(
-                "cilium.yaml".to_owned(),
-                cilium
-                    .manifests(&cilium::CiliumValues::try_from(cluster.clone()).unwrap())
-                    .unwrap(),
-            );
+            data.insert("cilium.yaml".to_owned(), cilium.manifests().unwrap());
         }
 
         Secret {

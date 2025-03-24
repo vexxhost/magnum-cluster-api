@@ -42,6 +42,7 @@ features = ["abi3-py38", "extension-module", "serde"]
 
 [dev-dependencies]
 gtmpl = "0.7.1"
+mockall = "0.13.1"
 pretty_assertions = "1.4.1"
 rstest = "0.25.0"
 serde_gtmpl = { path = "crates/serde_gtmpl" }
