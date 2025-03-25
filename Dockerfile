@@ -5,7 +5,8 @@ RUN apk add --no-cache docker-registry
 ADD registry/config.yml /etc/docker-registry/config.yml
 
 FROM registry-base AS registry-loader
-RUN apk add --no-cache cargo uv crane gcc linux-headers musl-dev netcat-openbsd py3-pip python3-dev
+COPY --from=ghcr.io/astral-sh/uv:0.6.9 /uv /uvx /bin/
+RUN apk add --no-cache cargo crane gcc linux-headers musl-dev netcat-openbsd py3-pip python3-dev
 COPY . /src
 WORKDIR /src
 RUN <<EOF

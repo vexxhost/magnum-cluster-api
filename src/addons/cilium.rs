@@ -322,10 +322,9 @@ impl ClusterAddon for Addon {
         self.cluster.cluster_template.network_driver == "cilium"
     }
 
-    fn manifests<T: ClusterAddonValues + Serialize>(
-        &self,
-        values: &T,
-    ) -> Result<String, helm::HelmTemplateError> {
+    fn manifests(&self) -> Result<String, helm::HelmTemplateError> {
+        let values =
+            &CiliumValues::try_from(self.cluster.clone()).expect("failed to create values");
         helm::template_using_include_dir(
             include_dir!("magnum_cluster_api/charts/cilium"),
             "cilium",
@@ -370,6 +369,7 @@ mod tests {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
             labels: magnum::ClusterLabels::builder().build(),
+            stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
@@ -473,6 +473,7 @@ mod tests {
             labels: magnum::ClusterLabels::builder()
                 .container_infra_prefix(Some("registry.example.com".to_string()))
                 .build(),
+            stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
@@ -574,13 +575,13 @@ mod tests {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
             labels: magnum::ClusterLabels::builder().build(),
+            stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
         };
 
         let addon = Addon::new(cluster.clone());
-        let values: CiliumValues = cluster.clone().try_into().expect("failed to create values");
-        addon.manifests(&values).expect("failed to get manifests");
+        addon.manifests().expect("failed to get manifests");
     }
 }

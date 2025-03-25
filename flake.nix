@@ -16,16 +16,23 @@
           devShell = pkgs.mkShell
             {
               LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
+              RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
 
               buildInputs = with pkgs; [
-                kind
                 bashInteractive
+                black
+                cargo
+                clippy
                 glibcLocales
-                uv
-                python311Packages.tox
+                kind
                 kubernetes-helm
                 patchutils
+                python311Packages.tox
                 renovate
+                rust-analyzer
+                rustc
+                rustfmt
+                uv
               ];
             };
         }
