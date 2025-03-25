@@ -37,7 +37,7 @@ tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
 typed-builder = "0.21.0"
 
 [dependencies.pyo3]
-version = "0.23.1"
+version = "0.24.0"
 features = ["abi3-py38", "extension-module", "serde"]
 
 [dev-dependencies]
