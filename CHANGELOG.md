@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.29.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.29.2...v0.29.3) (2025-03-26)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate pyo3-log to v0.12.2 ([#602](https://github.com/vexxhost/magnum-cluster-api/issues/602)) ([86788ec](https://github.com/vexxhost/magnum-cluster-api/commit/86788ecb306f9d39e66637bb8447cc2b2d1a2b8c))
+* Run apply CRS on upgrade ([#617](https://github.com/vexxhost/magnum-cluster-api/issues/617)) ([e37df66](https://github.com/vexxhost/magnum-cluster-api/commit/e37df66de12a06dc81a968c227216b196e712520))
+
 ## [0.29.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.29.1...v0.29.2) (2025-03-24)
 
 
