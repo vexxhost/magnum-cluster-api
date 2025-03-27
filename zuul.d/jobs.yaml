@@ -11,19 +11,13 @@
     pre-run: zuul.d/playbooks/tox/pre.yml
 
 - job:
-    name: magnum-cluster-api-cargo
-    abstract: true
-    pre-run: zuul.d/playbooks/cargo/pre.yml
-
-- job:
     name: magnum-cluster-api-cargo-clippy
-    parent: magnum-cluster-api-cargo
-    run: zuul.d/playbooks/cargo/clippy.yml
+    parent: cargo-clippy
 
 - job:
     name: magnum-cluster-api-cargo-test
-    parent: magnum-cluster-api-cargo
-    run: zuul.d/playbooks/cargo/test.yml
+    parent: cargo-test
+    pre-run: zuul.d/playbooks/cargo-test/pre.yml
 
 - job:
     name: magnum-cluster-api-tox-linters
