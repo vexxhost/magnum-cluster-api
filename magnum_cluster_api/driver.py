@@ -594,9 +594,6 @@ class BaseDriver(driver.Driver):
         nodegroup: magnum_objects.NodeGroup,
     ):
         utils.validate_nodegroup(nodegroup)
-        utils.ensure_worker_server_group(
-            ctx=context, cluster=cluster, node_group=nodegroup
-        )
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 
@@ -613,6 +610,10 @@ class BaseDriver(driver.Driver):
             utils.kube_apply_patch(cluster_resource)
 
         else:
+            utils.ensure_worker_server_group(
+                ctx=context, cluster=cluster, node_group=nodegroup
+            )
+
             current_md_spec = cluster_resource.get_machine_deployment_spec(
                 nodegroup.name
             )
