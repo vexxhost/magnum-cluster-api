@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.4](https://github.com/vexxhost/magnum-cluster-api/compare/v0.29.3...v0.29.4) (2025-03-28)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate once_cell to v1.21.2 ([#621](https://github.com/vexxhost/magnum-cluster-api/issues/621)) ([385b763](https://github.com/vexxhost/magnum-cluster-api/commit/385b763e19fcc6559a73aabdc084877aa5d691c1))
+
 ## [0.29.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.29.2...v0.29.3) (2025-03-26)
 
 
