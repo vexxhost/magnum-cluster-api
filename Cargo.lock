@@ -1487,8 +1487,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3"
-version = "0.23.3"
-source = "git+https://github.com/PyO3/pyo3.git?rev=21132a8e77dbce1597b80f6c0ff6fbcf36c93852#21132a8e77dbce1597b80f6c0ff6fbcf36c93852"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f1c6c3591120564d64db2261bec5f910ae454f01def849b9c22835a84695e86"
 dependencies = [
  "cfg-if",
  "indoc",
@@ -1505,8 +1506,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-build-config"
-version = "0.23.3"
-source = "git+https://github.com/PyO3/pyo3.git?rev=21132a8e77dbce1597b80f6c0ff6fbcf36c93852#21132a8e77dbce1597b80f6c0ff6fbcf36c93852"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9b6c2b34cf71427ea37c7001aefbaeb85886a074795e35f161f5aecc7620a7a"
 dependencies = [
  "once_cell",
  "target-lexicon",
@@ -1514,8 +1516,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-ffi"
-version = "0.23.3"
-source = "git+https://github.com/PyO3/pyo3.git?rev=21132a8e77dbce1597b80f6c0ff6fbcf36c93852#21132a8e77dbce1597b80f6c0ff6fbcf36c93852"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5507651906a46432cdda02cd02dd0319f6064f1374c9147c45b978621d2c3a9c"
 dependencies = [
  "libc",
  "pyo3-build-config",
@@ -1534,8 +1537,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-macros"
-version = "0.23.3"
-source = "git+https://github.com/PyO3/pyo3.git?rev=21132a8e77dbce1597b80f6c0ff6fbcf36c93852#21132a8e77dbce1597b80f6c0ff6fbcf36c93852"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0d394b5b4fd8d97d48336bb0dd2aebabad39f1d294edd6bcd2cccf2eefe6f42"
 dependencies = [
  "proc-macro2",
  "pyo3-macros-backend",
@@ -1545,8 +1549,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-macros-backend"
-version = "0.23.3"
-source = "git+https://github.com/PyO3/pyo3.git?rev=21132a8e77dbce1597b80f6c0ff6fbcf36c93852#21132a8e77dbce1597b80f6c0ff6fbcf36c93852"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd72da09cfa943b1080f621f024d2ef7e2773df7badd51aa30a2be1f8caa7c8e"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -1557,9 +1562,9 @@ dependencies = [
 
 [[package]]
 name = "pythonize"
-version = "0.23.0"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91a6ee7a084f913f98d70cdc3ebec07e852b735ae3059a1500db2661265da9ff"
+checksum = "d5bcac0d0b71821f0d69e42654f1e15e5c94b85196446c4de9588951a2117e7b"
 dependencies = [
  "pyo3",
  "serde",
