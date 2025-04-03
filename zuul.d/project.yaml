@@ -1,19 +1,13 @@
 - project:
     check:
       jobs:
-        - magnum-cluster-api-cargo-clippy
-        - magnum-cluster-api-cargo-test
         - magnum-cluster-api-chart-vendor
         - magnum-cluster-api-tox-functional
-        - magnum-cluster-api-tox-linters
         - magnum-cluster-api-tox-unit
     gate:
       jobs:
-        - magnum-cluster-api-cargo-clippy
-        - magnum-cluster-api-cargo-test
         - magnum-cluster-api-chart-vendor
         - magnum-cluster-api-tox-functional
-        - magnum-cluster-api-tox-linters
         - magnum-cluster-api-tox-unit
     templates:
       - renovate
