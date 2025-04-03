@@ -11,21 +11,6 @@
     pre-run: zuul.d/playbooks/tox/pre.yml
 
 - job:
-    name: magnum-cluster-api-cargo-clippy
-    parent: cargo-clippy
-
-- job:
-    name: magnum-cluster-api-cargo-test
-    parent: cargo-test
-    pre-run: zuul.d/playbooks/cargo-test/pre.yml
-
-- job:
-    name: magnum-cluster-api-tox-linters
-    parent: magnum-cluster-api-tox
-    vars:
-      tox_envlist: linters
-
-- job:
     name: magnum-cluster-api-tox-unit
     parent: magnum-cluster-api-tox
     pre-run: zuul.d/playbooks/unit/pre.yml
