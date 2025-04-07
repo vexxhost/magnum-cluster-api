@@ -235,6 +235,15 @@ impl Driver {
         Ok(())
     }
 
+    fn upgrade_cluster(&self, py: Python<'_>, cluster: PyObject) -> PyResult<()> {
+        let cluster: magnum::Cluster = cluster.extract(py)?;
+
+        self.apply_cluster_class(py)?;
+        self.apply_cloud_provider_cluster_resource_set(py, &cluster)?;
+
+        Ok(())
+    }
+
     fn delete_cluster(&self, py: Python<'_>, cluster: PyObject) -> PyResult<()> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
