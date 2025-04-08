@@ -32,7 +32,8 @@
           "magnum_cluster_api/manifests/calico/v*.yaml"
         ],
         "commands": [
-          "curl -o magnum_cluster_api/manifests/calico/v{{{newValue}}}.yaml https://raw.githubusercontent.com/projectcalico/calico/v{{{newValue}}}/manifests/calico.yaml"
+          "curl -o magnum_cluster_api/manifests/calico/v{{{newValue}}}.yaml https://raw.githubusercontent.com/projectcalico/calico/v{{{newValue}}}/manifests/calico.yaml",
+          "sed -i 's|docker.io|quay.io|g' magnum_cluster_api/manifests/calico/v{{{newValue}}}.yaml"
         ]
       }
     }
