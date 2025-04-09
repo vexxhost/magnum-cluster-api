@@ -11,7 +11,7 @@ proc-macro2 = "1.0"
 heck = "0.5"
 
 [dependencies]
-backoff = { version = "0.4.0", features = ["tokio"] }
+backon = "1.5.0"
 base64 = "0.22.1"
 cluster_feature_derive = { path = "crates/cluster_feature_derive" }
 docker-image = "0.2.1"
