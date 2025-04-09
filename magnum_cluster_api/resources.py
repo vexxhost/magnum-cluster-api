@@ -14,6 +14,7 @@
 
 import abc
 import glob
+import json
 import math
 import os
 import types
@@ -1107,6 +1108,19 @@ class Cluster(ClusterBase):
                                 self.context, self.cluster.fixed_subnet
                             )
                             or "",
+                        },
+                        {
+                            "name": "fixedSubnetIds",
+                            "value": [
+                                (
+                                    neutron.get_fixed_subnet_id(self.context, subnet)
+                                    or ""
+                                )
+                                for subnet in json.loads(
+                                    self.cluster.labels.get("extra_fixed_subnets", "[]")
+                                )
+                                + ([self.cluster.fixed_subnet] or [""])
+                            ],
                         },
                         {
                             "name": "flavor",
