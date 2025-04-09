@@ -432,9 +432,7 @@ class TestDriver:
         assert self.node_group.status == fields.ClusterStatus.DELETE_IN_PROGRESS
         self.node_group.save.assert_called_once()
 
-    def test_delete_missing_nodegroup(
-        self, context, ubuntu_driver, requests_mock
-    ):
+    def test_delete_missing_nodegroup(self, context, ubuntu_driver, requests_mock):
         self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
 
         with requests_mock as rsps:
