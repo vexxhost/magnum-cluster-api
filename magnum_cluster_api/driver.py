@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import keystoneauth1  # type: ignore
+from heatclient import exc  # type: ignore
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.conductor import scale_manager  # type: ignore
 from magnum.drivers.common import driver  # type: ignore
@@ -630,9 +631,10 @@ class BaseDriver(driver.Driver):
         try:
             md_index = cluster_resource.get_machine_deployment_index(nodegroup.name)
         except exceptions.MachineDeploymentNotFound:
-            nodegroup.status = fields.ClusterStatus.DELETE_COMPLETE
-            nodegroup.save()
-            return
+            # NOTE(mnaser): The Magnum node group API assumes that the node group is
+            #               gone if we get `exc.HTTPNotFound` so we raise it here to
+            #               let it destroy the node group.
+            raise exc.HTTPNotFound()
 
         del cluster_resource.obj["spec"]["topology"]["workers"]["machineDeployments"][
             md_index

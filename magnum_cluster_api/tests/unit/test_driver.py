@@ -19,6 +19,7 @@ import openstack
 import pykube
 import pytest
 import responses
+from heatclient import exc  # type: ignore
 from magnum.objects import fields  # type: ignore
 from magnum.tests.unit.objects import utils  # type: ignore
 from novaclient.v2 import flavors  # type: ignore
@@ -289,16 +290,17 @@ class TestDriver:
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
 
-    def setup_node_group_tests(self, rsps, before, after):
+    def setup_node_group_tests(self, rsps, before, after=None):
         rsps.add(
             self._response_for_cluster_with_machine_deployments(*before),
         )
-        rsps.add(
-            self._response_for_cluster_with_machine_deployments(
-                *after,
-                method=responses.PATCH,
+        if after:
+            rsps.add(
+                self._response_for_cluster_with_machine_deployments(
+                    *after,
+                    method=responses.PATCH,
+                )
             )
-        )
 
     def test_create_nodegroup(self, context, ubuntu_driver, requests_mock):
         self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
@@ -429,3 +431,23 @@ class TestDriver:
 
         assert self.node_group.status == fields.ClusterStatus.DELETE_IN_PROGRESS
         self.node_group.save.assert_called_once()
+
+    def test_delete_missing_nodegroup(self, context, ubuntu_driver, requests_mock):
+        self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+
+        with requests_mock as rsps:
+            self.setup_node_group_tests(
+                rsps,
+                before=[
+                    {
+                        "name": "unrelated-machine-deployment",
+                        "replicas": 1,
+                        "metadata": {
+                            "annotations": {},
+                        },
+                    }
+                ],
+            )
+
+            with pytest.raises(exc.HTTPNotFound):
+                ubuntu_driver.delete_nodegroup(context, self.cluster, self.node_group)
