@@ -36,6 +36,9 @@ pub struct FeatureValues {
 
     #[serde(rename = "fixedSubnetId")]
     pub fixed_subnet_id: String,
+
+    #[serde(rename = "fixedSubnetIds")]
+    pub fixed_subnet_ids: Vec<String>,
 }
 
 pub struct Feature {}
@@ -112,7 +115,7 @@ impl ClusterFeaturePatches for Feature {
             },
             ClusterClassPatches {
                 name: "existingFixedSubnetIdConfig".into(),
-                enabled_if: Some(r#"{{ if ne .fixedSubnetId "" }}true{{end}}"#.into()),
+                enabled_if: Some(r#"{{ if and (ne .fixedSubnetId "") (not .fixedSubnetIds) }}true{{end}}"#.into()),
                 definitions: Some(vec![ClusterClassPatchesDefinitions {
                     selector: ClusterClassPatchesDefinitionsSelector {
                         api_version: OpenStackClusterTemplate::api_resource().api_version,
@@ -134,6 +137,39 @@ impl ClusterFeaturePatches for Feature {
                                     },
                                 ])
                                 .unwrap(),
+                            ),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }],
+                }]),
+                ..Default::default()
+            },
+            ClusterClassPatches {
+                name: "existingFixedSubnetIdsConfig".into(),
+                enabled_if: Some(r#"{{ if .fixedSubnetIds }}true{{end}}"#.into()),
+                definitions: Some(vec![ClusterClassPatchesDefinitions {
+                    selector: ClusterClassPatchesDefinitionsSelector {
+                        api_version: OpenStackClusterTemplate::api_resource().api_version,
+                        kind: OpenStackClusterTemplate::api_resource().kind,
+                        match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                            infrastructure_cluster: Some(true),
+                            ..Default::default()
+                        },
+                    },
+                    json_patches: vec![ClusterClassPatchesDefinitionsJsonPatches {
+                        op: "add".into(),
+                        path: "/spec/template/spec/subnets".into(),
+                        value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                            template: Some(
+                                indoc!(
+                                    r#"
+                                    {{- range .fixedSubnetIds }}
+                                    - id: {{ . }}
+                                    {{- end }}
+                                    "#
+                                )
+                                .into(),
                             ),
                             ..Default::default()
                         }),
@@ -198,6 +234,7 @@ mod tests {
         values.dns_nameservers = vec!["1.1.1.1".into(), "1.0.0.1".into()];
         values.fixed_network_id = "e3172714-4ac5-4152-abf7-2d37387977e7".into();
         values.fixed_subnet_id = "".into();
+        values.fixed_subnet_ids = vec!["".into()];
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -226,7 +263,9 @@ mod tests {
         values.node_cidr = "10.0.0.0/24".into();
         values.dns_nameservers = vec!["1.1.1.1".into(), "1.0.0.1".into()];
         values.fixed_network_id = "e3172714-4ac5-4152-abf7-2d37387977e7".into();
-        values.fixed_subnet_id = "5ef0bdfa-c836-4753-ae38-d2ca71ef921a".into();
+        values.fixed_subnet_id = "".into();
+        values.fixed_subnet_ids = vec!["5ef0bdfa-c836-4753-ae38-d2ca71ef921a".into(),
+        "6ef0bdfa-c836-4753-ae38-d2ca71ef921a".into()];
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -254,10 +293,16 @@ mod tests {
                 .spec
                 .subnets
                 .expect("subnets should be set"),
-            vec![OpenStackClusterTemplateTemplateSpecSubnets {
-                id: Some(values.fixed_subnet_id),
+            vec![
+            OpenStackClusterTemplateTemplateSpecSubnets {
+                id: Some(values.fixed_subnet_ids[0].clone()),
                 ..Default::default()
-            }]
+            },
+            OpenStackClusterTemplateTemplateSpecSubnets {
+                id: Some(values.fixed_subnet_ids[1].clone()),
+                ..Default::default()
+            }
+            ]
         );
     }
 }
