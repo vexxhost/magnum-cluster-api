@@ -47,6 +47,7 @@ dependencies = [
   "semver>=2.0.0",
   "sherlock>=0.4.1",
   "shortuuid",
+  "python-heatclient",
 ]
 
 [dependency-groups]
