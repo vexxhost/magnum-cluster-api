@@ -16,26 +16,8 @@ concurrency:
 permissions: {}
 
 jobs:
-  cargo-test:
-    runs-on: depot-ubuntu-22.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: rui314/setup-mold@v1
-      - uses: Swatinem/rust-cache@v2
-      - uses: azure/setup-helm@v4.3.0
-      - run: rustup show
-      - run: cargo test --workspace
-
-  cargo-clippy:
-    runs-on: depot-ubuntu-22.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: rui314/setup-mold@v1
-      - uses: Swatinem/rust-cache@v2
-      - run: rustup show
-      - run: cargo clippy --workspace -- -D warnings
+  cargo:
+    uses: vexxhost/github-actions/.github/workflows/cargo.yml@main
 
   build:
     runs-on: ${{ matrix.runs-on }}
