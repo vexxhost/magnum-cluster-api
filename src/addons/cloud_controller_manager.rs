@@ -58,7 +58,7 @@ impl ClusterAddonValues for CloudControllerManagerValues {
                 format!(
                     "{}/{}",
                     registry.trim_end_matches('/'),
-                    image.name.split('/').last().unwrap()
+                    image.name.split('/').next_back().unwrap()
                 )
             }
             None => image.to_string(),
