@@ -1103,13 +1103,6 @@ class Cluster(ClusterBase):
                             or "",
                         },
                         {
-                            "name": "fixedSubnetId",
-                            "value": neutron.get_fixed_subnet_id(
-                                self.context, self.cluster.fixed_subnet
-                            )
-                            or "",
-                        },
-                        {
                             "name": "fixedSubnetIds",
                             "value": [
                                 (
