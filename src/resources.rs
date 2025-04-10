@@ -241,7 +241,6 @@ pub mod fixtures {
             .node_cidr("10.0.0.0/24".into())
             .dns_nameservers(vec!["1.1.1.1".into()])
             .fixed_network_id("".into())
-            .fixed_subnet_id("".into())
             .fixed_subnet_ids(vec!["".into()])
             .openid_connect(
                 openid_connect::OpenIdConnectConfig::builder()
@@ -306,7 +305,7 @@ mod tests {
         let values = default_values();
         let variables: Vec<ClusterTopologyVariables> = values.into();
 
-        assert_eq!(variables.len(), 36);
+        assert_eq!(variables.len(), 35);
 
         for var in &variables {
             match var.name.as_str() {
@@ -366,9 +365,6 @@ mod tests {
                 }
                 "fixedNetworkId" => {
                     assert_eq!(var.value, json!(default_values().fixed_network_id));
-                }
-                "fixedSubnetId" => {
-                    assert_eq!(var.value, json!(default_values().fixed_subnet_id));
                 }
                 "fixedSubnetIds" => {
                     assert_eq!(var.value, json!(default_values().fixed_subnet_ids));
