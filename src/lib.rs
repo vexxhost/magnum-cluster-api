@@ -1,4 +1,5 @@
 mod addons;
+mod r#async;
 mod client;
 mod clients;
 mod cluster_api;

@@ -1,6 +1,7 @@
 use crate::{
     clients::kubernetes::{self, ClientHelpers},
     cluster_api::clusters::Cluster,
+    r#async::block_in_place_and_wait,
 };
 use backon::{ExponentialBuilder, Retryable};
 use kube::{
@@ -9,7 +10,6 @@ use kube::{
     Client,
 };
 use pyo3::{create_exception, exceptions::PyException, prelude::*, types::PyDict, Bound};
-use pyo3_async_runtimes::tokio::get_runtime;
 use std::{fmt::Debug, str::FromStr};
 use thiserror::Error;
 
@@ -44,8 +44,8 @@ impl From<KubeClientError> for PyErr {
 #[pymethods]
 impl KubeClient {
     #[new]
-    pub fn new() -> Result<Self, kubernetes::Error> {
-        let client = get_runtime().block_on(async { Client::try_default().await })?;
+    pub fn new(py: Python<'_>) -> Result<Self, kubernetes::Error> {
+        let client = block_in_place_and_wait(py, || async { Client::try_default().await })?;
         Ok(KubeClient { client })
     }
 
@@ -60,12 +60,10 @@ impl KubeClient {
             .client
             .get_api_from_gvk(&gvk, object.metadata.namespace.as_deref());
 
-        py.allow_threads(|| {
-            get_runtime().block_on(async move {
-                self.client.create_or_update_resource(api, object).await?;
+        block_in_place_and_wait(py, || async {
+            self.client.create_or_update_resource(api, object).await?;
 
-                Ok(())
-            })
+            Ok(())
         })
     }
 
@@ -80,27 +78,25 @@ impl KubeClient {
         let object: Cluster = pythonize::depythonize(manifest)?;
         let api: Api<Cluster> = Api::namespaced(self.client.clone(), &namespace);
 
-        py.allow_threads(|| {
-            get_runtime().block_on(async {
-                match (|| async {
-                    let object = object.clone();
-                    let mut remote_object = api.get(&name).await?;
+        block_in_place_and_wait(py, || async {
+            match (|| async {
+                let object = object.clone();
+                let mut remote_object = api.get(&name).await?;
 
-                    remote_object.metadata.labels = object.metadata.labels;
-                    remote_object.spec.cluster_network = object.spec.cluster_network;
-                    remote_object.spec.topology = object.spec.topology;
+                remote_object.metadata.labels = object.metadata.labels;
+                remote_object.spec.cluster_network = object.spec.cluster_network;
+                remote_object.spec.topology = object.spec.topology;
 
-                    api.replace(&name, &Default::default(), &remote_object)
-                        .await
-                })
-                .retry(ExponentialBuilder::default())
-                .when(|e| matches!(e, kube::Error::Api(api_err) if api_err.code == 409))
-                .await
-                {
-                    Ok(_) => Ok(()),
-                    Err(e) => Err(KubeClientError::Api(e)),
-                }
+                api.replace(&name, &Default::default(), &remote_object)
+                    .await
             })
+            .retry(ExponentialBuilder::default())
+            .when(|e| matches!(e, kube::Error::Api(api_err) if api_err.code == 409))
+            .await
+            {
+                Ok(_) => Ok(()),
+                Err(e) => Err(KubeClientError::Api(e)),
+            }
         })?;
 
         Ok(())
@@ -120,12 +116,10 @@ impl KubeClient {
             .with_kind(kind);
         let api = self.client.get_api_from_gvk(&gvk, namespace);
 
-        py.allow_threads(|| {
-            get_runtime().block_on(async {
-                self.client.delete_resource(api, name).await?;
+        block_in_place_and_wait(py, || async {
+            self.client.delete_resource(api, name).await?;
 
-                Ok(())
-            })
+            Ok(())
         })
     }
 }

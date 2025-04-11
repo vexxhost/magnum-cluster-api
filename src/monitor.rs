@@ -2,6 +2,7 @@ use crate::{
     clients::kubernetes,
     cluster_api::{kubeadmcontrolplane::KubeadmControlPlane, machines::Machine},
     magnum,
+    r#async::block_in_place_and_wait,
 };
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
 use kube::{api::ListParams, Api, Client};
@@ -123,8 +124,7 @@ impl Monitor {
     #[new]
     #[pyo3(signature = (cluster))]
     fn new(py: Python<'_>, cluster: PyObject) -> PyResult<Self> {
-        let client = get_runtime()
-            .block_on(async { Client::try_default().await })
+        let client = block_in_place_and_wait(py, || async { Client::try_default().await })
             .map_err(kubernetes::Error::from)?;
         let cluster: magnum::Cluster = cluster.extract(py)?;
         Ok(Self { client, cluster })

@@ -6,12 +6,12 @@ use crate::{
     cluster_api::clusterresourcesets::ClusterResourceSet,
     features,
     magnum::{self},
+    r#async::block_in_place_and_wait,
     resources::ClusterClassBuilder,
 };
 use k8s_openapi::api::core::v1::{Namespace, Secret};
 use kube::{api::ObjectMeta, Api, Client};
 use pyo3::{prelude::*, types::PyType};
-use pyo3_async_runtimes::tokio::get_runtime;
 
 #[pyclass]
 pub struct Driver {
@@ -33,19 +33,17 @@ impl Driver {
         py: Python<'_>,
         cluster: &magnum::Cluster,
     ) -> PyResult<()> {
-        py.allow_threads(|| {
-            get_runtime().block_on(async {
-                // TODO(mnaser): The secret is still being created by the Python
-                //               code, we need to move this to Rust.
-                self.client
-                    .create_or_update_namespaced_resource(
-                        &self.namespace,
-                        ClusterResourceSet::from(cluster),
-                    )
-                    .await?;
+        block_in_place_and_wait(py, || async {
+            // TODO(mnaser): The secret is still being created by the Python
+            //               code, we need to move this to Rust.
+            self.client
+                .create_or_update_namespaced_resource(
+                    &self.namespace,
+                    ClusterResourceSet::from(cluster),
+                )
+                .await?;
 
-                Ok(())
-            })
+            Ok(())
         })
     }
 
@@ -54,19 +52,17 @@ impl Driver {
         py: Python<'_>,
         cluster: &magnum::Cluster,
     ) -> PyResult<()> {
-        py.allow_threads(|| {
-            get_runtime().block_on(async {
-                // TODO(mnaser): The secret is still being created by the Python
-                //               code, we need to move this to Rust.
-                self.client
-                    .create_or_update_namespaced_resource(
-                        &self.namespace,
-                        cluster.cloud_provider_cluster_resource_set()?,
-                    )
-                    .await?;
+        block_in_place_and_wait(py, || async {
+            // TODO(mnaser): The secret is still being created by the Python
+            //               code, we need to move this to Rust.
+            self.client
+                .create_or_update_namespaced_resource(
+                    &self.namespace,
+                    cluster.cloud_provider_cluster_resource_set()?,
+                )
+                .await?;
 
-                Ok(())
-            })
+            Ok(())
         })
     }
 
@@ -75,25 +71,23 @@ impl Driver {
         py: Python<'_>,
         cluster: &magnum::Cluster,
     ) -> PyResult<()> {
-        py.allow_threads(|| {
-            get_runtime().block_on(async {
-                let resource_name = ClusterResourceSet::from(cluster).metadata.name.unwrap();
+        block_in_place_and_wait(py, || async {
+            let resource_name = ClusterResourceSet::from(cluster).metadata.name.unwrap();
 
-                self.client
-                    .delete_resource(
-                        Api::<ClusterResourceSet>::namespaced(self.client.clone(), &self.namespace),
-                        &resource_name,
-                    )
-                    .await?;
-                self.client
-                    .delete_resource(
-                        Api::<Secret>::namespaced(self.client.clone(), &self.namespace),
-                        &resource_name,
-                    )
-                    .await?;
+            self.client
+                .delete_resource(
+                    Api::<ClusterResourceSet>::namespaced(self.client.clone(), &self.namespace),
+                    &resource_name,
+                )
+                .await?;
+            self.client
+                .delete_resource(
+                    Api::<Secret>::namespaced(self.client.clone(), &self.namespace),
+                    &resource_name,
+                )
+                .await?;
 
-                Ok(())
-            })
+            Ok(())
         })
     }
 
@@ -102,25 +96,23 @@ impl Driver {
         py: Python<'_>,
         cluster: &magnum::Cluster,
     ) -> PyResult<()> {
-        py.allow_threads(|| {
-            get_runtime().block_on(async {
-                let resource_name = cluster.cloud_provider_resource_name()?;
+        block_in_place_and_wait(py, || async {
+            let resource_name = cluster.cloud_provider_resource_name()?;
 
-                self.client
-                    .delete_resource(
-                        Api::<ClusterResourceSet>::namespaced(self.client.clone(), &self.namespace),
-                        &resource_name,
-                    )
-                    .await?;
-                self.client
-                    .delete_resource(
-                        Api::<Secret>::namespaced(self.client.clone(), &self.namespace),
-                        &resource_name,
-                    )
-                    .await?;
+            self.client
+                .delete_resource(
+                    Api::<ClusterResourceSet>::namespaced(self.client.clone(), &self.namespace),
+                    &resource_name,
+                )
+                .await?;
+            self.client
+                .delete_resource(
+                    Api::<Secret>::namespaced(self.client.clone(), &self.namespace),
+                    &resource_name,
+                )
+                .await?;
 
-                Ok(())
-            })
+            Ok(())
         })
     }
 }
@@ -128,8 +120,12 @@ impl Driver {
 #[pymethods]
 impl Driver {
     #[new]
-    fn new(namespace: String, cluster_class_name: String) -> Result<Self, kubernetes::Error> {
-        let client = get_runtime().block_on(async { Client::try_default().await })?;
+    fn new(
+        py: Python<'_>,
+        namespace: String,
+        cluster_class_name: String,
+    ) -> Result<Self, kubernetes::Error> {
+        let client = block_in_place_and_wait(py, || async { Client::try_default().await })?;
 
         Ok(Self {
             client,
@@ -161,38 +157,30 @@ impl Driver {
 
         let cluster_class = ClusterClassBuilder::default(metadata.clone());
 
-        py.allow_threads(|| {
-            get_runtime().block_on(async move {
-                self.client
-                    .create_or_update_cluster_resource(Namespace::from(self))
-                    .await?;
-                self.client
-                    .create_or_update_namespaced_resource(
-                        &self.namespace,
-                        openstack_cluster_template,
-                    )
-                    .await?;
-                self.client
-                    .create_or_update_namespaced_resource(
-                        &self.namespace,
-                        openstack_machine_template,
-                    )
-                    .await?;
-                self.client
-                    .create_or_update_namespaced_resource(
-                        &self.namespace,
-                        kubeadm_control_plane_template,
-                    )
-                    .await?;
-                self.client
-                    .create_or_update_namespaced_resource(&self.namespace, kubeadm_config_template)
-                    .await?;
-                self.client
-                    .create_or_update_namespaced_resource(&self.namespace, cluster_class)
-                    .await?;
+        block_in_place_and_wait(py, || async {
+            self.client
+                .create_or_update_cluster_resource(Namespace::from(self))
+                .await?;
+            self.client
+                .create_or_update_namespaced_resource(&self.namespace, openstack_cluster_template)
+                .await?;
+            self.client
+                .create_or_update_namespaced_resource(&self.namespace, openstack_machine_template)
+                .await?;
+            self.client
+                .create_or_update_namespaced_resource(
+                    &self.namespace,
+                    kubeadm_control_plane_template,
+                )
+                .await?;
+            self.client
+                .create_or_update_namespaced_resource(&self.namespace, kubeadm_config_template)
+                .await?;
+            self.client
+                .create_or_update_namespaced_resource(&self.namespace, cluster_class)
+                .await?;
 
-                Ok(())
-            })
+            Ok(())
         })
     }
 
