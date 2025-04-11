@@ -14,6 +14,7 @@
 
 import abc
 import glob
+import json
 import math
 import os
 import types
@@ -861,7 +862,7 @@ def mutate_machine_deployment(
 
 
 def generate_machine_deployments_for_cluster(
-    context: context.RequestContext, cluster: objects.Cluster
+    context: context.RequestContext, cluster: magnum_objects.Cluster
 ) -> list:
     machine_deployments = []
     for ng in cluster.nodegroups:
@@ -1102,11 +1103,18 @@ class Cluster(ClusterBase):
                             or "",
                         },
                         {
-                            "name": "fixedSubnetId",
-                            "value": neutron.get_fixed_subnet_id(
-                                self.context, self.cluster.fixed_subnet
-                            )
-                            or "",
+                            "name": "fixedSubnetIds",
+                            "value": [
+                                (
+                                    neutron.get_fixed_subnet_id(self.context, subnet)
+                                    or ""
+                                )
+                                for subnet in json.loads(
+                                    self.cluster.labels.get("extra_fixed_subnets", "[]")
+                                )
+                                + [self.cluster.fixed_subnet]
+                            ]
+                            or [""],
                         },
                         {
                             "name": "flavor",
