@@ -1112,8 +1112,9 @@ class Cluster(ClusterBase):
                                 for subnet in json.loads(
                                     self.cluster.labels.get("extra_fixed_subnets", "[]")
                                 )
-                                + ([self.cluster.fixed_subnet] or [""])
-                            ],
+                                + [self.cluster.fixed_subnet]
+                            ]
+                            or [""],
                         },
                         {
                             "name": "flavor",
