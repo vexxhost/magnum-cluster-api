@@ -111,7 +111,7 @@ impl ClusterFeaturePatches for Feature {
             },
             ClusterClassPatches {
                 name: "existingFixedSubnetIdsConfig".into(),
-                enabled_if: Some(r#"{{ if .fixedSubnetIds }}true{{end}}"#.into()),
+                enabled_if: Some(r#"{{ if ne (index .fixedSubnetIds 0) "" }}true{{end}}"#.into()),
                 definitions: Some(vec![ClusterClassPatchesDefinitions {
                     selector: ClusterClassPatchesDefinitionsSelector {
                         api_version: OpenStackClusterTemplate::api_resource().api_version,
