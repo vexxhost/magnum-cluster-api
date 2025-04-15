@@ -1,12 +1,13 @@
 use crate::{
     clients::kubernetes,
     cluster_api::{kubeadmcontrolplane::KubeadmControlPlane, machines::Machine},
-    magnum, GLOBAL_RUNTIME,
+    magnum,
 };
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
 use kube::{api::ListParams, Api, Client};
 use maplit::btreemap;
 use pyo3::{create_exception, exceptions::PyException, prelude::*, types::PyDict};
+use pyo3_async_runtimes::tokio::get_runtime;
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -122,7 +123,7 @@ impl Monitor {
     #[new]
     #[pyo3(signature = (cluster))]
     fn new(py: Python<'_>, cluster: PyObject) -> PyResult<Self> {
-        let client = GLOBAL_RUNTIME
+        let client = get_runtime()
             .block_on(async { Client::try_default().await })
             .map_err(kubernetes::Error::from)?;
         let cluster: magnum::Cluster = cluster.extract(py)?;
@@ -159,7 +160,7 @@ impl Monitor {
             Api::namespaced(self.client.clone(), "magnum-system");
 
         let (machines, kcp_list) = py.allow_threads(|| {
-            GLOBAL_RUNTIME.block_on(async {
+            get_runtime().block_on(async {
                 futures::join!(machine_api.list(&list_params), kcp_api.list(&list_params))
             })
         });
