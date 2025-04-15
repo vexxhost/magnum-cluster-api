@@ -27,6 +27,7 @@
                 kind
                 kubernetes-helm
                 patchutils
+                pre-commit
                 python311Packages.tox
                 renovate
                 rust-analyzer
