@@ -1,4 +1,4 @@
-use backoff::{future::retry, ExponentialBackoff};
+use backon::{ExponentialBuilder, Retryable};
 use k8s_openapi::serde::{de::DeserializeOwned, Deserialize, Serialize};
 use kube::{
     api::{Api, ApiResource, DynamicObject, GroupVersionKind, PostParams},
@@ -83,22 +83,16 @@ impl ClientHelpers for Client {
         let name = resource.name_any();
 
         match api.get(&name).await {
-            Ok(..) => Ok(retry(ExponentialBackoff::default(), || async {
+            Ok(..) => Ok((|| async {
                 let mut new_resource = resource.clone();
 
                 let server_object = api.get(&name).await?;
                 new_resource.meta_mut().resource_version = server_object.resource_version();
 
-                match api.replace(&name, &Default::default(), &new_resource).await {
-                    Ok(result) => Ok(result),
-                    Err(e) => match e {
-                        kube::Error::Api(ref err) if err.code == 409 => {
-                            Err(backoff::Error::transient(e))
-                        }
-                        _ => Err(backoff::Error::Permanent(e)),
-                    },
-                }
+                api.replace(&name, &Default::default(), &new_resource).await
             })
+            .retry(ExponentialBuilder::default())
+            .when(|e| matches!(e, kube::Error::Api(api_err) if api_err.code == 409))
             .await?),
             Err(kube::Error::Api(ref err)) if err.code == 404 => {
                 Ok(api.create(&PostParams::default(), &resource).await?)

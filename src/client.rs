@@ -3,7 +3,7 @@ use crate::{
     cluster_api::clusters::Cluster,
     GLOBAL_RUNTIME,
 };
-use backoff::{future::retry, ExponentialBackoff};
+use backon::{ExponentialBuilder, Retryable};
 use kube::{
     api::{Api, DynamicObject, GroupVersionKind},
     core::{gvk::ParseGroupVersionError, GroupVersion},
@@ -82,7 +82,7 @@ impl KubeClient {
 
         py.allow_threads(|| {
             GLOBAL_RUNTIME.block_on(async {
-                match retry(ExponentialBackoff::default(), || async {
+                match (|| async {
                     let object = object.clone();
                     let mut remote_object = api.get(&name).await?;
 
@@ -90,19 +90,11 @@ impl KubeClient {
                     remote_object.spec.cluster_network = object.spec.cluster_network;
                     remote_object.spec.topology = object.spec.topology;
 
-                    match api
-                        .replace(&name, &Default::default(), &remote_object)
+                    api.replace(&name, &Default::default(), &remote_object)
                         .await
-                    {
-                        Ok(result) => Ok(result),
-                        Err(e) => match e {
-                            kube::Error::Api(ref err) if err.code == 409 => {
-                                Err(backoff::Error::transient(e))
-                            }
-                            _ => Err(backoff::Error::Permanent(e)),
-                        },
-                    }
                 })
+                .retry(ExponentialBuilder::default())
+                .when(|e| matches!(e, kube::Error::Api(api_err) if api_err.code == 409))
                 .await
                 {
                     Ok(_) => Ok(()),
