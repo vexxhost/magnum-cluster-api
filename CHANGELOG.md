@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.29.4](https://github.com/vexxhost/magnum-cluster-api/compare/v0.29.3...v0.29.4) (2025-04-16)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate once_cell to v1.21.2 ([#621](https://github.com/vexxhost/magnum-cluster-api/issues/621)) ([385b763](https://github.com/vexxhost/magnum-cluster-api/commit/385b763e19fcc6559a73aabdc084877aa5d691c1))
+* **deps:** update rust crate once_cell to v1.21.3 ([#625](https://github.com/vexxhost/magnum-cluster-api/issues/625)) ([59ccc34](https://github.com/vexxhost/magnum-cluster-api/commit/59ccc3441bc49f29291dc59dfdb2de090c9cd559))
+* **deps:** update rust crate pyo3 to v0.24.1 [security] ([#627](https://github.com/vexxhost/magnum-cluster-api/issues/627)) ([09650e9](https://github.com/vexxhost/magnum-cluster-api/commit/09650e9389f0d82c65dbb5ae44a289044c2f10e7))
+* **deps:** update rust crate pyo3-log to v0.12.3 ([#626](https://github.com/vexxhost/magnum-cluster-api/issues/626)) ([2a18243](https://github.com/vexxhost/magnum-cluster-api/commit/2a182438f1051115bda3dec6e859539fa56d7eb1))
+* **deps:** update rust crate tokio to v1.44.2 ([#629](https://github.com/vexxhost/magnum-cluster-api/issues/629)) ([952347b](https://github.com/vexxhost/magnum-cluster-api/commit/952347b3351347fb77e34a93e0baa7bf9ca2a214))
+* enable deleting missing machine deployment ([#640](https://github.com/vexxhost/magnum-cluster-api/issues/640)) ([19b9c56](https://github.com/vexxhost/magnum-cluster-api/commit/19b9c56191e9a2ca988abd4e2b110df6e15ef86f))
+* use tpool.Proxy for Rust calls ([#645](https://github.com/vexxhost/magnum-cluster-api/issues/645)) ([5c6ee47](https://github.com/vexxhost/magnum-cluster-api/commit/5c6ee47ab9285e44431cdb8bcd72b2e8819d4e39))
+
 ## [0.29.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.29.2...v0.29.3) (2025-03-26)
 
 
