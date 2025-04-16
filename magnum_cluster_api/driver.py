@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import keystoneauth1  # type: ignore
+from eventlet import tpool  # type: ignore
 from heatclient import exc  # type: ignore
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.conductor import scale_manager  # type: ignore
@@ -46,14 +47,14 @@ def cluster_lock_wrapper(func):
 class BaseDriver(driver.Driver):
     def __init__(self):
         self.k8s_api = clients.get_pykube_api()
-        self.rust_driver = magnum_cluster_api.Driver(
-            "magnum-system", resources.CLUSTER_CLASS_NAME
+        self.rust_driver = tpool.Proxy(
+            magnum_cluster_api.Driver("magnum-system", resources.CLUSTER_CLASS_NAME)
         )
 
     @property
     def kube_client(self):
         if not hasattr(self, "_kube_client"):
-            self._kube_client = magnum_cluster_api.KubeClient()
+            self._kube_client = tpool.Proxy(magnum_cluster_api.KubeClient())
         return self._kube_client
 
     def create_cluster(

@@ -1,7 +1,6 @@
 use crate::{
     clients::kubernetes::{self, ClientHelpers},
     cluster_api::clusters::Cluster,
-    GLOBAL_RUNTIME,
 };
 use backon::{ExponentialBuilder, Retryable};
 use kube::{
@@ -10,6 +9,7 @@ use kube::{
     Client,
 };
 use pyo3::{create_exception, exceptions::PyException, prelude::*, types::PyDict, Bound};
+use pyo3_async_runtimes::tokio::get_runtime;
 use std::{fmt::Debug, str::FromStr};
 use thiserror::Error;
 
@@ -45,7 +45,7 @@ impl From<KubeClientError> for PyErr {
 impl KubeClient {
     #[new]
     pub fn new() -> Result<Self, kubernetes::Error> {
-        let client = GLOBAL_RUNTIME.block_on(async { Client::try_default().await })?;
+        let client = get_runtime().block_on(async { Client::try_default().await })?;
         Ok(KubeClient { client })
     }
 
@@ -61,7 +61,7 @@ impl KubeClient {
             .get_api_from_gvk(&gvk, object.metadata.namespace.as_deref());
 
         py.allow_threads(|| {
-            GLOBAL_RUNTIME.block_on(async move {
+            get_runtime().block_on(async move {
                 self.client.create_or_update_resource(api, object).await?;
 
                 Ok(())
@@ -81,7 +81,7 @@ impl KubeClient {
         let api: Api<Cluster> = Api::namespaced(self.client.clone(), &namespace);
 
         py.allow_threads(|| {
-            GLOBAL_RUNTIME.block_on(async {
+            get_runtime().block_on(async {
                 match (|| async {
                     let object = object.clone();
                     let mut remote_object = api.get(&name).await?;
@@ -121,7 +121,7 @@ impl KubeClient {
         let api = self.client.get_api_from_gvk(&gvk, namespace);
 
         py.allow_threads(|| {
-            GLOBAL_RUNTIME.block_on(async {
+            get_runtime().block_on(async {
                 self.client.delete_resource(api, name).await?;
 
                 Ok(())
