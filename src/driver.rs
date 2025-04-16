@@ -7,11 +7,11 @@ use crate::{
     features,
     magnum::{self},
     resources::ClusterClassBuilder,
-    GLOBAL_RUNTIME,
 };
 use k8s_openapi::api::core::v1::{Namespace, Secret};
 use kube::{api::ObjectMeta, Api, Client};
 use pyo3::{prelude::*, types::PyType};
+use pyo3_async_runtimes::tokio::get_runtime;
 
 #[pyclass]
 pub struct Driver {
@@ -34,7 +34,7 @@ impl Driver {
         cluster: &magnum::Cluster,
     ) -> PyResult<()> {
         py.allow_threads(|| {
-            GLOBAL_RUNTIME.block_on(async {
+            get_runtime().block_on(async {
                 // TODO(mnaser): The secret is still being created by the Python
                 //               code, we need to move this to Rust.
                 self.client
@@ -55,7 +55,7 @@ impl Driver {
         cluster: &magnum::Cluster,
     ) -> PyResult<()> {
         py.allow_threads(|| {
-            GLOBAL_RUNTIME.block_on(async {
+            get_runtime().block_on(async {
                 // TODO(mnaser): The secret is still being created by the Python
                 //               code, we need to move this to Rust.
                 self.client
@@ -76,7 +76,7 @@ impl Driver {
         cluster: &magnum::Cluster,
     ) -> PyResult<()> {
         py.allow_threads(|| {
-            GLOBAL_RUNTIME.block_on(async {
+            get_runtime().block_on(async {
                 let resource_name = ClusterResourceSet::from(cluster).metadata.name.unwrap();
 
                 self.client
@@ -103,7 +103,7 @@ impl Driver {
         cluster: &magnum::Cluster,
     ) -> PyResult<()> {
         py.allow_threads(|| {
-            GLOBAL_RUNTIME.block_on(async {
+            get_runtime().block_on(async {
                 let resource_name = cluster.cloud_provider_resource_name()?;
 
                 self.client
@@ -129,7 +129,7 @@ impl Driver {
 impl Driver {
     #[new]
     fn new(namespace: String, cluster_class_name: String) -> Result<Self, kubernetes::Error> {
-        let client = GLOBAL_RUNTIME.block_on(async { Client::try_default().await })?;
+        let client = get_runtime().block_on(async { Client::try_default().await })?;
 
         Ok(Self {
             client,
@@ -162,7 +162,7 @@ impl Driver {
         let cluster_class = ClusterClassBuilder::default(metadata.clone());
 
         py.allow_threads(|| {
-            GLOBAL_RUNTIME.block_on(async move {
+            get_runtime().block_on(async move {
                 self.client
                     .create_or_update_cluster_resource(Namespace::from(self))
                     .await?;
