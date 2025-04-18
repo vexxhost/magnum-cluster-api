@@ -47,31 +47,11 @@ def get_image(name: str, repository: str = None):
     if not repository:
         return name
 
-    new_image_name = name
     if name.startswith("docker.io/calico"):
-        new_image_name = name.replace("docker.io/calico/", f"{repository}/calico/")
+        return name.replace("docker.io/calico/", f"{repository}/calico/")
     if name.startswith("quay.io/cilium"):
-        new_image_name = name.replace("quay.io/cilium/", f"{repository}/cilium/")
-    if name.startswith("docker.io/k8scloudprovider"):
-        new_image_name = name.replace("docker.io/k8scloudprovider", repository)
-    if name.startswith("registry.k8s.io/sig-storage"):
-        new_image_name = name.replace("registry.k8s.io/sig-storage", repository)
-    if name.startswith("registry.k8s.io/provider-os"):
-        new_image_name = name.replace("registry.k8s.io/provider-os", repository)
-    if name.startswith("gcr.io/k8s-staging-sig-storage"):
-        new_image_name = name.replace("gcr.io/k8s-staging-sig-storage", repository)
-    if new_image_name.startswith(f"{repository}/livenessprobe"):
-        return new_image_name.replace("livenessprobe", "csi-livenessprobe")
-    if new_image_name.startswith("registry.k8s.io/coredns"):
-        return new_image_name.replace("registry.k8s.io/coredns", repository)
-    if new_image_name.startswith("registry.k8s.io/autoscaling"):
-        return new_image_name.replace("registry.k8s.io/autoscaling", repository)
-    if (
-        new_image_name.startswith("registry.k8s.io/etcd")
-        or new_image_name.startswith("registry.k8s.io/kube-")
-        or new_image_name.startswith("registry.k8s.io/pause")
-    ):
-        return new_image_name.replace("registry.k8s.io", repository)
+        return name.replace("quay.io/cilium/", f"{repository}/cilium/")
+    if name.startswith(f"{repository}/livenessprobe"):
+        return name.replace("livenessprobe", "csi-livenessprobe")
 
-    assert new_image_name.startswith(repository) is True
-    return new_image_name
+    return repository + "/" + name.split("/")[-1]
