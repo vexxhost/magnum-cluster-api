@@ -13,7 +13,6 @@ use kube::{api::ObjectMeta, Api, Client};
 use log::debug;
 use pyo3::{prelude::*, types::PyType};
 use pyo3_async_runtimes::tokio::get_runtime;
-use pythonize::depythonize;
 
 #[pyclass]
 pub struct Driver {
@@ -217,9 +216,10 @@ impl Driver {
     #[pyo3(signature = (cluster))]
     fn get_legacy_cluster_resource_secret_data(
         _cls: &Bound<'_, PyType>,
-        cluster: &Bound<'_, PyAny>,
+        cluster: PyObject,
+        py: Python<'_>,
     ) -> PyResult<Option<BTreeMap<String, String>>> {
-        let cluster: magnum::Cluster = depythonize(cluster)?;
+        let cluster: magnum::Cluster = cluster.extract(py)?;
 
         Ok(Secret::from(cluster).string_data)
     }
@@ -230,16 +230,17 @@ impl Driver {
     #[pyo3(signature = (cluster))]
     fn get_cloud_provider_cluster_resource_secret_data(
         _cls: &Bound<'_, PyType>,
-        cluster: &Bound<'_, PyAny>,
+        cluster: PyObject,
+        py: Python<'_>,
     ) -> PyResult<Option<BTreeMap<String, String>>> {
-        let cluster: magnum::Cluster = depythonize(cluster)?;
+        let cluster: magnum::Cluster = cluster.extract(py)?;
 
         let addon = addons::cloud_controller_manager::Addon::new(cluster.clone());
         Ok(cluster.cloud_provider_secret(&addon)?.string_data)
     }
 
-    fn create_cluster(&self, py: Python<'_>, cluster: &Bound<'_, PyAny>) -> PyResult<()> {
-        let cluster: magnum::Cluster = depythonize(cluster)?;
+    fn create_cluster(&self, py: Python<'_>, cluster: PyObject) -> PyResult<()> {
+        let cluster: magnum::Cluster = cluster.extract(py)?;
 
         self.apply_cluster_class(py)?;
         self.create_legacy_cluster_resource_set(py, &cluster)?;
@@ -248,8 +249,8 @@ impl Driver {
         Ok(())
     }
 
-    fn upgrade_cluster(&self, py: Python<'_>, cluster: &Bound<'_, PyAny>) -> PyResult<()> {
-        let cluster: magnum::Cluster = depythonize(cluster)?;
+    fn upgrade_cluster(&self, py: Python<'_>, cluster: PyObject) -> PyResult<()> {
+        let cluster: magnum::Cluster = cluster.extract(py)?;
 
         self.apply_cluster_class(py)?;
         self.apply_cloud_provider_cluster_resource_set(py, &cluster)?;
@@ -257,8 +258,8 @@ impl Driver {
         Ok(())
     }
 
-    fn delete_cluster(&self, py: Python<'_>, cluster: &Bound<'_, PyAny>) -> PyResult<()> {
-        let cluster: magnum::Cluster = depythonize(cluster)?;
+    fn delete_cluster(&self, py: Python<'_>, cluster: PyObject) -> PyResult<()> {
+        let cluster: magnum::Cluster = cluster.extract(py)?;
 
         self.delete_cloud_provider_cluster_resource_set(py, &cluster)?;
         self.delete_legacy_cluster_resource_set(py, &cluster)?;

@@ -14,29 +14,34 @@ use std::collections::BTreeMap;
 use thiserror::Error;
 use typed_builder::TypedBuilder;
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, FromPyObject)]
 pub struct ClusterTemplate {
     pub network_driver: String,
 }
 
-#[derive(Clone, Default, Deserialize, TypedBuilder)]
+#[derive(Clone, Default, Deserialize, FromPyObject, TypedBuilder)]
+#[pyo3(from_item_all)]
 pub struct ClusterLabels {
     /// The prefix of the container images to use for the cluster, which
     /// defaults to the upstream images if not set.
     #[builder(default)]
+    #[pyo3(default)]
     pub container_infra_prefix: Option<String>,
 
     /// The tag of the Cilium container image to use for the cluster.
     #[builder(default="v1.15.3".to_owned())]
+    #[pyo3(default="v1.15.3".to_owned())]
     pub cilium_tag: String,
 
     /// The IP address range to use for the Cilium IPAM pool.
     #[builder(default="10.100.0.0/16".to_owned())]
+    #[pyo3(default="10.100.0.0/16".to_owned())]
     pub cilium_ipv4pool: String,
 
     /// The tag to use for the OpenStack cloud controller provider
     /// when bootstrapping the cluster.
     #[builder(default="v1.30.0".to_owned())]
+    #[pyo3(default="v1.30.0".to_owned())]
     pub cloud_provider_tag: String,
 
     /// The Kubernetes version to use for the cluster.
@@ -88,7 +93,7 @@ impl Default for ClusterStatus {
     }
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, FromPyObject)]
 pub struct Cluster {
     pub uuid: String,
     pub cluster_template: ClusterTemplate,

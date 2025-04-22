@@ -8,7 +8,6 @@ use kube::{api::ListParams, Api, Client};
 use maplit::btreemap;
 use pyo3::{create_exception, exceptions::PyException, prelude::*, types::PyDict};
 use pyo3_async_runtimes::tokio::get_runtime;
-use pythonize::depythonize;
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -123,11 +122,11 @@ pub struct Monitor {
 impl Monitor {
     #[new]
     #[pyo3(signature = (cluster))]
-    fn new(cluster: &Bound<'_, PyAny>) -> PyResult<Self> {
+    fn new(py: Python<'_>, cluster: PyObject) -> PyResult<Self> {
         let client = get_runtime()
             .block_on(async { Client::try_default().await })
             .map_err(kubernetes::Error::from)?;
-        let cluster: magnum::Cluster = depythonize(cluster)?;
+        let cluster: magnum::Cluster = cluster.extract(py)?;
         Ok(Self { client, cluster })
     }
 
