@@ -14,34 +14,29 @@ use std::collections::BTreeMap;
 use thiserror::Error;
 use typed_builder::TypedBuilder;
 
-#[derive(Clone, Deserialize, FromPyObject)]
+#[derive(Clone, Deserialize)]
 pub struct ClusterTemplate {
     pub network_driver: String,
 }
 
-#[derive(Clone, Default, Deserialize, FromPyObject, TypedBuilder)]
-#[pyo3(from_item_all)]
+#[derive(Clone, Default, Deserialize, TypedBuilder)]
 pub struct ClusterLabels {
     /// The prefix of the container images to use for the cluster, which
     /// defaults to the upstream images if not set.
     #[builder(default)]
-    #[pyo3(default)]
     pub container_infra_prefix: Option<String>,
 
     /// The tag of the Cilium container image to use for the cluster.
     #[builder(default="v1.15.3".to_owned())]
-    #[pyo3(default="v1.15.3".to_owned())]
     pub cilium_tag: String,
 
     /// The IP address range to use for the Cilium IPAM pool.
     #[builder(default="10.100.0.0/16".to_owned())]
-    #[pyo3(default="10.100.0.0/16".to_owned())]
     pub cilium_ipv4pool: String,
 
     /// The tag to use for the OpenStack cloud controller provider
     /// when bootstrapping the cluster.
     #[builder(default="v1.30.0".to_owned())]
-    #[pyo3(default="v1.30.0".to_owned())]
     pub cloud_provider_tag: String,
 
     /// The Kubernetes version to use for the cluster.
@@ -64,12 +59,42 @@ impl From<ClusterError> for PyErr {
     }
 }
 
-#[derive(Clone, Deserialize, FromPyObject)]
+#[derive(Clone, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ClusterStatus {
+    CreateInProgress,
+    CreateFailed,
+    CreateComplete,
+    UpdateInProgress,
+    UpdateFailed,
+    UpdateComplete,
+    DeleteInProgress,
+    DeleteFailed,
+    DeleteComplete,
+    ResumeComplete,
+    ResumeFailed,
+    RestoreComplete,
+    RollbackInProgress,
+    RollbackFailed,
+    RollbackComplete,
+    SnapshotComplete,
+    CheckComplete,
+    AdoptComplete,
+}
+
+impl Default for ClusterStatus {
+    fn default() -> Self {
+        ClusterStatus::CreateInProgress
+    }
+}
+
+#[derive(Clone, Deserialize)]
 pub struct Cluster {
     pub uuid: String,
     pub cluster_template: ClusterTemplate,
     pub stack_id: Option<String>,
     pub labels: ClusterLabels,
+    pub status: ClusterStatus,
 }
 
 impl From<Cluster> for ObjectMeta {
@@ -198,6 +223,7 @@ mod tests {
     fn test_object_meta_from_cluster() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -214,6 +240,7 @@ mod tests {
     fn test_cluster_stack_id() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -229,6 +256,7 @@ mod tests {
     fn test_cluster_stack_id_missing() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: None,
             cluster_template: ClusterTemplate {
@@ -252,6 +280,7 @@ mod tests {
     fn test_cluster_cloud_provider_resource_name() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -269,6 +298,7 @@ mod tests {
     fn test_cluster_cloud_provider_cluster_resource_set() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -309,6 +339,7 @@ mod tests {
     fn test_cluster_cloud_provider_secret() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: Some("kube-abcde".to_string()),
             cluster_template: ClusterTemplate {
@@ -344,6 +375,7 @@ mod tests {
     fn test_cluster_cloud_provider_secret_manifest_render_failure() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: Some("kube-abcde".to_string()),
             cluster_template: ClusterTemplate {
@@ -372,6 +404,7 @@ mod tests {
     fn test_cluster_resource_set_from_cluster() {
         let cluster = &Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -455,6 +488,7 @@ mod tests {
     fn test_secret_from_cluster() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
