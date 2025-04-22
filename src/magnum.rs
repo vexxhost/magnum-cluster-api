@@ -59,7 +59,7 @@ impl From<ClusterError> for PyErr {
     }
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ClusterStatus {
     CreateInProgress,

@@ -10,6 +10,7 @@ use crate::{
 };
 use k8s_openapi::api::core::v1::{Namespace, Secret};
 use kube::{api::ObjectMeta, Api, Client};
+use log::debug;
 use pyo3::{prelude::*, types::PyType};
 use pyo3_async_runtimes::tokio::get_runtime;
 use pythonize::depythonize;
@@ -57,6 +58,19 @@ impl Driver {
     ) -> PyResult<()> {
         py.allow_threads(|| {
             get_runtime().block_on(async {
+                // NOTE(mnaser): The updated cloud provider resource uses a different set of
+                //               labels and annotations (from the Helm chart) than the legacy
+                //               ones which was created by manifests. We need to clean up the
+                //               legacy resources otherwise it will generate a conflict during
+                //               the upgrade.
+                //
+                //               https://github.com/vexxhost/magnum-cluster-api/issues/580
+                if cluster.status == magnum::ClusterStatus::UpdateInProgress {
+                    debug!("Detecting cluster upgrade, ensuring that the legacy resource set is deleted");
+                    // TODO: create client for the remote cluster
+                    // TODO: make sure the "incorrect" resources are deleted
+                }
+
                 // TODO(mnaser): The secret is still being created by the Python
                 //               code, we need to move this to Rust.
                 self.client
