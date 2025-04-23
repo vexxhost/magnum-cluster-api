@@ -54,6 +54,7 @@ impl Driver {
         &self,
         py: Python<'_>,
         cluster: &magnum::Cluster,
+        upgrade: bool,
     ) -> PyResult<()> {
         py.allow_threads(|| {
             get_runtime().block_on(async {
@@ -64,7 +65,7 @@ impl Driver {
                 //               the upgrade.
                 //
                 //               https://github.com/vexxhost/magnum-cluster-api/issues/580
-                if cluster.status == magnum::ClusterStatus::UpdateInProgress {
+                if upgrade {
                     debug!("Detecting cluster upgrade, ensuring that the legacy resource set is deleted");
                     // TODO: create client for the remote cluster
                     // TODO: make sure the "incorrect" resources are deleted
@@ -244,7 +245,7 @@ impl Driver {
 
         self.apply_cluster_class(py)?;
         self.create_legacy_cluster_resource_set(py, &cluster)?;
-        self.apply_cloud_provider_cluster_resource_set(py, &cluster)?;
+        self.apply_cloud_provider_cluster_resource_set(py, &cluster, false)?;
 
         Ok(())
     }
@@ -253,7 +254,7 @@ impl Driver {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
         self.apply_cluster_class(py)?;
-        self.apply_cloud_provider_cluster_resource_set(py, &cluster)?;
+        self.apply_cloud_provider_cluster_resource_set(py, &cluster, true)?;
 
         Ok(())
     }
