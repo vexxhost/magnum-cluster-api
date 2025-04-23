@@ -177,10 +177,13 @@ impl Cluster {
 
     pub async fn client(&self) -> Result<Client, ClusterError> {
         let kubeconfig = self.kubeconfig().await?;
-        debug!("Kubeconfig: {:?}", kubeconfig.clone());
         let config =
             Config::from_custom_kubeconfig(kubeconfig, &KubeConfigOptions::default()).await?;
         let client = Client::try_from(config).map_err(|e| ClusterError::Kubernetes(e))?;
+
+        // TODO: If the Cluster API driver is running outside of the management cluster and this is an
+        //       isolated cluster, we need to create a port-forward to the API server through the
+        //       management cluster.
 
         Ok(client)
     }
