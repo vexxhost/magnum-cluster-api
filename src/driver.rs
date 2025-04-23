@@ -67,6 +67,7 @@ impl Driver {
                 //               https://github.com/vexxhost/magnum-cluster-api/issues/580
                 if upgrade {
                     debug!("Detecting cluster upgrade, ensuring that the legacy resource set is deleted");
+                    let client = cluster.client().await?;
                     // TODO: create client for the remote cluster
                     // TODO: make sure the "incorrect" resources are deleted
                 }
