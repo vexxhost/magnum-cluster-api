@@ -64,7 +64,7 @@ impl From<ClusterError> for PyErr {
     }
 }
 
-#[derive(Clone, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ClusterStatus {
     CreateInProgress,
@@ -85,6 +85,19 @@ pub enum ClusterStatus {
     SnapshotComplete,
     CheckComplete,
     AdoptComplete,
+}
+
+impl FromPyObject<'_> for ClusterStatus {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let status = ob.extract::<String>()?;
+
+        serde_plain::from_str(&status).map_err(|err| {
+            PyErr::new::<PyRuntimeError, _>(format!(
+                "failed to parse cluster status: {}: {}",
+                status, err
+            ))
+        })
+    }
 }
 
 impl Default for ClusterStatus {
@@ -210,6 +223,7 @@ mod tests {
     use super::*;
     use crate::addons;
     use pretty_assertions::assert_eq;
+    use pyo3::{prepare_freethreaded_python, types::PyString};
     use rstest::rstest;
     use serde::Serialize;
     use serde_yaml::Value;
@@ -223,6 +237,32 @@ mod tests {
         "Installation",
         "StorageClass",
     ];
+
+    #[rstest]
+    #[case("CREATE_IN_PROGRESS", ClusterStatus::CreateInProgress)]
+    #[case("CREATE_FAILED", ClusterStatus::CreateFailed)]
+    fn test_cluster_status_from_pyobject(#[case] status: &str, #[case] expected: ClusterStatus) {
+        prepare_freethreaded_python();
+
+        Python::with_gil(|py| {
+            let py_status = PyString::new(py, status);
+            let result: ClusterStatus = py_status
+                .extract()
+                .expect("Failed to extract ClusterStatus");
+            assert_eq!(result, expected);
+        });
+    }
+
+    #[test]
+    fn test_cluster_status_from_pyobject_invalid() {
+        prepare_freethreaded_python();
+
+        Python::with_gil(|py| {
+            let py_status = PyString::new(py, "INVALID_STATUS");
+            let result: Result<ClusterStatus, _> = py_status.extract();
+            assert!(result.is_err());
+        });
+    }
 
     #[test]
     fn test_object_meta_from_cluster() {
