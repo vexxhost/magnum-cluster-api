@@ -10,10 +10,8 @@ use crate::{
 };
 use k8s_openapi::api::core::v1::{Namespace, Secret};
 use k8s_openapi::api::apps::v1::DaemonSet;
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
 use kube::{api::ListParams, api::ObjectMeta, Api, Client};
 use log::debug;
-use maplit::btreemap;
 use pyo3::{prelude::*, types::PyType};
 use pyo3_async_runtimes::tokio::get_runtime;
 
@@ -72,25 +70,16 @@ impl Driver {
                     debug!("Detecting cluster upgrade, ensuring that the legacy resource set is deleted");
 
                     let client = cluster.client().await?;
-
-                    // Define the label selector for the DaemonSet
-                    let label_selector = "k8s-app=openstack-cloud-controller-manager";
-
-                    // API for DaemonSet in the specified namespace
-                    let daemonset_api = Api::<DaemonSet>::namespaced(client.clone(), "kube-system");
-                    let list_params = ListParams::default().labels_from(
-                        &LabelSelector {
-                            match_labels: Some(btreemap! {
-                                "k8s-app".to_string() => "openstack-cloud-controller-manager".to_string(),
-                            }),
-                            ..Default::default()
-                        }.try_into()
-                    );
-                    let daemonsets = daemonset_api.list(&list_params).await;
-                    for daemonset in daemonsets.items {
+                    let daemonsets = client.list_resources(
+                        Api::<DaemonSet>::namespaced(client.clone(), "kube-system"),
+                        ListParams::default().labels("k8s-app=openstack-cloud-controller-manager"),
+                    ).await?;
+                    for daemonset in daemonsets {
                         // Delete the DaemonSet resource
-                        self.client
-                            .delete_resource(daemonset_api, &daemonset.metadata.name.unwrap())
+                        client.delete_resource(
+                                Api::<DaemonSet>::namespaced(client.clone(), "kube-system"),
+                                &daemonset.metadata.name.unwrap(),
+                            )
                             .await?;
                     }
                 }

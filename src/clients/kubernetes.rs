@@ -1,7 +1,7 @@
 use backon::{ExponentialBuilder, Retryable};
 use k8s_openapi::serde::{de::DeserializeOwned, Deserialize, Serialize};
 use kube::{
-    api::{Api, ApiResource, DynamicObject, GroupVersionKind, PostParams},
+    api::{Api, ApiResource, DynamicObject, GroupVersionKind, ListParams, ObjectList, PostParams},
     core::{ClusterResourceScope, NamespaceResourceScope, Resource},
     Client, ResourceExt,
 };
@@ -57,6 +57,10 @@ pub trait ClientHelpers {
     async fn delete_resource<T>(&self, api: Api<T>, name: &str) -> Result<(), Error>
     where
         T: Resource + Clone + std::fmt::Debug + for<'de> Deserialize<'de> + Serialize;
+
+    async fn list_resources<T>(&self, api: Api<T>, list_params: ListParams) -> Result<ObjectList<T>, Error>
+    where
+        T: Resource + Clone + std::fmt::Debug + DeserializeOwned + Serialize;
 }
 
 impl ClientHelpers for Client {
@@ -138,6 +142,16 @@ impl ClientHelpers for Client {
             Err(kube::Error::Api(ref err)) if err.code == 404 => Ok(()),
             Err(e) => Err(e)?,
         }
+    }
+
+    async fn list_resources<T>(&self, api: Api<T>, list_params: ListParams) -> Result<ObjectList<T>, Error>
+    where
+        T: Resource + Clone + std::fmt::Debug + DeserializeOwned + Serialize,
+    {
+        // Fetch the resources from the API with the given ListParams
+        api.list(&list_params)
+            .await
+            .map_err(|e| Error(kube::Error::from(e))) // Convert kube error to our Error type
     }
 }
 
