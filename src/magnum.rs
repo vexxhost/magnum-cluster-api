@@ -117,11 +117,6 @@ impl FromPyObject<'_> for ClusterStatus {
     }
 }
 
-#[derive(Default)]
-struct ClusterStatus {
-    bar: bool
-}
-
 #[derive(Clone, Deserialize, FromPyObject)]
 pub struct Cluster {
     pub uuid: String,

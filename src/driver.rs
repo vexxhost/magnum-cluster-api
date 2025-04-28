@@ -84,13 +84,13 @@ impl Driver {
                                 "k8s-app".to_string() => "openstack-cloud-controller-manager".to_string(),
                             }),
                             ..Default::default()
-                        }
+                        }.try_into()?
                     );
-                    let daemonsets = daemonset_api.list(&list_params).await?;
+                    let daemonsets = daemonset_api.list(&list_params).await;
                     for daemonset in daemonsets.items {
                         // Delete the DaemonSet resource
                         self.client
-                            .delete_resource(&daemonset_api, &daemonset.metadata.name.unwrap())
+                            .delete_resource(daemonset_api, &daemonset.metadata.name.unwrap())
                             .await?;
                     }
                 }
