@@ -148,10 +148,10 @@ impl ClientHelpers for Client {
     where
         T: Resource + Clone + std::fmt::Debug + DeserializeOwned + Serialize,
     {
-        // Fetch the resources from the API with the given ListParams
-        api.list(&list_params)
-            .await
-            .map_err(|e| Error(kube::Error::from(e))) // Convert kube error to our Error type
+        match api.list(&list_params).await {
+            Ok(object_list) => Ok(object_list),
+            Err(e) => Err(e)?,
+        }
     }
 }
 
