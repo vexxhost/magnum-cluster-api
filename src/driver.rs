@@ -84,7 +84,7 @@ impl Driver {
                                 "k8s-app".to_string() => "openstack-cloud-controller-manager".to_string(),
                             }),
                             ..Default::default()
-                        }.try_into()?
+                        }.try_into()
                     );
                     let daemonsets = daemonset_api.list(&list_params).await;
                     for daemonset in daemonsets.items {
