@@ -9,8 +9,11 @@ use crate::{
     resources::ClusterClassBuilder,
 };
 use k8s_openapi::api::core::v1::{Namespace, Secret};
-use kube::{api::ObjectMeta, Api, Client};
+use k8s_openapi::api::apps::v1::DaemonSet;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
+use kube::{api::ListParams, api::ObjectMeta, Api, Client};
 use log::debug;
+use maplit::btreemap;
 use pyo3::{prelude::*, types::PyType};
 use pyo3_async_runtimes::tokio::get_runtime;
 
@@ -69,7 +72,35 @@ impl Driver {
                     debug!("Detecting cluster upgrade, ensuring that the legacy resource set is deleted");
 
                     let client = cluster.client().await?;
-                    // TODO: make sure the "incorrect" resources are deleted if they exist
+
+                    // Define the label selector for the DaemonSet
+                    let label_selector = "k8s-app=openstack-cloud-controller-manager";
+
+                    // API for DaemonSet in the specified namespace
+                    let daemonset_api = Api::<DaemonSet>::namespaced(client.clone(), "kube-system");
+                    let list_params = ListParams::default().labels_from(
+                        &LabelSelector {
+                            match_labels: Some(btreemap! {
+                                "k8s-app".to_string() => "openstack-cloud-controller-manager".to_string(),
+                            }),
+                            ..Default::default()
+                        }
+                    );
+                    let daemonsets = py.allow_threads(|| {
+                        get_runtime().block_on(async {
+                            daemonset_api.list(&list_params).await?;
+                        })
+                    });
+                    for daemonset in daemonsets.items {
+                        // Delete the DaemonSet resource
+                        py.allow_threads(|| {
+                            get_runtime().block_on(async {
+                                self.client
+                                    .delete_resource(&daemonset_api, &daemonset.metadata.name.unwrap())
+                                    .await?;
+                            })
+                        });
+                    }
                 }
 
                 // TODO(mnaser): The secret is still being created by the Python

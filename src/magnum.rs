@@ -11,7 +11,6 @@ use kube::{
     config::{KubeConfigOptions, Kubeconfig},
     Api, Client, Config,
 };
-use log::debug;
 use maplit::btreemap;
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
 use serde::Deserialize;
