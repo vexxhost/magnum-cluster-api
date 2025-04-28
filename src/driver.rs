@@ -86,20 +86,12 @@ impl Driver {
                             ..Default::default()
                         }
                     );
-                    let daemonsets = py.allow_threads(|| {
-                        get_runtime().block_on(async {
-                            daemonset_api.list(&list_params).await?;
-                        })
-                    });
+                    let daemonsets = daemonset_api.list(&list_params).await?;
                     for daemonset in daemonsets.items {
                         // Delete the DaemonSet resource
-                        py.allow_threads(|| {
-                            get_runtime().block_on(async {
-                                self.client
-                                    .delete_resource(&daemonset_api, &daemonset.metadata.name.unwrap())
-                                    .await?;
-                            })
-                        });
+                        self.client
+                            .delete_resource(&daemonset_api, &daemonset.metadata.name.unwrap())
+                            .await?;
                     }
                 }
 

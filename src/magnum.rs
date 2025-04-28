@@ -80,9 +80,10 @@ impl From<ClusterError> for PyErr {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ClusterStatus {
+    #[default]
     CreateInProgress,
     CreateFailed,
     CreateComplete,
@@ -116,10 +117,9 @@ impl FromPyObject<'_> for ClusterStatus {
     }
 }
 
-impl Default for ClusterStatus {
-    fn default() -> Self {
-        ClusterStatus::CreateInProgress
-    }
+#[derive(Default)]
+struct ClusterStatus {
+    bar: bool
 }
 
 #[derive(Clone, Deserialize, FromPyObject)]
@@ -161,7 +161,7 @@ impl Cluster {
         let secret = api
             .get(&secret_name)
             .await
-            .map_err(|e| ClusterError::Kubernetes(e))?;
+            .map_err(ClusterError::Kubernetes)?;
 
         let secret_data = secret
             .data
@@ -171,14 +171,14 @@ impl Cluster {
             .get("value")
             .ok_or_else(|| ClusterError::KubeconfigSecretNotFound(secret_name.clone()))?;
 
-        serde_yaml::from_slice::<Kubeconfig>(&data.0).map_err(|e| ClusterError::KubeconfigParse(e))
+        serde_yaml::from_slice::<Kubeconfig>(&data.0).map_err(ClusterError::KubeconfigParse)
     }
 
     pub async fn client(&self) -> Result<Client, ClusterError> {
         let kubeconfig = self.kubeconfig().await?;
         let config =
             Config::from_custom_kubeconfig(kubeconfig, &KubeConfigOptions::default()).await?;
-        let client = Client::try_from(config).map_err(|e| ClusterError::Kubernetes(e))?;
+        let client = Client::try_from(config).map_err(ClusterError::Kubernetes)?;
 
         // TODO: If the Cluster API driver is running outside of the management cluster and this is an
         //       isolated cluster, we need to create a port-forward to the API server through the
