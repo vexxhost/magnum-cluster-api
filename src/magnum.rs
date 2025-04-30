@@ -161,9 +161,7 @@ impl Cluster {
                 ..Default::default()
             },
             type_: Some("addons.cluster.x-k8s.io/resource-set".into()),
-            string_data: Some(btreemap! {
-                "cloud-controller-manager.yaml".to_owned() => addon.manifests()?,
-            }),
+            string_data: Some(addon.manifests()?),
             ..Default::default()
         })
     }
@@ -197,7 +195,15 @@ impl From<Cluster> for Secret {
 
         let cilium = cilium::Addon::new(cluster.clone());
         if cilium.enabled() {
-            data.insert("cilium.yaml".to_owned(), cilium.manifests().unwrap());
+            data.insert(
+                "cilium.yaml".to_owned(),
+                cilium
+                    .manifests()
+                    .unwrap()
+                    .get("cilium.yaml")
+                    .unwrap()
+                    .to_owned(),
+            );
         }
 
         Secret {
@@ -343,9 +349,11 @@ mod tests {
         mock_addon
             .expect_secret_name()
             .return_once(|| Ok("kube-abcde-cloud-provider".to_string()));
-        mock_addon
-            .expect_manifests()
-            .return_once(|| Ok("blah".to_string()));
+        mock_addon.expect_manifests().return_once(|| {
+            Ok(btreemap! {
+                "cloud-controller-manager.yaml".to_owned() => "blah".to_owned(),
+            })
+        });
 
         let result = cluster
             .cluster_addon_secret(&mock_addon)

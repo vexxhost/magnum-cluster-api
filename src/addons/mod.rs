@@ -1,6 +1,7 @@
 use crate::magnum::{self, ClusterError};
 use docker_image::DockerImage;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use thiserror::Error;
 
 pub mod cilium;
@@ -12,7 +13,7 @@ pub trait ClusterAddon {
     fn new(cluster: magnum::Cluster) -> Self;
     fn enabled(&self) -> bool;
     fn secret_name(&self) -> Result<String, ClusterError>;
-    fn manifests(&self) -> Result<String, helm::HelmTemplateError>;
+    fn manifests(&self) -> Result<BTreeMap<String, String>, helm::HelmTemplateError>;
 }
 
 pub trait ClusterAddonValues {

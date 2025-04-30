@@ -4,7 +4,9 @@ use crate::{
 };
 use docker_image::DockerImage;
 use include_dir::include_dir;
+use maplit::btreemap;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct CiliumValues {
@@ -306,15 +308,18 @@ impl ClusterAddon for Addon {
         Ok(format!("{}-cilium", self.cluster.stack_id()?))
     }
 
-    fn manifests(&self) -> Result<String, helm::HelmTemplateError> {
+    fn manifests(&self) -> Result<BTreeMap<String, String>, helm::HelmTemplateError> {
         let values =
             &CiliumValues::try_from(self.cluster.clone()).expect("failed to create values");
-        helm::template_using_include_dir(
-            include_dir!("magnum_cluster_api/charts/cilium"),
-            "cilium",
-            "kube-system",
-            values,
-        )
+
+        Ok(btreemap! {
+            "cilium.yaml".to_owned() => helm::template_using_include_dir(
+                include_dir!("magnum_cluster_api/charts/cilium"),
+                "cilium",
+                "kube-system",
+                values,
+            )?,
+        })
     }
 }
 

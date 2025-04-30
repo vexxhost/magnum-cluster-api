@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use crate::{
     addons::{ClusterAddon, ClusterAddonValues, ClusterAddonValuesError},
     magnum::{self, ClusterError},
@@ -5,6 +7,7 @@ use crate::{
 use docker_image::DockerImage;
 use include_dir::include_dir;
 use k8s_openapi::api::core::v1::{HostPathVolumeSource, Volume, VolumeMount};
+use maplit::btreemap;
 use serde::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 
@@ -166,15 +169,18 @@ impl ClusterAddon for Addon {
         Ok(format!("{}-cloud-provider", self.cluster.stack_id()?))
     }
 
-    fn manifests(&self) -> Result<String, helm::HelmTemplateError> {
+    fn manifests(&self) -> Result<BTreeMap<String, String>, helm::HelmTemplateError> {
         let values = &CloudControllerManagerValues::try_from(self.cluster.clone())
             .expect("failed to create values");
-        helm::template_using_include_dir(
-            include_dir!("magnum_cluster_api/charts/openstack-cloud-controller-manager"),
-            "openstack-ccm",
-            "kube-system",
-            values,
-        )
+
+        Ok(btreemap! {
+            "cloud-controller-manager.yaml".to_owned() => helm::template_using_include_dir(
+                include_dir!("magnum_cluster_api/charts/openstack-cloud-controller-manager"),
+                "openstack-ccm",
+                "kube-system",
+                values,
+            )?,
+        })
     }
 }
 #[cfg(test)]
