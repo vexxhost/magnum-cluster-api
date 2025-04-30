@@ -5,7 +5,9 @@ use crate::{
 use docker_image::DockerImage;
 use include_dir::include_dir;
 use k8s_openapi::api::core::v1::Toleration;
+use maplit::btreemap;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct CSIValues {
@@ -189,14 +191,17 @@ impl ClusterAddon for Addon {
         Ok(format!("{}-cinder-csi", self.cluster.stack_id()?))
     }
 
-    fn manifests(&self) -> Result<String, helm::HelmTemplateError> {
+    fn manifests(&self) -> Result<BTreeMap<String, String>, helm::HelmTemplateError> {
         let values = &CSIValues::try_from(self.cluster.clone()).expect("failed to create values");
-        helm::template_using_include_dir(
-            include_dir!("magnum_cluster_api/charts/openstack-cinder-csi"),
-            "cinder-csi",
-            "kube-system",
-            values,
-        )
+
+        Ok(btreemap! {
+            "cinder-csi.yaml".to_owned() => helm::template_using_include_dir(
+                include_dir!("magnum_cluster_api/charts/openstack-cinder-csi"),
+                "cinder-csi",
+                "kube-system",
+                values,
+            )?,
+        })
     }
 }
 
