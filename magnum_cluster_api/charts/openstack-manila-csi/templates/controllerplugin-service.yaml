@@ -1,0 +1,14 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ include "openstack-manila-csi.controllerplugin.fullname" . }}
+  labels:
+    {{- include "openstack-manila-csi.controllerplugin.labels" .  | nindent 4 }}
+spec:
+  selector:
+    app: {{ include "openstack-manila-csi.name" . }}
+    component: {{ .Values.controllerplugin.name }}
+    release: {{ .Release.Name }}
+  ports:
+    - name: dummy
+      port: 12345
