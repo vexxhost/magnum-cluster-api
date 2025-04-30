@@ -3,6 +3,7 @@ use docker_image::DockerImage;
 use thiserror::Error;
 
 pub mod cilium;
+pub mod cinder_csi;
 pub mod cloud_controller_manager;
 
 #[cfg_attr(test, mockall::automock)]
