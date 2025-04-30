@@ -1,131 +1,172 @@
 use crate::{
-    addons::{ClusterAddon, ClusterAddonValues, ClusterAddonValuesError},
+    addons::{ClusterAddon, ClusterAddonValues, ClusterAddonValuesError, ImageDetails},
     magnum,
 };
 use docker_image::DockerImage;
 use include_dir::include_dir;
-use k8s_openapi::api::core::v1::{Toleration, Volume, VolumeMount};
+use k8s_openapi::api::core::v1::Toleration;
 use serde::{Deserialize, Serialize};
-use typed_builder::TypedBuilder;
 
-#[derive(Debug, Deserialize, PartialEq, Serialize, TypedBuilder)]
-pub struct CinderCsiValues {
-    csi: CsiComponents,
-    secret: CinderCsiSecretValues,
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct CSIValues {
+    csi: CSIComponents,
+    secret: CSISecret,
+
+    #[serde(rename = "storageClass")]
+    storage_class: CSIStorageClass,
+
+    #[serde(rename = "clusterID")]
+    cluster_id: String,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize, TypedBuilder)]
-pub struct CsiComponents {
-    attacher: CsiImage,
-    provisioner: CsiImage,
-    snapshotter: CsiImage,
-    resizer: CsiImage,
-    livenessprobe: CsiImage,
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct CSIComponents {
+    attacher: CSIComponent,
+    provisioner: CSIComponent,
+    snapshotter: CSIComponent,
+    resizer: CSIComponent,
+    livenessprobe: CSIComponent,
+
     #[serde(rename = "nodeDriverRegistrar")]
-    node_driver_registrar: CsiImage,
-    plugin: CsiPlugin,
+    node_driver_registrar: CSIComponent,
+
+    plugin: CSIPlugin,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize, TypedBuilder)]
-pub struct CsiImage {
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+struct CSIComponent {
     image: ImageDetails,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize, TypedBuilder)]
-pub struct ImageDetails {
-    repository: String,
-    tag: String,
-    #[serde(rename = "pullPolicy")]
-    pull_policy: String,
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize, TypedBuilder)]
-pub struct CsiPlugin {
-    image: ImageDetails,
-    #[serde(rename = "controllerPlugin")]
-    controller_plugin: CsiPluginTolerations,
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize, TypedBuilder)]
-pub struct CsiPluginTolerations {
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct CSIControllerPlugin {
     tolerations: Vec<Toleration>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize, TypedBuilder)]
-pub struct CinderCsiSecretValues {
-    enabled: bool,
-    #[serde(rename = "hostMount")]
-    host_mount: bool,
-    create: bool,
-    filename: String,
-    name: String,
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct CSIPlugin {
+    image: ImageDetails,
+
+    #[serde(rename = "controllerPlugin")]
+    controller_plugin: CSIControllerPlugin,
 }
 
-impl ClusterAddonValues for CinderCsiValues {
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct CSISecret {
+    enabled: bool,
+    name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct CSIStorageClass {
+    enabled: bool,
+}
+
+impl ClusterAddonValues for CSIValues {
     fn defaults() -> Result<Self, ClusterAddonValuesError> {
         let file = include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/magnum_cluster_api/charts/openstack-cinder-csi/values.yaml"
         ));
-        let values: CinderCsiValues = serde_yaml::from_str(file)?;
+        let values: Self = serde_yaml::from_str(file)?;
 
         Ok(values)
     }
 
     fn get_mirrored_image_name(image: DockerImage, registry: &Option<String>) -> String {
         match registry {
-            Some(ref registry) => format!("{}/{}", registry.trim_end_matches('/'), image.name.split('/').next_back().unwrap()),
+            Some(ref registry) => format!(
+                "{}/{}",
+                registry.trim_end_matches('/'),
+                image.name.split('/').next_back().unwrap()
+            ),
             None => image.to_string(),
         }
     }
 }
 
-impl TryFrom<magnum::Cluster> for CinderCsiValues {
+impl TryFrom<magnum::Cluster> for CSIValues {
     type Error = ClusterAddonValuesError;
 
     fn try_from(cluster: magnum::Cluster) -> Result<Self, ClusterAddonValuesError> {
-        let mut values = Self::defaults()?;
+        let values = Self::defaults()?;
 
-        let prefix = &cluster.labels.container_infra_prefix;
-
-        macro_rules! update_image {
-            ($component:expr) => {
-                {
-                    let image = DockerImage::parse(&$component.image.repository)?;
-                    $component.image.repository = Self::get_mirrored_image_name(image, prefix);
-                }
-            };
-        }
-
-        update_image!(values.csi.attacher);
-        update_image!(values.csi.provisioner);
-        update_image!(values.csi.snapshotter);
-        update_image!(values.csi.resizer);
-        update_image!(values.csi.livenessprobe);
-        update_image!(values.csi.node_driver_registrar);
-        update_image!(values.csi.plugin);
-
-        // Set tolerations
-        let tolerations = vec![
-            Toleration {
-                key: Some("node-role.kubernetes.io/master".to_string()),
-                effect: Some("NoSchedule".to_string()),
-                ..Default::default()
+        Ok(Self {
+            csi: CSIComponents {
+                attacher: CSIComponent {
+                    image: values
+                        .csi
+                        .attacher
+                        .image
+                        .using_cluster::<Self>(&cluster, &cluster.labels.csi_attacher_tag)?,
+                },
+                provisioner: CSIComponent {
+                    image: values
+                        .csi
+                        .provisioner
+                        .image
+                        .using_cluster::<Self>(&cluster, &cluster.labels.csi_provisioner_tag)?,
+                },
+                snapshotter: CSIComponent {
+                    image: values
+                        .csi
+                        .snapshotter
+                        .image
+                        .using_cluster::<Self>(&cluster, &cluster.labels.csi_snapshotter_tag)?,
+                },
+                resizer: CSIComponent {
+                    image: values
+                        .csi
+                        .resizer
+                        .image
+                        .using_cluster::<Self>(&cluster, &cluster.labels.csi_resizer_tag)?,
+                },
+                livenessprobe: CSIComponent {
+                    image: values
+                        .csi
+                        .livenessprobe
+                        .image
+                        .using_cluster::<Self>(&cluster, &cluster.labels.csi_liveness_probe_tag)?,
+                },
+                node_driver_registrar: CSIComponent {
+                    image: values
+                        .csi
+                        .node_driver_registrar
+                        .image
+                        .using_cluster::<Self>(
+                            &cluster,
+                            &cluster.labels.csi_node_driver_registrar_tag,
+                        )?,
+                },
+                plugin: CSIPlugin {
+                    image: values
+                        .csi
+                        .plugin
+                        .image
+                        .using_cluster::<Self>(&cluster, &cluster.labels.cinder_csi_plugin_tag)?,
+                    controller_plugin: CSIControllerPlugin {
+                        tolerations: vec![
+                            Toleration {
+                                key: Some("node-role.kubernetes.io/master".to_string()),
+                                effect: Some("NoSchedule".to_string()),
+                                ..Default::default()
+                            },
+                            Toleration {
+                                key: Some("node-role.kubernetes.io/control-plane".to_string()),
+                                effect: Some("NoSchedule".to_string()),
+                                ..Default::default()
+                            },
+                        ],
+                    },
+                },
             },
-            Toleration {
-                key: Some("node-role.kubernetes.io/control-plane".to_string()),
-                effect: Some("NoSchedule".to_string()),
-                ..Default::default()
+            secret: CSISecret {
+                enabled: true,
+                name: Some("cloud-config".into()),
             },
-        ];
-
-        values.csi.plugin.controller_plugin.tolerations = tolerations;
-
-        // Set secret
-        values.secret.enabled = true;
-        values.secret.name = "cloud-config".to_string();
-
-        Ok(values)
+            storage_class: CSIStorageClass { enabled: false },
+            cluster_id: cluster.uuid.clone(),
+        })
     }
 }
 
@@ -141,12 +182,11 @@ impl ClusterAddon for Addon {
     }
 
     fn enabled(&self) -> bool {
-        true
+        self.cluster.labels.cinder_csi_enabled
     }
 
     fn manifests(&self) -> Result<String, helm::HelmTemplateError> {
-        let values = &CinderCsiValues::try_from(self.cluster.clone())
-            .expect("failed to create values");
+        let values = &CSIValues::try_from(self.cluster.clone()).expect("failed to create values");
         helm::template_using_include_dir(
             include_dir!("magnum_cluster_api/charts/openstack-cinder-csi"),
             "cinder-csi",
@@ -165,7 +205,6 @@ mod tests {
     fn test_cinder_csi_values_for_cluster_without_custom_registry() {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
-            status: magnum::ClusterStatus::CreateInProgress,
             labels: magnum::ClusterLabels::builder().build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {
@@ -173,19 +212,70 @@ mod tests {
             },
         };
 
-        let values: CinderCsiValues =
-            cluster.clone().try_into().expect("failed to create values");
+        let values: CSIValues = cluster.clone().try_into().expect("failed to create values");
 
-        assert!(values.secret.enabled);
-        assert_eq!(values.secret.name, "cloud-config");
-        assert_eq!(values.csi.plugin.controller_plugin.tolerations.len(), 2);
+        assert_eq!(
+            values.csi.attacher.image,
+            ImageDetails {
+                repository: "registry.k8s.io/sig-storage/csi-attacher".into(),
+                tag: cluster.labels.csi_attacher_tag,
+                use_digest: Some(true),
+            }
+        );
+        assert_eq!(
+            values.csi.provisioner.image,
+            ImageDetails {
+                repository: "registry.k8s.io/sig-storage/csi-provisioner".into(),
+                tag: cluster.labels.csi_provisioner_tag,
+                use_digest: Some(true),
+            }
+        );
+        assert_eq!(
+            values.csi.snapshotter.image,
+            ImageDetails {
+                repository: "registry.k8s.io/sig-storage/csi-snapshotter".into(),
+                tag: cluster.labels.csi_snapshotter_tag,
+                use_digest: Some(true),
+            }
+        );
+        assert_eq!(
+            values.csi.resizer.image,
+            ImageDetails {
+                repository: "registry.k8s.io/sig-storage/csi-resizer".into(),
+                tag: cluster.labels.csi_resizer_tag,
+                use_digest: Some(true),
+            }
+        );
+        assert_eq!(
+            values.csi.livenessprobe.image,
+            ImageDetails {
+                repository: "registry.k8s.io/sig-storage/livenessprobe".into(),
+                tag: cluster.labels.csi_liveness_probe_tag,
+                use_digest: Some(true),
+            }
+        );
+        assert_eq!(
+            values.csi.node_driver_registrar.image,
+            ImageDetails {
+                repository: "registry.k8s.io/sig-storage/csi-node-driver-registrar".into(),
+                tag: cluster.labels.csi_node_driver_registrar_tag,
+                use_digest: Some(true),
+            }
+        );
+        assert_eq!(
+            values.csi.plugin.image,
+            ImageDetails {
+                repository: "registry.k8s.io/provider-os/cinder-csi-plugin".into(),
+                tag: cluster.labels.cinder_csi_plugin_tag,
+                use_digest: Some(true),
+            }
+        );
     }
 
     #[test]
     fn test_cinder_csi_values_for_cluster_with_custom_registry() {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
-            status: magnum::ClusterStatus::CreateInProgress,
             labels: magnum::ClusterLabels::builder()
                 .container_infra_prefix(Some("registry.example.com".to_string()))
                 .build(),
@@ -195,18 +285,109 @@ mod tests {
             },
         };
 
-        let values: CinderCsiValues =
-            cluster.clone().try_into().expect("failed to create values");
+        let values: CSIValues = cluster.clone().try_into().expect("failed to create values");
 
-        assert!(values.csi.attacher.image.repository.starts_with("registry.example.com/"));
-        assert!(values.csi.plugin.image.repository.starts_with("registry.example.com/"));
+        assert_eq!(
+            values.csi.attacher.image,
+            ImageDetails {
+                repository: "registry.example.com/csi-attacher".into(),
+                tag: cluster.labels.csi_attacher_tag,
+                use_digest: Some(false),
+            }
+        );
+        assert_eq!(
+            values.csi.provisioner.image,
+            ImageDetails {
+                repository: "registry.example.com/csi-provisioner".into(),
+                tag: cluster.labels.csi_provisioner_tag,
+                use_digest: Some(false),
+            }
+        );
+        assert_eq!(
+            values.csi.snapshotter.image,
+            ImageDetails {
+                repository: "registry.example.com/csi-snapshotter".into(),
+                tag: cluster.labels.csi_snapshotter_tag,
+                use_digest: Some(false),
+            }
+        );
+        assert_eq!(
+            values.csi.resizer.image,
+            ImageDetails {
+                repository: "registry.example.com/csi-resizer".into(),
+                tag: cluster.labels.csi_resizer_tag,
+                use_digest: Some(false),
+            }
+        );
+        assert_eq!(
+            values.csi.livenessprobe.image,
+            ImageDetails {
+                repository: "registry.example.com/livenessprobe".into(),
+                tag: cluster.labels.csi_liveness_probe_tag,
+                use_digest: Some(false),
+            }
+        );
+        assert_eq!(
+            values.csi.node_driver_registrar.image,
+            ImageDetails {
+                repository: "registry.example.com/csi-node-driver-registrar".into(),
+                tag: cluster.labels.csi_node_driver_registrar_tag,
+                use_digest: Some(false),
+            }
+        );
+        assert_eq!(
+            values.csi.plugin.image,
+            ImageDetails {
+                repository: "registry.example.com/cinder-csi-plugin".into(),
+                tag: cluster.labels.cinder_csi_plugin_tag,
+                use_digest: Some(false),
+            }
+        );
+    }
+
+    #[test]
+    fn test_common_cinder_csi_values_for_cluster() {
+        let cluster = magnum::Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: magnum::ClusterLabels::builder().build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
+        };
+
+        let values: CSIValues = cluster.clone().try_into().expect("failed to create values");
+
+        assert_eq!(
+            values.csi.plugin.controller_plugin.tolerations,
+            vec![
+                Toleration {
+                    key: Some("node-role.kubernetes.io/master".to_string()),
+                    effect: Some("NoSchedule".to_string()),
+                    ..Default::default()
+                },
+                Toleration {
+                    key: Some("node-role.kubernetes.io/control-plane".to_string()),
+                    effect: Some("NoSchedule".to_string()),
+                    ..Default::default()
+                },
+            ]
+        );
+        assert_eq!(
+            values.secret,
+            CSISecret {
+                enabled: true,
+                name: Some("cloud-config".into())
+            }
+        );
+        assert_eq!(values.storage_class.enabled, false);
+        assert_eq!(values.cluster_id, cluster.uuid);
     }
 
     #[test]
     fn test_get_manifests() {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
-            status: magnum::ClusterStatus::CreateInProgress,
             labels: magnum::ClusterLabels::builder().build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {
