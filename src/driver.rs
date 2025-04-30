@@ -223,7 +223,40 @@ impl Driver {
     ) -> PyResult<Option<BTreeMap<String, String>>> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
-        let addon = addons::cloud_controller_manager::Addon::new(cluster.clone());
+        let cloud_controller_manager =
+            addons::cloud_controller_manager::Addon::new(cluster.clone());
+        let cinder_csi = addons::cinder_csi::Addon::new(cluster.clone());
+
+        let mut data = BTreeMap::new();
+
+        data.extend(
+            cluster
+                .cluster_addon_secret(&cloud_controller_manager)?
+                .string_data
+                .unwrap_or_default(),
+        );
+        data.extend(
+            cluster
+                .cluster_addon_secret(&cinder_csi)?
+                .string_data
+                .unwrap_or_default(),
+        );
+
+        Ok(Some(data))
+    }
+
+    // TODO(mnaser): We should move this out of the Python-facing implementation once we have
+    //               migrated all the code to Rust.
+    #[classmethod]
+    #[pyo3(signature = (cluster))]
+    fn get_cinder_csi_cluster_resource_secret_data(
+        _cls: &Bound<'_, PyType>,
+        cluster: PyObject,
+        py: Python<'_>,
+    ) -> PyResult<Option<BTreeMap<String, String>>> {
+        let cluster: magnum::Cluster = cluster.extract(py)?;
+
+        let addon = addons::cinder_csi::Addon::new(cluster.clone());
         Ok(cluster.cluster_addon_secret(&addon)?.string_data)
     }
 
