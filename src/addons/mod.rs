@@ -1,5 +1,6 @@
 use crate::magnum;
 use docker_image::DockerImage;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub mod cilium;
@@ -31,4 +32,30 @@ pub enum ClusterAddonValuesError {
 
     #[error("failed to parse docker reference: {0}")]
     DockerReference(#[from] docker_image::DockerImageError),
+}
+
+#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct ImageDetails {
+    repository: String,
+    tag: String,
+
+    #[serde(rename = "useDigest")]
+    use_digest: Option<bool>,
+}
+
+impl ImageDetails {
+    pub fn using_cluster<T: ClusterAddonValues>(
+        &self,
+        cluster: &magnum::Cluster,
+        tag: &String,
+    ) -> Result<Self, ClusterAddonValuesError> {
+        let image = DockerImage::parse(self.repository.as_str())?;
+        let repository = T::get_mirrored_image_name(image, &cluster.labels.container_infra_prefix);
+
+        Ok(Self {
+            repository,
+            tag: tag.clone(),
+            use_digest: Some(cluster.labels.container_infra_prefix.is_none()),
+        })
+    }
 }

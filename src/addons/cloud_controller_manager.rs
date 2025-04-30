@@ -29,7 +29,7 @@ impl ClusterAddonValues for CloudControllerManagerValues {
             env!("CARGO_MANIFEST_DIR"),
             "/magnum_cluster_api/charts/openstack-cloud-controller-manager/values.yaml"
         ));
-        let values: CloudControllerManagerValues = serde_yaml::from_str(file)?;
+        let values: Self = serde_yaml::from_str(file)?;
 
         Ok(values)
     }

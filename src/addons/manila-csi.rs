@@ -48,14 +48,18 @@ impl ClusterAddonValues for ManilaCsiValues {
             env!("CARGO_MANIFEST_DIR"),
             "/magnum_cluster_api/charts/openstack-manila-csi/values.yaml"
         ));
-        let values: ManilaCsiValues = serde_yaml::from_str(file)?;
+        let values: Self = serde_yaml::from_str(file)?;
 
         Ok(values)
     }
 
     fn get_mirrored_image_name(image: DockerImage, registry: &Option<String>) -> String {
         match registry {
-            Some(ref registry) => format!("{}/{}", registry.trim_end_matches('/'), image.name.split('/').next_back().unwrap()),
+            Some(ref registry) => format!(
+                "{}/{}",
+                registry.trim_end_matches('/'),
+                image.name.split('/').next_back().unwrap()
+            ),
             None => image.to_string(),
         }
     }
@@ -70,12 +74,10 @@ impl TryFrom<magnum::Cluster> for ManilaCsiValues {
         let prefix = &cluster.labels.container_infra_prefix;
 
         macro_rules! update_image {
-            ($component:expr) => {
-                {
-                    let image = DockerImage::parse(&$component.image.repository)?;
-                    $component.image.repository = Self::get_mirrored_image_name(image, prefix);
-                }
-            };
+            ($component:expr) => {{
+                let image = DockerImage::parse(&$component.image.repository)?;
+                $component.image.repository = Self::get_mirrored_image_name(image, prefix);
+            }};
         }
 
         update_image!(values.csimanila.image);
@@ -85,12 +87,10 @@ impl TryFrom<magnum::Cluster> for ManilaCsiValues {
         update_image!(values.controllerplugin.resizer.image);
 
         // Set tolerations
-        values.nodeplugin.tolerations = vec![
-            Toleration {
-                operator: Some("Exists".to_string()),
-                ..Default::default()
-            },
-        ];
+        values.nodeplugin.tolerations = vec![Toleration {
+            operator: Some("Exists".to_string()),
+            ..Default::default()
+        }];
 
         values.controllerplugin.tolerations = vec![
             Toleration {
@@ -125,8 +125,8 @@ impl ClusterAddon for Addon {
     }
 
     fn manifests(&self) -> Result<String, helm::HelmTemplateError> {
-        let values = &ManilaCsiValues::try_from(self.cluster.clone())
-            .expect("failed to create values");
+        let values =
+            &ManilaCsiValues::try_from(self.cluster.clone()).expect("failed to create values");
         helm::template_using_include_dir(
             include_dir!("magnum_cluster_api/charts/openstack-manila-csi"),
             "manila-csi",
@@ -153,8 +153,7 @@ mod tests {
             },
         };
 
-        let values: ManilaCsiValues =
-            cluster.clone().try_into().expect("failed to create values");
+        let values: ManilaCsiValues = cluster.clone().try_into().expect("failed to create values");
 
         assert_eq!(values.nodeplugin.tolerations.len(), 1);
         assert_eq!(values.controllerplugin.tolerations.len(), 2);
@@ -174,12 +173,25 @@ mod tests {
             },
         };
 
-        let values: ManilaCsiValues =
-            cluster.clone().try_into().expect("failed to create values");
+        let values: ManilaCsiValues = cluster.clone().try_into().expect("failed to create values");
 
-        assert!(values.csimanila.image.repository.starts_with("registry.example.com/"));
-        assert!(values.nodeplugin.registrar.image.repository.starts_with("registry.example.com/"));
-        assert!(values.controllerplugin.provisioner.image.repository.starts_with("registry.example.com/"));
+        assert!(values
+            .csimanila
+            .image
+            .repository
+            .starts_with("registry.example.com/"));
+        assert!(values
+            .nodeplugin
+            .registrar
+            .image
+            .repository
+            .starts_with("registry.example.com/"));
+        assert!(values
+            .controllerplugin
+            .provisioner
+            .image
+            .repository
+            .starts_with("registry.example.com/"));
     }
 
     #[test]
