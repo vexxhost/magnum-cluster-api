@@ -2,15 +2,15 @@ use std::collections::BTreeMap;
 
 use crate::{
     addons::{self, ClusterAddon},
-    clients::kubernetes::{self, ClientHelpers},
+    clients::kubernetes::{self, ClientHelpers, Error},
     cluster_api::clusterresourcesets::ClusterResourceSet,
     features,
     magnum::{self},
     resources::ClusterClassBuilder,
 };
 use k8s_openapi::api::core::v1::{Namespace, Secret};
-use k8s_openapi::api::apps::v1::DaemonSet;
-use kube::{api::ListParams, api::ObjectMeta, Api, Client};
+use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, StatefulSet};
+use kube::{api::ListParams, api::ObjectMeta, api::Api, Client};
 use log::debug;
 use pyo3::{prelude::*, types::PyType};
 use pyo3_async_runtimes::tokio::get_runtime;
@@ -25,18 +25,119 @@ pub struct Driver {
     cluster_class_name: String,
 }
 
+async fn delete_legacy_cinder_csi_resources(
+    client: &Client,
+) -> Result<(), Error> {
+    let namespace = "kube-system";
+    {
+        let name = "csi-cinder-controllerplugin";
+        let api: Api<Deployment> = Api::namespaced(client.clone(), namespace);
+        let resource = match api.get_opt(name).await? {
+            Some(r) => r,
+            None => {
+                debug!("Deployment {namespace}/{name} does not exist, skipping");
+                return Ok(());
+            }
+        };
+        let json: serde_json::Value = serde_json::to_value(&resource)?;
+        let volumes = json
+            .pointer("/spec/template/spec/volumes")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let matched = volumes.iter().any(|v| {
+            v.get("name").and_then(|n| n.as_str()) == Some("secret-cinderplugin")
+                && v.get("hostPath").is_some()
+        });
+        if matched {
+            debug!("Deleting Deployment {namespace}/{name} due to hostPath secret-cinderplugin volume");
+            api.delete(name, &Default::default()).await?;
+        }
+    }
+
+    {
+        let name = "csi-cinder-nodeplugin";
+        let api: Api<DaemonSet> = Api::namespaced(client.clone(), namespace);
+        let resource = match api.get_opt(name).await? {
+            Some(r) => r,
+            None => {
+                debug!("DaemonSet {namespace}/{name} does not exist, skipping");
+                return Ok(());
+            }
+        };
+        let json: serde_json::Value = serde_json::to_value(&resource)?;
+        let volumes = json
+            .pointer("/spec/template/spec/volumes")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let matched = volumes.iter().any(|v| {
+            v.get("name").and_then(|n| n.as_str()) == Some("secret-cinderplugin")
+                && v.get("hostPath").is_some()
+        });
+        if matched {
+            debug!("Deleting DaemonSet {namespace}/{name} due to hostPath secret-cinderplugin volume");
+            api.delete(name, &Default::default()).await?;
+        }
+    }
+
+    Ok(())
+}
+
+async fn delete_legacy_manila_csi_resources(
+    client: &Client,
+) -> Result<(), Error> {
+    let name = "openstack-manila-csi-controllerplugin";
+    let namespace = "kube-system";
+    let api: Api<StatefulSet> = Api::namespaced(client.clone(), namespace);
+
+    let ss = match api.get_opt(name).await? {
+        Some(s) => s,
+        None => {
+            debug!("StatefulSet {namespace}/{name} not found, skipping.");
+            return Ok(());
+        }
+    };
+
+    let json = serde_json::to_value(&ss)?;
+    let volumes = json
+        .pointer("/spec/template/spec/volumes")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let matched = volumes.iter().any(|v| {
+        v.get("name").and_then(|n| n.as_str()) == Some("cloud-ca-cert-volume")
+            && v.get("hostPath").is_some()
+    });
+
+    if matched {
+        debug!("Deleting StatefulSet {namespace}/{name} due to hostPath cloud-ca-cert-volume");
+        api.delete(name, &Default::default()).await?;
+    }
+
+    Ok(())
+}
+
 /// For this driver, the function that are prefixed with `apply_` can always
 /// be called as they are idempotent and will not cause any issues if called
 /// multiple times.  On the other hand, functions prefixed with `create_` are
 /// not idempotent and should only be called once.
 impl Driver {
-    fn create_legacy_cluster_resource_set(
+    fn apply_legacy_cluster_resource_set(
         &self,
         py: Python<'_>,
         cluster: &magnum::Cluster,
+        upgrade: bool,
     ) -> PyResult<()> {
         py.allow_threads(|| {
             get_runtime().block_on(async {
+                if upgrade {
+                    debug!("Detecting cluster upgrade, ensuring that the legacy resource set is deleted");
+                    let client = cluster.client().await?;
+                    delete_legacy_cinder_csi_resources(&client).await?;
+                    delete_legacy_manila_csi_resources(&client).await?;
+                }
                 // TODO(mnaser): The secret is still being created by the Python
                 //               code, we need to move this to Rust.
                 self.client
@@ -257,7 +358,7 @@ impl Driver {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
         self.apply_cluster_class(py)?;
-        self.create_legacy_cluster_resource_set(py, &cluster)?;
+        self.apply_legacy_cluster_resource_set(py, &cluster, false)?;
         self.apply_cloud_provider_cluster_resource_set(py, &cluster, false)?;
 
         Ok(())
@@ -267,6 +368,7 @@ impl Driver {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
         self.apply_cluster_class(py)?;
+        self.apply_legacy_cluster_resource_set(py, &cluster, true)?;
         self.apply_cloud_provider_cluster_resource_set(py, &cluster, true)?;
 
         Ok(())
