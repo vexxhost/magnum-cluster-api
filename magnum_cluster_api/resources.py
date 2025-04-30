@@ -263,6 +263,44 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
             },
         }
 
+        osc = clients.get_openstack_api(self.context)
+        if cinder.is_enabled(self.cluster):
+            volume_types = osc.cinder().volume_types.list()
+            default_volume_type = osc.cinder().volume_types.default()
+            data = {
+                **data,
+                **magnum_cluster_api.Driver.get_cinder_csi_cluster_resource_secret_data(
+                    self.cluster
+                ),
+                **{
+                    f"storageclass-block-{vt.name}.yaml": yaml.dump(
+                        {
+                            "apiVersion": objects.StorageClass.version,
+                            "allowVolumeExpansion": True,
+                            "kind": objects.StorageClass.kind,
+                            "metadata": {
+                                "annotations": (
+                                    {
+                                        "storageclass.kubernetes.io/is-default-class": "true"
+                                    }
+                                    if default_volume_type.name == vt.name
+                                    else {}
+                                ),
+                                "name": "block-%s" % utils.convert_to_rfc1123(vt.name),
+                            },
+                            "provisioner": "cinder.csi.openstack.org",
+                            "parameters": {
+                                "type": vt.name,
+                            },
+                            "reclaimPolicy": "Delete",
+                            "volumeBindingMode": "Immediate",
+                        }
+                    )
+                    for vt in volume_types
+                    if vt.name != "__DEFAULT__"
+                },
+            }
+
         return {
             "type": "addons.cluster.x-k8s.io/resource-set",
             "stringData": data,
@@ -350,56 +388,6 @@ class LegacyClusterResourcesSecret(ClusterBase):
             }
 
         osc = clients.get_openstack_api(self.context)
-
-        if cinder.is_enabled(self.cluster):
-            volume_types = osc.cinder().volume_types.list()
-            default_volume_type = osc.cinder().volume_types.default()
-            data = {
-                **data,
-                **{
-                    os.path.basename(manifest): image_utils.update_manifest_images(
-                        self.cluster.uuid,
-                        manifest,
-                        repository=repository,
-                        replacements=[
-                            (
-                                "docker.io/k8scloudprovider/cinder-csi-plugin:latest",
-                                cinder.get_image(self.cluster),
-                            ),
-                        ],
-                    )
-                    for manifest in glob.glob(
-                        os.path.join(manifests_path, "cinder-csi/*.yaml")
-                    )
-                },
-                **{
-                    f"storageclass-block-{vt.name}.yaml": yaml.dump(
-                        {
-                            "apiVersion": objects.StorageClass.version,
-                            "allowVolumeExpansion": True,
-                            "kind": objects.StorageClass.kind,
-                            "metadata": {
-                                "annotations": (
-                                    {
-                                        "storageclass.kubernetes.io/is-default-class": "true"
-                                    }
-                                    if default_volume_type.name == vt.name
-                                    else {}
-                                ),
-                                "name": "block-%s" % utils.convert_to_rfc1123(vt.name),
-                            },
-                            "provisioner": "cinder.csi.openstack.org",
-                            "parameters": {
-                                "type": vt.name,
-                            },
-                            "reclaimPolicy": "Delete",
-                            "volumeBindingMode": "Immediate",
-                        }
-                    )
-                    for vt in volume_types
-                    if vt.name != "__DEFAULT__"
-                },
-            }
 
         if manila.is_enabled(self.cluster):
             share_types = osc.manila().share_types.list()

@@ -223,26 +223,8 @@ impl Driver {
     ) -> PyResult<Option<BTreeMap<String, String>>> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
-        let cloud_controller_manager =
-            addons::cloud_controller_manager::Addon::new(cluster.clone());
-        let cinder_csi = addons::cinder_csi::Addon::new(cluster.clone());
-
-        let mut data = BTreeMap::new();
-
-        data.extend(
-            cluster
-                .cluster_addon_secret(&cloud_controller_manager)?
-                .string_data
-                .unwrap_or_default(),
-        );
-        data.extend(
-            cluster
-                .cluster_addon_secret(&cinder_csi)?
-                .string_data
-                .unwrap_or_default(),
-        );
-
-        Ok(Some(data))
+        let addon = addons::cloud_controller_manager::Addon::new(cluster.clone());
+        Ok(cluster.cluster_addon_secret(&addon)?.string_data)
     }
 
     // TODO(mnaser): We should move this out of the Python-facing implementation once we have
