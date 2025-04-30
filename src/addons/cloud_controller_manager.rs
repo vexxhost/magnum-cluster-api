@@ -1,6 +1,6 @@
 use crate::{
     addons::{ClusterAddon, ClusterAddonValues, ClusterAddonValuesError},
-    magnum,
+    magnum::{self, ClusterError},
 };
 use docker_image::DockerImage;
 use include_dir::include_dir;
@@ -160,6 +160,10 @@ impl ClusterAddon for Addon {
 
     fn enabled(&self) -> bool {
         true
+    }
+
+    fn secret_name(&self) -> Result<String, ClusterError> {
+        Ok(format!("{}-cloud-provider", self.cluster.stack_id()?))
     }
 
     fn manifests(&self) -> Result<String, helm::HelmTemplateError> {

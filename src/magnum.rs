@@ -122,22 +122,19 @@ impl From<Cluster> for ObjectMeta {
 }
 
 impl Cluster {
-    fn stack_id(&self) -> Result<String, ClusterError> {
+    pub fn stack_id(&self) -> Result<String, ClusterError> {
         self.stack_id
             .clone()
             .ok_or_else(|| ClusterError::MissingStackId(self.uuid.clone()))
     }
 
-    pub fn cloud_provider_resource_name(&self) -> Result<String, ClusterError> {
-        Ok(format!("{}-cloud-provider", self.stack_id()?))
-    }
-
-    pub fn cloud_provider_cluster_resource_set(&self) -> Result<ClusterResourceSet, ClusterError> {
-        let resource_name = self.cloud_provider_resource_name()?;
-
+    pub fn cluster_addon_cluster_resource_set<T: ClusterAddon>(
+        &self,
+        addon: &T,
+    ) -> Result<ClusterResourceSet, ClusterError> {
         Ok(ClusterResourceSet {
             metadata: ObjectMeta {
-                name: Some(resource_name.clone()),
+                name: Some(addon.secret_name()?),
                 ..Default::default()
             },
             spec: ClusterResourceSetSpec {
@@ -149,7 +146,7 @@ impl Cluster {
                 },
                 resources: Some(vec![ClusterResourceSetResources {
                     kind: ClusterResourceSetResourcesKind::Secret,
-                    name: resource_name.clone(),
+                    name: addon.secret_name()?,
                 }]),
                 strategy: Some(ClusterResourceSetStrategy::Reconcile),
             },
@@ -157,13 +154,10 @@ impl Cluster {
         })
     }
 
-    pub fn cloud_provider_secret<T: ClusterAddon>(
-        &self,
-        addon: &T,
-    ) -> Result<Secret, ClusterError> {
+    pub fn cluster_addon_secret<T: ClusterAddon>(&self, addon: &T) -> Result<Secret, ClusterError> {
         Ok(Secret {
             metadata: ObjectMeta {
-                name: Some(self.cloud_provider_resource_name()?),
+                name: Some(addon.secret_name()?),
                 ..Default::default()
             },
             type_: Some("addons.cluster.x-k8s.io/resource-set".into()),
@@ -289,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cluster_cloud_provider_resource_name() {
+    fn test_cluster_addon_cluster_resource_set() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::builder().build(),
@@ -299,25 +293,14 @@ mod tests {
             },
         };
 
-        let result = cluster
-            .cloud_provider_resource_name()
-            .expect("failed to get resource name");
-        assert_eq!(result, "kube-abcde-cloud-provider");
-    }
-
-    #[test]
-    fn test_cluster_cloud_provider_cluster_resource_set() {
-        let cluster = Cluster {
-            uuid: "sample-uuid".to_string(),
-            labels: ClusterLabels::builder().build(),
-            stack_id: "kube-abcde".to_string().into(),
-            cluster_template: ClusterTemplate {
-                network_driver: "calico".to_string(),
-            },
-        };
+        let mut mock_addon = addons::MockClusterAddon::default();
+        mock_addon
+            .expect_secret_name()
+            .times(2)
+            .returning(|| Ok("kube-abcde-cloud-provider".to_string()));
 
         let result = cluster
-            .cloud_provider_cluster_resource_set()
+            .cluster_addon_cluster_resource_set(&mock_addon)
             .expect("failed to generate crs");
 
         let expected_resource_name = format!("kube-abcde-cloud-provider");
@@ -346,7 +329,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cluster_cloud_provider_secret() {
+    fn test_cluster_addon_secret() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::builder().build(),
@@ -358,11 +341,14 @@ mod tests {
 
         let mut mock_addon = addons::MockClusterAddon::default();
         mock_addon
+            .expect_secret_name()
+            .return_once(|| Ok("kube-abcde-cloud-provider".to_string()));
+        mock_addon
             .expect_manifests()
             .return_once(|| Ok("blah".to_string()));
 
         let result = cluster
-            .cloud_provider_secret(&mock_addon)
+            .cluster_addon_secret(&mock_addon)
             .expect("failed to generate secret");
 
         let expected = Secret {
@@ -381,7 +367,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cluster_cloud_provider_secret_manifest_render_failure() {
+    fn test_cluster_addon_secret_manifest_render_failure() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::builder().build(),
@@ -390,14 +376,18 @@ mod tests {
                 network_driver: "calico".to_string(),
             },
         };
+
         let mut mock_addon = addons::MockClusterAddon::default();
+        mock_addon
+            .expect_secret_name()
+            .return_once(|| Ok("kube-abcde-cloud-provider".to_string()));
         mock_addon.expect_manifests().return_once(|| {
             Err(helm::HelmTemplateError::HelmCommand(
                 "helm template failed".to_string(),
             ))
         });
 
-        let result = cluster.cloud_provider_secret(&mock_addon);
+        let result = cluster.cluster_addon_secret(&mock_addon);
 
         assert!(result.is_err());
         match result {
@@ -409,7 +399,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cluster_resource_set_from_cluster() {
+    fn test_cluster_addon_resource_set_from_cluster() {
         let cluster = &Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),

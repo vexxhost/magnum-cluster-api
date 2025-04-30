@@ -1,4 +1,4 @@
-use crate::magnum;
+use crate::magnum::{self, ClusterError};
 use docker_image::DockerImage;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -11,6 +11,7 @@ pub mod cloud_controller_manager;
 pub trait ClusterAddon {
     fn new(cluster: magnum::Cluster) -> Self;
     fn enabled(&self) -> bool;
+    fn secret_name(&self) -> Result<String, ClusterError>;
     fn manifests(&self) -> Result<String, helm::HelmTemplateError>;
 }
 

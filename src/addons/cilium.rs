@@ -1,6 +1,6 @@
 use crate::{
     addons::{ClusterAddon, ClusterAddonValues, ClusterAddonValuesError, ImageDetails},
-    magnum,
+    magnum::{self, ClusterError},
 };
 use docker_image::DockerImage;
 use include_dir::include_dir;
@@ -300,6 +300,10 @@ impl ClusterAddon for Addon {
 
     fn enabled(&self) -> bool {
         self.cluster.cluster_template.network_driver == "cilium"
+    }
+
+    fn secret_name(&self) -> Result<String, ClusterError> {
+        Ok(format!("{}-cilium", self.cluster.stack_id()?))
     }
 
     fn manifests(&self) -> Result<String, helm::HelmTemplateError> {
