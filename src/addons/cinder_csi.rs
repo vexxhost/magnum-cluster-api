@@ -4,7 +4,7 @@ use crate::{
 };
 use docker_image::DockerImage;
 use include_dir::include_dir;
-use k8s_openapi::api::core::v1::Toleration;
+use k8s_openapi::api::core::v1::{Toleration, Volume, VolumeMount};
 use maplit::btreemap;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -48,6 +48,10 @@ pub struct CSIControllerPlugin {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct CSIPlugin {
     image: ImageDetails,
+    volumes: Vec<Volume>,
+
+    #[serde(rename = "volumeMounts")]
+    volume_mounts: Vec<VolumeMount>,
 
     #[serde(rename = "controllerPlugin")]
     controller_plugin: CSIControllerPlugin,
@@ -146,6 +150,21 @@ impl TryFrom<magnum::Cluster> for CSIValues {
                         .plugin
                         .image
                         .using_cluster::<Self>(&cluster, &cluster.labels.cinder_csi_plugin_tag)?,
+                    volumes: vec![],
+                    volume_mounts: vec![
+                        VolumeMount {
+                            name: "cloud-config".into(),
+                            mount_path: "/etc/kubernetes".into(),
+                            read_only: Some(true),
+                            ..Default::default()
+                        },
+                        VolumeMount {
+                            name: "cloud-config".into(),
+                            mount_path: "/etc/config".into(),
+                            read_only: Some(true),
+                            ..Default::default()
+                        },
+                    ],
                     controller_plugin: CSIControllerPlugin {
                         tolerations: vec![
                             Toleration {
@@ -367,6 +386,24 @@ mod tests {
 
         let values: CSIValues = cluster.clone().try_into().expect("failed to create values");
 
+        assert_eq!(values.csi.plugin.volumes, vec![]);
+        assert_eq!(
+            values.csi.plugin.volume_mounts,
+            vec![
+                VolumeMount {
+                    name: "cloud-config".into(),
+                    mount_path: "/etc/kubernetes".into(),
+                    read_only: Some(true),
+                    ..Default::default()
+                },
+                VolumeMount {
+                    name: "cloud-config".into(),
+                    mount_path: "/etc/config".into(),
+                    read_only: Some(true),
+                    ..Default::default()
+                },
+            ]
+        );
         assert_eq!(
             values.csi.plugin.controller_plugin.tolerations,
             vec![
