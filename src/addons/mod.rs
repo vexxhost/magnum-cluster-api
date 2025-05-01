@@ -49,14 +49,14 @@ impl ImageDetails {
     pub fn using_cluster<T: ClusterAddonValues>(
         &self,
         cluster: &magnum::Cluster,
-        tag: &String,
+        tag: &str,
     ) -> Result<Self, ClusterAddonValuesError> {
         let image = DockerImage::parse(self.repository.as_str())?;
         let repository = T::get_mirrored_image_name(image, &cluster.labels.container_infra_prefix);
 
         Ok(Self {
             repository,
-            tag: tag.clone(),
+            tag: tag.to_owned(),
             use_digest: Some(cluster.labels.container_infra_prefix.is_none()),
         })
     }
