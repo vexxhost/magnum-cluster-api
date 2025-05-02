@@ -17,6 +17,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import yaml
 
 import click
 import platformdirs
@@ -59,6 +60,10 @@ VERSIONS = [
     help="Target image repository",
 )
 @click.option(
+    "--images_manifest",
+    help="YAML file containing image manifest",
+)
+@click.option(
     "--parallel",
     default=8,
     help="Number of parallel uploads",
@@ -68,7 +73,7 @@ VERSIONS = [
     is_flag=True,
     help="Allow insecure connections to the registry.",
 )
-def main(repository, parallel, insecure):
+def main(repository, images_manifest, parallel, insecure):
     """
     Load images into a remote registry for `container_infra_prefix` usage.
     """
@@ -80,23 +85,31 @@ def main(repository, parallel, insecure):
              https://github.com/google/go-containerregistry/blob/main/cmd/crane/README.md#installation"""
         )
 
-    # NOTE(mnaser): This list must be maintained manually because the image
-    #               registry must be able to support a few different versions
-    #               of Kubernetes since it is possible to have multiple
-    #               clusters running different versions of Kubernetes at the
-    #               same time.
-    images = set(
-        _get_all_kubeadm_images()
-        + _get_calico_images()
-        + _get_cilium_images()
-        + _get_cloud_provider_images()
-        + _get_infra_images()
-    )
+    if images_manifest:
+        with open(images_manifest, 'r') as file:
+            manifest_data = yaml.safe_load(file)
+
+        images = set(manifest_data.get('images', set()))
+        rules = list(manifest_data.get('rules', list()))
+
+    else:
+        # NOTE(mnaser): This list must be maintained manually because the image
+        #               registry must be able to support a few different versions
+        #               of Kubernetes since it is possible to have multiple
+        #               clusters running different versions of Kubernetes at the
+        #               same time.
+        images = set(
+            _get_all_kubeadm_images()
+            + _get_calico_images()
+            + _get_cloud_provider_images()
+            + _get_infra_images()
+        )
+        rules = list()
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=parallel) as executor:
         future_to_image = {
             executor.submit(
-                _mirror_image, image, repository, insecure, crane_path
+                _mirror_image, image, repository, rules, insecure, crane_path
             ): image
             for image in images
         }
@@ -112,9 +125,14 @@ def main(repository, parallel, insecure):
                 )
 
 
-def _mirror_image(image: str, repository: str, insecure: bool, crane_path: str):
+def _mirror_image(image: str, repository: str, rules: list, insecure: bool, crane_path: str):
     src = image
-    dst = image_utils.get_image(image, repository)
+    dst = image_utils.get_image(image, repository, rules)
+
+    # NOTE(jrosser): whilst crane will load the image data it will
+    #                not create the required metadata in the repository
+    #                if the image destination contains a digest.
+    dst = dst.split('@')[0]
 
     try:
         command = [crane_path]
