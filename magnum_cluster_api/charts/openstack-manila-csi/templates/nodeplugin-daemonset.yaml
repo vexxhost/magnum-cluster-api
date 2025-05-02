@@ -4,6 +4,7 @@ metadata:
   name: {{ include "openstack-manila-csi.nodeplugin.fullname" . }}
   labels:
     {{- include "openstack-manila-csi.nodeplugin.labels" .  | nindent 4 }}
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:
