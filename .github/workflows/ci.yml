@@ -30,7 +30,7 @@ jobs:
       - uses: PyO3/maturin-action@aef21716ff3dcae8a1c301d23ec3e4446972a6e3 # v1.49.1
         with:
           command: build
-          manylinux: '2_28'
+          manylinux: "2_28"
           args: --release --sdist
           sccache: "true"
           target: ${{ matrix.target }}
@@ -47,11 +47,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        openstack-version: ["zed", "2023.1", "2023.2", "2024.1", "2024.2", "2025.1", "master"]
+        openstack-version:
+          ["zed", "2023.1", "2023.2", "2024.1", "2024.2", "2025.1", "master"]
     steps:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
-            ignore-empty-workdir: true
+          ignore-empty-workdir: true
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: wheel-x86_64
@@ -80,3 +81,83 @@ jobs:
       - uses: vexxhost/chart-vendor@17a9948a112442698022b0cb4540f3150a9cebee # main
         with:
           charts-root: magnum_cluster_api/charts
+
+  sonobuoy:
+    runs-on: vexxhost-ubuntu-22.04-16
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes-version: [1.28.11, 1.29.6, 1.30.2, 1.31.1]
+        network-driver: [calico, cilium]
+    concurrency:
+      group: sonobuoy-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: magnum-cluster-api
+      - run: sudo mkdir -p /opt/stack
+      - run: sudo mv $GITHUB_WORKSPACE/magnum-cluster-api /opt/stack/magnum-cluster-api
+      - run: sudo chown -R $USER:$USER /opt/stack
+      # NOTE(mnaser): https://github.com/EmilienM/devstack-action/pull/24
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y python-is-python3 python3-pip
+      - id: image-info
+        run: |
+          IMAGE_FILE=$(curl -s https://static.atmosphere.dev/artifacts/magnum-cluster-api/ | grep 1.28.11 | tail -1 | cut -d'"' -f2)
+          IMAGE_NAME=$(echo $IMAGE_FILE | cut -d'.' -f1)
+
+          echo "file=$IMAGE_FILE" >> $GITHUB_OUTPUT
+          echo "name=$IMAGE_NAME" >> $GITHUB_OUTPUT
+      - uses: EmilienM/devstack-action@v0.15
+        with:
+          conf_overrides: |
+            FIXED_RANGE=10.1.0.0/20
+            # NOTE(mnaser): https://review.opendev.org/c/openstack/devstack/+/942755
+            ZSWAP_ZPOOL=zsmalloc
+
+            enable_plugin magnum https://review.opendev.org/openstack/magnum refs/changes/10/949110/2
+            # TODO(mnaser): fix this when we have the matrix
+            MAGNUM_GUEST_IMAGE_URL=https://static.atmosphere.dev/artifacts/magnum-cluster-api/${{ steps.image-info.outputs.file }}
+
+            enable_plugin manila https://github.com/openstack/manila
+            MANILA_ENABLED_BACKENDS=generic
+            MANILA_USE_SERVICE_INSTANCE_PASSWORD=True
+            MANILA_DEFAULT_SHARE_TYPE_EXTRA_SPECS="snapshot_support=True create_share_from_snapshot_support=True"
+            # NOTE(okozachenko): Disable UWSGI until https://bugs.launchpad.net/manila/+bug/2109645 is fixed
+            MANILA_USE_UWSGI=false
+
+            enable_plugin octavia https://github.com/openstack/octavia
+            OCTAVIA_NODE=api
+            DISABLE_AMP_IMAGE_BUILD=True
+
+            enable_plugin barbican https://github.com/openstack/barbican
+            enable_plugin ovn-octavia-provider https://github.com/openstack/ovn-octavia-provider
+            enable_plugin magnum-cluster-api https://github.com/vexxhost/magnum-cluster-apioutdoor speakersk
+
+            [[post-config|/etc/manila/manila.conf]]
+            [generic]
+            driver_handles_share_servers = True
+            connect_share_server_to_tenant_network = True
+
+            [[post-config|/etc/magnum/magnum.conf]]
+            [cluster_template]
+            kubernetes_allowed_network_drivers = calico,cilium
+            kubernetes_default_network_driver = calico
+            [nova_client]
+            api_version = 2.15
+          enabled_services: -s-account,-s-container,-s-object,-s-proxy,openstack-cli-server,octavia,o-api,o-hk,o-da
+      - run: ./hack/run-integration-tests.sh
+        working-directory: /opt/stack/magnum-cluster-api
+        env:
+          OS_CLOUD: devstack
+          NETWORK_DRIVER: ${{ matrix.network-driver }}
+          IMAGE_NAME: ${{ steps.image-info.outputs.name }}
+          KUBE_TAG: v${{ matrix.kubernetes-version }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sonobuoy-results-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}
+          path: /opt/stack/magnum-cluster-api/sonobuoy-results.tar.gz
+          if-no-files-found: error
