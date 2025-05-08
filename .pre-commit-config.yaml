@@ -30,3 +30,21 @@ repos:
         args: [--allow-multiple-documents]
       - id: end-of-file-fixer
       - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: ensure-calico-manifest
+        name: ensure calico manifest exists for CALICO_TAG
+        language: system
+        files: ^magnum_cluster_api/resources.py$
+        entry: bash -c
+        args:
+          - |
+              CALICO_TAG=$(grep ^CALICO_TAG magnum_cluster_api/resources.py | cut -d'"' -f2)
+              curl -o magnum_cluster_api/manifests/calico/${CALICO_TAG}.yaml https://raw.githubusercontent.com/projectcalico/calico/${CALICO_TAG}/manifests/calico.yaml
+              sed -i 's|docker.io/calico/|quay.io/calico/|g' magnum_cluster_api/manifests/calico/${CALICO_TAG}.yaml
+      - id: replace-docker-io-calico
+        name: replace docker.io to quay.io for calico
+        language: system
+        files: ^magnum_cluster_api/manifests/calico/.*\.yaml$
+        entry: sed -i 's|docker.io/calico/|quay.io/calico/|g'
