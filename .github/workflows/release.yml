@@ -15,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Run "release-please"
-        uses: google-github-actions/release-please-action@v3
+        uses: google-github-actions/release-please-action@db8f2c60ee802b3748b512940dde88eabd7b7e01 # v3
         id: release
         with:
           release-type: python
@@ -26,11 +26,11 @@ jobs:
 
       - name: Checkout project
         if: ${{ steps.release.outputs.release_created }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Build package (x86_64)
         if: ${{ steps.release.outputs.release_created }}
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@aef21716ff3dcae8a1c301d23ec3e4446972a6e3 # v1
         with:
           command: publish
           args: --non-interactive --skip-existing
@@ -39,7 +39,7 @@ jobs:
 
       - name: Build package (aarch64)
         if: ${{ steps.release.outputs.release_created }}
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@aef21716ff3dcae8a1c301d23ec3e4446972a6e3 # v1
         with:
           command: publish
           args: --non-interactive --skip-existing
