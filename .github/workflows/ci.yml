@@ -66,12 +66,19 @@ jobs:
           uv venv
           uv pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} ./*.whl
 
-  linters:
-    runs-on: depot-ubuntu-22.04
-    timeout-minutes: 5
+  pre-commit:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pre-commit/action@v3.0.1
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.VEXXHOST_BOT_PAT }}
+      - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
+      - uses: stefanzweifel/git-auto-commit-action@b863ae1933cb653a53c021fe36dbb774e1fb9403 # v5.2.0
+        if: github.event_name == 'pull_request' && github.event.pull_request.user.id == '29139614' && always()
+        with:
+          commit_message: "chore: apply pre-commit hook updates"
+          commit_author: "renovate[bot] <29139614+renovate[bot]@users.noreply.github.com>"
 
   chart-vendor:
     runs-on: ubuntu-latest
