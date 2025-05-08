@@ -41,7 +41,7 @@ jobs:
           if-no-files-found: error
 
   coinstall:
-    runs-on: depot-ubuntu-22.04
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: build
     strategy:
