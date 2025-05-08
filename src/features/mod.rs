@@ -336,8 +336,7 @@ pub static OPENSTACK_CLUSTER_TEMPLATE: LazyLock<OpenStackClusterTemplate> =
                                     protocol: Some("tcp".to_string()),
                                     ..Default::default()
                                 }
-                            ]),
-                            ..Default::default()
+                            ])
                         },
                     ),
                     ..Default::default()
