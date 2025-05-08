@@ -16,16 +16,12 @@ jobs:
     uses: vexxhost/github-actions/.github/workflows/cargo.yml@main
 
   build:
-    runs-on: ${{ matrix.runs-on }}
+    runs-on: ubuntu-24.04${{ matrix.target == 'aarch64' && '-arm' || '' }}
     timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runs-on: depot-ubuntu-22.04
-            target: x86_64
-          - runs-on: depot-ubuntu-24.04-arm
-            target: aarch64
+        target: [x86_64, aarch64]
     steps:
       - uses: actions/checkout@v4
       - uses: rui314/setup-mold@v1
