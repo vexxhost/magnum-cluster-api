@@ -30,7 +30,7 @@ jobs:
 
       - name: Build package (x86_64)
         if: ${{ steps.release.outputs.release_created }}
-        uses: vexxhost/maturin-action@1fd4380c3940bda702f839c74df45c5b1392dbcc
+        uses: PyO3/maturin-action@v1
         with:
           command: publish
           args: --non-interactive --skip-existing
@@ -39,7 +39,7 @@ jobs:
 
       - name: Build package (aarch64)
         if: ${{ steps.release.outputs.release_created }}
-        uses: vexxhost/maturin-action@1fd4380c3940bda702f839c74df45c5b1392dbcc
+        uses: PyO3/maturin-action@v1
         with:
           command: publish
           args: --non-interactive --skip-existing
