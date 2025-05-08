@@ -177,9 +177,9 @@ def _get_kubeadm_images(version: str):
 
 def _get_calico_images(tag="v3.24.2"):
     return [
-        f"docker.io/calico/cni:{tag}",
-        f"docker.io/calico/kube-controllers:{tag}",
-        f"docker.io/calico/node:{tag}",
+        f"quay.io/calico/cni:{tag}",
+        f"quay.io/calico/kube-controllers:{tag}",
+        f"quay.io/calico/node:{tag}",
     ]
 
 
