@@ -76,7 +76,7 @@ jobs:
   chart-vendor:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2
+      - uses: actions/checkout@v4.2.2
       - uses: vexxhost/chart-vendor@3c91cecf08feb55ab66586b91b1a116b6cf0dbd9 # main
         with:
           charts-root: magnum_cluster_api/charts
