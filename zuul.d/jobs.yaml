@@ -1,10 +1,4 @@
 - job:
-    name: magnum-cluster-api-chart-vendor
-    parent: chart-vendor
-    vars:
-      chart_vendor_charts_root: "magnum_cluster_api/charts"
-
-- job:
     name: magnum-cluster-api-tox
     parent: tox
     abstract: true
@@ -53,7 +47,7 @@
     vars:
       devstack_plugins:
         barbican: https://github.com/openstack/barbican
-        magnum: https://github.com/openstack/magnum
+        magnum: https://review.opendev.org/openstack/magnum refs/changes/10/949110/2
         manila: https://github.com/openstack/manila
         octavia: https://github.com/openstack/octavia
         ovn-octavia-provider: https://github.com/openstack/ovn-octavia-provider
@@ -65,6 +59,8 @@
         MANILA_DEFAULT_SHARE_TYPE_EXTRA_SPECS: snapshot_support=True create_share_from_snapshot_support=True
         MANILA_ENABLED_BACKENDS: generic
         MANILA_USE_SERVICE_INSTANCE_PASSWORD: true
+        # NOTE(okozachenko): Disable UWSGI until https://bugs.launchpad.net/manila/+bug/2109645 is fixed
+        MANILA_USE_UWSGI: false
         OCTAVIA_NODE: api
         # NOTE(mnaser): https://review.opendev.org/c/openstack/devstack/+/942755
         ZSWAP_ZPOOL: zsmalloc

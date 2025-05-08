@@ -72,3 +72,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pre-commit/action@v3.0.1
+
+  chart-vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: vexxhost/chart-vendor@3c91cecf08feb55ab66586b91b1a116b6cf0dbd9 # main
+        with:
+          charts-root: magnum_cluster_api/charts
