@@ -9,10 +9,6 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref_name }}-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: true
-
 permissions: {}
 
 jobs:
