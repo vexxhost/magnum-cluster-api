@@ -533,6 +533,15 @@ class BaseDriver(driver.Driver):
                 ]
             )
 
+            # Ensure that the flavor from the spec matches all of the OpenStackMachine objects
+            # for this node group (while vertical resizing group)
+            flavor_match = all(
+                [
+                    machine.obj["spec"]["flavor"] == md_variables["flavor"]
+                    for machine in machines
+                ]
+            )
+
             # NOTE(mnaser): If the cluster is in `UPDATE_IN_PROGRESS` state, we need to
             #               wait for the `MachineDeployment` to match the desired state
             #               from the `Cluster` resource and that it is in the `Running`
@@ -544,6 +553,7 @@ class BaseDriver(driver.Driver):
                     cluster_resource.get_machine_deployment_spec(node_group.name)
                 )
                 and image_id_match
+                and flavor_match
             ):
                 node_group.status = fields.ClusterStatus.UPDATE_COMPLETE
                 node_group.save()
