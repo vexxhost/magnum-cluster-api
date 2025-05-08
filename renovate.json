@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "local>vexxhost/.github"
   ],
   "baseBranches": [
     "main"
@@ -9,32 +9,9 @@
   "packageRules": [
     {
       "enabled": false,
-      "matchPackageNames": [
-        "*"
+      "matchFileNames": [
+        "magnum_cluster_api/charts/**"
       ]
-    },
-    {
-      "enabled": true,
-      "matchDatasources": [
-        "crate"
-      ]
-    },
-    {
-      "enabled": true,
-      "matchDatasources": [
-        "github-releases"
-      ],
-      "matchPackageNames": [
-        "projectcalico/calico"
-      ],
-      "postUpgradeTasks": {
-        "fileFilters": [
-          "magnum_cluster_api/manifests/calico/v*.yaml"
-        ],
-        "commands": [
-          "curl -o magnum_cluster_api/manifests/calico/v{{{newValue}}}.yaml https://raw.githubusercontent.com/projectcalico/calico/v{{{newValue}}}/manifests/calico.yaml"
-        ]
-      }
     }
   ],
   "customManagers": [
