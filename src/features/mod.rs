@@ -35,6 +35,7 @@ use crate::cluster_api::{
         OpenStackClusterTemplate, OpenStackClusterTemplateSpec, OpenStackClusterTemplateTemplate,
         OpenStackClusterTemplateTemplateSpec, OpenStackClusterTemplateTemplateSpecIdentityRef,
         OpenStackClusterTemplateTemplateSpecManagedSecurityGroups,
+        OpenStackClusterTemplateTemplateSpecManagedSecurityGroupsAllNodesSecurityGroupRules,
     },
     openstackmachinetemplates::{
         OpenStackMachineTemplate, OpenStackMachineTemplateSpec, OpenStackMachineTemplateTemplate,
@@ -314,7 +315,28 @@ pub static OPENSTACK_CLUSTER_TEMPLATE: LazyLock<OpenStackClusterTemplate> =
                     managed_security_groups: Some(
                         OpenStackClusterTemplateTemplateSpecManagedSecurityGroups {
                             allow_all_in_cluster_traffic: true,
-                            ..Default::default()
+                            all_nodes_security_group_rules: Some(vec![
+                                OpenStackClusterTemplateTemplateSpecManagedSecurityGroupsAllNodesSecurityGroupRules {
+                                    remote_ip_prefix: Some("0.0.0.0/0".to_string()),
+                                    direction: "ingress".to_string(),
+                                    ether_type: Some("IPv4".to_string()),
+                                    name: "Node Port (UDP, anywhere)".to_string(),
+                                    port_range_min: Some(30000_i64),
+                                    port_range_max: Some(32767_i64),
+                                    protocol: Some("udp".to_string()),
+                                    ..Default::default()
+                                },
+                                OpenStackClusterTemplateTemplateSpecManagedSecurityGroupsAllNodesSecurityGroupRules {
+                                    remote_ip_prefix: Some("0.0.0.0/0".to_string()),
+                                    direction: "ingress".to_string(),
+                                    ether_type: Some("IPv4".to_string()),
+                                    name: "Node Port (TCP, anywhere)".to_string(),
+                                    port_range_min: Some(30000_i64),
+                                    port_range_max: Some(32767_i64),
+                                    protocol: Some("tcp".to_string()),
+                                    ..Default::default()
+                                }
+                            ])
                         },
                     ),
                     ..Default::default()
