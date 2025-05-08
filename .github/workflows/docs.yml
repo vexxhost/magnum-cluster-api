@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
 
       - name: Install Earthly
-        uses: earthly/actions-setup@v1
+        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203 # v1.0.13
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
