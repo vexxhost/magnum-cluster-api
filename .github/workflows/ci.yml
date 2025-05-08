@@ -32,6 +32,7 @@ jobs:
           command: build
           manylinux: '2_28'
           args: --release --sdist
+          sccache: "true"
           target: ${{ matrix.target }}
       - uses: actions/upload-artifact@v4
         with:
