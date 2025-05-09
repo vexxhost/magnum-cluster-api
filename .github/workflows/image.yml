@@ -67,7 +67,7 @@ jobs:
           images: quay.io/vexxhost/magnum-cluster-api-registry
 
       - name: Authenticate with Quay.io
-        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
         if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.image_push == true) }}
         with:
           registry: quay.io
