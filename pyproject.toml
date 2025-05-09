@@ -55,7 +55,7 @@ dependencies = [
 dev = [
   "fixtures>=4.1.0",
   "oslotest>=5.0.0",
-  "pytest<7",
+  "pytest<9",
   "pytest-mock>=3.6.1",
   "responses>=0.25.0",
   "types-PyYAML",
