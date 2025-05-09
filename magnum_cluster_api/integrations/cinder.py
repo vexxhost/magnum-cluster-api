@@ -23,7 +23,9 @@ CONF = cfg.CONF
 
 
 def is_enabled(cluster: objects.Cluster) -> bool:
-    return common.is_enabled(cluster, "cinder_csi_enabled", "volumev3")
+    return common.is_enabled(
+        cluster, "cinder_csi_enabled", "volumev3"
+    ) or common.is_enabled(cluster, "cinder_csi_enabled", "block-storage")
 
 
 def get_image(cluster: objects.Cluster) -> str:

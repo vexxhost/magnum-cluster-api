@@ -11,3 +11,11 @@ charts:
     version: 2.32.0
     repository:
       url: https://kubernetes.github.io/cloud-provider-openstack
+  - name: openstack-cinder-csi
+    version: 2.32.0
+    repository:
+      url: https://kubernetes.github.io/cloud-provider-openstack
+  - name: openstack-manila-csi
+    version: 2.32.0
+    repository:
+      url: https://kubernetes.github.io/cloud-provider-openstack

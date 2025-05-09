@@ -1,0 +1,114 @@
+diff --git a/openstack-manila-csi/templates/controllerplugin-role.yaml b/openstack-manila-csi/templates/controllerplugin-role.yaml
+index 36a67f9..e9d3598 100644
+--- a/openstack-manila-csi/templates/controllerplugin-role.yaml
++++ b/openstack-manila-csi/templates/controllerplugin-role.yaml
+@@ -4,6 +4,7 @@ metadata:
+   name: {{ include "openstack-manila-csi.controllerplugin.fullname" . }}
+   labels:
+     {{- include "openstack-manila-csi.controllerplugin.labels" .  | nindent 4 }}
++  namespace: {{ .Release.Namespace }}
+ rules:
+   - apiGroups: [""]
+     resources: ["endpoints"]
+diff --git a/openstack-manila-csi/templates/controllerplugin-rolebinding.yaml b/openstack-manila-csi/templates/controllerplugin-rolebinding.yaml
+index 31f9fb2..6c8afac 100644
+--- a/openstack-manila-csi/templates/controllerplugin-rolebinding.yaml
++++ b/openstack-manila-csi/templates/controllerplugin-rolebinding.yaml
+@@ -4,6 +4,7 @@ metadata:
+   name: {{ include "openstack-manila-csi.controllerplugin.fullname" . }}
+   labels:
+     {{- include "openstack-manila-csi.controllerplugin.labels" .  | nindent 4 }}
++  namespace: {{ .Release.Namespace }}
+ subjects:
+   - kind: ServiceAccount
+     name: {{ include "openstack-manila-csi.serviceAccountName.controllerplugin" . }}
+diff --git a/openstack-manila-csi/templates/controllerplugin-service.yaml b/openstack-manila-csi/templates/controllerplugin-service.yaml
+index 05d34e0..bc4d64c 100644
+--- a/openstack-manila-csi/templates/controllerplugin-service.yaml
++++ b/openstack-manila-csi/templates/controllerplugin-service.yaml
+@@ -4,6 +4,7 @@ metadata:
+   name: {{ include "openstack-manila-csi.controllerplugin.fullname" . }}
+   labels:
+     {{- include "openstack-manila-csi.controllerplugin.labels" .  | nindent 4 }}
++  namespace: {{ .Release.Namespace }}
+ spec:
+   selector:
+     app: {{ include "openstack-manila-csi.name" . }}
+diff --git a/openstack-manila-csi/templates/controllerplugin-serviceaccount.yaml b/openstack-manila-csi/templates/controllerplugin-serviceaccount.yaml
+index c976b91..ddae6b5 100644
+--- a/openstack-manila-csi/templates/controllerplugin-serviceaccount.yaml
++++ b/openstack-manila-csi/templates/controllerplugin-serviceaccount.yaml
+@@ -4,3 +4,4 @@ metadata:
+   name: {{ include "openstack-manila-csi.serviceAccountName.controllerplugin" . }}
+   labels:
+     {{- include "openstack-manila-csi.controllerplugin.labels" .  | nindent 4 }}
++  namespace: {{ .Release.Namespace }}
+diff --git a/openstack-manila-csi/templates/controllerplugin-statefulset.yaml b/openstack-manila-csi/templates/controllerplugin-statefulset.yaml
+index f4f3cdc..3e21bb8 100644
+--- a/openstack-manila-csi/templates/controllerplugin-statefulset.yaml
++++ b/openstack-manila-csi/templates/controllerplugin-statefulset.yaml
+@@ -4,6 +4,7 @@ metadata:
+   name: {{ include "openstack-manila-csi.controllerplugin.fullname" . }}
+   labels:
+     {{- include "openstack-manila-csi.controllerplugin.labels" .  | nindent 4 }}
++  namespace: {{ .Release.Namespace }}
+ spec:
+   serviceName: {{ include "openstack-manila-csi.controllerplugin.fullname" . }}
+   replicas: 1
+@@ -131,6 +131,9 @@ spec:
+               mountPath: /runtimeconfig
+               readOnly: true
+             {{- end }}
++            - mountPath: /etc/config
++              name: cloud-config
++              readOnly: true
+           resources:
+ {{ toYaml $.Values.controllerplugin.nodeplugin.resources | indent 12 }}
+         {{- end }}
+@@ -154,6 +157,13 @@ spec:
+           hostPath:
+             path: /var/lib/kubelet/pods
+             type: Directory
++        - name: cloud-config
++          secret:
++            defaultMode: 420
++            items:
++            - key: ca.crt
++              path: ca.crt
++            secretName: cloud-config
+     {{- if .Values.controllerplugin.affinity }}
+       affinity: {{ toYaml .Values.controllerplugin.affinity | nindent 8 }}
+     {{- end }}
+diff --git a/openstack-manila-csi/templates/nodeplugin-daemonset.yaml b/openstack-manila-csi/templates/nodeplugin-daemonset.yaml
+index aa173cc..9a33cc2 100644
+--- a/openstack-manila-csi/templates/nodeplugin-daemonset.yaml
++++ b/openstack-manila-csi/templates/nodeplugin-daemonset.yaml
+@@ -4,6 +4,7 @@ metadata:
+   name: {{ include "openstack-manila-csi.nodeplugin.fullname" . }}
+   labels:
+     {{- include "openstack-manila-csi.nodeplugin.labels" .  | nindent 4 }}
++  namespace: {{ .Release.Namespace }}
+ spec:
+   selector:
+     matchLabels:
+diff --git a/openstack-manila-csi/templates/nodeplugin-serviceaccount.yaml b/openstack-manila-csi/templates/nodeplugin-serviceaccount.yaml
+index 1c7eaab..051bc83 100644
+--- a/openstack-manila-csi/templates/nodeplugin-serviceaccount.yaml
++++ b/openstack-manila-csi/templates/nodeplugin-serviceaccount.yaml
+@@ -4,3 +4,4 @@ metadata:
+   name: {{ include "openstack-manila-csi.serviceAccountName.nodeplugin" . }}
+   labels:
+     {{- include "openstack-manila-csi.nodeplugin.labels" .  | nindent 4 }}
++  namespace: {{ .Release.Namespace }}
+diff --git a/openstack-manila-csi/templates/runtimeconfig-cm.yaml b/openstack-manila-csi/templates/runtimeconfig-cm.yaml
+index d739ce1..59c1a06 100644
+--- a/openstack-manila-csi/templates/runtimeconfig-cm.yaml
++++ b/openstack-manila-csi/templates/runtimeconfig-cm.yaml
+@@ -3,6 +3,7 @@ apiVersion: v1
+ kind: ConfigMap
+ metadata:
+   name: manila-csi-runtimeconf-cm
++  namespace: {{ .Release.Namespace }}
+ data:
+   runtimeconfig.json: |-
+ {{ .Values.csimanila.runtimeConfig.jsonData | indent 4 }}
