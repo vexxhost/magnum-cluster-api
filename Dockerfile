@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.4
+# syntax=docker/dockerfile:1.15
 
 FROM alpine:3.21 AS registry-base
 RUN apk add --no-cache docker-registry
