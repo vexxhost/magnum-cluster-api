@@ -94,7 +94,7 @@ jobs:
       group: sonobuoy-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           path: magnum-cluster-api
       - run: sudo mkdir -p /opt/stack
@@ -111,7 +111,7 @@ jobs:
 
           echo "file=$IMAGE_FILE" >> $GITHUB_OUTPUT
           echo "name=$IMAGE_NAME" >> $GITHUB_OUTPUT
-      - uses: EmilienM/devstack-action@v0.15
+      - uses: EmilienM/devstack-action@e82a9cbead099cba72f99537e82a360c3e319c69 # v0.15
         with:
           conf_overrides: |
             FIXED_RANGE=10.1.0.0/20
