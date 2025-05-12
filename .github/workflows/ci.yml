@@ -100,10 +100,9 @@ jobs:
       - run: sudo mkdir -p /opt/stack
       - run: sudo mv $GITHUB_WORKSPACE/magnum-cluster-api /opt/stack/magnum-cluster-api
       - run: sudo chown -R $USER:$USER /opt/stack
-      # NOTE(mnaser): https://github.com/EmilienM/devstack-action/pull/24
       - run: |
           sudo apt-get update
-          sudo apt-get install -y python-is-python3 python3-pip
+          sudo apt-get install -y python3-pip
       - id: image-info
         run: |
           IMAGE_FILE=$(curl -s https://static.atmosphere.dev/artifacts/magnum-cluster-api/ | grep 1.28.11 | tail -1 | cut -d'"' -f2)
@@ -111,7 +110,7 @@ jobs:
 
           echo "file=$IMAGE_FILE" >> $GITHUB_OUTPUT
           echo "name=$IMAGE_NAME" >> $GITHUB_OUTPUT
-      - uses: EmilienM/devstack-action@e82a9cbead099cba72f99537e82a360c3e319c69 # v0.15
+      - uses: gophercloud/devstack-action@f4c936d2edcc7b7c657493b0073c38093c3c5ebd # v0.16
         with:
           conf_overrides: |
             FIXED_RANGE=10.1.0.0/20
@@ -126,8 +125,6 @@ jobs:
             MANILA_ENABLED_BACKENDS=generic
             MANILA_USE_SERVICE_INSTANCE_PASSWORD=True
             MANILA_DEFAULT_SHARE_TYPE_EXTRA_SPECS="snapshot_support=True create_share_from_snapshot_support=True"
-            # NOTE(okozachenko): Disable UWSGI until https://bugs.launchpad.net/manila/+bug/2109645 is fixed
-            MANILA_USE_UWSGI=false
 
             enable_plugin octavia https://github.com/openstack/octavia
             OCTAVIA_NODE=api
