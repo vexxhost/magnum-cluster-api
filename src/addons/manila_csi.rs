@@ -64,7 +64,7 @@ impl TryFrom<magnum::Cluster> for CSIValues {
 
     fn try_from(cluster: magnum::Cluster) -> Result<Self, ClusterAddonValuesError> {
         let values = Self::defaults()?;
-        
+
         Ok(Self {
             csimanila: CSIComponent {
                 image: values
@@ -273,7 +273,7 @@ mod tests {
             }
         );
     }
-    
+
 
     #[test]
     fn test_common_cinder_csi_values_for_cluster() {
@@ -308,7 +308,7 @@ mod tests {
                     effect: Some("NoSchedule".to_string()),
                     ..Default::default()
                 },
-            ]            
+            ]
         );
     }
 
