@@ -394,6 +394,9 @@ class LegacyClusterResourcesSecret(ClusterBase):
             share_network_id = self.cluster.labels.get("manila_csi_share_network_id")
             data = {
                 **data,
+                **magnum_cluster_api.Driver.get_manila_csi_cluster_resource_secret_data(
+                    self.cluster
+                ),
                 **{
                     "manila-csi-secret.yaml": yaml.dump(
                         {
@@ -419,22 +422,6 @@ class LegacyClusterResourcesSecret(ClusterBase):
                     )
                     for manifest in glob.glob(
                         os.path.join(manifests_path, "nfs-csi/*.yaml")
-                    )
-                },
-                **{
-                    os.path.basename(manifest): image_utils.update_manifest_images(
-                        self.cluster.uuid,
-                        manifest,
-                        repository=repository,
-                        replacements=[
-                            (
-                                "registry.k8s.io/provider-os/manila-csi-plugin:latest",
-                                manila.get_image(self.cluster),
-                            ),
-                        ],
-                    )
-                    for manifest in glob.glob(
-                        os.path.join(manifests_path, "manila-csi/*.yaml")
                     )
                 },
             }

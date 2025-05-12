@@ -242,6 +242,21 @@ impl Driver {
         Ok(cluster.cluster_addon_secret(&addon)?.string_data)
     }
 
+    // TODO(mnaser): We should move this out of the Python-facing implementation once we have
+    //               migrated all the code to Rust.
+    #[classmethod]
+    #[pyo3(signature = (cluster))]
+    fn get_manila_csi_cluster_resource_secret_data(
+        _cls: &Bound<'_, PyType>,
+        cluster: PyObject,
+        py: Python<'_>,
+    ) -> PyResult<Option<BTreeMap<String, String>>> {
+        let cluster: magnum::Cluster = cluster.extract(py)?;
+
+        let addon = addons::manila_csi::Addon::new(cluster.clone());
+        Ok(cluster.cluster_addon_secret(&addon)?.string_data)
+    }
+
     fn create_cluster(&self, py: Python<'_>, cluster: PyObject) -> PyResult<()> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 

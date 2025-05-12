@@ -42,6 +42,16 @@ pub struct ClusterLabels {
     #[pyo3(default="v1.32.0".to_owned())]
     pub cinder_csi_plugin_tag: String,
 
+    /// Enable the use of the Manila CSI driver for the cluster.
+    #[builder(default = true)]
+    #[pyo3(default = true)]
+    pub manila_csi_enabled: bool,
+
+    /// The tag of the Manila CSI container image to use for the cluster.
+    #[builder(default="v1.32.0".to_owned())]
+    #[pyo3(default="v1.32.0".to_owned())]
+    pub manila_csi_plugin_tag: String,
+
     /// The tag to use for the OpenStack cloud controller provider
     /// when bootstrapping the cluster.
     #[builder(default="v1.30.0".to_owned())]
