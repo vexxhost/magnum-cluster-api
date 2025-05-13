@@ -6,7 +6,11 @@ use crate::{
     },
 };
 use k8s_openapi::api::core::v1::Secret;
-use kube::api::ObjectMeta;
+use kube::{
+    api::ObjectMeta,
+    config::{KubeConfigOptions, Kubeconfig},
+    Api, Client, Config,
+};
 use maplit::btreemap;
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
 use serde::Deserialize;
@@ -56,11 +60,60 @@ pub enum ClusterError {
 
     #[error(transparent)]
     ManifestRender(#[from] helm::HelmTemplateError),
+
+    #[error(transparent)]
+    Kubernetes(#[from] kube::Error),
+
+    #[error("kubeconfig secret not found for cluster: {0}")]
+    KubeconfigSecretNotFound(String),
+
+    #[error("failed to parse kubeconfig yaml: {0}")]
+    KubeconfigParse(#[from] serde_yaml::Error),
+
+    #[error("failed to load kubeconfig: {0}")]
+    KubeconfigLoad(#[from] kube::config::KubeconfigError),
 }
 
 impl From<ClusterError> for PyErr {
     fn from(err: ClusterError) -> PyErr {
         PyErr::new::<PyRuntimeError, _>(err.to_string())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ClusterStatus {
+    #[default]
+    CreateInProgress,
+    CreateFailed,
+    CreateComplete,
+    UpdateInProgress,
+    UpdateFailed,
+    UpdateComplete,
+    DeleteInProgress,
+    DeleteFailed,
+    DeleteComplete,
+    ResumeComplete,
+    ResumeFailed,
+    RestoreComplete,
+    RollbackInProgress,
+    RollbackFailed,
+    RollbackComplete,
+    SnapshotComplete,
+    CheckComplete,
+    AdoptComplete,
+}
+
+impl FromPyObject<'_> for ClusterStatus {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let status = ob.extract::<String>()?;
+
+        serde_plain::from_str(&status).map_err(|err| {
+            PyErr::new::<PyRuntimeError, _>(format!(
+                "failed to parse cluster status: {}: {}",
+                status, err
+            ))
+        })
     }
 }
 
@@ -70,6 +123,7 @@ pub struct Cluster {
     pub cluster_template: ClusterTemplate,
     pub stack_id: Option<String>,
     pub labels: ClusterLabels,
+    pub status: ClusterStatus,
 }
 
 impl From<Cluster> for ObjectMeta {
@@ -86,6 +140,46 @@ impl Cluster {
         self.stack_id
             .clone()
             .ok_or_else(|| ClusterError::MissingStackId(self.uuid.clone()))
+    }
+
+    fn kubeconfig_secret_name(&self) -> Result<String, ClusterError> {
+        let stack_id = self.stack_id()?;
+
+        Ok(format!("{}-kubeconfig", stack_id))
+    }
+
+    async fn kubeconfig(&self) -> Result<Kubeconfig, ClusterError> {
+        let client = Client::try_default().await?;
+        let api: Api<Secret> = Api::namespaced(client, "magnum-system");
+        let secret_name = self.kubeconfig_secret_name()?;
+
+        let secret = api
+            .get(&secret_name)
+            .await
+            .map_err(ClusterError::Kubernetes)?;
+
+        let secret_data = secret
+            .data
+            .ok_or_else(|| ClusterError::KubeconfigSecretNotFound(secret_name.clone()))?;
+
+        let data = secret_data
+            .get("value")
+            .ok_or_else(|| ClusterError::KubeconfigSecretNotFound(secret_name.clone()))?;
+
+        serde_yaml::from_slice::<Kubeconfig>(&data.0).map_err(ClusterError::KubeconfigParse)
+    }
+
+    pub async fn client(&self) -> Result<Client, ClusterError> {
+        let kubeconfig = self.kubeconfig().await?;
+        let config =
+            Config::from_custom_kubeconfig(kubeconfig, &KubeConfigOptions::default()).await?;
+        let client = Client::try_from(config).map_err(ClusterError::Kubernetes)?;
+
+        // TODO: If the Cluster API driver is running outside of the management cluster and this is an
+        //       isolated cluster, we need to create a port-forward to the API server through the
+        //       management cluster.
+
+        Ok(client)
     }
 
     pub fn cloud_provider_resource_name(&self) -> Result<String, ClusterError> {
@@ -180,6 +274,7 @@ mod tests {
     use super::*;
     use crate::addons;
     use pretty_assertions::assert_eq;
+    use pyo3::{prepare_freethreaded_python, types::PyString};
     use rstest::rstest;
     use serde::Serialize;
     use serde_yaml::Value;
@@ -194,10 +289,37 @@ mod tests {
         "StorageClass",
     ];
 
+    #[rstest]
+    #[case("CREATE_IN_PROGRESS", ClusterStatus::CreateInProgress)]
+    #[case("CREATE_FAILED", ClusterStatus::CreateFailed)]
+    fn test_cluster_status_from_pyobject(#[case] status: &str, #[case] expected: ClusterStatus) {
+        prepare_freethreaded_python();
+
+        Python::with_gil(|py| {
+            let py_status = PyString::new(py, status);
+            let result: ClusterStatus = py_status
+                .extract()
+                .expect("Failed to extract ClusterStatus");
+            assert_eq!(result, expected);
+        });
+    }
+
+    #[test]
+    fn test_cluster_status_from_pyobject_invalid() {
+        prepare_freethreaded_python();
+
+        Python::with_gil(|py| {
+            let py_status = PyString::new(py, "INVALID_STATUS");
+            let result: Result<ClusterStatus, _> = py_status.extract();
+            assert!(result.is_err());
+        });
+    }
+
     #[test]
     fn test_object_meta_from_cluster() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -214,6 +336,7 @@ mod tests {
     fn test_cluster_stack_id() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -229,6 +352,7 @@ mod tests {
     fn test_cluster_stack_id_missing() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: None,
             cluster_template: ClusterTemplate {
@@ -252,6 +376,7 @@ mod tests {
     fn test_cluster_cloud_provider_resource_name() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -269,6 +394,7 @@ mod tests {
     fn test_cluster_cloud_provider_cluster_resource_set() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -309,6 +435,7 @@ mod tests {
     fn test_cluster_cloud_provider_secret() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: Some("kube-abcde".to_string()),
             cluster_template: ClusterTemplate {
@@ -344,6 +471,7 @@ mod tests {
     fn test_cluster_cloud_provider_secret_manifest_render_failure() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: Some("kube-abcde".to_string()),
             cluster_template: ClusterTemplate {
@@ -372,6 +500,7 @@ mod tests {
     fn test_cluster_resource_set_from_cluster() {
         let cluster = &Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -455,6 +584,7 @@ mod tests {
     fn test_secret_from_cluster() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
