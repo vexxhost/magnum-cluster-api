@@ -10,7 +10,6 @@ use crate::{
         },
         openstackclustertemplates::{
             OpenStackClusterTemplate, OpenStackClusterTemplateTemplateSpecNetwork,
-            OpenStackClusterTemplateTemplateSpecSubnets,
         },
     },
     features::{
@@ -34,8 +33,8 @@ pub struct FeatureValues {
     #[serde(rename = "fixedNetworkId")]
     pub fixed_network_id: String,
 
-    #[serde(rename = "fixedSubnetId")]
-    pub fixed_subnet_id: String,
+    #[serde(rename = "fixedSubnetIds")]
+    pub fixed_subnet_ids: Vec<String>,
 }
 
 pub struct Feature {}
@@ -111,8 +110,8 @@ impl ClusterFeaturePatches for Feature {
                 ..Default::default()
             },
             ClusterClassPatches {
-                name: "existingFixedSubnetIdConfig".into(),
-                enabled_if: Some(r#"{{ if ne .fixedSubnetId "" }}true{{end}}"#.into()),
+                name: "existingFixedSubnetIdsConfig".into(),
+                enabled_if: Some(r#"{{ if ne (index .fixedSubnetIds 0) "" }}true{{end}}"#.into()),
                 definitions: Some(vec![ClusterClassPatchesDefinitions {
                     selector: ClusterClassPatchesDefinitionsSelector {
                         api_version: OpenStackClusterTemplate::api_resource().api_version,
@@ -127,13 +126,14 @@ impl ClusterFeaturePatches for Feature {
                         path: "/spec/template/spec/subnets".into(),
                         value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                             template: Some(
-                                serde_yaml::to_string(&vec![
-                                    OpenStackClusterTemplateTemplateSpecSubnets {
-                                        id: Some("{{ .fixedSubnetId }}".to_string()),
-                                        ..Default::default()
-                                    },
-                                ])
-                                .unwrap(),
+                                indoc!(
+                                    r#"
+                                    {{- range .fixedSubnetIds }}
+                                    - id: {{ . }}
+                                    {{- end }}
+                                    "#
+                                )
+                                .into(),
                             ),
                             ..Default::default()
                         }),
@@ -154,7 +154,12 @@ inventory::submit! {
 mod tests {
     use super::*;
     use crate::{
-        cluster_api::openstackclustertemplates::OpenStackClusterTemplateTemplateSpecManagedSubnets,
+        cluster_api::{
+            openstackclustertemplates::{
+                OpenStackClusterTemplateTemplateSpecManagedSubnets,
+                OpenStackClusterTemplateTemplateSpecSubnets,
+            },
+        },
         features::test::TestClusterResources, resources::fixtures::default_values,
     };
     use pretty_assertions::assert_eq;
@@ -167,7 +172,7 @@ mod tests {
         values.node_cidr = "10.0.0.0/24".into();
         values.dns_nameservers = vec!["1.1.1.1".into(), "1.0.0.1".into()];
         values.fixed_network_id = "".into();
-        values.fixed_subnet_id = "".into();
+        values.fixed_subnet_ids = vec!["".into()];
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -197,7 +202,7 @@ mod tests {
         values.node_cidr = "10.0.0.0/24".into();
         values.dns_nameservers = vec!["1.1.1.1".into(), "1.0.0.1".into()];
         values.fixed_network_id = "e3172714-4ac5-4152-abf7-2d37387977e7".into();
-        values.fixed_subnet_id = "".into();
+        values.fixed_subnet_ids = vec!["".into()];
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -226,7 +231,8 @@ mod tests {
         values.node_cidr = "10.0.0.0/24".into();
         values.dns_nameservers = vec!["1.1.1.1".into(), "1.0.0.1".into()];
         values.fixed_network_id = "e3172714-4ac5-4152-abf7-2d37387977e7".into();
-        values.fixed_subnet_id = "5ef0bdfa-c836-4753-ae38-d2ca71ef921a".into();
+        values.fixed_subnet_ids = vec!["5ef0bdfa-c836-4753-ae38-d2ca71ef921a".into(),
+        "6ef0bdfa-c836-4753-ae38-d2ca71ef921a".into()];
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -254,10 +260,16 @@ mod tests {
                 .spec
                 .subnets
                 .expect("subnets should be set"),
-            vec![OpenStackClusterTemplateTemplateSpecSubnets {
-                id: Some(values.fixed_subnet_id),
+            vec![
+            OpenStackClusterTemplateTemplateSpecSubnets {
+                id: Some(values.fixed_subnet_ids[0].clone()),
                 ..Default::default()
-            }]
+            },
+            OpenStackClusterTemplateTemplateSpecSubnets {
+                id: Some(values.fixed_subnet_ids[1].clone()),
+                ..Default::default()
+            }
+            ]
         );
     }
 }
