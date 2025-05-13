@@ -105,7 +105,8 @@ jobs:
           sudo apt-get install -y python3-pip
       - id: image-info
         run: |
-          IMAGE_FILE=$(curl -s https://static.atmosphere.dev/artifacts/magnum-cluster-api/ | grep 1.28.11 | tail -1 | cut -d'"' -f2)
+          VERSION=${{ matrix.kubernetes-version }}
+          IMAGE_FILE=$(curl -s https://static.atmosphere.dev/artifacts/magnum-cluster-api/ | grep "$VERSION" | tail -1 | cut -d'"' -f2)
           IMAGE_NAME=$(echo $IMAGE_FILE | cut -d'.' -f1)
 
           echo "file=$IMAGE_FILE" >> $GITHUB_OUTPUT
