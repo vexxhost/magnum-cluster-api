@@ -1109,10 +1109,10 @@ class Cluster(ClusterBase):
                                     neutron.get_fixed_subnet_id(self.context, subnet)
                                     or ""
                                 )
-                                for subnet in json.loads(
+                                for subnet in [self.cluster.fixed_subnet]
+                                + json.loads(
                                     self.cluster.labels.get("extra_fixed_subnets", "[]")
                                 )
-                                + [self.cluster.fixed_subnet]
                             ]
                             or [""],
                         },
