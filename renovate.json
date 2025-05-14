@@ -12,6 +12,15 @@
       "matchFileNames": [
         "magnum_cluster_api/charts/**"
       ]
+    },
+    {
+      "groupName": "pyo3",
+      "matchPackageNames": [
+        "pyo3",
+        "pyo3-async-runtimes",
+        "pyo3-log",
+        "pythonize"
+      ]
     }
   ],
   "customManagers": [
