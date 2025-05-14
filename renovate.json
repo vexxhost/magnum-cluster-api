@@ -21,6 +21,13 @@
         "pyo3-log",
         "pythonize"
       ]
+    },
+    {
+      "groupName": "kube-rs",
+      "matchPackageNames": [
+        "kube",
+        "k8s-openapi"
+      ]
     }
   ],
   "customManagers": [
