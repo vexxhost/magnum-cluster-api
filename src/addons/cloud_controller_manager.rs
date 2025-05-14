@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use crate::{
     addons::{ClusterAddon, ClusterAddonValues, ClusterAddonValuesError},
     magnum::{self, ClusterError},
@@ -9,6 +7,7 @@ use include_dir::include_dir;
 use k8s_openapi::api::core::v1::{HostPathVolumeSource, Volume, VolumeMount};
 use maplit::btreemap;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use typed_builder::TypedBuilder;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize, TypedBuilder)]
