@@ -163,11 +163,6 @@ jobs:
           NETWORK_DRIVER: ${{ matrix.network-driver }}
           IMAGE_NAME: ${{ steps.image-info.outputs.name }}
           KUBE_TAG: v${{ matrix.kubernetes-version }}
-      # # NOTE: Uncomment for debug
-      # - name: Setup tmate session
-      #   uses: mxschmitt/action-tmate@v3
-      #   if: ${{ failure() }}
-      #   timeout-minutes: 15
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ always() }}
         with:
