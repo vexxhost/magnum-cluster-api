@@ -54,6 +54,8 @@ impl Driver {
         py: Python<'_>,
         cluster: &magnum::Cluster,
     ) -> PyResult<()> {
+        let addon = addons::cloud_controller_manager::Addon::new(cluster.clone());
+
         py.allow_threads(|| {
             get_runtime().block_on(async {
                 // TODO(mnaser): The secret is still being created by the Python
@@ -61,7 +63,7 @@ impl Driver {
                 self.client
                     .create_or_update_namespaced_resource(
                         &self.namespace,
-                        cluster.cloud_provider_cluster_resource_set()?,
+                        cluster.cluster_addon_cluster_resource_set(&addon)?,
                     )
                     .await?;
 
@@ -102,20 +104,20 @@ impl Driver {
         py: Python<'_>,
         cluster: &magnum::Cluster,
     ) -> PyResult<()> {
+        let addon = addons::cloud_controller_manager::Addon::new(cluster.clone());
+
         py.allow_threads(|| {
             get_runtime().block_on(async {
-                let resource_name = cluster.cloud_provider_resource_name()?;
-
                 self.client
                     .delete_resource(
                         Api::<ClusterResourceSet>::namespaced(self.client.clone(), &self.namespace),
-                        &resource_name,
+                        &addon.secret_name()?,
                     )
                     .await?;
                 self.client
                     .delete_resource(
                         Api::<Secret>::namespaced(self.client.clone(), &self.namespace),
-                        &resource_name,
+                        &addon.secret_name()?,
                     )
                     .await?;
 
@@ -222,7 +224,7 @@ impl Driver {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
         let addon = addons::cloud_controller_manager::Addon::new(cluster.clone());
-        Ok(cluster.cloud_provider_secret(&addon)?.string_data)
+        Ok(cluster.cluster_addon_secret(&addon)?.string_data)
     }
 
     fn create_cluster(&self, py: Python<'_>, cluster: PyObject) -> PyResult<()> {

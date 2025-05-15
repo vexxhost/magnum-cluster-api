@@ -302,8 +302,8 @@ pub static OPENSTACK_MACHINE_TEMPLATE: LazyLock<OpenStackMachineTemplate> =
 
 /// This is a static instance of the `OpenStackClusterTemplate` that is
 /// created once and then used for all objects.
-pub static OPENSTACK_CLUSTER_TEMPLATE: LazyLock<OpenStackClusterTemplate> =
-    LazyLock::new(|| OpenStackClusterTemplate {
+pub static OPENSTACK_CLUSTER_TEMPLATE: LazyLock<OpenStackClusterTemplate> = LazyLock::new(|| {
+    OpenStackClusterTemplate {
         metadata: Default::default(),
         spec: OpenStackClusterTemplateSpec {
             template: OpenStackClusterTemplateTemplate {
@@ -344,4 +344,5 @@ pub static OPENSTACK_CLUSTER_TEMPLATE: LazyLock<OpenStackClusterTemplate> =
                 },
             },
         },
-    });
+    }
+});
