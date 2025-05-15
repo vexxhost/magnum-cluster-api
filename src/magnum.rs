@@ -455,15 +455,13 @@ mod tests {
         let chart_name = path.file_name().unwrap().to_str().unwrap();
         if chart_name == "cilium" {
             let mut cni = Mapping::new();
-            cni.insert(Value::String("chainingMode".to_string()), Value::String("none".to_string()));
+            cni.insert(
+                Value::String("chainingMode".to_string()),
+                Value::String("none".to_string()),
+            );
             values.insert(Value::String("cni".to_string()), Value::Mapping(cni));
         }
-        let docs = helm::template(
-            &path,
-            chart_name,
-            "magnum-system",
-            &values,
-        );
+        let docs = helm::template(&path, chart_name, "magnum-system", &values);
         assert!(
             docs.is_ok(),
             "failed to render chart: {}",

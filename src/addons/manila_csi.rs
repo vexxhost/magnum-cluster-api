@@ -16,7 +16,6 @@ pub struct CSIValues {
     controllerplugin: CSIControllerPlugin,
 }
 
-
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct CSIComponent {
     image: ImageDetails,
@@ -74,11 +73,10 @@ impl TryFrom<magnum::Cluster> for CSIValues {
             },
             nodeplugin: CSINodePlugin {
                 registrar: CSIComponent {
-                    image: values
-                        .nodeplugin
-                        .registrar
-                        .image
-                        .using_cluster::<Self>(&cluster, &cluster.labels.csi_node_driver_registrar_tag)?,
+                    image: values.nodeplugin.registrar.image.using_cluster::<Self>(
+                        &cluster,
+                        &cluster.labels.csi_node_driver_registrar_tag,
+                    )?,
                 },
                 tolerations: vec![Toleration {
                     operator: Some("Exists".to_string()),
@@ -273,7 +271,6 @@ mod tests {
             }
         );
     }
-
 
     #[test]
     fn test_common_cinder_csi_values_for_cluster() {
