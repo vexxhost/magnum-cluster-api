@@ -154,10 +154,12 @@ jobs:
           iface=public
           url=$(openstack endpoint list --service block-storage --interface $iface -f value -c URL)
           openstack endpoint create --region RegionOne volumev3 $iface "$url"
-          ./hack/run-integration-tests.sh
-        working-directory: /opt/stack/magnum-cluster-api
         env:
           OS_CLOUD: devstack-admin
+      - run: ./hack/run-integration-tests.sh
+        working-directory: /opt/stack/magnum-cluster-api
+        env:
+          OS_CLOUD: devstack
           NETWORK_DRIVER: ${{ matrix.network-driver }}
           IMAGE_NAME: ${{ steps.image-info.outputs.name }}
           KUBE_TAG: v${{ matrix.kubernetes-version }}
