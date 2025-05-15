@@ -147,13 +147,24 @@ jobs:
             [nova_client]
             api_version = 2.15
           enabled_services: -s-account,-s-container,-s-object,-s-proxy,openstack-cli-server,octavia,o-api,o-hk,o-da
-      - run: ./hack/run-integration-tests.sh
+      - run: |
+          # NOTE(okozachenko): Create volumev3 service and endpoint manually until this issue fixed.
+          #                    https://github.com/kubernetes/cloud-provider-openstack/issues/2884
+          openstack service create --name cinderv3 --description "Cinder Volume Service V3" volumev3
+          iface=public
+          url=$(openstack endpoint list --service block-storage --interface $iface -f value -c URL)
+          openstack endpoint create --region RegionOne volumev3 $iface "$url"
+          ./hack/run-integration-tests.sh
         working-directory: /opt/stack/magnum-cluster-api
         env:
           OS_CLOUD: devstack
           NETWORK_DRIVER: ${{ matrix.network-driver }}
           IMAGE_NAME: ${{ steps.image-info.outputs.name }}
           KUBE_TAG: v${{ matrix.kubernetes-version }}
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        if: ${{ failure() }}
+        timeout-minutes: 15
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ always() }}
         with:
