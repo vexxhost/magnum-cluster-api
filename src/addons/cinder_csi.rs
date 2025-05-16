@@ -1,5 +1,5 @@
 use crate::{
-    addons::{ClusterAddon, ClusterAddonValues, ClusterAddonValuesError, ImageDetails},
+    addons::{ClusterAddon, ClusterAddonValues, ClusterAddonValuesError, csi::CSIComponent, ImageDetails},
     magnum::{self, ClusterError},
 };
 use docker_image::DockerImage;
@@ -33,11 +33,6 @@ pub struct CSIComponents {
     node_driver_registrar: CSIComponent,
 
     plugin: CSIPlugin,
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-struct CSIComponent {
-    image: ImageDetails,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

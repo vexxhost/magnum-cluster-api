@@ -1,5 +1,5 @@
 use crate::{
-    addons::{ClusterAddon, ClusterAddonValues, ClusterAddonValuesError, ImageDetails},
+    addons::{ClusterAddon, ClusterAddonValues, ClusterAddonValuesError, csi::CSIComponent},
     magnum::{self, ClusterError},
 };
 use docker_image::DockerImage;
@@ -14,11 +14,6 @@ pub struct CSIValues {
     csimanila: CSIComponent,
     nodeplugin: CSINodePlugin,
     controllerplugin: CSIControllerPlugin,
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-struct CSIComponent {
-    image: ImageDetails,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -159,6 +154,7 @@ impl ClusterAddon for Addon {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
+    use crate::addons::ImageDetails;
 
     #[test]
     fn test_manila_csi_values_for_cluster_without_custom_registry() {

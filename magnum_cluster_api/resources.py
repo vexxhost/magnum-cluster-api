@@ -301,6 +301,67 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
                 },
             }
 
+        if manila.is_enabled(self.cluster):
+            share_types = osc.manila().share_types.list()
+            share_network_id = self.cluster.labels.get("manila_csi_share_network_id")
+            data = {
+                **data,
+                **magnum_cluster_api.Driver.get_manila_csi_cluster_resource_secret_data(
+                    self.cluster
+                ),
+                **{
+                    "manila-csi-secret.yaml": yaml.dump(
+                        {
+                            "apiVersion": pykube.Secret.version,
+                            "kind": pykube.Secret.kind,
+                            "metadata": {
+                                "name": "csi-manila-secrets",
+                                "namespace": "kube-system",
+                            },
+                            "stringData": utils.generate_manila_csi_cloud_config(
+                                self.context,
+                                self.pykube_api,
+                                self.cluster,
+                            ),
+                        },
+                    )
+                },
+            }
+            # NOTE: We only create StorageClasses if share_network_id specified.
+            if share_network_id:
+                data = {
+                    **data,
+                    **{
+                        f"storageclass-share-{st.name}.yaml": yaml.dump(
+                            {
+                                "apiVersion": objects.StorageClass.version,
+                                "allowVolumeExpansion": True,
+                                "kind": objects.StorageClass.kind,
+                                "metadata": {
+                                    "name": "share-%s"
+                                    % utils.convert_to_rfc1123(st.name),
+                                },
+                                "provisioner": "manila.csi.openstack.org",
+                                "parameters": {
+                                    "type": st.name,
+                                    "shareNetworkID": share_network_id,
+                                    "csi.storage.k8s.io/provisioner-secret-name": "csi-manila-secrets",
+                                    "csi.storage.k8s.io/provisioner-secret-namespace": "kube-system",
+                                    "csi.storage.k8s.io/controller-expand-secret-name": "csi-manila-secrets",
+                                    "csi.storage.k8s.io/controller-expand-secret-namespace": "kube-system",
+                                    "csi.storage.k8s.io/node-stage-secret-name": "csi-manila-secrets",
+                                    "csi.storage.k8s.io/node-stage-secret-namespace": "kube-system",
+                                    "csi.storage.k8s.io/node-publish-secret-name": "csi-manila-secrets",
+                                    "csi.storage.k8s.io/node-publish-secret-namespace": "kube-system",
+                                },
+                                "reclaimPolicy": "Delete",
+                                "volumeBindingMode": "Immediate",
+                            }
+                        )
+                        for st in share_types
+                    },
+                }
+
         return {
             "type": "addons.cluster.x-k8s.io/resource-set",
             "stringData": data,
@@ -387,33 +448,9 @@ class LegacyClusterResourcesSecret(ClusterBase):
                 },
             }
 
-        osc = clients.get_openstack_api(self.context)
-
         if manila.is_enabled(self.cluster):
-            share_types = osc.manila().share_types.list()
-            share_network_id = self.cluster.labels.get("manila_csi_share_network_id")
             data = {
                 **data,
-                **magnum_cluster_api.Driver.get_manila_csi_cluster_resource_secret_data(
-                    self.cluster
-                ),
-                **{
-                    "manila-csi-secret.yaml": yaml.dump(
-                        {
-                            "apiVersion": pykube.Secret.version,
-                            "kind": pykube.Secret.kind,
-                            "metadata": {
-                                "name": "csi-manila-secrets",
-                                "namespace": "kube-system",
-                            },
-                            "stringData": utils.generate_manila_csi_cloud_config(
-                                self.context,
-                                self.pykube_api,
-                                self.cluster,
-                            ),
-                        },
-                    )
-                },
                 **{
                     os.path.basename(manifest): image_utils.update_manifest_images(
                         self.cluster.uuid,
@@ -425,41 +462,8 @@ class LegacyClusterResourcesSecret(ClusterBase):
                     )
                 },
             }
-            # NOTE: We only create StorageClasses if share_network_id specified.
-            if share_network_id:
-                data = {
-                    **data,
-                    **{
-                        f"storageclass-share-{st.name}.yaml": yaml.dump(
-                            {
-                                "apiVersion": objects.StorageClass.version,
-                                "allowVolumeExpansion": True,
-                                "kind": objects.StorageClass.kind,
-                                "metadata": {
-                                    "name": "share-%s"
-                                    % utils.convert_to_rfc1123(st.name),
-                                },
-                                "provisioner": "manila.csi.openstack.org",
-                                "parameters": {
-                                    "type": st.name,
-                                    "shareNetworkID": share_network_id,
-                                    "csi.storage.k8s.io/provisioner-secret-name": "csi-manila-secrets",
-                                    "csi.storage.k8s.io/provisioner-secret-namespace": "kube-system",
-                                    "csi.storage.k8s.io/controller-expand-secret-name": "csi-manila-secrets",
-                                    "csi.storage.k8s.io/controller-expand-secret-namespace": "kube-system",
-                                    "csi.storage.k8s.io/node-stage-secret-name": "csi-manila-secrets",
-                                    "csi.storage.k8s.io/node-stage-secret-namespace": "kube-system",
-                                    "csi.storage.k8s.io/node-publish-secret-name": "csi-manila-secrets",
-                                    "csi.storage.k8s.io/node-publish-secret-namespace": "kube-system",
-                                },
-                                "reclaimPolicy": "Delete",
-                                "volumeBindingMode": "Immediate",
-                            }
-                        )
-                        for st in share_types
-                    },
-                }
 
+        osc = clients.get_openstack_api(self.context)
         if utils.get_cluster_label_as_bool(self.cluster, "keystone_auth_enabled", True):
             auth_url = osc.url_for(
                 service_type="identity",
