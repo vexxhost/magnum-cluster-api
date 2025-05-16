@@ -341,7 +341,7 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
                                     "name": "share-%s"
                                     % utils.convert_to_rfc1123(st.name),
                                 },
-                                "provisioner": "manila.csi.openstack.org",
+                                "provisioner": "nfs.manila.csi.openstack.org",
                                 "parameters": {
                                     "type": st.name,
                                     "shareNetworkID": share_network_id,
