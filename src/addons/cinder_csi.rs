@@ -1,5 +1,7 @@
 use crate::{
-    addons::{ClusterAddon, ClusterAddonValues, ClusterAddonValuesError, csi::CSIComponent, ImageDetails},
+    addons::{
+        csi::CSIComponent, ClusterAddon, ClusterAddonValues, ClusterAddonValuesError, ImageDetails,
+    },
     magnum::{self, ClusterError},
 };
 use docker_image::DockerImage;

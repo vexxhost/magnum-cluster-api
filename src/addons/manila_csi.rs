@@ -1,5 +1,5 @@
 use crate::{
-    addons::{ClusterAddon, ClusterAddonValues, ClusterAddonValuesError, csi::CSIComponent},
+    addons::{csi::CSIComponent, ClusterAddon, ClusterAddonValues, ClusterAddonValuesError},
     magnum::{self, ClusterError},
 };
 use docker_image::DockerImage;
@@ -153,8 +153,8 @@ impl ClusterAddon for Addon {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pretty_assertions::assert_eq;
     use crate::addons::ImageDetails;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_manila_csi_values_for_cluster_without_custom_registry() {
