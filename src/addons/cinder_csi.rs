@@ -235,6 +235,7 @@ mod tests {
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
+            ..Default::default()
         };
 
         let values: CSIValues = cluster.clone().try_into().expect("failed to create values");
@@ -308,6 +309,7 @@ mod tests {
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
+            ..Default::default()
         };
 
         let values: CSIValues = cluster.clone().try_into().expect("failed to create values");
@@ -379,6 +381,7 @@ mod tests {
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
+            ..Default::default()
         };
 
         let values: CSIValues = cluster.clone().try_into().expect("failed to create values");
@@ -436,6 +439,7 @@ mod tests {
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
+            ..Default::default()
         };
 
         let addon = Addon::new(cluster.clone());

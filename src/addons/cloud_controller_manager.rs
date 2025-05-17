@@ -196,6 +196,7 @@ mod tests {
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
+            ..Default::default()
         };
 
         let values: CloudControllerManagerValues =
@@ -220,6 +221,7 @@ mod tests {
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
+            ..Default::default()
         };
 
         let values: CloudControllerManagerValues =
@@ -241,6 +243,7 @@ mod tests {
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
+            ..Default::default()
         };
 
         let values: CloudControllerManagerValues =
@@ -297,6 +300,7 @@ mod tests {
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
+            ..Default::default()
         };
 
         let addon = Addon::new(cluster.clone());

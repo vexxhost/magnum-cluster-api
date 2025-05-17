@@ -31,6 +31,7 @@ pythonize = "0.24.0"
 schemars = "0.8.21"
 serde = "1.0.218"
 serde_json = "1.0.138"
+serde_plain = "1.0.2"
 serde_yaml = "0.9.34"
 thiserror = "2.0.11"
 tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
@@ -38,7 +39,11 @@ typed-builder = "0.21.0"
 
 [dependencies.pyo3]
 version = "0.24.0"
-features = ["abi3-py38", "extension-module", "serde"]
+features = ["abi3-py38", "serde"]
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = []
 
 [dev-dependencies]
 gtmpl = "0.7.1"
