@@ -22,12 +22,6 @@ pub struct ClusterTemplate {
 #[derive(Clone, Default, Deserialize, FromPyObject, TypedBuilder)]
 #[pyo3(from_item_all)]
 pub struct ClusterLabels {
-    /// The prefix of the container images to use for the cluster, which
-    /// defaults to the upstream images if not set.
-    #[builder(default)]
-    #[pyo3(default)]
-    pub container_infra_prefix: Option<String>,
-
     /// The tag of the Cilium container image to use for the cluster.
     #[builder(default="v1.15.3".to_owned())]
     #[pyo3(default="v1.15.3".to_owned())]
@@ -38,11 +32,67 @@ pub struct ClusterLabels {
     #[pyo3(default="10.100.0.0/16".to_owned())]
     pub cilium_ipv4pool: String,
 
+    /// Enable the use of the Cinder CSI driver for the cluster.
+    #[builder(default = true)]
+    #[pyo3(default = true)]
+    pub cinder_csi_enabled: bool,
+
+    /// The tag of the Cinder CSI container image to use for the cluster.
+    #[builder(default="v1.32.0".to_owned())]
+    #[pyo3(default="v1.32.0".to_owned())]
+    pub cinder_csi_plugin_tag: String,
+
+    /// Enable the use of the Manila CSI driver for the cluster.
+    #[builder(default = true)]
+    #[pyo3(default = true)]
+    pub manila_csi_enabled: bool,
+
+    /// The tag of the Manila CSI container image to use for the cluster.
+    #[builder(default="v1.32.0".to_owned())]
+    #[pyo3(default="v1.32.0".to_owned())]
+    pub manila_csi_plugin_tag: String,
+
     /// The tag to use for the OpenStack cloud controller provider
     /// when bootstrapping the cluster.
     #[builder(default="v1.30.0".to_owned())]
     #[pyo3(default="v1.30.0".to_owned())]
     pub cloud_provider_tag: String,
+
+    /// The prefix of the container images to use for the cluster, which
+    /// defaults to the upstream images if not set.
+    #[builder(default)]
+    #[pyo3(default)]
+    pub container_infra_prefix: Option<String>,
+
+    /// CSI attacher tag to use for the cluster.
+    #[builder(default="v4.7.0".to_owned())]
+    #[pyo3(default="v4.7.0".to_owned())]
+    pub csi_attacher_tag: String,
+
+    /// CSI liveness probe tag to use for the cluster.
+    #[builder(default="v2.14.0".to_owned())]
+    #[pyo3(default="v2.14.0".to_owned())]
+    pub csi_liveness_probe_tag: String,
+
+    /// CSI Node Driver Registrar tag to use for the cluster.
+    #[builder(default="v2.12.0".to_owned())]
+    #[pyo3(default="v2.12.0".to_owned())]
+    pub csi_node_driver_registrar_tag: String,
+
+    // CSI Provisioner tag to use for the cluster.
+    #[builder(default="v5.1.0".to_owned())]
+    #[pyo3(default="v5.1.0".to_owned())]
+    pub csi_provisioner_tag: String,
+
+    /// CSI Resizer tag to use for the cluster.
+    #[builder(default="v1.12.0".to_owned())]
+    #[pyo3(default="v1.12.0".to_owned())]
+    pub csi_resizer_tag: String,
+
+    /// CSI Snapshotter tag to use for the cluster.
+    #[builder(default="v8.1.0".to_owned())]
+    #[pyo3(default="v8.1.0".to_owned())]
+    pub csi_snapshotter_tag: String,
 
     /// The Kubernetes version to use for the cluster.
     #[builder(default="v1.30.0".to_owned())]
@@ -181,8 +231,7 @@ mod tests {
     use crate::addons;
     use pretty_assertions::assert_eq;
     use rstest::rstest;
-    use serde::Serialize;
-    use serde_yaml::Value;
+    use serde_yaml::{Mapping, Value};
     use std::path::PathBuf;
 
     const CLUSTER_SCOPED_RESOURCES: &[&str] = &[
@@ -402,16 +451,17 @@ mod tests {
         #[exclude("patches")]
         path: PathBuf,
     ) {
-        #[derive(Serialize)]
-        struct Values {}
-        let values = Values {};
-
-        let docs = helm::template(
-            &path,
-            path.file_name().unwrap().to_str().unwrap(),
-            "magnum-system",
-            &values,
-        );
+        let mut values = Mapping::new();
+        let chart_name = path.file_name().unwrap().to_str().unwrap();
+        if chart_name == "cilium" {
+            let mut cni = Mapping::new();
+            cni.insert(
+                Value::String("chainingMode".to_string()),
+                Value::String("none".to_string()),
+            );
+            values.insert(Value::String("cni".to_string()), Value::Mapping(cni));
+        }
+        let docs = helm::template(&path, chart_name, "magnum-system", &values);
         assert!(
             docs.is_ok(),
             "failed to render chart: {}",
