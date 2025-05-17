@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 use thiserror::Error;
 use typed_builder::TypedBuilder;
 
-#[derive(Clone, Deserialize, FromPyObject)]
+#[derive(Clone, Default, Deserialize, FromPyObject)]
 pub struct ClusterTemplate {
     pub network_driver: String,
 }
@@ -114,7 +114,7 @@ impl From<ClusterError> for PyErr {
     }
 }
 
-#[derive(Clone, Deserialize, FromPyObject)]
+#[derive(Clone, Default, Deserialize, FromPyObject)]
 pub struct Cluster {
     pub uuid: String,
     pub cluster_template: ClusterTemplate,
@@ -252,6 +252,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let object_meta: ObjectMeta = cluster.into();
@@ -268,6 +269,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let result = cluster.stack_id().expect("failed to get stack id");
@@ -283,6 +285,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let result = cluster
@@ -306,6 +309,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let mut mock_addon = addons::MockClusterAddon::default();
@@ -352,6 +356,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let mut mock_addon = addons::MockClusterAddon::default();
@@ -392,6 +397,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let mut mock_addon = addons::MockClusterAddon::default();
@@ -424,6 +430,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let crs: ClusterResourceSet = cluster.into();
@@ -508,6 +515,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let secret: Secret = cluster.clone().into();
