@@ -6,7 +6,11 @@ use crate::{
     },
 };
 use k8s_openapi::api::core::v1::Secret;
-use kube::api::ObjectMeta;
+use kube::{
+    api::ObjectMeta,
+    config::{KubeConfigOptions, Kubeconfig},
+    Api, Client, Config,
+};
 use maplit::btreemap;
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
 use serde::Deserialize;
@@ -106,6 +110,18 @@ pub enum ClusterError {
 
     #[error(transparent)]
     ManifestRender(#[from] helm::HelmTemplateError),
+
+    #[error(transparent)]
+    Kubernetes(#[from] kube::Error),
+
+    #[error("kubeconfig secret not found for cluster: {0}")]
+    KubeconfigSecretNotFound(String),
+
+    #[error("failed to parse kubeconfig yaml: {0}")]
+    KubeconfigParse(#[from] serde_yaml::Error),
+
+    #[error("failed to load kubeconfig: {0}")]
+    KubeconfigLoad(#[from] kube::config::KubeconfigError),
 }
 
 impl From<ClusterError> for PyErr {
@@ -174,6 +190,50 @@ impl Cluster {
         self.stack_id
             .clone()
             .ok_or_else(|| ClusterError::MissingStackId(self.uuid.clone()))
+    }
+
+    fn kubeconfig_secret_name(&self) -> Result<String, ClusterError> {
+        let stack_id = self.stack_id()?;
+
+        Ok(format!("{}-kubeconfig", stack_id))
+    }
+
+    async fn kubeconfig(&self) -> Result<Kubeconfig, ClusterError> {
+        let client = Client::try_default().await?;
+        let api: Api<Secret> = Api::namespaced(client, "magnum-system");
+        let secret_name = self.kubeconfig_secret_name()?;
+
+        let secret = api
+            .get(&secret_name)
+            .await
+            .map_err(ClusterError::Kubernetes)?;
+
+        let secret_data = secret
+            .data
+            .ok_or_else(|| ClusterError::KubeconfigSecretNotFound(secret_name.clone()))?;
+
+        let data = secret_data
+            .get("value")
+            .ok_or_else(|| ClusterError::KubeconfigSecretNotFound(secret_name.clone()))?;
+
+        serde_yaml::from_slice::<Kubeconfig>(&data.0).map_err(ClusterError::KubeconfigParse)
+    }
+
+    pub async fn client(&self) -> Result<Client, ClusterError> {
+        let kubeconfig = self.kubeconfig().await?;
+        let config =
+            Config::from_custom_kubeconfig(kubeconfig, &KubeConfigOptions::default()).await?;
+        let client = Client::try_from(config).map_err(ClusterError::Kubernetes)?;
+
+        // TODO: If the Cluster API driver is running outside of the management cluster and this is an
+        //       isolated cluster, we need to create a port-forward to the API server through the
+        //       management cluster.
+
+        Ok(client)
+    }
+
+    pub fn cloud_provider_resource_name(&self) -> Result<String, ClusterError> {
+        Ok(format!("{}-cloud-provider", self.stack_id()?))
     }
 
     pub fn cluster_addon_cluster_resource_set<T: ClusterAddon>(
@@ -312,6 +372,7 @@ mod tests {
     fn test_object_meta_from_cluster() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -329,6 +390,7 @@ mod tests {
     fn test_cluster_stack_id() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -345,6 +407,7 @@ mod tests {
     fn test_cluster_stack_id_missing() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: None,
             cluster_template: ClusterTemplate {
@@ -369,6 +432,7 @@ mod tests {
     fn test_cluster_addon_cluster_resource_set() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -416,6 +480,7 @@ mod tests {
     fn test_cluster_addon_secret() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: Some("kube-abcde".to_string()),
             cluster_template: ClusterTemplate {
@@ -457,6 +522,7 @@ mod tests {
     fn test_cluster_addon_secret_manifest_render_failure() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: Some("kube-abcde".to_string()),
             cluster_template: ClusterTemplate {
@@ -490,6 +556,7 @@ mod tests {
     fn test_cluster_addon_resource_set_from_cluster() {
         let cluster = &Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -575,6 +642,7 @@ mod tests {
     fn test_secret_from_cluster() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
+            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {

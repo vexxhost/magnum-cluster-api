@@ -1,7 +1,7 @@
 use backon::{ExponentialBuilder, Retryable};
 use k8s_openapi::serde::{de::DeserializeOwned, Deserialize, Serialize};
 use kube::{
-    api::{Api, ApiResource, DynamicObject, GroupVersionKind, PostParams},
+    api::{Api, ApiResource, DynamicObject, GroupVersionKind, ListParams, ObjectList, PostParams},
     core::{ClusterResourceScope, NamespaceResourceScope, Resource},
     Client, ResourceExt,
 };
@@ -9,17 +9,29 @@ use pyo3::{exceptions::PyRuntimeError, PyErr};
 use std::fmt::Debug;
 
 #[derive(Debug)]
-pub struct Error(kube::Error);
+pub enum Error {
+    Kube(kube::Error),
+    Serde(serde_json::Error),
+}
 
 impl From<Error> for PyErr {
     fn from(err: Error) -> Self {
-        PyRuntimeError::new_err(err.0.to_string())
+        match err {
+            Error::Kube(e) => PyRuntimeError::new_err(e.to_string()),
+            Error::Serde(e) => PyRuntimeError::new_err(e.to_string()),
+        }
     }
 }
 
 impl From<kube::Error> for Error {
-    fn from(err: kube::Error) -> Self {
-        Self(err)
+    fn from(e: kube::Error) -> Self {
+        Self::Kube(e)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(e: serde_json::Error) -> Self {
+        Self::Serde(e)
     }
 }
 
@@ -57,6 +69,10 @@ pub trait ClientHelpers {
     async fn delete_resource<T>(&self, api: Api<T>, name: &str) -> Result<(), Error>
     where
         T: Resource + Clone + std::fmt::Debug + for<'de> Deserialize<'de> + Serialize;
+
+    async fn list_resources<T>(&self, api: Api<T>, list_params: ListParams) -> Result<ObjectList<T>, Error>
+    where
+        T: Resource + Clone + std::fmt::Debug + DeserializeOwned + Serialize;
 }
 
 impl ClientHelpers for Client {
@@ -136,6 +152,16 @@ impl ClientHelpers for Client {
         match api.delete(name, &Default::default()).await {
             Ok(_) => Ok(()),
             Err(kube::Error::Api(ref err)) if err.code == 404 => Ok(()),
+            Err(e) => Err(e)?,
+        }
+    }
+
+    async fn list_resources<T>(&self, api: Api<T>, list_params: ListParams) -> Result<ObjectList<T>, Error>
+    where
+        T: Resource + Clone + std::fmt::Debug + DeserializeOwned + Serialize,
+    {
+        match api.list(&list_params).await {
+            Ok(object_list) => Ok(object_list),
             Err(e) => Err(e)?,
         }
     }
