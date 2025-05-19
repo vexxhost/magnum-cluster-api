@@ -158,6 +158,8 @@ impl Driver {
         cluster: &magnum::Cluster,
         upgrade: bool,
     ) -> PyResult<()> {
+        let addon = addons::cloud_controller_manager::Addon::new(cluster.clone());
+
         py.allow_threads(|| {
             get_runtime().block_on(async {
                 // NOTE(mnaser): The updated cloud provider resource uses a different set of
@@ -190,7 +192,7 @@ impl Driver {
                 self.client
                     .create_or_update_namespaced_resource(
                         &self.namespace,
-                        cluster.cloud_provider_cluster_resource_set()?,
+                        cluster.cluster_addon_cluster_resource_set(&addon)?,
                     )
                     .await?;
 
@@ -231,20 +233,20 @@ impl Driver {
         py: Python<'_>,
         cluster: &magnum::Cluster,
     ) -> PyResult<()> {
+        let addon = addons::cloud_controller_manager::Addon::new(cluster.clone());
+
         py.allow_threads(|| {
             get_runtime().block_on(async {
-                let resource_name = cluster.cloud_provider_resource_name()?;
-
                 self.client
                     .delete_resource(
                         Api::<ClusterResourceSet>::namespaced(self.client.clone(), &self.namespace),
-                        &resource_name,
+                        &addon.secret_name()?,
                     )
                     .await?;
                 self.client
                     .delete_resource(
                         Api::<Secret>::namespaced(self.client.clone(), &self.namespace),
-                        &resource_name,
+                        &addon.secret_name()?,
                     )
                     .await?;
 
@@ -351,7 +353,37 @@ impl Driver {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
         let addon = addons::cloud_controller_manager::Addon::new(cluster.clone());
-        Ok(cluster.cloud_provider_secret(&addon)?.string_data)
+        Ok(cluster.cluster_addon_secret(&addon)?.string_data)
+    }
+
+    // TODO(mnaser): We should move this out of the Python-facing implementation once we have
+    //               migrated all the code to Rust.
+    #[classmethod]
+    #[pyo3(signature = (cluster))]
+    fn get_cinder_csi_cluster_resource_secret_data(
+        _cls: &Bound<'_, PyType>,
+        cluster: PyObject,
+        py: Python<'_>,
+    ) -> PyResult<Option<BTreeMap<String, String>>> {
+        let cluster: magnum::Cluster = cluster.extract(py)?;
+
+        let addon = addons::cinder_csi::Addon::new(cluster.clone());
+        Ok(cluster.cluster_addon_secret(&addon)?.string_data)
+    }
+
+    // TODO(mnaser): We should move this out of the Python-facing implementation once we have
+    //               migrated all the code to Rust.
+    #[classmethod]
+    #[pyo3(signature = (cluster))]
+    fn get_manila_csi_cluster_resource_secret_data(
+        _cls: &Bound<'_, PyType>,
+        cluster: PyObject,
+        py: Python<'_>,
+    ) -> PyResult<Option<BTreeMap<String, String>>> {
+        let cluster: magnum::Cluster = cluster.extract(py)?;
+
+        let addon = addons::manila_csi::Addon::new(cluster.clone());
+        Ok(cluster.cluster_addon_secret(&addon)?.string_data)
     }
 
     fn create_cluster(&self, py: Python<'_>, cluster: PyObject) -> PyResult<()> {

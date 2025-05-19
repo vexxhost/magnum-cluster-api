@@ -1,33 +1,44 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
-  "baseBranches": ["main"],
+  "extends": [
+    "local>vexxhost/.github"
+  ],
+  "baseBranches": [
+    "main"
+  ],
   "packageRules": [
     {
       "enabled": false,
-      "matchPackagePatterns": ["*"]
+      "matchFileNames": [
+        "magnum_cluster_api/charts/**"
+      ]
     },
     {
-      "enabled": true,
-      "matchDatasources": ["crate"]
+      "groupName": "pyo3",
+      "matchPackageNames": [
+        "pyo3",
+        "pyo3-async-runtimes",
+        "pyo3-log",
+        "pythonize"
+      ]
     },
     {
-      "enabled": true,
-      "matchDatasources": ["github-releases"],
-      "matchPackageNames": ["projectcalico/calico"],
-      "postUpgradeTasks": {
-        "fileFilters": ["magnum_cluster_api/manifests/calico/v*.yaml"],
-        "commands": [
-          "curl -o magnum_cluster_api/manifests/calico/v{{{newValue}}}.yaml https://raw.githubusercontent.com/projectcalico/calico/v{{{newValue}}}/manifests/calico.yaml"
-        ]
-      }
+      "groupName": "kube-rs",
+      "matchPackageNames": [
+        "kube",
+        "k8s-openapi"
+      ]
     }
   ],
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["magnum_cluster_api/resources.py"],
-      "matchStrings": ["CALICO_TAG = \"v(?<currentValue>.*?)\""],
+      "fileMatch": [
+        "magnum_cluster_api/resources.py"
+      ],
+      "matchStrings": [
+        "CALICO_TAG = \"v(?<currentValue>.*?)\""
+      ],
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "projectcalico/calico",
       "depTypeTemplate": "requires",

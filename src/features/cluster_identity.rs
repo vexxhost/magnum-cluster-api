@@ -92,8 +92,8 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resources::fixtures::default_values;
     use crate::features::test::TestClusterResources;
+    use crate::resources::fixtures::default_values;
     use pretty_assertions::assert_eq;
 
     #[test]

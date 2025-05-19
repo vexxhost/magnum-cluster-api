@@ -401,10 +401,10 @@ mod tests {
                 }
                 "apiServerSANs" => {
                     assert_eq!(var.value, json!(default_values().api_server_sans));
-                },
+                }
                 "hardwareDiskBus" => {
                     assert_eq!(var.value, json!(default_values().hardware_disk_bus));
-                },
+                }
                 "enableDockerVolume" => {
                     assert_eq!(var.value, json!(default_values().enable_docker_volume));
                 }
