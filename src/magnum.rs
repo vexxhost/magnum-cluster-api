@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 use thiserror::Error;
 use typed_builder::TypedBuilder;
 
-#[derive(Clone, Deserialize, FromPyObject)]
+#[derive(Clone, Default, Deserialize, FromPyObject)]
 pub struct ClusterTemplate {
     pub network_driver: String,
 }
@@ -114,12 +114,50 @@ impl From<ClusterError> for PyErr {
     }
 }
 
-#[derive(Clone, Deserialize, FromPyObject)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ClusterStatus {
+    #[default]
+    CreateInProgress,
+    CreateFailed,
+    CreateComplete,
+    UpdateInProgress,
+    UpdateFailed,
+    UpdateComplete,
+    DeleteInProgress,
+    DeleteFailed,
+    DeleteComplete,
+    ResumeComplete,
+    ResumeFailed,
+    RestoreComplete,
+    RollbackInProgress,
+    RollbackFailed,
+    RollbackComplete,
+    SnapshotComplete,
+    CheckComplete,
+    AdoptComplete,
+}
+
+impl FromPyObject<'_> for ClusterStatus {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let status = ob.extract::<String>()?;
+
+        serde_plain::from_str(&status).map_err(|err| {
+            PyErr::new::<PyRuntimeError, _>(format!(
+                "failed to parse cluster status: {}: {}",
+                status, err
+            ))
+        })
+    }
+}
+
+#[derive(Clone, Default, Deserialize, FromPyObject)]
 pub struct Cluster {
     pub uuid: String,
     pub cluster_template: ClusterTemplate,
     pub stack_id: Option<String>,
     pub labels: ClusterLabels,
+    pub status: ClusterStatus,
 }
 
 impl From<Cluster> for ObjectMeta {
@@ -230,6 +268,7 @@ mod tests {
     use super::*;
     use crate::addons;
     use pretty_assertions::assert_eq;
+    use pyo3::{prepare_freethreaded_python, types::PyString};
     use rstest::rstest;
     use serde_yaml::{Mapping, Value};
     use std::path::PathBuf;
@@ -243,6 +282,32 @@ mod tests {
         "StorageClass",
     ];
 
+    #[rstest]
+    #[case("CREATE_IN_PROGRESS", ClusterStatus::CreateInProgress)]
+    #[case("CREATE_FAILED", ClusterStatus::CreateFailed)]
+    fn test_cluster_status_from_pyobject(#[case] status: &str, #[case] expected: ClusterStatus) {
+        prepare_freethreaded_python();
+
+        Python::with_gil(|py| {
+            let py_status = PyString::new(py, status);
+            let result: ClusterStatus = py_status
+                .extract()
+                .expect("Failed to extract ClusterStatus");
+            assert_eq!(result, expected);
+        });
+    }
+
+    #[test]
+    fn test_cluster_status_from_pyobject_invalid() {
+        prepare_freethreaded_python();
+
+        Python::with_gil(|py| {
+            let py_status = PyString::new(py, "INVALID_STATUS");
+            let result: Result<ClusterStatus, _> = py_status.extract();
+            assert!(result.is_err());
+        });
+    }
+
     #[test]
     fn test_object_meta_from_cluster() {
         let cluster = Cluster {
@@ -252,6 +317,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let object_meta: ObjectMeta = cluster.into();
@@ -268,6 +334,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let result = cluster.stack_id().expect("failed to get stack id");
@@ -283,6 +350,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let result = cluster
@@ -306,6 +374,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let mut mock_addon = addons::MockClusterAddon::default();
@@ -352,6 +421,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let mut mock_addon = addons::MockClusterAddon::default();
@@ -392,6 +462,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let mut mock_addon = addons::MockClusterAddon::default();
@@ -424,6 +495,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let crs: ClusterResourceSet = cluster.into();
@@ -508,6 +580,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let secret: Secret = cluster.clone().into();
