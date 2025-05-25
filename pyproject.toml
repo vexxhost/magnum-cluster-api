@@ -76,7 +76,7 @@ magnum_cluster_api = "magnum_cluster_api.conf:list_opts"
 
 [tool.maturin]
 module-name = "magnum_cluster_api"
-features = ["pyo3/extension-module"]
+features = ["extension-module"]
 
 [tool.uv]
 cache-keys = [{file = "pyproject.toml"}, {file = "rust/Cargo.toml"}, {file = "**/*.rs"}]

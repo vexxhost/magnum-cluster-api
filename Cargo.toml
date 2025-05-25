@@ -44,7 +44,7 @@ features = ["abi3-py38", "serde"]
 
 [features]
 extension-module = ["pyo3/extension-module"]
-default = ["extension-module"]
+default = []
 
 [dev-dependencies]
 gtmpl = "0.7.1"
