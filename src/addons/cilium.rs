@@ -357,7 +357,6 @@ mod tests {
     fn test_cilium_values_for_cluster_without_custom_registry() {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
-            status: magnum::ClusterStatus::CreateInProgress,
             labels: magnum::ClusterLabels::builder().build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {
@@ -462,7 +461,6 @@ mod tests {
     fn test_cilium_values_for_cluster_with_custom_registry() {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
-            status: magnum::ClusterStatus::CreateInProgress,
             labels: magnum::ClusterLabels::builder()
                 .container_infra_prefix(Some("registry.example.com".to_string()))
                 .build(),
@@ -569,7 +567,6 @@ mod tests {
     fn test_get_manifests() {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
-            status: magnum::ClusterStatus::CreateInProgress,
             labels: magnum::ClusterLabels::builder().build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {

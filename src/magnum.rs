@@ -372,7 +372,6 @@ mod tests {
     fn test_object_meta_from_cluster() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
-            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -390,7 +389,6 @@ mod tests {
     fn test_cluster_stack_id() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
-            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -407,7 +405,6 @@ mod tests {
     fn test_cluster_stack_id_missing() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
-            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: None,
             cluster_template: ClusterTemplate {
@@ -432,7 +429,6 @@ mod tests {
     fn test_cluster_addon_cluster_resource_set() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
-            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -480,7 +476,6 @@ mod tests {
     fn test_cluster_addon_secret() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
-            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: Some("kube-abcde".to_string()),
             cluster_template: ClusterTemplate {
@@ -522,7 +517,6 @@ mod tests {
     fn test_cluster_addon_secret_manifest_render_failure() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
-            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::builder().build(),
             stack_id: Some("kube-abcde".to_string()),
             cluster_template: ClusterTemplate {
@@ -556,7 +550,6 @@ mod tests {
     fn test_cluster_addon_resource_set_from_cluster() {
         let cluster = &Cluster {
             uuid: "sample-uuid".to_string(),
-            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
@@ -642,7 +635,6 @@ mod tests {
     fn test_secret_from_cluster() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
-            status: ClusterStatus::CreateInProgress,
             labels: ClusterLabels::default(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: ClusterTemplate {
