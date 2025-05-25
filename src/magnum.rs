@@ -232,10 +232,6 @@ impl Cluster {
         Ok(client)
     }
 
-    pub fn cloud_provider_resource_name(&self) -> Result<String, ClusterError> {
-        Ok(format!("{}-cloud-provider", self.stack_id()?))
-    }
-
     pub fn cluster_addon_cluster_resource_set<T: ClusterAddon>(
         &self,
         addon: &T,
