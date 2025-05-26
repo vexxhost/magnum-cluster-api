@@ -1,7 +1,7 @@
 use backon::{ExponentialBuilder, Retryable};
 use k8s_openapi::serde::{de::DeserializeOwned, Deserialize, Serialize};
 use kube::{
-    api::{Api, ApiResource, DynamicObject, GroupVersionKind, ListParams, ObjectList, PostParams},
+    api::{Api, ApiResource, DynamicObject, GroupVersionKind, ListParams, PostParams},
     core::{ClusterResourceScope, NamespaceResourceScope, Resource},
     Client, ResourceExt,
 };
@@ -70,9 +70,9 @@ pub trait ClientHelpers {
     where
         T: Resource + Clone + std::fmt::Debug + for<'de> Deserialize<'de> + Serialize;
 
-    async fn list_resources<T>(&self, api: Api<T>, list_params: ListParams) -> Result<ObjectList<T>, Error>
+    async fn delete_resources<T>(&self, api: Api<T>, list_params: &ListParams) -> Result<(), Error>
     where
-        T: Resource + Clone + std::fmt::Debug + DeserializeOwned + Serialize;
+        T: Resource + Clone + std::fmt::Debug + for<'de> Deserialize<'de> + Serialize;
 }
 
 impl ClientHelpers for Client {
@@ -156,14 +156,17 @@ impl ClientHelpers for Client {
         }
     }
 
-    async fn list_resources<T>(&self, api: Api<T>, list_params: ListParams) -> Result<ObjectList<T>, Error>
+    async fn delete_resources<T>(&self, api: Api<T>, list_params: &ListParams) -> Result<(), Error>
     where
-        T: Resource + Clone + std::fmt::Debug + DeserializeOwned + Serialize,
+        T: Resource + Clone + std::fmt::Debug + for<'de> Deserialize<'de> + Serialize,
     {
-        match api.list(&list_params).await {
-            Ok(object_list) => Ok(object_list),
-            Err(e) => Err(e)?,
+        let list = api.list(list_params).await?;
+
+        for item in list.items {
+            self.delete_resource(api.clone(), &item.name_any()).await?;
         }
+
+        Ok(())
     }
 }
 
