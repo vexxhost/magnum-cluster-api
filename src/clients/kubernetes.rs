@@ -9,21 +9,17 @@ use pyo3::{exceptions::PyRuntimeError, PyErr};
 use std::fmt::Debug;
 
 #[derive(Debug)]
-pub enum Error {
-    Kube(kube::Error),
-}
+pub struct Error(kube::Error);
 
 impl From<Error> for PyErr {
     fn from(err: Error) -> Self {
-        match err {
-            Error::Kube(e) => PyRuntimeError::new_err(e.to_string()),
-        }
+        PyRuntimeError::new_err(err.0.to_string())
     }
 }
 
 impl From<kube::Error> for Error {
-    fn from(e: kube::Error) -> Self {
-        Self::Kube(e)
+    fn from(err: kube::Error) -> Self {
+        Self(err)
     }
 }
 
