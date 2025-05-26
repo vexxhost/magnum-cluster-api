@@ -34,7 +34,7 @@ pub struct Driver {
 /// multiple times.  On the other hand, functions prefixed with `create_` are
 /// not idempotent and should only be called once.
 impl Driver {
-    fn apply_legacy_cluster_resource_set(
+    fn create_legacy_cluster_resource_set(
         &self,
         py: Python<'_>,
         cluster: &magnum::Cluster,
@@ -300,7 +300,7 @@ impl Driver {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
         self.apply_cluster_class(py)?;
-        self.apply_legacy_cluster_resource_set(py, &cluster)?;
+        self.create_legacy_cluster_resource_set(py, &cluster)?;
         self.apply_cloud_provider_cluster_resource_set(py, &cluster, false)?;
 
         Ok(())
@@ -310,7 +310,7 @@ impl Driver {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
         self.apply_cluster_class(py)?;
-        self.apply_legacy_cluster_resource_set(py, &cluster)?;
+        self.create_legacy_cluster_resource_set(py, &cluster)?;
         self.apply_cloud_provider_cluster_resource_set(py, &cluster, true)?;
 
         Ok(())
