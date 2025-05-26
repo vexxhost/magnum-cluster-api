@@ -8,8 +8,14 @@ use crate::{
     magnum::{self},
     resources::ClusterClassBuilder,
 };
+use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, StatefulSet};
 use k8s_openapi::api::core::v1::{Namespace, Secret};
-use kube::{api::ObjectMeta, Api, Client};
+use kube::{
+    api::{Api, ListParams, ObjectMeta},
+    core::Expression,
+    Client,
+};
+use log::debug;
 use pyo3::{prelude::*, types::PyType};
 use pyo3_async_runtimes::tokio::get_runtime;
 
@@ -53,11 +59,44 @@ impl Driver {
         &self,
         py: Python<'_>,
         cluster: &magnum::Cluster,
+        upgrade: bool,
     ) -> PyResult<()> {
         let addon = addons::cloud_controller_manager::Addon::new(cluster.clone());
 
         py.allow_threads(|| {
             get_runtime().block_on(async {
+                // NOTE(mnaser): The updated cloud provider resource uses a different set of
+                //               labels and annotations (from the Helm chart) than the legacy
+                //               ones which was created by manifests. We need to clean up the
+                //               legacy resources otherwise it will generate a conflict during
+                //               the upgrade.
+                //
+                //               https://github.com/vexxhost/magnum-cluster-api/issues/580
+                if upgrade {
+                    debug!("Detecting cluster upgrade, ensuring that the legacy resource set is deleted");
+
+                    let client = cluster.client().await?;
+
+                    let api: Api<Deployment> = Api::namespaced(client.clone(), "kube-system");
+                    client.delete_resource(api, "csi-cinder-controllerplugin").await?;
+
+                    let api: Api<DaemonSet> = Api::namespaced(client.clone(), "kube-system");
+                    client.delete_resource(api.clone(), "csi-cinder-nodeplugin").await?;
+                    client.delete_resource(api.clone(), "openstack-manila-csi-nodeplugin").await?;
+                    client.delete_resources(
+                        api.clone(),
+                        &ListParams::default().labels_from(
+                            &Expression::Equal(
+                                "k8s-app".into(),
+                                "openstack-cloud-controller-manager".into()
+                            ).into(),
+                        ),
+                    ).await?;
+
+                    let api: Api<StatefulSet> = Api::namespaced(client.clone(), "kube-system");
+                    client.delete_resource(api, "openstack-manila-csi-controllerplugin").await?;
+                }
+
                 // TODO(mnaser): The secret is still being created by the Python
                 //               code, we need to move this to Rust.
                 self.client
@@ -262,7 +301,7 @@ impl Driver {
 
         self.apply_cluster_class(py)?;
         self.create_legacy_cluster_resource_set(py, &cluster)?;
-        self.apply_cloud_provider_cluster_resource_set(py, &cluster)?;
+        self.apply_cloud_provider_cluster_resource_set(py, &cluster, false)?;
 
         Ok(())
     }
@@ -271,7 +310,7 @@ impl Driver {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
         self.apply_cluster_class(py)?;
-        self.apply_cloud_provider_cluster_resource_set(py, &cluster)?;
+        self.apply_cloud_provider_cluster_resource_set(py, &cluster, true)?;
 
         Ok(())
     }
