@@ -310,7 +310,6 @@ impl Driver {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
         self.apply_cluster_class(py)?;
-        self.create_legacy_cluster_resource_set(py, &cluster)?;
         self.apply_cloud_provider_cluster_resource_set(py, &cluster, true)?;
 
         Ok(())
