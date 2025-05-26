@@ -11,14 +11,12 @@ use std::fmt::Debug;
 #[derive(Debug)]
 pub enum Error {
     Kube(kube::Error),
-    Serde(serde_json::Error),
 }
 
 impl From<Error> for PyErr {
     fn from(err: Error) -> Self {
         match err {
             Error::Kube(e) => PyRuntimeError::new_err(e.to_string()),
-            Error::Serde(e) => PyRuntimeError::new_err(e.to_string()),
         }
     }
 }
@@ -26,12 +24,6 @@ impl From<Error> for PyErr {
 impl From<kube::Error> for Error {
     fn from(e: kube::Error) -> Self {
         Self::Kube(e)
-    }
-}
-
-impl From<serde_json::Error> for Error {
-    fn from(e: serde_json::Error) -> Self {
-        Self::Serde(e)
     }
 }
 
