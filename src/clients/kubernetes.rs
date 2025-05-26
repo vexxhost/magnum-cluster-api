@@ -1,7 +1,7 @@
 use backon::{ExponentialBuilder, Retryable};
 use k8s_openapi::serde::{de::DeserializeOwned, Deserialize, Serialize};
 use kube::{
-    api::{Api, ApiResource, DynamicObject, GroupVersionKind, PostParams},
+    api::{Api, ApiResource, DynamicObject, GroupVersionKind, ListParams, PostParams},
     core::{ClusterResourceScope, NamespaceResourceScope, Resource},
     Client, ResourceExt,
 };
@@ -55,6 +55,10 @@ pub trait ClientHelpers {
             + Serialize;
 
     async fn delete_resource<T>(&self, api: Api<T>, name: &str) -> Result<(), Error>
+    where
+        T: Resource + Clone + std::fmt::Debug + for<'de> Deserialize<'de> + Serialize;
+
+    async fn delete_resources<T>(&self, api: Api<T>, list_params: &ListParams) -> Result<(), Error>
     where
         T: Resource + Clone + std::fmt::Debug + for<'de> Deserialize<'de> + Serialize;
 }
@@ -138,6 +142,19 @@ impl ClientHelpers for Client {
             Err(kube::Error::Api(ref err)) if err.code == 404 => Ok(()),
             Err(e) => Err(e)?,
         }
+    }
+
+    async fn delete_resources<T>(&self, api: Api<T>, list_params: &ListParams) -> Result<(), Error>
+    where
+        T: Resource + Clone + std::fmt::Debug + for<'de> Deserialize<'de> + Serialize,
+    {
+        let list = api.list(list_params).await?;
+
+        for item in list.items {
+            self.delete_resource(api.clone(), &item.name_any()).await?;
+        }
+
+        Ok(())
     }
 }
 
