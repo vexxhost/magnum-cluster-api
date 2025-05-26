@@ -607,8 +607,6 @@ class BaseDriver(driver.Driver):
             cluster_resource.obj["spec"]["topology"]["controlPlane"][
                 "replicas"
             ] = nodegroup.node_count
-            utils.kube_apply_patch(cluster_resource)
-
         else:
             utils.ensure_worker_server_group(
                 ctx=context, cluster=cluster, node_group=nodegroup
@@ -628,7 +626,8 @@ class BaseDriver(driver.Driver):
                 return
 
             cluster_resource.set_machine_deployment_spec(nodegroup.name, target_md_spec)
-            utils.kube_apply_patch(cluster_resource)
+
+        utils.kube_apply_patch(cluster_resource)
 
         nodegroup.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
         nodegroup.save()
