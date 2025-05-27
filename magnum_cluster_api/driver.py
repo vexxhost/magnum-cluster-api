@@ -19,6 +19,7 @@ import keystoneauth1  # type: ignore
 from eventlet import tpool  # type: ignore
 from heatclient import exc  # type: ignore
 from magnum import objects as magnum_objects  # type: ignore
+from magnum.common import exception as magnum_exception  # type: ignore
 from magnum.conductor import scale_manager  # type: ignore
 from magnum.drivers.common import driver  # type: ignore
 from magnum.objects import fields  # type: ignore
@@ -171,7 +172,9 @@ class BaseDriver(driver.Driver):
 
         if updated_replicas != replicas:
             nodegroup.status = f"{action}_IN_PROGRESS"
-        elif updated_replicas == replicas and ready:
+        elif (
+            updated_replicas == replicas and nodegroup.node_count == replicas and ready
+        ):
             nodegroup.status = f"{action}_COMPLETE"
         nodegroup.status_reason = failure_message
 
@@ -428,6 +431,11 @@ class BaseDriver(driver.Driver):
         resources.Cluster(context, self.kube_client, self.k8s_api, cluster).delete()
         resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).delete()
 
+    # magnum-cluster-api driver supports control plane resize
+    def validate_master_resize(self, node_count):
+        if node_count % 2 == 0 or node_count < 1:
+            raise magnum_exception.MasterNGSizeInvalid(requested_size=node_count)
+
     @cluster_lock_wrapper
     def create_nodegroup(
         self,
@@ -587,24 +595,39 @@ class BaseDriver(driver.Driver):
         nodegroup: magnum_objects.NodeGroup,
     ):
         utils.validate_nodegroup(nodegroup)
-        utils.ensure_worker_server_group(
-            ctx=context, cluster=cluster, node_group=nodegroup
-        )
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 
-        current_md_spec = cluster_resource.get_machine_deployment_spec(nodegroup.name)
-        target_md_spec = resources.mutate_machine_deployment(
-            context,
-            cluster,
-            nodegroup,
-            cluster_resource.get_machine_deployment_spec(nodegroup.name),
-        )
+        if nodegroup.role == "master":
+            current_count = cluster_resource.obj["spec"]["topology"]["controlPlane"][
+                "replicas"
+            ]
+            if current_count == nodegroup.node_count:
+                return
 
-        if current_md_spec == target_md_spec:
-            return
+            cluster_resource.obj["spec"]["topology"]["controlPlane"][
+                "replicas"
+            ] = nodegroup.node_count
+        else:
+            utils.ensure_worker_server_group(
+                ctx=context, cluster=cluster, node_group=nodegroup
+            )
 
-        cluster_resource.set_machine_deployment_spec(nodegroup.name, target_md_spec)
+            current_md_spec = cluster_resource.get_machine_deployment_spec(
+                nodegroup.name
+            )
+            target_md_spec = resources.mutate_machine_deployment(
+                context,
+                cluster,
+                nodegroup,
+                cluster_resource.get_machine_deployment_spec(nodegroup.name),
+            )
+
+            if current_md_spec == target_md_spec:
+                return
+
+            cluster_resource.set_machine_deployment_spec(nodegroup.name, target_md_spec)
+
         utils.kube_apply_patch(cluster_resource)
 
         nodegroup.status = fields.ClusterStatus.UPDATE_IN_PROGRESS

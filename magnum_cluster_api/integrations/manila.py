@@ -18,7 +18,9 @@ from magnum_cluster_api.integrations import common
 
 
 def is_enabled(cluster: objects.Cluster) -> bool:
-    return common.is_enabled(cluster, "manila_csi_enabled", "sharev2")
+    return common.is_enabled(
+        cluster, "manila_csi_enabled", "sharev2"
+    ) or common.is_enabled(cluster, "manila_csi_enabled", "share")
 
 
 def get_image(cluster: objects.Cluster) -> str:

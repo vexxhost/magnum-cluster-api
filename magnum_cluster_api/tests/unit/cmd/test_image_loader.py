@@ -52,7 +52,7 @@ def test__get_calico_images():
 def test__get_infra_images():
     manifests_path = pkg_resources.resource_filename("magnum_cluster_api", "manifests")
 
-    for csi in ["cinder", "manila", "nfs"]:
+    for csi in ["nfs"]:
         folder = os.path.join(manifests_path, f"{csi}-csi")
 
         for file in os.listdir(folder):

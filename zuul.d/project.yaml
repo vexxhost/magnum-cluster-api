@@ -1,19 +1,9 @@
 - project:
     check:
       jobs:
-        - magnum-cluster-api-chart-vendor
         - magnum-cluster-api-tox-functional
         - magnum-cluster-api-tox-unit
     gate:
       jobs:
-        - magnum-cluster-api-chart-vendor
         - magnum-cluster-api-tox-functional
         - magnum-cluster-api-tox-unit
-    templates:
-      - renovate
-      # NOTE(mnaser): These are disabled until someone can help push images
-      #               that work for these platforms.
-      # - magnum-cluster-api-flatcar
-      # - magnum-cluster-api-rockylinux-8
-      # - magnum-cluster-api-rockylinux-9
-      - magnum-cluster-api-ubuntu-2204

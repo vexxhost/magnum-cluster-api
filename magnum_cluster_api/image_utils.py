@@ -48,8 +48,8 @@ def get_image(name: str, repository: str = None):
         return name
 
     new_image_name = name
-    if name.startswith("docker.io/calico"):
-        new_image_name = name.replace("docker.io/calico/", f"{repository}/calico/")
+    if name.startswith("quay.io/calico"):
+        new_image_name = name.replace("quay.io/calico/", f"{repository}/calico/")
     if name.startswith("quay.io/cilium"):
         new_image_name = name.replace("quay.io/cilium/", f"{repository}/cilium/")
     if name.startswith("docker.io/k8scloudprovider"):

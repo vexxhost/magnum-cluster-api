@@ -6,7 +6,11 @@ use crate::{
     },
 };
 use k8s_openapi::api::core::v1::Secret;
-use kube::api::ObjectMeta;
+use kube::{
+    api::ObjectMeta,
+    config::{KubeConfigOptions, Kubeconfig},
+    Api, Client, Config,
+};
 use maplit::btreemap;
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
 use serde::Deserialize;
@@ -14,7 +18,7 @@ use std::collections::BTreeMap;
 use thiserror::Error;
 use typed_builder::TypedBuilder;
 
-#[derive(Clone, Deserialize, FromPyObject)]
+#[derive(Clone, Default, Deserialize, FromPyObject)]
 pub struct ClusterTemplate {
     pub network_driver: String,
 }
@@ -22,12 +26,6 @@ pub struct ClusterTemplate {
 #[derive(Clone, Default, Deserialize, FromPyObject, TypedBuilder)]
 #[pyo3(from_item_all)]
 pub struct ClusterLabels {
-    /// The prefix of the container images to use for the cluster, which
-    /// defaults to the upstream images if not set.
-    #[builder(default)]
-    #[pyo3(default)]
-    pub container_infra_prefix: Option<String>,
-
     /// The tag of the Cilium container image to use for the cluster.
     #[builder(default="v1.15.3".to_owned())]
     #[pyo3(default="v1.15.3".to_owned())]
@@ -38,11 +36,67 @@ pub struct ClusterLabels {
     #[pyo3(default="10.100.0.0/16".to_owned())]
     pub cilium_ipv4pool: String,
 
+    /// Enable the use of the Cinder CSI driver for the cluster.
+    #[builder(default = true)]
+    #[pyo3(default = true)]
+    pub cinder_csi_enabled: bool,
+
+    /// The tag of the Cinder CSI container image to use for the cluster.
+    #[builder(default="v1.32.0".to_owned())]
+    #[pyo3(default="v1.32.0".to_owned())]
+    pub cinder_csi_plugin_tag: String,
+
+    /// Enable the use of the Manila CSI driver for the cluster.
+    #[builder(default = true)]
+    #[pyo3(default = true)]
+    pub manila_csi_enabled: bool,
+
+    /// The tag of the Manila CSI container image to use for the cluster.
+    #[builder(default="v1.32.0".to_owned())]
+    #[pyo3(default="v1.32.0".to_owned())]
+    pub manila_csi_plugin_tag: String,
+
     /// The tag to use for the OpenStack cloud controller provider
     /// when bootstrapping the cluster.
     #[builder(default="v1.30.0".to_owned())]
     #[pyo3(default="v1.30.0".to_owned())]
     pub cloud_provider_tag: String,
+
+    /// The prefix of the container images to use for the cluster, which
+    /// defaults to the upstream images if not set.
+    #[builder(default)]
+    #[pyo3(default)]
+    pub container_infra_prefix: Option<String>,
+
+    /// CSI attacher tag to use for the cluster.
+    #[builder(default="v4.7.0".to_owned())]
+    #[pyo3(default="v4.7.0".to_owned())]
+    pub csi_attacher_tag: String,
+
+    /// CSI liveness probe tag to use for the cluster.
+    #[builder(default="v2.14.0".to_owned())]
+    #[pyo3(default="v2.14.0".to_owned())]
+    pub csi_liveness_probe_tag: String,
+
+    /// CSI Node Driver Registrar tag to use for the cluster.
+    #[builder(default="v2.12.0".to_owned())]
+    #[pyo3(default="v2.12.0".to_owned())]
+    pub csi_node_driver_registrar_tag: String,
+
+    // CSI Provisioner tag to use for the cluster.
+    #[builder(default="v5.1.0".to_owned())]
+    #[pyo3(default="v5.1.0".to_owned())]
+    pub csi_provisioner_tag: String,
+
+    /// CSI Resizer tag to use for the cluster.
+    #[builder(default="v1.12.0".to_owned())]
+    #[pyo3(default="v1.12.0".to_owned())]
+    pub csi_resizer_tag: String,
+
+    /// CSI Snapshotter tag to use for the cluster.
+    #[builder(default="v8.1.0".to_owned())]
+    #[pyo3(default="v8.1.0".to_owned())]
+    pub csi_snapshotter_tag: String,
 
     /// The Kubernetes version to use for the cluster.
     #[builder(default="v1.30.0".to_owned())]
@@ -56,6 +110,18 @@ pub enum ClusterError {
 
     #[error(transparent)]
     ManifestRender(#[from] helm::HelmTemplateError),
+
+    #[error(transparent)]
+    Kubernetes(#[from] kube::Error),
+
+    #[error("kubeconfig secret not found for cluster: {0}")]
+    KubeconfigSecretNotFound(String),
+
+    #[error("failed to parse kubeconfig yaml: {0}")]
+    KubeconfigParse(#[from] serde_yaml::Error),
+
+    #[error("failed to load kubeconfig: {0}")]
+    KubeconfigLoad(#[from] kube::config::KubeconfigError),
 }
 
 impl From<ClusterError> for PyErr {
@@ -64,12 +130,50 @@ impl From<ClusterError> for PyErr {
     }
 }
 
-#[derive(Clone, Deserialize, FromPyObject)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ClusterStatus {
+    #[default]
+    CreateInProgress,
+    CreateFailed,
+    CreateComplete,
+    UpdateInProgress,
+    UpdateFailed,
+    UpdateComplete,
+    DeleteInProgress,
+    DeleteFailed,
+    DeleteComplete,
+    ResumeComplete,
+    ResumeFailed,
+    RestoreComplete,
+    RollbackInProgress,
+    RollbackFailed,
+    RollbackComplete,
+    SnapshotComplete,
+    CheckComplete,
+    AdoptComplete,
+}
+
+impl FromPyObject<'_> for ClusterStatus {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let status = ob.extract::<String>()?;
+
+        serde_plain::from_str(&status).map_err(|err| {
+            PyErr::new::<PyRuntimeError, _>(format!(
+                "failed to parse cluster status: {}: {}",
+                status, err
+            ))
+        })
+    }
+}
+
+#[derive(Clone, Default, Deserialize, FromPyObject)]
 pub struct Cluster {
     pub uuid: String,
     pub cluster_template: ClusterTemplate,
     pub stack_id: Option<String>,
     pub labels: ClusterLabels,
+    pub status: ClusterStatus,
 }
 
 impl From<Cluster> for ObjectMeta {
@@ -82,22 +186,59 @@ impl From<Cluster> for ObjectMeta {
 }
 
 impl Cluster {
-    fn stack_id(&self) -> Result<String, ClusterError> {
+    pub fn stack_id(&self) -> Result<String, ClusterError> {
         self.stack_id
             .clone()
             .ok_or_else(|| ClusterError::MissingStackId(self.uuid.clone()))
     }
 
-    pub fn cloud_provider_resource_name(&self) -> Result<String, ClusterError> {
-        Ok(format!("{}-cloud-provider", self.stack_id()?))
+    fn kubeconfig_secret_name(&self) -> Result<String, ClusterError> {
+        let stack_id = self.stack_id()?;
+
+        Ok(format!("{}-kubeconfig", stack_id))
     }
 
-    pub fn cloud_provider_cluster_resource_set(&self) -> Result<ClusterResourceSet, ClusterError> {
-        let resource_name = self.cloud_provider_resource_name()?;
+    async fn kubeconfig(&self) -> Result<Kubeconfig, ClusterError> {
+        let client = Client::try_default().await?;
+        let api: Api<Secret> = Api::namespaced(client, "magnum-system");
+        let secret_name = self.kubeconfig_secret_name()?;
 
+        let secret = api
+            .get(&secret_name)
+            .await
+            .map_err(ClusterError::Kubernetes)?;
+
+        let secret_data = secret
+            .data
+            .ok_or_else(|| ClusterError::KubeconfigSecretNotFound(secret_name.clone()))?;
+
+        let data = secret_data
+            .get("value")
+            .ok_or_else(|| ClusterError::KubeconfigSecretNotFound(secret_name.clone()))?;
+
+        serde_yaml::from_slice::<Kubeconfig>(&data.0).map_err(ClusterError::KubeconfigParse)
+    }
+
+    pub async fn client(&self) -> Result<Client, ClusterError> {
+        let kubeconfig = self.kubeconfig().await?;
+        let config =
+            Config::from_custom_kubeconfig(kubeconfig, &KubeConfigOptions::default()).await?;
+        let client = Client::try_from(config).map_err(ClusterError::Kubernetes)?;
+
+        // TODO: If the Cluster API driver is running outside of the management cluster and this is an
+        //       isolated cluster, we need to create a port-forward to the API server through the
+        //       management cluster.
+
+        Ok(client)
+    }
+
+    pub fn cluster_addon_cluster_resource_set<T: ClusterAddon>(
+        &self,
+        addon: &T,
+    ) -> Result<ClusterResourceSet, ClusterError> {
         Ok(ClusterResourceSet {
             metadata: ObjectMeta {
-                name: Some(resource_name.clone()),
+                name: Some(addon.secret_name()?),
                 ..Default::default()
             },
             spec: ClusterResourceSetSpec {
@@ -109,7 +250,7 @@ impl Cluster {
                 },
                 resources: Some(vec![ClusterResourceSetResources {
                     kind: ClusterResourceSetResourcesKind::Secret,
-                    name: resource_name.clone(),
+                    name: addon.secret_name()?,
                 }]),
                 strategy: Some(ClusterResourceSetStrategy::Reconcile),
             },
@@ -117,19 +258,14 @@ impl Cluster {
         })
     }
 
-    pub fn cloud_provider_secret<T: ClusterAddon>(
-        &self,
-        addon: &T,
-    ) -> Result<Secret, ClusterError> {
+    pub fn cluster_addon_secret<T: ClusterAddon>(&self, addon: &T) -> Result<Secret, ClusterError> {
         Ok(Secret {
             metadata: ObjectMeta {
-                name: Some(self.cloud_provider_resource_name()?),
+                name: Some(addon.secret_name()?),
                 ..Default::default()
             },
             type_: Some("addons.cluster.x-k8s.io/resource-set".into()),
-            string_data: Some(btreemap! {
-                "cloud-controller-manager.yaml".to_owned() => addon.manifests()?,
-            }),
+            string_data: Some(addon.manifests()?),
             ..Default::default()
         })
     }
@@ -163,7 +299,15 @@ impl From<Cluster> for Secret {
 
         let cilium = cilium::Addon::new(cluster.clone());
         if cilium.enabled() {
-            data.insert("cilium.yaml".to_owned(), cilium.manifests().unwrap());
+            data.insert(
+                "cilium.yaml".to_owned(),
+                cilium
+                    .manifests()
+                    .unwrap()
+                    .get("cilium.yaml")
+                    .unwrap()
+                    .to_owned(),
+            );
         }
 
         Secret {
@@ -180,9 +324,9 @@ mod tests {
     use super::*;
     use crate::addons;
     use pretty_assertions::assert_eq;
+    use pyo3::{prepare_freethreaded_python, types::PyString};
     use rstest::rstest;
-    use serde::Serialize;
-    use serde_yaml::Value;
+    use serde_yaml::{Mapping, Value};
     use std::path::PathBuf;
 
     const CLUSTER_SCOPED_RESOURCES: &[&str] = &[
@@ -194,6 +338,32 @@ mod tests {
         "StorageClass",
     ];
 
+    #[rstest]
+    #[case("CREATE_IN_PROGRESS", ClusterStatus::CreateInProgress)]
+    #[case("CREATE_FAILED", ClusterStatus::CreateFailed)]
+    fn test_cluster_status_from_pyobject(#[case] status: &str, #[case] expected: ClusterStatus) {
+        prepare_freethreaded_python();
+
+        Python::with_gil(|py| {
+            let py_status = PyString::new(py, status);
+            let result: ClusterStatus = py_status
+                .extract()
+                .expect("Failed to extract ClusterStatus");
+            assert_eq!(result, expected);
+        });
+    }
+
+    #[test]
+    fn test_cluster_status_from_pyobject_invalid() {
+        prepare_freethreaded_python();
+
+        Python::with_gil(|py| {
+            let py_status = PyString::new(py, "INVALID_STATUS");
+            let result: Result<ClusterStatus, _> = py_status.extract();
+            assert!(result.is_err());
+        });
+    }
+
     #[test]
     fn test_object_meta_from_cluster() {
         let cluster = Cluster {
@@ -203,6 +373,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let object_meta: ObjectMeta = cluster.into();
@@ -219,6 +390,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let result = cluster.stack_id().expect("failed to get stack id");
@@ -234,6 +406,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let result = cluster
@@ -249,7 +422,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cluster_cloud_provider_resource_name() {
+    fn test_cluster_addon_cluster_resource_set() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::builder().build(),
@@ -257,27 +430,17 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
-        let result = cluster
-            .cloud_provider_resource_name()
-            .expect("failed to get resource name");
-        assert_eq!(result, "kube-abcde-cloud-provider");
-    }
-
-    #[test]
-    fn test_cluster_cloud_provider_cluster_resource_set() {
-        let cluster = Cluster {
-            uuid: "sample-uuid".to_string(),
-            labels: ClusterLabels::builder().build(),
-            stack_id: "kube-abcde".to_string().into(),
-            cluster_template: ClusterTemplate {
-                network_driver: "calico".to_string(),
-            },
-        };
+        let mut mock_addon = addons::MockClusterAddon::default();
+        mock_addon
+            .expect_secret_name()
+            .times(2)
+            .returning(|| Ok("kube-abcde-cloud-provider".to_string()));
 
         let result = cluster
-            .cloud_provider_cluster_resource_set()
+            .cluster_addon_cluster_resource_set(&mock_addon)
             .expect("failed to generate crs");
 
         let expected_resource_name = format!("kube-abcde-cloud-provider");
@@ -306,7 +469,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cluster_cloud_provider_secret() {
+    fn test_cluster_addon_secret() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::builder().build(),
@@ -314,15 +477,21 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let mut mock_addon = addons::MockClusterAddon::default();
         mock_addon
-            .expect_manifests()
-            .return_once(|| Ok("blah".to_string()));
+            .expect_secret_name()
+            .return_once(|| Ok("kube-abcde-cloud-provider".to_string()));
+        mock_addon.expect_manifests().return_once(|| {
+            Ok(btreemap! {
+                "cloud-controller-manager.yaml".to_owned() => "blah".to_owned(),
+            })
+        });
 
         let result = cluster
-            .cloud_provider_secret(&mock_addon)
+            .cluster_addon_secret(&mock_addon)
             .expect("failed to generate secret");
 
         let expected = Secret {
@@ -341,7 +510,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cluster_cloud_provider_secret_manifest_render_failure() {
+    fn test_cluster_addon_secret_manifest_render_failure() {
         let cluster = Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::builder().build(),
@@ -349,15 +518,20 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
+
         let mut mock_addon = addons::MockClusterAddon::default();
+        mock_addon
+            .expect_secret_name()
+            .return_once(|| Ok("kube-abcde-cloud-provider".to_string()));
         mock_addon.expect_manifests().return_once(|| {
             Err(helm::HelmTemplateError::HelmCommand(
                 "helm template failed".to_string(),
             ))
         });
 
-        let result = cluster.cloud_provider_secret(&mock_addon);
+        let result = cluster.cluster_addon_secret(&mock_addon);
 
         assert!(result.is_err());
         match result {
@@ -369,7 +543,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cluster_resource_set_from_cluster() {
+    fn test_cluster_addon_resource_set_from_cluster() {
         let cluster = &Cluster {
             uuid: "sample-uuid".to_string(),
             labels: ClusterLabels::default(),
@@ -377,6 +551,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let crs: ClusterResourceSet = cluster.into();
@@ -404,16 +579,17 @@ mod tests {
         #[exclude("patches")]
         path: PathBuf,
     ) {
-        #[derive(Serialize)]
-        struct Values {}
-        let values = Values {};
-
-        let docs = helm::template(
-            &path,
-            path.file_name().unwrap().to_str().unwrap(),
-            "magnum-system",
-            &values,
-        );
+        let mut values = Mapping::new();
+        let chart_name = path.file_name().unwrap().to_str().unwrap();
+        if chart_name == "cilium" {
+            let mut cni = Mapping::new();
+            cni.insert(
+                Value::String("chainingMode".to_string()),
+                Value::String("none".to_string()),
+            );
+            values.insert(Value::String("cni".to_string()), Value::Mapping(cni));
+        }
+        let docs = helm::template(&path, chart_name, "magnum-system", &values);
         assert!(
             docs.is_ok(),
             "failed to render chart: {}",
@@ -460,6 +636,7 @@ mod tests {
             cluster_template: ClusterTemplate {
                 network_driver: "calico".to_string(),
             },
+            ..Default::default()
         };
 
         let secret: Secret = cluster.clone().into();
