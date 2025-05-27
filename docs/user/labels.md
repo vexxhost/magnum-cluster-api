@@ -300,8 +300,8 @@ is often accomplished by deploying a driver on each node.
 
 * `extra_fixed_subnets`
 
-    Extra fixed subnets. This allow us to provide extra subnets for machines in cluster.
-    For example `[{"id": "$extra_subnet_ID1"}, {"id": "$extra_subnet_ID2"}]`
+    Extra fixed subnet names. This allow us to provide extra subnets for machines in cluster.
+    For example `'["$extra_subnet_name1", "$extra_subnet_name2"]'`.
     This is not a override for the default fixed_subnet but a added-on list.
     So we can have multiple subnets support (from same fixed network).
 
