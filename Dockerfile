@@ -3,7 +3,6 @@
 FROM alpine:3.21 AS registry-base
 RUN apk add --no-cache docker-registry
 ADD registry/config.yml /etc/docker-registry/config.yml
-ADD registry/example.yml /etc/docker-registry/example.yml
 
 FROM registry-base AS registry-loader
 COPY --from=ghcr.io/astral-sh/uv:0.7.8 /uv /uvx /bin/
@@ -17,7 +16,7 @@ RUN <<EOF
     sleep 0.1
   done
 
-  uv run magnum-cluster-api-image-loader --insecure --config /etc/docker-registry/example.yml --repository localhost:5000
+  uv run magnum-cluster-api-image-loader --insecure --repository localhost:5000
 EOF
 
 FROM registry-base AS registry

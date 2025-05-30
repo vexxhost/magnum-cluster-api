@@ -1,7 +1,8 @@
 # This file is an example config of how to define custom images and versions for a Kubernetes cluster.
 # It can be used to override the default images and versions used by 'magnum-cluster-api-image-loader'.
-# Usage example:
+# Usage examples:
 # magnum-cluster-api-image-loader --insecure --config custom-images.yml --repository localhost:5000
+# magnum-cluster-api-image-loader --insecure --config custom-images.yml --platforms linux/amd64,linux/arm64 --repository localhost:5000
 
 kubernetes:
   versions: [
@@ -26,11 +27,11 @@ kubernetes:
 calico:
   images:
     - name: "quay.io/calico/cni"
-      tags: ["v3.24.2"]
+      tags: ["v3.24.2", "v3.25.2", "v3.26.5", "v3.27.4", "v3.28.2", "v3.29.0", "v3.29.2", "v3.29.3", "v3.30.0"]
     - name: "quay.io/calico/kube-controllers"
-      tags: ["v3.24.2"]
+      tags: ["v3.24.2", "v3.25.2", "v3.26.5", "v3.27.4", "v3.28.2", "v3.29.0", "v3.29.2", "v3.29.3", "v3.30.0"]
     - name: "quay.io/calico/node"
-      tags: ["v3.24.2"]
+      tags: ["v3.24.2", "v3.25.2", "v3.26.5", "v3.27.4", "v3.28.2", "v3.29.0", "v3.29.2", "v3.29.3", "v3.30.0"]
 
 cilium:
   images:
