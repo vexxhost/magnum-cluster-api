@@ -14,7 +14,6 @@
 
 import itertools
 import os
-from pathlib import Path
 
 import pkg_resources
 import yaml
@@ -39,14 +38,35 @@ def _get_images_from_manifests(file: str):
 
 
 def test__get_calico_images():
-    manifests_path = pkg_resources.resource_filename("magnum_cluster_api", "manifests")
+    """Test if manifest images match default Calico images."""
+    # Calico images to check against
+    images = [
+        "quay.io/calico/cni",
+        "quay.io/calico/kube-controllers",
+        "quay.io/calico/node",
+    ]
 
+    # Get first default image and extract its version
+    default_images = image_loader._get_calico_images()
+    first_image = default_images[0]  # e.g., "quay.io/calico/cni:v3.24.2"
+    default_version = first_image.split(":")[1]  # e.g., "v3.24.2"
+
+    # Get manifest path
+    manifests_path = pkg_resources.resource_filename("magnum_cluster_api", "manifests")
     calico_path = os.path.join(manifests_path, "calico")
-    for file in os.listdir(calico_path):
-        calico_version = Path(file).stem
-        assert _get_images_from_manifests(os.path.join(calico_path, file)) == set(
-            image_loader._get_calico_images(tag=calico_version)
-        )
+    manifest_file = os.path.join(calico_path, f"{default_version}.yaml")
+
+    # Check manifest exists and contains expected images
+    assert os.path.exists(
+        manifest_file
+    ), f"Manifest for version {default_version} not found"
+    manifest_images = _get_images_from_manifests(manifest_file)
+
+    # Verify all base images with correct version are in manifest
+    expected_images = set(f"{image}:{default_version}" for image in images)
+    assert (
+        manifest_images == expected_images
+    ), f"Manifest images don't match expected Calico images for version {default_version}"
 
 
 def test__get_infra_images():

@@ -78,11 +78,12 @@ impl ClusterAddonValues for CSIValues {
 
     fn get_mirrored_image_name(image: DockerImage, registry: &Option<String>) -> String {
         match registry {
-            Some(ref registry) => format!(
-                "{}/{}",
-                registry.trim_end_matches('/'),
-                image.name.split('/').next_back().unwrap()
-            ),
+            Some(ref registry) => {
+                let name = image.name.split('/').next_back().unwrap();
+                // Add livenessprobe -> csi-livenessprobe transformation
+                let name = if name == "livenessprobe" { "csi-livenessprobe" } else { name };
+                format!("{}/{}", registry.trim_end_matches('/'), name)
+            }
             None => image.to_string(),
         }
     }
@@ -349,7 +350,7 @@ mod tests {
         assert_eq!(
             values.csi.livenessprobe.image,
             ImageDetails {
-                repository: "registry.example.com/livenessprobe".into(),
+                repository: "registry.example.com/csi-livenessprobe".into(),
                 tag: cluster.labels.csi_liveness_probe_tag,
                 use_digest: Some(false),
             }
