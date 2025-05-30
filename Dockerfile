@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.15
 
-FROM alpine:3.21 AS registry-base
+FROM alpine:3.22 AS registry-base
 RUN apk add --no-cache docker-registry
 ADD registry/config.yml /etc/docker-registry/config.yml
 
