@@ -21,7 +21,9 @@ import tempfile
 import click
 import platformdirs
 import requests
+import yaml
 from diskcache import FanoutCache
+from typing import Dict, List, Optional
 
 from magnum_cluster_api import image_utils
 
@@ -59,6 +61,11 @@ VERSIONS = [
     help="Target image repository",
 )
 @click.option(
+    "--config",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=str),
+    help="Path to YAML config file containing image configurations",
+)
+@click.option(
     "--parallel",
     default=8,
     help="Number of parallel uploads",
@@ -68,17 +75,12 @@ VERSIONS = [
     is_flag=True,
     help="Allow insecure connections to the registry.",
 )
-def main(repository, parallel, insecure):
+def main(repository, config, parallel, insecure):
     """
     Load images into a remote registry for `container_infra_prefix` usage.
     """
-    crane_path = shutil.which("crane")
 
-    if crane_path is None:
-        raise click.UsageError(
-            """Crane is not installed. Please install it before running this command:
-             https://github.com/google/go-containerregistry/blob/main/cmd/crane/README.md#installation"""
-        )
+    config_data = load_config(config) if config else None
 
     # NOTE(mnaser): This list must be maintained manually because the image
     #               registry must be able to support a few different versions
@@ -86,12 +88,20 @@ def main(repository, parallel, insecure):
     #               clusters running different versions of Kubernetes at the
     #               same time.
     images = set(
-        _get_all_kubeadm_images()
-        + _get_calico_images()
-        + _get_cilium_images()
-        + _get_cloud_provider_images()
-        + _get_infra_images()
+        _get_all_kubeadm_images(config_data)
+        + _get_calico_images(config_data)
+        + _get_cilium_images(config_data)
+        + _get_cloud_provider_images(config_data)
+        + _get_infra_images(config_data)
     )
+
+    crane_path = shutil.which("crane")
+
+    if crane_path is None:
+        raise click.UsageError(
+            """Crane is not installed. Please install it before running this command:
+             https://github.com/google/go-containerregistry/blob/main/cmd/crane/README.md#installation"""
+        )
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=parallel) as executor:
         future_to_image = {
@@ -131,14 +141,18 @@ def _mirror_image(image: str, repository: str, insecure: bool, crane_path: str):
         return
 
 
-def _get_all_kubeadm_images():
+def _get_all_kubeadm_images(config: Optional[Dict] = None):
     """
     Get the list of images that are used by Kubernetes by downloading "kubeadm"
     and running the "kubeadm config images list" command.
     """
 
     images = []
-    for version in VERSIONS:
+    versions = VERSIONS
+    if config and "kubernetes" in config:
+        versions = config["kubernetes"]["versions"]
+
+    for version in versions:
         images += _get_kubeadm_images(version)
 
     return images
@@ -175,17 +189,32 @@ def _get_kubeadm_images(version: str):
     return output.decode().replace("k8s.gcr.io", "registry.k8s.io").splitlines()
 
 
-def _get_calico_images(tag="v3.24.2"):
+def _get_calico_images(config: Optional[Dict] = None) -> List[str]:
+    if config and "calico" in config:
+        images = []
+        for image in config["calico"]["images"]:
+            images.extend(
+                [f"{image['name']}:{tag}" for tag in image["tags"]]
+            )
+        return images
+
     return [
-        f"quay.io/calico/cni:{tag}",
-        f"quay.io/calico/kube-controllers:{tag}",
-        f"quay.io/calico/node:{tag}",
+        f"quay.io/calico/cni:v3.24.2",
+        f"quay.io/calico/kube-controllers:v3.24.2",
+        f"quay.io/calico/node:v3.24.2",
     ]
 
 
-def _get_cilium_images():
+def _get_cilium_images(config: Optional[Dict] = None) -> List[str]:
+    if config and "cilium" in config:
+        images = []
+        for image in config["cilium"]["images"]:
+            images.extend(
+                [f"{image['name']}:{tag}" for tag in image["tags"]]
+            )
+        return images
+
     return [
-        # Cilium 1.15.6
         "quay.io/cilium/cilium:v1.15.3",
         "quay.io/cilium/operator-generic:v1.15.3",
         "quay.io/cilium/cilium:v1.15.6",
@@ -193,7 +222,15 @@ def _get_cilium_images():
     ]
 
 
-def _get_cloud_provider_images():
+def _get_cloud_provider_images(config: Optional[Dict] = None) -> List[str]:
+    if config and "cloud_provider" in config:
+        images = []
+        for image in config["cloud_provider"]["images"]:
+            images.extend(
+                [f"{image['name']}:{tag}" for tag in image["tags"]]
+            )
+        return images
+
     return [
         # v1.24.6
         "registry.k8s.io/provider-os/k8s-keystone-auth:v1.24.6",
@@ -253,7 +290,15 @@ def _get_cloud_provider_images():
     ]
 
 
-def _get_infra_images():
+def _get_infra_images(config: Optional[Dict] = None) -> List[str]:
+    if config and "infra" in config:
+        images = []
+        for image in config["infra"]["images"]:
+            images.extend(
+                [f"{image['name']}:{tag}" for tag in image["tags"]]
+            )
+        return images
+
     return [
         "registry.k8s.io/sig-storage/csi-attacher:v3.4.0",
         "registry.k8s.io/sig-storage/csi-attacher:v4.2.0",
@@ -276,3 +321,38 @@ def _get_infra_images():
         "registry.k8s.io/sig-storage/livenessprobe:v2.9.0",
         "registry.k8s.io/sig-storage/nfsplugin:v4.2.0",
     ]
+
+
+def load_config(config_path: str) -> Optional[Dict]:
+    """
+    Load configuration from YAML file. Missing keys will use default values.
+    """
+
+    try:
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+
+        if not isinstance(config, dict):
+            raise click.UsageError("Config file must contain a YAML dictionary")
+
+        if "kubernetes" in config:
+            if not isinstance(config["kubernetes"].get("versions", []), list):
+                raise click.UsageError("kubernetes.versions must be a list")
+
+        for component in ["calico", "cilium", "cloud_provider", "infra"]:
+            if component in config:
+                if not isinstance(config[component].get("images", []), list):
+                    raise click.UsageError(f"{component}.images must be a list")
+
+                for image in config[component].get("images", []):
+                    if not isinstance(image.get("name", ""), str):
+                        raise click.UsageError(f"{component} image name must be a string")
+                    if not isinstance(image.get("tags", []), list):
+                        raise click.UsageError(f"{component} image tags must be a list")
+
+        return config
+
+    except yaml.YAMLError as e:
+        raise click.UsageError(f"Failed to parse config file: {e}")
+    except OSError as e:
+        raise click.UsageError(f"Failed to read config file: {e}")
