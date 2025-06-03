@@ -57,6 +57,10 @@ class ClusterMasterCountEven(Exception):
     pass
 
 
+class ClusterInvalidLabel(exception.Invalid):
+    message = _("Invalid Cluster label %(label)s: %(reason)s.")
+
+
 class UnsupportedCNI(Exception):
     pass
 
