@@ -50,8 +50,9 @@ def get_image(name: str, repository: str = None):
     new_image_name = name
     if name.startswith("quay.io/calico"):
         new_image_name = name.replace("quay.io/calico/", f"{repository}/calico/")
-    if name.startswith("quay.io/cilium"):
-        new_image_name = name.replace("quay.io/cilium/", f"{repository}/cilium/")
+    if name.startswith("quay.io/cilium/"):
+        component = name.replace("quay.io/cilium/", "")
+        new_image_name = f"{repository}/cilium-{component}"
     if name.startswith("docker.io/k8scloudprovider"):
         new_image_name = name.replace("docker.io/k8scloudprovider", repository)
     if name.startswith("registry.k8s.io/sig-storage"):
