@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.31.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.30.0...v0.31.0) (2025-06-03)
+
+
+### Features
+
+* custom registry improvements and bug fixes ([#725](https://github.com/vexxhost/magnum-cluster-api/issues/725)) ([ebae5c7](https://github.com/vexxhost/magnum-cluster-api/commit/ebae5c781f98812031d716451520066d05b30373))
+
+
+### Bug Fixes
+
+* **deps:** update rust crate backon to v1.5.1 ([#723](https://github.com/vexxhost/magnum-cluster-api/issues/723)) ([4401c7d](https://github.com/vexxhost/magnum-cluster-api/commit/4401c7d540787f207c659a59233e9e279708af0b))
+
 ## [0.30.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.29.3...v0.30.0) (2025-05-27)
 
 
