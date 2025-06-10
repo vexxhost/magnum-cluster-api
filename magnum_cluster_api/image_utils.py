@@ -63,6 +63,8 @@ def get_image(name: str, repository: str = None):
         new_image_name = name.replace("gcr.io/k8s-staging-sig-storage", repository)
     if new_image_name.startswith(f"{repository}/livenessprobe"):
         return new_image_name.replace("livenessprobe", "csi-livenessprobe")
+    if new_image_name.startswith(f"{repository}/snapshot-controller"):
+        return new_image_name.replace("snapshot-controller", "csi-snapshot-controller")
     if new_image_name.startswith("registry.k8s.io/coredns"):
         return new_image_name.replace("registry.k8s.io/coredns", repository)
     if new_image_name.startswith("registry.k8s.io/autoscaling"):
