@@ -30,7 +30,7 @@ jobs:
 
       - name: Build package (x86_64)
         if: ${{ steps.release.outputs.release_created }}
-        uses: PyO3/maturin-action@aef21716ff3dcae8a1c301d23ec3e4446972a6e3 # v1.49.1
+        uses: PyO3/maturin-action@e10f6c464b90acceb5f640d31beda6d586ba7b4a # v1.49.3
         with:
           command: publish
           args: --non-interactive --skip-existing
@@ -39,7 +39,7 @@ jobs:
 
       - name: Build package (aarch64)
         if: ${{ steps.release.outputs.release_created }}
-        uses: PyO3/maturin-action@aef21716ff3dcae8a1c301d23ec3e4446972a6e3 # v1.49.1
+        uses: PyO3/maturin-action@e10f6c464b90acceb5f640d31beda6d586ba7b4a # v1.49.3
         with:
           command: publish
           args: --non-interactive --skip-existing
