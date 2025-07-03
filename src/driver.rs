@@ -164,6 +164,39 @@ impl Driver {
             })
         })
     }
+
+    fn apply_snapshot_controller_csi_cluster_resource_set(
+        &self,
+        py: Python<'_>,
+        cluster: &magnum::Cluster,
+    ) -> PyResult<()> {
+        let addon = addons::snapshot_controller_csi::Addon::new(cluster.clone());
+
+        // Only proceed if the addon is enabled
+        if !addon.enabled() {
+            return Ok(());
+        }
+
+        py.allow_threads(|| {
+            get_runtime().block_on(async {
+                // Create or update the ClusterResourceSet and Secret for the snapshot controller CSI
+                self.client
+                    .create_or_update_namespaced_resource(
+                        &self.namespace,
+                        cluster.cluster_addon_cluster_resource_set(&addon)?,
+                    )
+                    .await?;
+                self.client
+                    .create_or_update_namespaced_resource(
+                        &self.namespace,
+                        cluster.cluster_addon_secret(&addon)?,
+                    )
+                    .await?;
+
+                Ok(())
+            })
+        })
+    }
 }
 
 #[pymethods]
@@ -296,12 +329,26 @@ impl Driver {
         Ok(cluster.cluster_addon_secret(&addon)?.string_data)
     }
 
+    #[classmethod]
+    #[pyo3(signature = (cluster))]
+    fn get_snapshot_controller_csi_cluster_resource_secret_data(
+        _cls: &Bound<'_, PyType>,
+        cluster: PyObject,
+        py: Python<'_>,
+    ) -> PyResult<Option<BTreeMap<String, String>>> {
+        let cluster: magnum::Cluster = cluster.extract(py)?;
+
+        let addon = addons::snapshot_controller_csi::Addon::new(cluster.clone());
+        Ok(cluster.cluster_addon_secret(&addon)?.string_data)
+    }
+
     fn create_cluster(&self, py: Python<'_>, cluster: PyObject) -> PyResult<()> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
         self.apply_cluster_class(py)?;
         self.create_legacy_cluster_resource_set(py, &cluster)?;
         self.apply_cloud_provider_cluster_resource_set(py, &cluster, false)?;
+        self.apply_snapshot_controller_csi_cluster_resource_set(py, &cluster)?;
 
         Ok(())
     }
@@ -311,6 +358,7 @@ impl Driver {
 
         self.apply_cluster_class(py)?;
         self.apply_cloud_provider_cluster_resource_set(py, &cluster, true)?;
+        self.apply_snapshot_controller_csi_cluster_resource_set(py, &cluster)?;
 
         Ok(())
     }
