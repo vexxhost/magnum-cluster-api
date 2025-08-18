@@ -1,0 +1,67 @@
+// features/apiserver_lb.go
+package features
+
+import (
+	"github.com/vexxhost/magnum-cluster-api/internal/clusterclass"
+	"github.com/vexxhost/magnum-cluster-api/internal/utils"
+	"k8s.io/utils/ptr"
+	capov1beta1 "sigs.k8s.io/cluster-api-provider-openstack/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+)
+
+type ApiServerLoadBalancerFeature struct{}
+
+func init() {
+	f := &ApiServerLoadBalancerFeature{}
+	clusterclass.DefaultBuilder().AddVariables(f.Variables()...)
+	clusterclass.DefaultBuilder().AddPatches(f.Patches()...)
+}
+
+func (f *ApiServerLoadBalancerFeature) Variables() []clusterv1.ClusterClassVariable {
+	return []clusterv1.ClusterClassVariable{
+		{
+			Name:     "apiServerLoadBalancer",
+			Required: true,
+			Schema: clusterv1.VariableSchema{
+				OpenAPIV3Schema: clusterv1.JSONSchemaProps{
+					Type: "object",
+					Properties: map[string]clusterv1.JSONSchemaProps{
+						"enabled":  {Type: "boolean"},
+						"provider": {Type: "string"},
+					},
+					Required: []string{"enabled", "provider"},
+				},
+			},
+		},
+	}
+}
+
+func (f *ApiServerLoadBalancerFeature) Patches() []clusterv1.ClusterClassPatch {
+	gvk := utils.GroupVersionKind(&capov1beta1.OpenStackClusterTemplate{})
+
+	return []clusterv1.ClusterClassPatch{
+		{
+			Name: "apiServerLoadBalancer",
+			Definitions: []clusterv1.PatchDefinition{
+				{
+					Selector: clusterv1.PatchSelector{
+						APIVersion: gvk.GroupVersion().String(),
+						Kind:       gvk.Kind,
+						MatchResources: clusterv1.PatchSelectorMatch{
+							InfrastructureCluster: true,
+						},
+					},
+					JSONPatches: []clusterv1.JSONPatch{
+						{
+							Op:   "add",
+							Path: "/spec/template/spec/apiServerLoadBalancer",
+							ValueFrom: &clusterv1.JSONPatchValue{
+								Variable: ptr.To("apiServerLoadBalancer"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}

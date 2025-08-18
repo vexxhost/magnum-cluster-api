@@ -22,6 +22,7 @@
               RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
 
               buildInputs = with pkgs; [
+                go
                 bashInteractive
                 black
                 cargo
