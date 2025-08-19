@@ -1,0 +1,12 @@
+// Copyright (c) VEXXHOST, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+message CreateClusterRequest {
+  
+}
+
+service Driver {
+  rpc CreateCluster(CreateClusterRequest) returns (CreateClusterResponse);
+}

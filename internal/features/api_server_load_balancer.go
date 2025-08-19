@@ -1,4 +1,6 @@
-// features/apiserver_lb.go
+// Copyright (c) VEXXHOST, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 package features
 
 import (

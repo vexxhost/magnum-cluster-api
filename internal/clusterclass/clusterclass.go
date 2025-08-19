@@ -1,7 +1,8 @@
+// Copyright (c) VEXXHOST, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 package clusterclass
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 var (
-	DefaultClusterClass = GetDefaultClusterClass(metav1.ObjectMeta{})
+	DefaultClusterClass = GetDefaultClusterClass()
 )

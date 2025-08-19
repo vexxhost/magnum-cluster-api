@@ -1,9 +1,12 @@
+// Copyright (c) VEXXHOST, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 package clusterclass
 
 import (
+	"fmt"
 	"time"
 
-	"github.com/vexxhost/magnum-cluster-api/internal/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -12,6 +15,9 @@ import (
 	clusterv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	bootstrapkubeadmv1beta1 "sigs.k8s.io/cluster-api/bootstrap/kubeadm/api/v1beta1"
 	controlplanekubeadmv1beta1 "sigs.k8s.io/cluster-api/controlplane/kubeadm/api/v1beta1"
+
+	"github.com/vexxhost/magnum-cluster-api/internal/utils"
+	"github.com/vexxhost/magnum-cluster-api/version"
 )
 
 type ClusterClassBuilder struct {
@@ -37,7 +43,12 @@ func (b *ClusterClassBuilder) AddPatches(patches ...clusterv1beta1.ClusterClassP
 	b.patches = append(b.patches, patches...)
 }
 
-func (b *ClusterClassBuilder) Build(metadata metav1.ObjectMeta) clusterv1beta1.ClusterClass {
+func (b *ClusterClassBuilder) Build() clusterv1beta1.ClusterClass {
+	metadata := metav1.ObjectMeta{
+		Name:      fmt.Sprintf("magnum-%s", version.Get().String()),
+		Namespace: "magnum-system",
+	}
+
 	return clusterv1beta1.ClusterClass{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: clusterv1beta1.GroupVersion.String(),
@@ -134,6 +145,6 @@ func (b *ClusterClassBuilder) Build(metadata metav1.ObjectMeta) clusterv1beta1.C
 	}
 }
 
-func GetDefaultClusterClass(metadata metav1.ObjectMeta) clusterv1beta1.ClusterClass {
-	return defaultBuilder.Build(metadata)
+func GetDefaultClusterClass() clusterv1beta1.ClusterClass {
+	return defaultBuilder.Build()
 }
