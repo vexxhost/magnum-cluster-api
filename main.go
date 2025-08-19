@@ -5,12 +5,13 @@ import (
 
 	"sigs.k8s.io/yaml"
 
-	"github.com/vexxhost/magnum-cluster-api/internal/clusterclass"
 	_ "github.com/vexxhost/magnum-cluster-api/internal/features"
+	"github.com/vexxhost/magnum-cluster-api/internal/resources"
 )
 
 func main() {
-	cc := clusterclass.GetDefaultClusterClass()
+	// cc := resources.GetClusterClass()
+	cc := resources.ClusterClass
 
 	out, err := yaml.Marshal(cc)
 	if err != nil {

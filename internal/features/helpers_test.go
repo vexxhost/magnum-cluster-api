@@ -20,7 +20,7 @@ import (
 
 	"github.com/vexxhost/magnum-cluster-api/internal/clusterapi/controllers/topology/cluster/patches"
 	fakeruntimeclient "github.com/vexxhost/magnum-cluster-api/internal/clusterapi/runtime/client/fake"
-	"github.com/vexxhost/magnum-cluster-api/internal/clusterclass"
+	"github.com/vexxhost/magnum-cluster-api/internal/resources"
 )
 
 func MustToUnstructured(t *testing.T, obj runtime.Object) *unstructured.Unstructured {
@@ -65,7 +65,7 @@ func ValidatePatch(t *testing.T, feature Feature, values map[string]interface{})
 		Build()
 
 	clusterClass := builder.ClusterClass(metav1.NamespaceDefault, "cluster-class").
-		WithInfrastructureClusterTemplate(MustToUnstructured(t, &clusterclass.DefaultOpenStackClusterTemplate)).
+		WithInfrastructureClusterTemplate(MustToUnstructured(t, &resources.OpenStackClusterTemplate)).
 		WithPatches(feature.Patches()).
 		WithVariables(feature.Variables()...).
 		WithStatusVariables(clusterClassStatusVariables...).
@@ -89,10 +89,10 @@ func ValidatePatch(t *testing.T, feature Feature, values map[string]interface{})
 	blueprint := &scope.ClusterBlueprint{
 		Topology:                      cluster.Spec.Topology,
 		ClusterClass:                  clusterClass,
-		InfrastructureClusterTemplate: MustToUnstructured(t, &clusterclass.DefaultOpenStackClusterTemplate),
+		InfrastructureClusterTemplate: MustToUnstructured(t, &resources.OpenStackClusterTemplate),
 		ControlPlane: &scope.ControlPlaneBlueprint{
 			Template:                      controlPlaneTemplate,
-			InfrastructureMachineTemplate: MustToUnstructured(t, &clusterclass.DefaultOpenStackClusterTemplate),
+			InfrastructureMachineTemplate: MustToUnstructured(t, &resources.OpenStackClusterTemplate),
 		},
 	}
 
@@ -103,9 +103,9 @@ func ValidatePatch(t *testing.T, feature Feature, values map[string]interface{})
 			Object: builder.ControlPlane(metav1.NamespaceDefault, "control-plane").
 				WithVersion("v1.21.2").
 				WithReplicas(3).
-				WithInfrastructureMachineTemplate(MustToUnstructured(t, &clusterclass.DefaultOpenStackClusterTemplate).DeepCopy()).
+				WithInfrastructureMachineTemplate(MustToUnstructured(t, &resources.OpenStackClusterTemplate).DeepCopy()).
 				Build(),
-			InfrastructureMachineTemplate: MustToUnstructured(t, &clusterclass.DefaultOpenStackClusterTemplate).DeepCopy(),
+			InfrastructureMachineTemplate: MustToUnstructured(t, &resources.OpenStackClusterTemplate).DeepCopy(),
 		},
 	}
 

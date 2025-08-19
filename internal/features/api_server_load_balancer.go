@@ -4,19 +4,21 @@
 package features
 
 import (
-	"github.com/vexxhost/magnum-cluster-api/internal/clusterclass"
-	"github.com/vexxhost/magnum-cluster-api/internal/utils"
 	"k8s.io/utils/ptr"
 	capov1beta1 "sigs.k8s.io/cluster-api-provider-openstack/api/v1beta1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+
+	"github.com/vexxhost/magnum-cluster-api/internal/resources"
+	"github.com/vexxhost/magnum-cluster-api/internal/utils"
 )
 
 type ApiServerLoadBalancerFeature struct{}
 
 func init() {
 	f := &ApiServerLoadBalancerFeature{}
-	clusterclass.DefaultBuilder().AddVariables(f.Variables()...)
-	clusterclass.DefaultBuilder().AddPatches(f.Patches()...)
+
+	resources.ClusterClass.Spec.Variables = append(resources.ClusterClass.Spec.Variables, f.Variables()...)
+	resources.ClusterClass.Spec.Patches = append(resources.ClusterClass.Spec.Patches, f.Patches()...)
 }
 
 func (f *ApiServerLoadBalancerFeature) Variables() []clusterv1.ClusterClassVariable {

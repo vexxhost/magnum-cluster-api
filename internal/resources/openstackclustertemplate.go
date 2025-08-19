@@ -1,7 +1,7 @@
 // Copyright (c) VEXXHOST, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-package clusterclass
+package resources
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -10,11 +10,12 @@ import (
 )
 
 var (
-	DefaultOpenStackClusterTemplate = capov1beta1.OpenStackClusterTemplate{
+	OpenStackClusterTemplate = capov1beta1.OpenStackClusterTemplate{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: capov1beta1.SchemeGroupVersion.String(),
 			Kind:       "OpenStackClusterTemplate",
 		},
+		ObjectMeta: ObjectMeta(),
 		Spec: capov1beta1.OpenStackClusterTemplateSpec{
 			Template: capov1beta1.OpenStackClusterTemplateResource{
 				Spec: capov1beta1.OpenStackClusterSpec{
