@@ -19,7 +19,7 @@
 export GOPROXY=off
 
 # Versions to test
-CAPI_VERSION=${CAPI_VERSION:-v1.8.4}
+CAPI_VERSION=${CAPI_VERSION:-v1.9.11}
 CAPO_VERSION=${CAPO_VERSION:-v0.11.2}
 
 # Install the `clusterctl` CLI
