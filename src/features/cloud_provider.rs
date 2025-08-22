@@ -23,7 +23,7 @@ impl ClusterFeaturePatches for Feature {
         vec![
             ClusterClassPatches {
                 name: "cloudProvider".into(),
-                enabled_if: Some(r#"{{ semverCompare "<1.29.0" .builtin.controlPlane.version }}"#.into()),
+                enabled_if: Some(r#"{{ semverCompare "<1.33.0" .builtin.controlPlane.version }}"#.into()),
                 definitions: Some(vec![
                     ClusterClassPatchesDefinitions {
                         selector: ClusterClassPatchesDefinitionsSelector {
@@ -70,7 +70,7 @@ mod tests {
         let patches = feature.patches();
 
         let mut resources = TestClusterResources::new();
-        resources.version = "v1.29.0".to_string();
+        resources.version = "v1.33.0".to_string();
         resources.apply_patches(&patches, &values);
 
         let api_server = resources
