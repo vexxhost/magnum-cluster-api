@@ -782,7 +782,7 @@ def mutate_machine_deployment(
         {
             "class": "default-worker",
             "name": node_group.name,
-            "failureDomain": node_group.labels.get("availability_zone", ""),
+            "failureDomain": node_group.labels.get("availability_zone"),
             "machineHealthCheck": {"enable": utils.get_auto_healing_enabled(cluster)},
             "variables": {
                 "overrides": [
