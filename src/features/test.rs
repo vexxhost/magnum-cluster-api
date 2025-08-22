@@ -14,6 +14,7 @@ use crate::{
         OPENSTACK_MACHINE_TEMPLATE,
     },
 };
+use gtmpl::{Context, FuncError, Template, Value};
 use json_patch::{
     jsonptr::PointerBuf, patch, AddOperation, Patch, PatchOperation, RemoveOperation,
     ReplaceOperation,
@@ -31,7 +32,7 @@ use serde_json::json;
 /// value must be convertible into a [`gtmpl::Value`] and be clonable so that
 /// it can be reused during the conversion process.
 pub trait ToPatch {
-    fn to_patch<T: Serialize + ToGtmplValue>(self, values: &T) -> Patch;
+    fn to_patch<T: Serialize + ToGtmplValue>(self, version: &str, values: &T) -> Patch;
 }
 
 /// Implements the [`ToPatch`] trait for a vector of patch definitions.
@@ -41,10 +42,10 @@ pub trait ToPatch {
 /// each one individually via [`ClusterClassPatchesDefinitionsJsonPatches::to_rendered_patch`],
 /// and then collects the results into a single [`Patch`].
 impl ToPatch for Vec<ClusterClassPatchesDefinitionsJsonPatches> {
-    fn to_patch<T: Serialize + ToGtmplValue>(self, values: &T) -> Patch {
+    fn to_patch<T: Serialize + ToGtmplValue>(self, version: &str, values: &T) -> Patch {
         Patch(
             self.into_iter()
-                .map(|patch| patch.to_rendered_patch(values))
+                .map(|patch| patch.to_rendered_patch(version, values))
                 .collect(),
         )
     }
@@ -58,7 +59,11 @@ impl ToPatch for Vec<ClusterClassPatchesDefinitionsJsonPatches> {
 /// value—convertible into a  [`gtmpl::Value`]—to resolve any templated content
 /// in the patch.
 pub trait ToRenderedPatchOperation {
-    fn to_rendered_patch<T: Serialize + ToGtmplValue>(self, values: &T) -> PatchOperation;
+    fn to_rendered_patch<T: Serialize + ToGtmplValue>(
+        self,
+        version: &str,
+        values: &T,
+    ) -> PatchOperation;
 }
 
 /// Implements [`ToRenderedPatchOperation`] for [`ClusterClassPatchesDefinitionsJsonPatches`].
@@ -80,9 +85,13 @@ pub trait ToRenderedPatchOperation {
 ///
 /// This method will panic if an unsupported patch operation is encountered.
 impl ToRenderedPatchOperation for ClusterClassPatchesDefinitionsJsonPatches {
-    fn to_rendered_patch<T: Serialize + ToGtmplValue>(self, values: &T) -> PatchOperation {
+    fn to_rendered_patch<T: Serialize + ToGtmplValue>(
+        self,
+        version: &str,
+        values: &T,
+    ) -> PatchOperation {
         let value = match self.value_from {
-            Some(value_from) => value_from.to_rendered_value(values),
+            Some(value_from) => value_from.to_rendered_value(version, values),
             None => self.value.expect("value should be present").into(),
         };
 
@@ -111,7 +120,11 @@ impl ToRenderedPatchOperation for ClusterClassPatchesDefinitionsJsonPatches {
 /// parameters.  This is useful for dynamically generating configuration values
 /// or patch contents.
 pub trait ToRenderedValue {
-    fn to_rendered_value<T: Serialize + ToGtmplValue>(self, values: &T) -> serde_json::Value;
+    fn to_rendered_value<T: Serialize + ToGtmplValue>(
+        self,
+        version: &str,
+        values: &T,
+    ) -> serde_json::Value;
 }
 
 /// Implements [`ToRenderedValue`] for [`ClusterClassPatchesDefinitionsJsonPatchesValueFrom`].
@@ -135,7 +148,11 @@ pub trait ToRenderedValue {
 ///      as YAML to obtain a [`serde_json::Value`].
 ///    - If no template was provided, the rendered output is wrapped in a JSON string.
 impl ToRenderedValue for ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-    fn to_rendered_value<T: Serialize + ToGtmplValue>(self, values: &T) -> serde_json::Value {
+    fn to_rendered_value<T: Serialize + ToGtmplValue>(
+        self,
+        version: &str,
+        values: &T,
+    ) -> serde_json::Value {
         if self.variable.is_some() {
             let variable = self.variable.as_ref().unwrap();
 
@@ -153,7 +170,7 @@ impl ToRenderedValue for ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
             }
         }
 
-        let values = values.to_gtmpl_value();
+        let values = values.to_gtmpl_value(version);
         let template = match self.template.clone() {
             Some(template) => template,
             None => match self.variable {
@@ -209,7 +226,7 @@ impl<T: Resource + Serialize + DeserializeOwned> ApplyPatch for T {
 /// Implementors of this trait provide a mechanism to determine if a particular
 /// patch should be applied.
 pub trait ClusterClassPatchEnabled {
-    fn is_enabled<T: ToGtmplValue>(&self, values: &T) -> bool;
+    fn is_enabled<T: ToGtmplValue>(&self, version: &str, values: &T) -> bool;
 }
 
 /// Implements [`ClusterClassPatchEnabled`] for [`ClusterClassPatches`].
@@ -219,10 +236,47 @@ pub trait ClusterClassPatchEnabled {
 /// with the provided values using `gtmpl::template`. If the rendered output
 /// is equal to `"true"`, the patch is considered enabled.
 impl ClusterClassPatchEnabled for ClusterClassPatches {
-    fn is_enabled<T: ToGtmplValue>(&self, values: &T) -> bool {
+    fn is_enabled<T: ToGtmplValue>(&self, version: &str, values: &T) -> bool {
         self.enabled_if.as_deref().map_or(true, |enabled_if| {
-            let output = gtmpl::template(enabled_if, values.to_gtmpl_value())
+            fn semver_compare(args: &[Value]) -> Result<Value, FuncError> {
+                let req = args
+                    .get(0)
+                    .and_then(|v| match v {
+                        Value::String(s) => Some(s),
+                        _ => None,
+                    })
+                    .ok_or_else(|| FuncError::Generic("first argument must be a string".into()))?;
+                let req = semver::VersionReq::parse(&req).map_err(|_| {
+                    FuncError::Generic("first argument must be a valid semver version".into())
+                })?;
+
+                let ver = args
+                    .get(1)
+                    .and_then(|v| match v {
+                        Value::String(s) => Some(s),
+                        _ => None,
+                    })
+                    .ok_or_else(|| FuncError::Generic("second argument must be a string".into()))?
+                    .strip_prefix("v")
+                    .expect("version should start with v");
+                let ver = semver::Version::parse(&ver).map_err(|_| {
+                    FuncError::Generic("second argument must be a valid semver version".into())
+                })?;
+
+                let cmp = req.matches(&ver);
+                Ok(Value::from(cmp))
+            }
+
+            let mut tmpl = Template::default();
+            tmpl.add_func("semverCompare", semver_compare);
+
+            tmpl.parse(enabled_if).expect("template should parse");
+            let output = tmpl
+                .render(&Context::from(values.to_gtmpl_value(version)))
                 .expect("template rendering should succeed");
+
+            // let output = gtmpl::template(enabled_if, values.to_gtmpl_value())
+            //     .expect("template rendering should succeed");
 
             output == "true"
         })
@@ -232,6 +286,7 @@ impl ClusterClassPatchEnabled for ClusterClassPatches {
 /// This is a static instance of the `TestClusterResources` that is used for
 /// testing purposes.
 pub struct TestClusterResources {
+    pub version: String,
     pub control_plane_openstack_machine_template: OpenStackMachineTemplate,
     pub kubeadm_config_template: KubeadmConfigTemplate,
     pub kubeadm_control_plane_template: KubeadmControlPlaneTemplate,
@@ -242,6 +297,7 @@ pub struct TestClusterResources {
 impl TestClusterResources {
     pub fn new() -> Self {
         Self {
+            version: "v1.0.0".into(),
             control_plane_openstack_machine_template: OPENSTACK_MACHINE_TEMPLATE.clone(),
             kubeadm_config_template: KUBEADM_CONFIG_TEMPLATE.clone(),
             kubeadm_control_plane_template: KUBEADM_CONTROL_PLANE_TEMPLATE.clone(),
@@ -257,12 +313,15 @@ impl TestClusterResources {
     ) {
         patches
             .iter()
-            .filter(|p| p.is_enabled(values))
+            .filter(|p| p.is_enabled(&self.version, values))
             .for_each(|p| {
                 let definitions = p.definitions.as_ref().expect("definitions should be set");
 
                 definitions.iter().for_each(|definition| {
-                    let patch = definition.json_patches.clone().to_patch(values);
+                    let patch = definition
+                        .json_patches
+                        .clone()
+                        .to_patch(&self.version, values);
 
                     match (
                         definition.selector.api_version.as_str(),
