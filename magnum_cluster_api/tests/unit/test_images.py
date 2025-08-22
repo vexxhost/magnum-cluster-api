@@ -33,6 +33,7 @@ from magnum_cluster_api import images
         ("v1.26.3", "registry.k8s.io/autoscaling/cluster-autoscaler:v1.26.3", None),
         ("v1.27.0", "registry.k8s.io/autoscaling/cluster-autoscaler:v1.27.2", None),
         ("v1.27.3", "registry.k8s.io/autoscaling/cluster-autoscaler:v1.27.2", None),
+        ("v1.99.12", "registry.k8s.io/autoscaling/cluster-autoscaler:v1.99.0", None),
         ("v1.22.0", "quay.io/vexxhost/cluster-autoscaler:v1.22.3", "quay.io/vexxhost"),
         ("v1.22.17", "quay.io/vexxhost/cluster-autoscaler:v1.22.3", "quay.io/vexxhost"),
         ("v1.23.0", "quay.io/vexxhost/cluster-autoscaler:v1.23.1", "quay.io/vexxhost"),
@@ -45,6 +46,7 @@ from magnum_cluster_api import images
         ("v1.26.3", "quay.io/vexxhost/cluster-autoscaler:v1.26.3", "quay.io/vexxhost"),
         ("v1.27.0", "quay.io/vexxhost/cluster-autoscaler:v1.27.2", "quay.io/vexxhost"),
         ("v1.27.3", "quay.io/vexxhost/cluster-autoscaler:v1.27.2", "quay.io/vexxhost"),
+        ("v1.99.12", "quay.io/vexxhost/cluster-autoscaler:v1.99.0", "quay.io/vexxhost"),
     ],
 )
 def test_get_cluster_autoscaler_image(image_repository, version, image):

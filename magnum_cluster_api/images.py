@@ -28,7 +28,6 @@ def get_cluster_autoscaler_image(version: str):
     if hasattr(CONF.auto_scaling, config_option):
         return getattr(CONF.auto_scaling, config_option)
 
-    raise ValueError(
-        f"Unsupported Kubernetes version: {version}. "
-        "Please specify a supported version in the cluster template."
-    )
+    # NOTE(mnaser): Since the release are mapped 1:1, we can assume that if we don't have something mapped out, at
+    #               least a .0 release exists so we return that.
+    return f"{CONF.auto_scaling.image_repository}/cluster-autoscaler:v{parsed_version.major}.{parsed_version.minor}.0"
