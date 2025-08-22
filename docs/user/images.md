@@ -41,4 +41,3 @@ $ magnum-cluster-api-image-builder --version v1.26.2
 
 In the example above, this command will build the images for Kubernetes version
 `v1.26.2`. The `--version` flag is optional and defaults to `v1.26.2`.
-
