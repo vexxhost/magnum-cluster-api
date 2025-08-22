@@ -28,12 +28,6 @@ def is_enabled(cluster: objects.Cluster) -> bool:
     ) or common.is_enabled(cluster, "cinder_csi_enabled", "block-storage")
 
 
-def get_image(cluster: objects.Cluster) -> str:
-    return common.get_cloud_provider_image(
-        cluster, "cinder_csi_plugin_tag", "cinder-csi-plugin"
-    )
-
-
 def get_default_boot_volume_type(context):
     """
     Get the default boot volume type since the existing function
