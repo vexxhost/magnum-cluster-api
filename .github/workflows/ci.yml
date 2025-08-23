@@ -122,6 +122,8 @@ jobs:
 
           echo "file=$TAG_NAME.qcow2.xz" >> $GITHUB_OUTPUT
           echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
       - uses: gophercloud/devstack-action@f4c936d2edcc7b7c657493b0073c38093c3c5ebd # v0.16
         with:
           conf_overrides: |
