@@ -109,6 +109,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y python3-pip
       - uses: dev-hanz-ops/install-gh-cli-action@v0.2.1
+        with:
+          gh-cli-version: 2.78.0
       - id: image-info
         run: |
           TAG_NAME=$(gh release list --repo vexxhost/capo-image-elements \
