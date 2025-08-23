@@ -21,9 +21,3 @@ def is_enabled(cluster: objects.Cluster) -> bool:
     return common.is_enabled(
         cluster, "manila_csi_enabled", "sharev2"
     ) or common.is_enabled(cluster, "manila_csi_enabled", "share")
-
-
-def get_image(cluster: objects.Cluster) -> str:
-    return common.get_cloud_provider_image(
-        cluster, "manila_csi_plugin_tag", "manila-csi-plugin"
-    )

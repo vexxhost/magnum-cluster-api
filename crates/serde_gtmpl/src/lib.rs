@@ -2,10 +2,10 @@ use serde::{de::DeserializeOwned, Serialize};
 use serde_json::json;
 
 pub trait ToGtmplValue {
-    fn to_gtmpl_value(&self) -> gtmpl_value::Value;
+    fn to_gtmpl_value(&self, version: &str) -> gtmpl_value::Value;
 }
 
-fn json_to_gtmpl_value(json: &serde_json::Value) -> gtmpl_value::Value {
+fn json_to_gtmpl_value(json: &serde_json::Value, version: &str) -> gtmpl_value::Value {
     match json {
         serde_json::Value::Null => unimplemented!(),
         serde_json::Value::Bool(b) => (*b).into(),
@@ -23,36 +23,49 @@ fn json_to_gtmpl_value(json: &serde_json::Value) -> gtmpl_value::Value {
         serde_json::Value::String(s) => s.into(),
         serde_json::Value::Array(arr) => arr
             .iter()
-            .map(json_to_gtmpl_value)
+            .map(|v| json_to_gtmpl_value(v, version))
             .collect::<Vec<_>>()
             .into(),
         serde_json::Value::Object(map) => {
             let mut object = map
                 .iter()
-                .map(|(k, v)| (k.clone(), json_to_gtmpl_value(v)))
+                .map(|(k, v)| (k.clone(), json_to_gtmpl_value(v, version)))
                 .collect::<std::collections::HashMap<_, _>>();
 
             // XXX(mnaser): This is stinky, but we only use this in test anyways.
             object.insert(
                 "builtin".to_string(),
                 gtmpl_value::Value::Object(
-                    vec![(
-                        "cluster".to_string(),
-                        gtmpl_value::Value::Object(
-                            vec![
-                                (
-                                    "name".to_string(),
-                                    gtmpl_value::Value::String("kube-abcde".to_string()),
-                                ),
-                                (
-                                    "namespace".to_string(),
-                                    gtmpl_value::Value::String("magnum-system".to_string()),
-                                ),
-                            ]
-                            .into_iter()
-                            .collect(),
+                    vec![
+                        (
+                            "cluster".to_string(),
+                            gtmpl_value::Value::Object(
+                                vec![
+                                    (
+                                        "name".to_string(),
+                                        gtmpl_value::Value::String("kube-abcde".to_string()),
+                                    ),
+                                    (
+                                        "namespace".to_string(),
+                                        gtmpl_value::Value::String("magnum-system".to_string()),
+                                    ),
+                                ]
+                                .into_iter()
+                                .collect(),
+                            ),
                         ),
-                    )]
+                        (
+                            "controlPlane".to_string(),
+                            gtmpl_value::Value::Object(
+                                vec![(
+                                    "version".to_string(),
+                                    gtmpl_value::Value::String(version.to_string()),
+                                )]
+                                .into_iter()
+                                .collect(),
+                            ),
+                        ),
+                    ]
                     .into_iter()
                     .collect(),
                 ),
@@ -64,9 +77,9 @@ fn json_to_gtmpl_value(json: &serde_json::Value) -> gtmpl_value::Value {
 }
 
 impl<T: Serialize + DeserializeOwned> ToGtmplValue for T {
-    fn to_gtmpl_value(&self) -> gtmpl_value::Value {
+    fn to_gtmpl_value(&self, version: &str) -> gtmpl_value::Value {
         let json = json!(self);
-        json_to_gtmpl_value(&json)
+        json_to_gtmpl_value(&json, version)
     }
 }
 
@@ -77,19 +90,19 @@ mod tests {
     #[test]
     fn test_to_gtmpl_value() {
         let s = "hello".to_string();
-        let v = s.to_gtmpl_value();
+        let v = s.to_gtmpl_value("v1.0.0");
         assert_eq!(v, gtmpl_value::Value::String("hello".to_string()));
 
         let n = 42;
-        let v = n.to_gtmpl_value();
+        let v = n.to_gtmpl_value("v1.0.0");
         assert_eq!(v, gtmpl_value::Value::Number(42.into()));
 
         let b = true;
-        let v = b.to_gtmpl_value();
+        let v = b.to_gtmpl_value("v1.0.0");
         assert_eq!(v, gtmpl_value::Value::Bool(true));
 
         let arr = vec![1, 2, 3];
-        let v = arr.to_gtmpl_value();
+        let v = arr.to_gtmpl_value("v1.0.0");
         assert_eq!(
             v,
             gtmpl_value::Value::Array(vec![
