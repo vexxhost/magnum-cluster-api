@@ -52,6 +52,7 @@ pub mod api_server_floating_ip;
 pub mod api_server_load_balancer;
 pub mod audit_log;
 pub mod boot_volume;
+pub mod cloud_provider;
 pub mod cluster_identity;
 pub mod containerd_config;
 pub mod control_plane_availability_zones;
@@ -125,7 +126,6 @@ pub static KUBEADM_CONTROL_PLANE_TEMPLATE: LazyLock<KubeadmControlPlaneTemplate>
                                 api_server: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer {
                                     extra_args: Some({
                                         btreemap! {
-                                            "cloud-provider".to_string() => "external".to_string(),
                                             "profiling".to_string() => "false".to_string(),
                                         }
                                     }),
