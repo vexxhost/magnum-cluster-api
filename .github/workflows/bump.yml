@@ -6,6 +6,26 @@ on:
     - cron: '0 0 * * *'
 
 jobs:
+  kubernetes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          token: ${{ secrets.VEXXHOST_BOT_PAT }}
+      - run: ./hack/bump/kubernetes.sh
+      - uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+        with:
+          token: ${{ secrets.VEXXHOST_BOT_PAT }}
+          commit-message: "chore(deps): update kubernetes"
+          signoff: true
+          title: "chore(deps): update kubernetes"
+          body: |
+            ## Automated Kubernetes Version Update
+            This PR updates the Kubernetes versions in the CI workflow to the latest maintained versions.
+            Source: https://endoflife.date/kubernetes
+          delete-branch: true
+          branch: bump/kubernetes
+
   cluster-autoscaler:
     runs-on: ubuntu-latest
     steps:

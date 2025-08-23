@@ -90,8 +90,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: [1.28.11, 1.29.6, 1.30.2, 1.31.1]
         network-driver: [calico, cilium]
+        kubernetes-version:
+          - 1.31.12
+          - 1.32.8
+          - 1.33.4
     concurrency:
       group: sonobuoy-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -105,14 +108,22 @@ jobs:
       - run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip
+      - uses: dev-hanz-ops/install-gh-cli-action@v0.2.1
+        with:
+          gh-cli-version: 2.78.0
       - id: image-info
         run: |
-          VERSION=${{ matrix.kubernetes-version }}
-          IMAGE_FILE=$(curl -s https://static.atmosphere.dev/artifacts/magnum-cluster-api/ | grep "$VERSION" | tail -1 | cut -d'"' -f2)
-          IMAGE_NAME=$(echo $IMAGE_FILE | cut -d'.' -f1)
+          TAG_NAME=$(gh release list --repo vexxhost/capo-image-elements \
+            --limit 100 \
+            --exclude-pre-releases \
+            --exclude-drafts \
+            --json name,publishedAt \
+            --jq '([.[] | select(.name | startswith("ubuntu-jammy-${{ matrix.kubernetes-version }}"))] | sort_by(.publishedAt) | last | .name)')
 
-          echo "file=$IMAGE_FILE" >> $GITHUB_OUTPUT
-          echo "name=$IMAGE_NAME" >> $GITHUB_OUTPUT
+          echo "file=$TAG_NAME.qcow2.xz" >> $GITHUB_OUTPUT
+          echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
       - uses: gophercloud/devstack-action@f4c936d2edcc7b7c657493b0073c38093c3c5ebd # v0.16
         with:
           conf_overrides: |
@@ -122,7 +133,7 @@ jobs:
 
             enable_plugin magnum https://review.opendev.org/openstack/magnum refs/changes/10/949110/2
             # TODO(mnaser): fix this when we have the matrix
-            MAGNUM_GUEST_IMAGE_URL=https://static.atmosphere.dev/artifacts/magnum-cluster-api/${{ steps.image-info.outputs.file }}
+            MAGNUM_GUEST_IMAGE_URL=https://github.com/vexxhost/capo-image-elements/releases/download/${{ steps.image-info.outputs.name }}/${{ steps.image-info.outputs.file }}
 
             enable_plugin manila https://github.com/openstack/manila
             MANILA_ENABLED_BACKENDS=generic
