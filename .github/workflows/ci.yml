@@ -108,6 +108,7 @@ jobs:
       - run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip
+      - uses: actions4gh/setup-gh@v1
       - id: image-info
         run: |
           TAG_NAME=$(gh release list --repo vexxhost/capo-image-elements \
