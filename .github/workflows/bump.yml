@@ -1,0 +1,26 @@
+name: bump
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  cluster-autoscaler:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          token: ${{ secrets.VEXXHOST_BOT_PAT }}
+      - run: ./hack/bump/cluster-autoscaler.sh
+      - uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+        with:
+          token: ${{ secrets.VEXXHOST_BOT_PAT }}
+          commit-message: "chore(deps): update cluster-autoscaler"
+          signoff: true
+          title: "chore(deps): update cluster-autoscaler"
+          body: |
+            ## Automated `cluster-autoscaler` update
+            This PR updates the `cluster-autoscaler` images to the latest versions.
+          delete-branch: true
+          branch: bump/cluster-autoscaler

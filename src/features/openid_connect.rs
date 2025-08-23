@@ -162,7 +162,6 @@ mod tests {
 
         assert_eq!(
             &btreemap! {
-                "cloud-provider".to_string() => "external".to_string(),
                 "profiling".to_string() => "false".to_string(),
             },
             &resources
@@ -200,7 +199,6 @@ mod tests {
 
         assert_eq!(
             &btreemap! {
-                "cloud-provider".to_string() => "external".to_string(),
                 "oidc-client-id".to_string() => values.openid_connect.client_id.to_string(),
                 "oidc-groups-claim".to_string() => values.openid_connect.groups_claim.to_string(),
                 "oidc-groups-prefix".to_string() => values.openid_connect.groups_prefix.to_string(),
