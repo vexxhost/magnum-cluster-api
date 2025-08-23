@@ -90,8 +90,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-version: [1.28.11, 1.29.6, 1.30.2, 1.31.1]
         network-driver: [calico, cilium]
+        kubernetes-version:
+          - 1.31.12
+          - 1.32.8
+          - 1.33.4
     concurrency:
       group: sonobuoy-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}-${{ github.event.pull_request.number }}
       cancel-in-progress: true
