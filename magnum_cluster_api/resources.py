@@ -291,6 +291,15 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
                             "provisioner": "cinder.csi.openstack.org",
                             "parameters": {
                                 "type": vt.name,
+                                **(
+                                    {
+                                        "availability": self.cluster.labels.get(
+                                            "availability_zone"
+                                        )
+                                    }
+                                    if not CONF.cinder.cross_az_attach
+                                    else {}
+                                ),
                             },
                             "reclaimPolicy": "Delete",
                             "volumeBindingMode": "Immediate",
