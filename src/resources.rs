@@ -269,6 +269,7 @@ pub mod fixtures {
             .etcd_volume_size(0)
             .etcd_volume_type("".into())
             .availability_zone("az1".into())
+            .admission_control_list("NodeRestriction".into())
             .build()
     }
 }
@@ -306,7 +307,7 @@ mod tests {
         let values = default_values();
         let variables: Vec<ClusterTopologyVariables> = values.into();
 
-        assert_eq!(variables.len(), 35);
+        assert_eq!(variables.len(), 36);
 
         for var in &variables {
             match var.name.as_str() {
@@ -429,6 +430,9 @@ mod tests {
                 }
                 "availabilityZone" => {
                     assert_eq!(var.value, json!(default_values().availability_zone));
+                }
+                "admissionControlList" => {
+                    assert_eq!(var.value, json!(default_values().admission_control_list));
                 }
                 other => panic!("Unexpected field name: {}", other),
             }

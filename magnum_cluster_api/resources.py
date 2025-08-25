@@ -896,6 +896,18 @@ class Cluster(ClusterBase):
             self.pykube_api, namespace=self.namespace
         ).get_or_none(name=self.cluster.stack_id)
 
+    def _get_admission_control_list(self) -> str:
+        """Get admission control list with NodeRestriction as base.
+
+        This matches the behavior of the Heat templates where NodeRestriction
+        is always prepended to any user-provided admission plugins.
+        """
+        user_plugins = self.cluster.labels.get("admission_control_list", "")
+        if user_plugins:
+            return f"NodeRestriction,{user_plugins}"
+        else:
+            return "NodeRestriction"
+
     def get_object(self) -> dict:
         osc = clients.get_openstack_api(self.context)
         default_volume_type = osc.cinder().volume_types.default()
@@ -1214,6 +1226,10 @@ class Cluster(ClusterBase):
                             "value": utils.is_controlplane_different_failure_domain(
                                 cluster=self.cluster
                             ),
+                        },
+                        {
+                            "name": "admissionControlList",
+                            "value": self._get_admission_control_list(),
                         },
                     ],
                 },
