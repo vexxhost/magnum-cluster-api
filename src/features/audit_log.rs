@@ -178,7 +178,6 @@ mod tests {
 
         assert_eq!(
             &btreemap! {
-                "cloud-provider".to_string() => "external".to_string(),
                 "profiling".to_string() => "false".to_string(),
             },
             &api_server.extra_args.expect("extra_args should be set"),
@@ -219,7 +218,6 @@ mod tests {
                 "audit-log-maxsize".to_string() => values.audit_log.max_size.to_string(),
                 "audit-log-path".to_string() => "/var/log/audit/kube-apiserver-audit.log".to_string(),
                 "audit-policy-file".to_string() => "/etc/kubernetes/audit-policy/apiserver-audit-policy.yaml".to_string(),
-                "cloud-provider".to_string() => "external".to_string(),
                 "profiling".to_string() => "false".to_string(),
             },
             &api_server.extra_args.expect("extra_args should be set"),
