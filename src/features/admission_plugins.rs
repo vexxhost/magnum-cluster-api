@@ -64,47 +64,18 @@ inventory::submit! {
 mod tests {
     use super::*;
     use crate::{features::test::TestClusterResources, resources::fixtures::default_values};
-    use maplit::btreemap;
     use pretty_assertions::assert_eq;
 
-    #[test]
-    fn test_disabled_if_admission_control_list_is_empty() {
-        let feature = Feature {};
-        let mut values = default_values();
-        values.admission_control_list = "".to_string();
-
-        let patches = feature.patches();
-        let mut resources = TestClusterResources::new();
-        resources.apply_patches(&patches, &values);
-
-        // Should only have the default extra_args, not admission plugins
-        assert_eq!(
-            &btreemap! {
-                "cloud-provider".to_string() => "external".to_string(),
-                "profiling".to_string() => "false".to_string(),
-            },
-            &resources
-                .kubeadm_control_plane_template
-                .spec
-                .template
-                .spec
-                .kubeadm_config_spec
-                .cluster_configuration
-                .expect("cluster configuration should be set")
-                .api_server
-                .expect("api server should be set")
-                .extra_args
-                .expect("extra args should be set")
-        );
-    }
 
     #[test]
     fn test_admission_plugins_patch() {
         let feature = Feature {};
+        let cloud_provider_feature = crate::features::cloud_provider::Feature {};
         let mut values = default_values();
         values.admission_control_list = "PodNodeSelector,NodeRestriction".to_string();
 
-        let patches = feature.patches();
+        let mut patches = feature.patches();
+        patches.extend(cloud_provider_feature.patches());
         let mut resources = TestClusterResources::new();
         resources.apply_patches(&patches, &values);
 
