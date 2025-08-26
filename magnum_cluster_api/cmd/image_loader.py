@@ -375,6 +375,11 @@ def _get_cloud_provider_images(config: Optional[Dict] = None) -> List[str]:
         "registry.k8s.io/provider-os/cinder-csi-plugin:v1.31.1",
         "registry.k8s.io/provider-os/manila-csi-plugin:v1.31.1",
         "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.31.1",
+        # v1.32.0
+        "registry.k8s.io/provider-os/k8s-keystone-auth:v1.32.0",
+        "registry.k8s.io/provider-os/cinder-csi-plugin:v1.32.0",
+        "registry.k8s.io/provider-os/manila-csi-plugin:v1.32.0",
+        "registry.k8s.io/provider-os/openstack-cloud-controller-manager:v1.32.0",
     ]
 
 
@@ -388,24 +393,33 @@ def _get_infra_images(config: Optional[Dict] = None) -> List[str]:
     return [
         "registry.k8s.io/sig-storage/csi-attacher:v3.4.0",
         "registry.k8s.io/sig-storage/csi-attacher:v4.2.0",
+        "registry.k8s.io/sig-storage/csi-attacher:v4.7.0",
         "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.4.0",
         "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1",
         "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.6.2",
         "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.6.3",
         "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.0",
+        "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.12.0",
         "registry.k8s.io/sig-storage/csi-provisioner:v3.0.0",
         "registry.k8s.io/sig-storage/csi-provisioner:v3.1.0",
         "registry.k8s.io/sig-storage/csi-provisioner:v3.3.0",
         "registry.k8s.io/sig-storage/csi-provisioner:v3.4.1",
+        "registry.k8s.io/sig-storage/csi-provisioner:v5.1.0",
         "registry.k8s.io/sig-storage/csi-resizer:v1.4.0",
         "registry.k8s.io/sig-storage/csi-resizer:v1.8.0",
+        "registry.k8s.io/sig-storage/csi-resizer:v1.12.0",
         "registry.k8s.io/sig-storage/csi-snapshotter:v5.0.1",
         "registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1",
         "registry.k8s.io/sig-storage/csi-snapshotter:v6.2.1",
+        "registry.k8s.io/sig-storage/csi-snapshotter:v8.1.0",
+        "registry.k8s.io/sig-storage/csi-snapshotter:v8.2.1",
         "registry.k8s.io/sig-storage/livenessprobe:v2.7.0",
         "registry.k8s.io/sig-storage/livenessprobe:v2.8.0",
         "registry.k8s.io/sig-storage/livenessprobe:v2.9.0",
+        "registry.k8s.io/sig-storage/livenessprobe:v2.14.0",
         "registry.k8s.io/sig-storage/nfsplugin:v4.2.0",
+        "registry.k8s.io/sig-storage/snapshot-controller:v7.0.2",
+        "registry.k8s.io/sig-storage/snapshot-controller:v8.2.1",
     ]
 
 
