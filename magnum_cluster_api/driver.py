@@ -241,7 +241,13 @@ class BaseDriver(driver.Driver):
                 if not ng.status.endswith("_COMPLETE"):
                     return
                 if ng.status == fields.ClusterStatus.DELETE_COMPLETE:
-                    ng.destroy()
+                    should_destroy = (
+                        not ng.is_default
+                        or cluster.status == fields.ClusterStatus.DELETE_IN_PROGRESS
+                    )
+                    if should_destroy:
+                        ng.destroy()
+                    continue
 
             if cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS:
                 cluster.status_reason = None
@@ -477,10 +483,16 @@ class BaseDriver(driver.Driver):
         for node_group in cluster.nodegroups:
             # NOTE(mnaser): Nothing to do if the node group is in `DELETE_COMPLETE`
             #               state and skip work if it's a master node group.
-            if (
-                node_group.role == "master"
-                or node_group.status == fields.ClusterStatus.DELETE_COMPLETE
-            ):
+            if node_group.role == "master":
+                continue
+
+            if node_group.status == fields.ClusterStatus.DELETE_COMPLETE:
+                should_destroy = (
+                    not node_group.is_default
+                    or cluster.status == fields.ClusterStatus.DELETE_IN_PROGRESS
+                )
+                if should_destroy:
+                    node_group.destroy()
                 continue
 
             node_groups.append(node_group)
