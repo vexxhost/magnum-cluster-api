@@ -1,0 +1,183 @@
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: {{ include "openstack-manila-csi.controllerplugin.fullname" . }}
+  labels:
+    {{- include "openstack-manila-csi.controllerplugin.labels" .  | nindent 4 }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  serviceName: {{ include "openstack-manila-csi.controllerplugin.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "openstack-manila-csi.controllerplugin.matchLabels" .  | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "openstack-manila-csi.controllerplugin.labels" .  | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "openstack-manila-csi.serviceAccountName.controllerplugin" . }}
+      containers:
+        {{- range .Values.shareProtocols }}
+        - name: {{ .protocolSelector | lower }}-provisioner
+          image: "{{ $.Values.controllerplugin.provisioner.image.repository }}:{{ $.Values.controllerplugin.provisioner.image.tag }}"
+          args:
+            - "-v={{ $.Values.logVerbosityLevel }}"
+            - "--csi-address=$(ADDRESS)"
+            {{- if $.Values.csimanila.topologyAwarenessEnabled }}
+            - "--feature-gates=Topology=true"
+            {{- end }}
+            {{- if or $.Values.controllerplugin.provisioner.extraCreateMetadata $.Values.csimanila.pvcAnnotations }}
+            - "--extra-create-metadata"
+            {{- end }}
+          env:
+            - name: ADDRESS
+              value: "unix:///var/lib/kubelet/plugins/{{ printf "%s.%s" .protocolSelector $.Values.driverName | lower }}/csi-controllerplugin.sock"
+            {{- if $.Values.controllerplugin.provisioner.extraEnv }}
+              {{- toYaml $.Values.controllerplugin.provisioner.extraEnv | nindent 12 }}
+            {{- end }}
+          imagePullPolicy: {{ $.Values.controllerplugin.provisioner.image.pullPolicy }}
+          volumeMounts:
+            - name: {{ .protocolSelector | lower }}-plugin-dir
+              mountPath: /var/lib/kubelet/plugins/{{ printf "%s.%s" .protocolSelector $.Values.driverName | lower }}
+          resources:
+{{ toYaml $.Values.controllerplugin.provisioner.resources | indent 12 }}
+        - name: {{ .protocolSelector | lower }}-snapshotter
+          image: "{{ $.Values.controllerplugin.snapshotter.image.repository }}:{{ $.Values.controllerplugin.snapshotter.image.tag }}"
+          args:
+            - "-v={{ $.Values.logVerbosityLevel }}"
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: "unix:///var/lib/kubelet/plugins/{{ printf "%s.%s" .protocolSelector $.Values.driverName | lower }}/csi-controllerplugin.sock"
+            {{- if $.Values.controllerplugin.snapshotter.extraEnv }}
+              {{- toYaml $.Values.controllerplugin.snapshotter.extraEnv | nindent 12 }}
+            {{- end }}
+          imagePullPolicy: {{ $.Values.controllerplugin.snapshotter.image.pullPolicy }}
+          volumeMounts:
+            - name: {{ .protocolSelector | lower }}-plugin-dir
+              mountPath: /var/lib/kubelet/plugins/{{ printf "%s.%s" .protocolSelector $.Values.driverName | lower }}
+          resources:
+{{ toYaml $.Values.controllerplugin.snapshotter.resources | indent 12 }}
+        - name: {{ .protocolSelector | lower }}-resizer
+          image: "{{ $.Values.controllerplugin.resizer.image.repository }}:{{ $.Values.controllerplugin.resizer.image.tag }}"
+          args:
+            - "-v={{ $.Values.logVerbosityLevel }}"
+            - "--csi-address=$(ADDRESS)"
+            - "--handle-volume-inuse-error=false"
+          env:
+            - name: ADDRESS
+              value: "unix:///var/lib/kubelet/plugins/{{ printf "%s.%s" .protocolSelector $.Values.driverName | lower }}/csi-controllerplugin.sock"
+            {{- if $.Values.controllerplugin.resizer.extraEnv }}
+              {{- toYaml $.Values.controllerplugin.resizer.extraEnv | nindent 12 }}
+            {{- end }}
+          imagePullPolicy: {{ $.Values.controllerplugin.resizer.image.pullPolicy }}
+          volumeMounts:
+            - name: {{ .protocolSelector | lower }}-plugin-dir
+              mountPath: /var/lib/kubelet/plugins/{{ printf "%s.%s" .protocolSelector $.Values.driverName | lower }}
+          resources:
+{{ toYaml $.Values.controllerplugin.resizer.resources | indent 12 }}
+        - name: {{ .protocolSelector | lower }}-nodeplugin
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: "{{ $.Values.csimanila.image.repository }}:{{ $.Values.csimanila.image.tag | default $.Chart.AppVersion }}"
+          command: ["/bin/sh", "-c",
+            '/bin/manila-csi-plugin
+            -v={{ $.Values.logVerbosityLevel }}
+            {{- if $.Values.csimanila.topologyAwarenessEnabled }}
+            --with-topology
+            {{- end }}
+            {{- if $.Values.csimanila.runtimeConfig.enabled }}
+            --runtime-config-file=/runtimeconfig/runtimeconfig.json
+            {{- end }}
+            --endpoint=$(CSI_ENDPOINT)
+            --drivername=$(DRIVER_NAME)
+            --share-protocol-selector=$(MANILA_SHARE_PROTO)
+            --fwdendpoint=$(FWD_CSI_ENDPOINT)
+            {{- if .compatibilitySettings }}
+            --compatibility-settings={{ .compatibilitySettings }}
+            {{- end }}
+            --cluster-id="{{ $.Values.csimanila.clusterID }}"
+            {{- if $.Values.csimanila.pvcAnnotations }}
+            --pvc-annotations
+            {{- end }}'
+          ]
+          env:
+            - name: DRIVER_NAME
+              value: {{ printf "%s.%s" .protocolSelector $.Values.driverName | lower }}
+            - name: CSI_ENDPOINT
+              value: "unix:///var/lib/kubelet/plugins/{{ printf "%s.%s" .protocolSelector $.Values.driverName | lower }}/csi-controllerplugin.sock"
+            - name: FWD_CSI_ENDPOINT
+              value: "unix://{{ .fwdNodePluginEndpoint.dir }}/{{ .fwdNodePluginEndpoint.sockFile }}"
+            - name: MANILA_SHARE_PROTO
+              value: "{{ .protocolSelector }}"
+            {{- if $.Values.controllerplugin.nodeplugin.extraEnv }}
+              {{- toYaml $.Values.controllerplugin.nodeplugin.extraEnv | nindent 12 }}
+            {{- end }}
+          imagePullPolicy: {{ $.Values.csimanila.image.pullPolicy }}
+          volumeMounts:
+            - name: {{ .protocolSelector | lower }}-plugin-dir
+              mountPath: /var/lib/kubelet/plugins/{{ printf "%s.%s" .protocolSelector $.Values.driverName | lower }}
+            - name: {{ .protocolSelector | lower }}-fwd-plugin-dir
+              mountPath: {{ .fwdNodePluginEndpoint.dir }}
+            - name: pod-mounts
+              mountPath: /var/lib/kubelet/pods
+              mountPropagation: Bidirectional
+            {{- if $.Values.csimanila.runtimeConfig.enabled }}
+            - name: {{ .protocolSelector | lower }}-runtime-config-dir
+              mountPath: /runtimeconfig
+              readOnly: true
+            {{- end }}
+            - mountPath: /etc/config
+              name: cloud-config
+              readOnly: true
+          resources:
+{{ toYaml $.Values.controllerplugin.nodeplugin.resources | indent 12 }}
+        {{- end }}
+      volumes:
+        {{- range .Values.shareProtocols }}
+        - name: {{ .protocolSelector | lower }}-plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/{{ printf "%s.%s" .protocolSelector $.Values.driverName | lower }}
+            type: DirectoryOrCreate
+        - name: {{ .protocolSelector | lower }}-fwd-plugin-dir
+          hostPath:
+            path: {{ .fwdNodePluginEndpoint.dir }}
+            type: Directory
+        {{- if $.Values.csimanila.runtimeConfig.enabled }}
+        - name: {{ .protocolSelector | lower }}-runtime-config-dir
+          configMap:
+            name: manila-csi-runtimeconf-cm
+        {{- end }}
+        {{- end }}
+        - name: pod-mounts
+          hostPath:
+            path: /var/lib/kubelet/pods
+            type: Directory
+        - name: cloud-config
+          secret:
+            defaultMode: 420
+            items:
+            - key: ca.crt
+              path: ca.crt
+            secretName: cloud-config
+    {{- if .Values.controllerplugin.affinity }}
+      affinity: {{ toYaml .Values.controllerplugin.affinity | nindent 8 }}
+    {{- end }}
+    {{- if .Values.controllerplugin.nodeSelector }}
+      nodeSelector: {{ toYaml .Values.controllerplugin.nodeSelector | nindent 8 }}
+    {{- end }}
+    {{- if .Values.controllerplugin.tolerations }}
+      tolerations: {{ toYaml .Values.controllerplugin.tolerations | nindent 8 }}
+    {{- end }}
+    {{- with .Values.controllerplugin.hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+    {{- end }}

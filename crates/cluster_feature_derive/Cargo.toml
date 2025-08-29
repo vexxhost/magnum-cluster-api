@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 heck = "0.5.0"
 quote = "1.0.38"
-syn = "1"
+syn = { version = "2.0.100", features = ["full", "parsing"] }
 
 [lib]
 proc-macro = true

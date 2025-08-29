@@ -4,11 +4,11 @@ build-backend = "maturin"
 
 [project]
 name = "magnum-cluster-api"
-version = "0.27.0"
+version = "0.30.0"
 description = "Cluster API driver for Magnum"
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 authors = [{ name = "Mohammed Naser", email = "mnaser@vexxhost.com" }]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
@@ -22,27 +22,27 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: Implementation :: CPython",
 ]
 dependencies = [
+  "certifi",
+  "click>=8.0.4",
+  "diskcache>=5.6.1",
+  "eventlet>=0.33.1",
+  "haproxyadmin>=0.2.4",
+  "kubernetes>=24.2.0",
+  "magnum>=15.0.0",
   "oslo.concurrency>=4.5.0",
   "oslo.config>=8.8.0",
   "oslo.context>=4.1.0",
   "oslo.log>=4.7.0",
   "oslo.privsep>=2.7.0",
   "oslo.service>=2.8.0",
-  "python-manilaclient>=3.3.2",
-  "certifi",
-  "click>=8.0.4",
-  "diskcache>=5.6.1",
-  "haproxyadmin>=0.2.4",
-  "kubernetes>=24.2.0",
-  "magnum>=15.0.0",
   "platformdirs>=2.4.0",
   "pykube-ng",
   "pyroute2>=0.3.4",
+  "python-heatclient",
+  "python-manilaclient>=3.3.2",
   "requests>=2.27.1",
   "semver>=2.0.0",
   "sherlock>=0.4.1",
@@ -53,7 +53,7 @@ dependencies = [
 dev = [
   "fixtures>=4.1.0",
   "oslotest>=5.0.0",
-  "pytest<7",
+  "pytest<9",
   "pytest-mock>=3.6.1",
   "responses>=0.25.0",
   "types-PyYAML",
@@ -76,6 +76,7 @@ magnum_cluster_api = "magnum_cluster_api.conf:list_opts"
 
 [tool.maturin]
 module-name = "magnum_cluster_api"
+features = ["extension-module"]
 
 [tool.uv]
 cache-keys = [{file = "pyproject.toml"}, {file = "rust/Cargo.toml"}, {file = "**/*.rs"}]

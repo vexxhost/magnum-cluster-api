@@ -33,57 +33,7 @@ auto_scaling_opts = [
         "image_repository",
         default="registry.k8s.io/autoscaling",
         help="Image repository for the cluster auto-scaler.",
-    ),
-    cfg.StrOpt(
-        "v1_22_image",
-        default="$image_repository/cluster-autoscaler:v1.22.3",
-        help="Image for the cluster auto-scaler for Kubernetes v1.22.",
-    ),
-    cfg.StrOpt(
-        "v1_23_image",
-        default="$image_repository/cluster-autoscaler:v1.23.1",
-        help="Image for the cluster auto-scaler for Kubernetes v1.23.",
-    ),
-    cfg.StrOpt(
-        "v1_24_image",
-        default="$image_repository/cluster-autoscaler:v1.24.2",
-        help="Image for the cluster auto-scaler for Kubernetes v1.24.",
-    ),
-    cfg.StrOpt(
-        "v1_25_image",
-        default="$image_repository/cluster-autoscaler:v1.25.2",
-        help="Image for the cluster auto-scaler for Kubernetes v1.25.",
-    ),
-    cfg.StrOpt(
-        "v1_26_image",
-        default="$image_repository/cluster-autoscaler:v1.26.3",
-        help="Image for the cluster auto-scaler for Kubernetes v1.26.",
-    ),
-    cfg.StrOpt(
-        "v1_27_image",
-        default="$image_repository/cluster-autoscaler:v1.27.2",
-        help="Image for the cluster auto-scaler for Kubernetes v1.27.",
-    ),
-    cfg.StrOpt(
-        "v1_28_image",
-        default="$image_repository/cluster-autoscaler:v1.28.5",
-        help="Image for the cluster auto-scaler for Kubernetes v1.28.",
-    ),
-    cfg.StrOpt(
-        "v1_29_image",
-        default="$image_repository/cluster-autoscaler:v1.29.3",
-        help="Image for the cluster auto-scaler for Kubernetes v1.29.",
-    ),
-    cfg.StrOpt(
-        "v1_30_image",
-        default="$image_repository/cluster-autoscaler:v1.30.1",
-        help="Image for the cluster auto-scaler for Kubernetes v1.30.",
-    ),
-    cfg.StrOpt(
-        "v1_31_image",
-        default="$image_repository/cluster-autoscaler:v1.31.0",
-        help="Image for the cluster auto-scaler for Kubernetes v1.31.",
-    ),
+    )
 ]
 
 
@@ -137,12 +87,12 @@ common_security_opts = [
     cfg.StrOpt("cert_file", help=_("Optional PEM-formatted certificate chain file.")),
     cfg.StrOpt(
         "key_file",
-        help=_("Optional PEM-formatted file that contains the " "private key."),
+        help=_("Optional PEM-formatted file that contains the private key."),
     ),
     cfg.BoolOpt(
         "insecure",
         default=False,
-        help=_("If set, then the server's certificate will not " "be verified."),
+        help=_("If set, then the server's certificate will not be verified."),
     ),
 ]
 

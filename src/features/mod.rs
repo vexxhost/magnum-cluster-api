@@ -35,6 +35,7 @@ use crate::cluster_api::{
         OpenStackClusterTemplate, OpenStackClusterTemplateSpec, OpenStackClusterTemplateTemplate,
         OpenStackClusterTemplateTemplateSpec, OpenStackClusterTemplateTemplateSpecIdentityRef,
         OpenStackClusterTemplateTemplateSpecManagedSecurityGroups,
+        OpenStackClusterTemplateTemplateSpecManagedSecurityGroupsAllNodesSecurityGroupRules,
     },
     openstackmachinetemplates::{
         OpenStackMachineTemplate, OpenStackMachineTemplateSpec, OpenStackMachineTemplateTemplate,
@@ -48,10 +49,11 @@ use schemars::{gen::SchemaGenerator, JsonSchema};
 use std::sync::LazyLock;
 
 pub mod api_server_floating_ip;
+pub mod admission_plugins;
 pub mod api_server_load_balancer;
 pub mod audit_log;
 pub mod boot_volume;
-pub mod cloud_controller_manager;
+pub mod cloud_provider;
 pub mod cluster_identity;
 pub mod containerd_config;
 pub mod control_plane_availability_zones;
@@ -125,7 +127,6 @@ pub static KUBEADM_CONTROL_PLANE_TEMPLATE: LazyLock<KubeadmControlPlaneTemplate>
                                 api_server: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecClusterConfigurationApiServer {
                                     extra_args: Some({
                                         btreemap! {
-                                            "cloud-provider".to_string() => "external".to_string(),
                                             "profiling".to_string() => "false".to_string(),
                                         }
                                     }),
@@ -302,8 +303,8 @@ pub static OPENSTACK_MACHINE_TEMPLATE: LazyLock<OpenStackMachineTemplate> =
 
 /// This is a static instance of the `OpenStackClusterTemplate` that is
 /// created once and then used for all objects.
-pub static OPENSTACK_CLUSTER_TEMPLATE: LazyLock<OpenStackClusterTemplate> =
-    LazyLock::new(|| OpenStackClusterTemplate {
+pub static OPENSTACK_CLUSTER_TEMPLATE: LazyLock<OpenStackClusterTemplate> = LazyLock::new(|| {
+    OpenStackClusterTemplate {
         metadata: Default::default(),
         spec: OpenStackClusterTemplateSpec {
             template: OpenStackClusterTemplateTemplate {
@@ -316,11 +317,33 @@ pub static OPENSTACK_CLUSTER_TEMPLATE: LazyLock<OpenStackClusterTemplate> =
                     managed_security_groups: Some(
                         OpenStackClusterTemplateTemplateSpecManagedSecurityGroups {
                             allow_all_in_cluster_traffic: true,
-                            ..Default::default()
+                            all_nodes_security_group_rules: Some(vec![
+                                OpenStackClusterTemplateTemplateSpecManagedSecurityGroupsAllNodesSecurityGroupRules {
+                                    remote_ip_prefix: Some("0.0.0.0/0".to_string()),
+                                    direction: "ingress".to_string(),
+                                    ether_type: Some("IPv4".to_string()),
+                                    name: "Node Port (UDP, anywhere)".to_string(),
+                                    port_range_min: Some(30000_i64),
+                                    port_range_max: Some(32767_i64),
+                                    protocol: Some("udp".to_string()),
+                                    ..Default::default()
+                                },
+                                OpenStackClusterTemplateTemplateSpecManagedSecurityGroupsAllNodesSecurityGroupRules {
+                                    remote_ip_prefix: Some("0.0.0.0/0".to_string()),
+                                    direction: "ingress".to_string(),
+                                    ether_type: Some("IPv4".to_string()),
+                                    name: "Node Port (TCP, anywhere)".to_string(),
+                                    port_range_min: Some(30000_i64),
+                                    port_range_max: Some(32767_i64),
+                                    protocol: Some("tcp".to_string()),
+                                    ..Default::default()
+                                }
+                            ])
                         },
                     ),
                     ..Default::default()
                 },
             },
         },
-    });
+    }
+});

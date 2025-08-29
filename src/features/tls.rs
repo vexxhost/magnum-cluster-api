@@ -133,8 +133,8 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resources::fixtures::default_values;
     use crate::features::test::TestClusterResources;
+    use crate::resources::fixtures::default_values;
     use maplit::btreemap;
     use pretty_assertions::assert_eq;
 
@@ -172,7 +172,6 @@ mod tests {
                 .extra_args
                 .expect("extra args should be set"),
             btreemap! {
-                "cloud-provider".to_string() => "external".to_string(),
                 "profiling".to_string() => "false".to_string(),
                 "tls-cipher-suites".to_string() => values.api_server_tls_cipher_suites.clone()
             }

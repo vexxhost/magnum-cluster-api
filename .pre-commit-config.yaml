@@ -1,32 +1,43 @@
 exclude: ^magnum_cluster_api/charts/
 
 repos:
-  - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v2.0.0
-    hooks:
-      - id: conventional-pre-commit
-        stages:
-          - commit-msg
-
   - repo: https://github.com/psf/black
-    rev: 24.8.0
+    rev: 25.1.0
     hooks:
       - id: black
 
   - repo: https://github.com/pycqa/flake8
-    rev: 5.0.4
+    rev: 7.2.0
     hooks:
       - id: flake8
 
   - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+    rev: 6.0.1
     hooks:
       - id: isort
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.3.0
+    rev: v5.0.0
     hooks:
       - id: check-yaml
         args: [--allow-multiple-documents]
       - id: end-of-file-fixer
       - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: ensure-calico-manifest
+        name: ensure calico manifest exists for CALICO_TAG
+        language: system
+        files: ^magnum_cluster_api/resources.py$
+        entry: bash -c
+        args:
+          - |
+              CALICO_TAG=$(grep ^CALICO_TAG magnum_cluster_api/resources.py | cut -d'"' -f2)
+              curl -o magnum_cluster_api/manifests/calico/${CALICO_TAG}.yaml https://raw.githubusercontent.com/projectcalico/calico/${CALICO_TAG}/manifests/calico.yaml
+              sed -i 's|docker.io/calico/|quay.io/calico/|g' magnum_cluster_api/manifests/calico/${CALICO_TAG}.yaml
+      - id: replace-docker-io-calico
+        name: replace docker.io to quay.io for calico
+        language: system
+        files: ^magnum_cluster_api/manifests/calico/.*\.yaml$
+        entry: sed -i 's|docker.io/calico/|quay.io/calico/|g'

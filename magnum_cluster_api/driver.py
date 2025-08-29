@@ -16,7 +16,10 @@
 from __future__ import annotations
 
 import keystoneauth1  # type: ignore
+from eventlet import tpool  # type: ignore
+from heatclient import exc  # type: ignore
 from magnum import objects as magnum_objects  # type: ignore
+from magnum.common import exception as magnum_exception  # type: ignore
 from magnum.conductor import scale_manager  # type: ignore
 from magnum.drivers.common import driver  # type: ignore
 from magnum.objects import fields  # type: ignore
@@ -45,11 +48,14 @@ def cluster_lock_wrapper(func):
 class BaseDriver(driver.Driver):
     def __init__(self):
         self.k8s_api = clients.get_pykube_api()
+        self.rust_driver = tpool.Proxy(
+            magnum_cluster_api.Driver("magnum-system", resources.CLUSTER_CLASS_NAME)
+        )
 
     @property
     def kube_client(self):
         if not hasattr(self, "_kube_client"):
-            self._kube_client = magnum_cluster_api.KubeClient()
+            self._kube_client = tpool.Proxy(magnum_cluster_api.KubeClient())
         return self._kube_client
 
     def create_cluster(
@@ -66,21 +72,17 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
-        magnum_cluster = magnum_cluster_api.MagnumCluster(
-            cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
-        )
-        magnum_cluster.apply_cluster_class()
+        self.rust_driver.create_cluster(cluster)
 
         utils.validate_cluster(context, cluster)
 
-        return self._create_cluster(context, cluster, magnum_cluster)
+        return self._create_cluster(context, cluster)
 
     @cluster_lock_wrapper
     def _create_cluster(
         self,
         context,
         cluster: magnum_objects.Cluster,
-        magnum_cluster: magnum_cluster_api.MagnumCluster,
     ):
         osc = clients.get_openstack_api(context)
 
@@ -118,7 +120,6 @@ class BaseDriver(driver.Driver):
             cluster,
             skip_auto_scaling_release=True,
         )
-        magnum_cluster.create()
         resources.Cluster(context, self.kube_client, self.k8s_api, cluster).apply(),
 
     def _get_cluster_status_reason(self, capi_cluster):
@@ -171,7 +172,9 @@ class BaseDriver(driver.Driver):
 
         if updated_replicas != replicas:
             nodegroup.status = f"{action}_IN_PROGRESS"
-        elif updated_replicas == replicas and ready:
+        elif (
+            updated_replicas == replicas and nodegroup.node_count == replicas and ready
+        ):
             nodegroup.status = f"{action}_COMPLETE"
         nodegroup.status_reason = failure_message
 
@@ -238,7 +241,13 @@ class BaseDriver(driver.Driver):
                 if not ng.status.endswith("_COMPLETE"):
                     return
                 if ng.status == fields.ClusterStatus.DELETE_COMPLETE:
-                    ng.destroy()
+                    should_destroy = (
+                        not ng.is_default
+                        or cluster.status == fields.ClusterStatus.DELETE_IN_PROGRESS
+                    )
+                    if should_destroy:
+                        ng.destroy()
+                    continue
 
             if cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS:
                 cluster.status_reason = None
@@ -393,10 +402,7 @@ class BaseDriver(driver.Driver):
         # NOTE(mnaser): We run a full apply on the cluster regardless of the changes, since
         #               the expectation is that running an upgrade operation will change
         #               the cluster in some way.
-        magnum_cluster = magnum_cluster_api.MagnumCluster(
-            cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
-        )
-        magnum_cluster.apply_cluster_class()
+        self.rust_driver.upgrade_cluster(cluster)
         resources.apply_cluster_from_magnum_cluster(
             context, self.kube_client, self.k8s_api, cluster
         )
@@ -427,15 +433,14 @@ class BaseDriver(driver.Driver):
         #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/pull/990
         utils.delete_loadbalancers(context, cluster)
 
-        magnum_cluster = magnum_cluster_api.MagnumCluster(
-            cluster, resources.CLUSTER_CLASS_NAME, namespace="magnum-system"
-        )
-        magnum_cluster.delete()
-        resources.ClusterResourcesConfigMap(
-            context, self.kube_client, self.k8s_api, cluster
-        ).delete()
+        self.rust_driver.delete_cluster(cluster)
         resources.Cluster(context, self.kube_client, self.k8s_api, cluster).delete()
         resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).delete()
+
+    # magnum-cluster-api driver supports control plane resize
+    def validate_master_resize(self, node_count):
+        if node_count % 2 == 0 or node_count < 1:
+            raise magnum_exception.MasterNGSizeInvalid(requested_size=node_count)
 
     @cluster_lock_wrapper
     def create_nodegroup(
@@ -453,7 +458,7 @@ class BaseDriver(driver.Driver):
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
-        utils.validate_nodegroup(nodegroup, context)
+        utils.validate_nodegroup(nodegroup)
         utils.ensure_worker_server_group(
             ctx=context, cluster=cluster, node_group=nodegroup
         )
@@ -478,10 +483,16 @@ class BaseDriver(driver.Driver):
         for node_group in cluster.nodegroups:
             # NOTE(mnaser): Nothing to do if the node group is in `DELETE_COMPLETE`
             #               state and skip work if it's a master node group.
-            if (
-                node_group.role == "master"
-                or node_group.status == fields.ClusterStatus.DELETE_COMPLETE
-            ):
+            if node_group.role == "master":
+                continue
+
+            if node_group.status == fields.ClusterStatus.DELETE_COMPLETE:
+                should_destroy = (
+                    not node_group.is_default
+                    or cluster.status == fields.ClusterStatus.DELETE_IN_PROGRESS
+                )
+                if should_destroy:
+                    node_group.destroy()
                 continue
 
             node_groups.append(node_group)
@@ -542,6 +553,15 @@ class BaseDriver(driver.Driver):
                 ]
             )
 
+            # Ensure that the flavor from the spec matches all of the OpenStackMachine objects
+            # for this node group (while vertical resizing group)
+            flavor_match = all(
+                [
+                    machine.obj["spec"]["flavor"] == md_variables["flavor"]
+                    for machine in machines
+                ]
+            )
+
             # NOTE(mnaser): If the cluster is in `UPDATE_IN_PROGRESS` state, we need to
             #               wait for the `MachineDeployment` to match the desired state
             #               from the `Cluster` resource and that it is in the `Running`
@@ -553,6 +573,7 @@ class BaseDriver(driver.Driver):
                     cluster_resource.get_machine_deployment_spec(node_group.name)
                 )
                 and image_id_match
+                and flavor_match
             ):
                 node_group.status = fields.ClusterStatus.UPDATE_COMPLETE
                 node_group.save()
@@ -585,25 +606,40 @@ class BaseDriver(driver.Driver):
         cluster: magnum_objects.Cluster,
         nodegroup: magnum_objects.NodeGroup,
     ):
-        utils.validate_nodegroup(nodegroup, context)
-        utils.ensure_worker_server_group(
-            ctx=context, cluster=cluster, node_group=nodegroup
-        )
+        utils.validate_nodegroup(nodegroup)
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 
-        current_md_spec = cluster_resource.get_machine_deployment_spec(nodegroup.name)
-        target_md_spec = resources.mutate_machine_deployment(
-            context,
-            cluster,
-            nodegroup,
-            cluster_resource.get_machine_deployment_spec(nodegroup.name),
-        )
+        if nodegroup.role == "master":
+            current_count = cluster_resource.obj["spec"]["topology"]["controlPlane"][
+                "replicas"
+            ]
+            if current_count == nodegroup.node_count:
+                return
 
-        if current_md_spec == target_md_spec:
-            return
+            cluster_resource.obj["spec"]["topology"]["controlPlane"][
+                "replicas"
+            ] = nodegroup.node_count
+        else:
+            utils.ensure_worker_server_group(
+                ctx=context, cluster=cluster, node_group=nodegroup
+            )
 
-        cluster_resource.set_machine_deployment_spec(nodegroup.name, target_md_spec)
+            current_md_spec = cluster_resource.get_machine_deployment_spec(
+                nodegroup.name
+            )
+            target_md_spec = resources.mutate_machine_deployment(
+                context,
+                cluster,
+                nodegroup,
+                cluster_resource.get_machine_deployment_spec(nodegroup.name),
+            )
+
+            if current_md_spec == target_md_spec:
+                return
+
+            cluster_resource.set_machine_deployment_spec(nodegroup.name, target_md_spec)
+
         utils.kube_apply_patch(cluster_resource)
 
         nodegroup.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
@@ -641,9 +677,10 @@ class BaseDriver(driver.Driver):
         try:
             md_index = cluster_resource.get_machine_deployment_index(nodegroup.name)
         except exceptions.MachineDeploymentNotFound:
-            nodegroup.status = fields.ClusterStatus.DELETE_COMPLETE
-            nodegroup.save()
-            return
+            # NOTE(mnaser): The Magnum node group API assumes that the node group is
+            #               gone if we get `exc.HTTPNotFound` so we raise it here to
+            #               let it destroy the node group.
+            raise exc.HTTPNotFound()
 
         del cluster_resource.obj["spec"]["topology"]["workers"]["machineDeployments"][
             md_index

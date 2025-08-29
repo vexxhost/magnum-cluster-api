@@ -202,32 +202,6 @@ pub mod fixtures {
                     .build(),
             )
             .boot_volume(boot_volume::BootVolumeConfig::builder().r#type("nvme".into()).size(0).build())
-            .cloud_ca_certificate(
-                BASE64_STANDARD.encode(indoc!(
-                    r#"
-                    -----BEGIN CERTIFICATE-----
-                    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzZz5z5z5z5z5z5z5z5z
-                    -----END CERTIFICATE-----
-                    "#
-                )),
-            )
-            .cloud_controller_manager_config(
-                BASE64_STANDARD.encode(indoc!(
-                    r#"
-                    [Global]
-                    auth-url=https://auth.vexxhost.net
-                    region=sjc1
-                    application-credential-id=foo
-                    application-credential-secret=bar
-                    tls-insecure=true
-                    ca-file=/etc/config/ca.crt
-                    [LoadBalancer]
-                    lb-provider=amphora
-                    lb-method=ROUND_ROBIN
-                    create-monitor=true
-                    "#,
-                ),
-            ))
             .cluster_identity_ref_name("identity-ref-name".into())
             .containerd_config(
                 BASE64_STANDARD.encode(indoc! {r#"
@@ -287,6 +261,7 @@ pub mod fixtures {
             .api_server_tls_cipher_suites("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305".into())
             .api_server_sans("".into())
             .kubelet_tls_cipher_suites("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305".into())
+            .hardware_disk_bus("".into())
             .enable_docker_volume(false)
             .docker_volume_size(0)
             .docker_volume_type("".into())
@@ -294,6 +269,7 @@ pub mod fixtures {
             .etcd_volume_size(0)
             .etcd_volume_type("".into())
             .availability_zone("az1".into())
+            .admission_control_list("NodeRestriction".into())
             .build()
     }
 }
@@ -346,15 +322,6 @@ mod tests {
                 }
                 "bootVolume" => {
                     assert_eq!(var.value, json!(default_values().boot_volume));
-                }
-                "cloudCaCert" => {
-                    assert_eq!(var.value, json!(default_values().cloud_ca_certificate));
-                }
-                "cloudControllerManagerConfig" => {
-                    assert_eq!(
-                        var.value,
-                        json!(default_values().cloud_controller_manager_config)
-                    );
                 }
                 "clusterIdentityRefName" => {
                     assert_eq!(var.value, json!(default_values().cluster_identity_ref_name));
@@ -440,6 +407,9 @@ mod tests {
                 "apiServerSANs" => {
                     assert_eq!(var.value, json!(default_values().api_server_sans));
                 }
+                "hardwareDiskBus" => {
+                    assert_eq!(var.value, json!(default_values().hardware_disk_bus));
+                }
                 "enableDockerVolume" => {
                     assert_eq!(var.value, json!(default_values().enable_docker_volume));
                 }
@@ -460,6 +430,9 @@ mod tests {
                 }
                 "availabilityZone" => {
                     assert_eq!(var.value, json!(default_values().availability_zone));
+                }
+                "admissionControlList" => {
+                    assert_eq!(var.value, json!(default_values().admission_control_list));
                 }
                 other => panic!("Unexpected field name: {}", other),
             }

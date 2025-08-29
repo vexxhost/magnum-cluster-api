@@ -1,14 +1,16 @@
 use crate::{
-    addons::{ClusterAddon, ClusterAddonValues, ClusterAddonValuesError},
-    magnum,
+    addons::{ClusterAddon, ClusterAddonValues, ClusterAddonValuesError, ImageDetails},
+    magnum::{self, ClusterError},
 };
 use docker_image::DockerImage;
 use include_dir::include_dir;
+use maplit::btreemap;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct CiliumValues {
-    image: CiliumImageValues,
+    image: ImageDetails,
     cni: CiliumCNIValues,
     certgen: CiliumCertGenValues,
     hubble: CiliumHubbleValues,
@@ -25,83 +27,13 @@ pub struct CiliumValues {
     clustermesh: CiliumClustermeshValues,
 }
 
-impl TryFrom<magnum::Cluster> for CiliumValues {
-    type Error = ClusterAddonValuesError;
-
-    fn try_from(cluster: magnum::Cluster) -> Result<Self, ClusterAddonValuesError> {
-        let values = Self::defaults()?;
-
-        Ok(Self {
-            image: values.image.using_cluster(&cluster)?,
-            cni: CiliumCNIValues {
-                chaining_mode: CiliumCNIChainingMode::PortMap,
-            },
-            certgen: CiliumCertGenValues {
-                image: values.certgen.image.using_cluster(&cluster)?,
-            },
-            hubble: CiliumHubbleValues {
-                relay: CiliumHubbleRelayValues {
-                    image: values.hubble.relay.image.using_cluster(&cluster)?,
-                },
-                ui: CiliumHubbleUiValues {
-                    backend: CiliumHubbleUiBackendValues {
-                        image: values.hubble.ui.backend.image.using_cluster(&cluster)?,
-                    },
-                    frontend: CiliumHubbleUiFrontendValues {
-                        image: values.hubble.ui.frontend.image.using_cluster(&cluster)?,
-                    },
-                },
-            },
-            ipam: CiliumIPAMValues {
-                operator: CiliumIPAMOperatorValues {
-                    cluster_pool_ipv4_pod_cidr_list: vec![cluster.labels.cilium_ipv4pool.clone()],
-                },
-            },
-            // NOTE(okozachenko): cilium has a limitation https://github.com/cilium/cilium/issues/9207
-            //                    Because of that, it fails on the test
-            //                    `Services should serve endpoints on same port and different protocols`.
-            //                    https://github.com/kubernetes/kubernetes/pull/120069#issuecomment-2111252221
-            kubernetes: CiliumKubernetesValues {
-                service_proxy_name: Some("cilium".into()),
-            },
-            envoy: CiliumEnvoyValues {
-                image: values.envoy.image.using_cluster(&cluster)?,
-            },
-            // NOTE(okozachenko): For users who run with kube-proxy (i.e. with Cilium's kube-proxy
-            //                    replacement disabled), the ClusterIP service loadbalancing when a
-            //                    request is sent from a pod running in a non-host network namespace
-            //                    is still performed at the pod network interface (until
-            //                    https://github.com/cilium/cilium/issues/16197 is fixed). For this
-            //                    case the session affinity support is disabled by default.
-            session_affinity: Some(true),
-            etcd: CiliumEtcdValues {
-                image: values.etcd.image.using_cluster(&cluster)?,
-            },
-            operator: CiliumOperatorValues {
-                image: values.operator.image.using_cluster(&cluster)?,
-            },
-            nodeinit: CiliumNodeInitValues {
-                image: values.nodeinit.image.using_cluster(&cluster)?,
-            },
-            preflight: CiliumPreflightValues {
-                image: values.preflight.image.using_cluster(&cluster)?,
-            },
-            clustermesh: CiliumClustermeshValues {
-                apiserver: CiliumClustermeshApiserverValues {
-                    image: values.clustermesh.apiserver.image.using_cluster(&cluster)?,
-                },
-            },
-        })
-    }
-}
-
 impl ClusterAddonValues for CiliumValues {
     fn defaults() -> Result<Self, ClusterAddonValuesError> {
         let file = include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/magnum_cluster_api/charts/cilium/values.yaml"
         ));
-        let values: CiliumValues = serde_yaml::from_str(file)?;
+        let values: Self = serde_yaml::from_str(file)?;
 
         Ok(values)
     }
@@ -138,61 +70,111 @@ impl ClusterAddonValues for CiliumValues {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-struct CiliumImageValues {
-    repository: String,
-    tag: String,
-    #[serde(rename = "useDigest")]
-    use_digest: bool,
-}
+impl TryFrom<magnum::Cluster> for CiliumValues {
+    type Error = ClusterAddonValuesError;
 
-impl CiliumImageValues {
-    pub fn using_cluster(
-        &self,
-        cluster: &magnum::Cluster,
-    ) -> Result<Self, ClusterAddonValuesError> {
-        let image = DockerImage::parse(self.repository.as_str())?;
-        let repository =
-            CiliumValues::get_mirrored_image_name(image, &cluster.labels.container_infra_prefix);
-        let tag = cluster.labels.cilium_tag.clone();
+    fn try_from(cluster: magnum::Cluster) -> Result<Self, ClusterAddonValuesError> {
+        let values = Self::defaults()?;
 
         Ok(Self {
-            repository,
-            tag,
-            use_digest: cluster.labels.container_infra_prefix.is_none(),
+            image: values
+                .image
+                .using_cluster::<Self>(&cluster, &cluster.labels.cilium_tag)?,
+            cni: CiliumCNIValues {
+                chaining_mode: CiliumCNIChainingMode::PortMap,
+            },
+            certgen: CiliumCertGenValues {
+                image: values
+                    .certgen
+                    .image
+                    .using_cluster::<Self>(&cluster, &cluster.labels.cilium_tag)?,
+            },
+            hubble: CiliumHubbleValues {
+                relay: CiliumHubbleRelayValues {
+                    image: values
+                        .hubble
+                        .relay
+                        .image
+                        .using_cluster::<Self>(&cluster, &cluster.labels.cilium_tag)?,
+                },
+                ui: CiliumHubbleUiValues {
+                    backend: CiliumHubbleUiBackendValues {
+                        image: values
+                            .hubble
+                            .ui
+                            .backend
+                            .image
+                            .using_cluster::<Self>(&cluster, &cluster.labels.cilium_tag)?,
+                    },
+                    frontend: CiliumHubbleUiFrontendValues {
+                        image: values
+                            .hubble
+                            .ui
+                            .frontend
+                            .image
+                            .using_cluster::<Self>(&cluster, &cluster.labels.cilium_tag)?,
+                    },
+                },
+            },
+            ipam: CiliumIPAMValues {
+                operator: CiliumIPAMOperatorValues {
+                    cluster_pool_ipv4_pod_cidr_list: vec![cluster.labels.cilium_ipv4pool.clone()],
+                },
+            },
+            // NOTE(okozachenko): cilium has a limitation https://github.com/cilium/cilium/issues/9207
+            //                    Because of that, it fails on the test
+            //                    `Services should serve endpoints on same port and different protocols`.
+            //                    https://github.com/kubernetes/kubernetes/pull/120069#issuecomment-2111252221
+            kubernetes: CiliumKubernetesValues {
+                service_proxy_name: Some("cilium".into()),
+            },
+            envoy: CiliumEnvoyValues {
+                image: values
+                    .envoy
+                    .image
+                    .using_cluster::<Self>(&cluster, &cluster.labels.cilium_tag)?,
+            },
+            // NOTE(okozachenko): For users who run with kube-proxy (i.e. with Cilium's kube-proxy
+            //                    replacement disabled), the ClusterIP service loadbalancing when a
+            //                    request is sent from a pod running in a non-host network namespace
+            //                    is still performed at the pod network interface (until
+            //                    https://github.com/cilium/cilium/issues/16197 is fixed). For this
+            //                    case the session affinity support is disabled by default.
+            session_affinity: Some(true),
+            etcd: CiliumEtcdValues {
+                image: values
+                    .etcd
+                    .image
+                    .using_cluster::<Self>(&cluster, &cluster.labels.cilium_tag)?,
+            },
+            operator: CiliumOperatorValues {
+                image: values
+                    .operator
+                    .image
+                    .using_cluster::<Self>(&cluster, &cluster.labels.cilium_tag)?,
+            },
+            nodeinit: CiliumNodeInitValues {
+                image: values
+                    .nodeinit
+                    .image
+                    .using_cluster::<Self>(&cluster, &cluster.labels.cilium_tag)?,
+            },
+            preflight: CiliumPreflightValues {
+                image: values
+                    .preflight
+                    .image
+                    .using_cluster::<Self>(&cluster, &cluster.labels.cilium_tag)?,
+            },
+            clustermesh: CiliumClustermeshValues {
+                apiserver: CiliumClustermeshApiserverValues {
+                    image: values
+                        .clustermesh
+                        .apiserver
+                        .image
+                        .using_cluster::<Self>(&cluster, &cluster.labels.cilium_tag)?,
+                },
+            },
         })
-    }
-}
-
-impl From<CiliumImageValues> for DockerImage {
-    fn from(values: CiliumImageValues) -> Self {
-        DockerImage::parse(values.repository.as_str()).expect("failed to parse image")
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-struct CiliumImageValuesWithoutDigest {
-    repository: String,
-    tag: String,
-}
-
-impl CiliumImageValuesWithoutDigest {
-    pub fn using_cluster(
-        &self,
-        cluster: &magnum::Cluster,
-    ) -> Result<Self, ClusterAddonValuesError> {
-        let image = DockerImage::parse(self.repository.as_str())?;
-        let repository =
-            CiliumValues::get_mirrored_image_name(image, &cluster.labels.container_infra_prefix);
-        let tag = cluster.labels.cilium_tag.clone();
-
-        Ok(Self { repository, tag })
-    }
-}
-
-impl From<CiliumImageValuesWithoutDigest> for DockerImage {
-    fn from(values: CiliumImageValuesWithoutDigest) -> Self {
-        DockerImage::parse(values.repository.as_str()).expect("failed to parse image")
     }
 }
 
@@ -225,7 +207,7 @@ enum CiliumCNIChainingMode {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct CiliumCertGenValues {
-    image: CiliumImageValues,
+    image: ImageDetails,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -253,7 +235,7 @@ struct CiliumKubernetesValues {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct CiliumHubbleRelayValues {
-    image: CiliumImageValues,
+    image: ImageDetails,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -264,37 +246,37 @@ struct CiliumHubbleUiValues {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct CiliumHubbleUiBackendValues {
-    image: CiliumImageValues,
+    image: ImageDetails,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct CiliumHubbleUiFrontendValues {
-    image: CiliumImageValues,
+    image: ImageDetails,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct CiliumEnvoyValues {
-    image: CiliumImageValues,
+    image: ImageDetails,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct CiliumEtcdValues {
-    image: CiliumImageValues,
+    image: ImageDetails,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct CiliumOperatorValues {
-    image: CiliumImageValues,
+    image: ImageDetails,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct CiliumNodeInitValues {
-    image: CiliumImageValuesWithoutDigest,
+    image: ImageDetails,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct CiliumPreflightValues {
-    image: CiliumImageValues,
+    image: ImageDetails,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -304,7 +286,7 @@ struct CiliumClustermeshValues {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct CiliumClustermeshApiserverValues {
-    image: CiliumImageValues,
+    image: ImageDetails,
 }
 
 pub struct Addon {
@@ -322,16 +304,22 @@ impl ClusterAddon for Addon {
         self.cluster.cluster_template.network_driver == "cilium"
     }
 
-    fn manifests<T: ClusterAddonValues + Serialize>(
-        &self,
-        values: &T,
-    ) -> Result<String, helm::HelmTemplateError> {
-        helm::template_using_include_dir(
-            include_dir!("magnum_cluster_api/charts/cilium"),
-            "cilium",
-            "kube-system",
-            values,
-        )
+    fn secret_name(&self) -> Result<String, ClusterError> {
+        Ok(format!("{}-cilium", self.cluster.stack_id()?))
+    }
+
+    fn manifests(&self) -> Result<BTreeMap<String, String>, helm::HelmTemplateError> {
+        let values =
+            &CiliumValues::try_from(self.cluster.clone()).expect("failed to create values");
+
+        Ok(btreemap! {
+            "cilium.yaml".to_owned() => helm::template_using_include_dir(
+                include_dir!("magnum_cluster_api/charts/cilium"),
+                "cilium",
+                "kube-system",
+                values,
+            )?,
+        })
     }
 }
 
@@ -370,98 +358,101 @@ mod tests {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
             labels: magnum::ClusterLabels::builder().build(),
+            stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
+            ..Default::default()
         };
 
         let values: CiliumValues = cluster.clone().try_into().expect("failed to create values");
 
         assert_eq!(
             values.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "quay.io/cilium/cilium".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: true,
+                use_digest: Some(true),
             }
         );
         assert_eq!(
             values.certgen.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "quay.io/cilium/certgen".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: true,
+                use_digest: Some(true),
             }
         );
         assert_eq!(
             values.hubble.relay.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "quay.io/cilium/hubble-relay".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: true,
+                use_digest: Some(true),
             }
         );
         assert_eq!(
             values.hubble.ui.backend.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "quay.io/cilium/hubble-ui-backend".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: true,
+                use_digest: Some(true),
             }
         );
         assert_eq!(
             values.hubble.ui.frontend.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "quay.io/cilium/hubble-ui".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: true,
+                use_digest: Some(true),
             }
         );
         assert_eq!(
             values.envoy.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "quay.io/cilium/cilium-envoy".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: true,
+                use_digest: Some(true),
             }
         );
         assert_eq!(
             values.etcd.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "quay.io/cilium/cilium-etcd-operator".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: true,
+                use_digest: Some(true),
             }
         );
         assert_eq!(
             values.operator.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "quay.io/cilium/operator".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: true,
+                use_digest: Some(true),
             }
         );
         assert_eq!(
             values.nodeinit.image,
-            CiliumImageValuesWithoutDigest {
+            ImageDetails {
                 repository: "quay.io/cilium/startup-script".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
+                use_digest: Some(true),
             }
         );
         assert_eq!(
             values.preflight.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "quay.io/cilium/cilium".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: true,
+                use_digest: Some(true),
             }
         );
         assert_eq!(
             values.clustermesh.apiserver.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "quay.io/cilium/clustermesh-apiserver".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: true,
+                use_digest: Some(true),
             }
         );
     }
@@ -473,98 +464,101 @@ mod tests {
             labels: magnum::ClusterLabels::builder()
                 .container_infra_prefix(Some("registry.example.com".to_string()))
                 .build(),
+            stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
+            ..Default::default()
         };
 
         let values: CiliumValues = cluster.clone().try_into().expect("failed to create values");
 
         assert_eq!(
             values.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "registry.example.com/cilium-cilium".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: false,
+                use_digest: Some(false),
             }
         );
         assert_eq!(
             values.certgen.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "registry.example.com/cilium-certgen".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: false,
+                use_digest: Some(false),
             }
         );
         assert_eq!(
             values.hubble.relay.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "registry.example.com/cilium-hubble-relay".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: false,
+                use_digest: Some(false),
             }
         );
         assert_eq!(
             values.hubble.ui.backend.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "registry.example.com/cilium-hubble-ui-backend".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: false,
+                use_digest: Some(false),
             }
         );
         assert_eq!(
             values.hubble.ui.frontend.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "registry.example.com/cilium-hubble-ui".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: false,
+                use_digest: Some(false),
             }
         );
         assert_eq!(
             values.envoy.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "registry.example.com/cilium-cilium-envoy".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: false,
+                use_digest: Some(false),
             }
         );
         assert_eq!(
             values.etcd.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "registry.example.com/cilium-cilium-etcd-operator".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: false,
+                use_digest: Some(false),
             }
         );
         assert_eq!(
             values.operator.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "registry.example.com/cilium-operator".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: false,
+                use_digest: Some(false),
             }
         );
         assert_eq!(
             values.nodeinit.image,
-            CiliumImageValuesWithoutDigest {
+            ImageDetails {
                 repository: "registry.example.com/cilium-startup-script".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
+                use_digest: Some(false),
             }
         );
         assert_eq!(
             values.preflight.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "registry.example.com/cilium-cilium".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: false,
+                use_digest: Some(false),
             }
         );
         assert_eq!(
             values.clustermesh.apiserver.image,
-            CiliumImageValues {
+            ImageDetails {
                 repository: "registry.example.com/cilium-clustermesh-apiserver".to_string(),
                 tag: cluster.labels.cilium_tag.clone(),
-                use_digest: false,
+                use_digest: Some(false),
             }
         );
     }
@@ -574,13 +568,14 @@ mod tests {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
             labels: magnum::ClusterLabels::builder().build(),
+            stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {
                 network_driver: "cilium".to_string(),
             },
+            ..Default::default()
         };
 
         let addon = Addon::new(cluster.clone());
-        let values: CiliumValues = cluster.clone().try_into().expect("failed to create values");
-        addon.manifests(&values).expect("failed to get manifests");
+        addon.manifests().expect("failed to get manifests");
     }
 }

@@ -34,15 +34,6 @@ def update_manifest_images(cluster_uuid: str, file, repository=None, replacement
                 if repository:
                     container["image"] = get_image(container["image"], repository)
 
-        # Fix CCM cluster-name
-        if (
-            doc["kind"] == "DaemonSet"
-            and doc["metadata"]["name"] == "openstack-cloud-controller-manager"
-        ):
-            for env in doc["spec"]["template"]["spec"]["containers"][0]["env"]:
-                if env["name"] == "CLUSTER_NAME":
-                    env["value"] = cluster_uuid
-
         docs.append(doc)
 
     return yaml.safe_dump_all(docs, default_flow_style=False)
@@ -57,10 +48,11 @@ def get_image(name: str, repository: str = None):
         return name
 
     new_image_name = name
-    if name.startswith("docker.io/calico"):
-        new_image_name = name.replace("docker.io/calico/", f"{repository}/calico/")
-    if name.startswith("quay.io/cilium"):
-        new_image_name = name.replace("quay.io/cilium/", f"{repository}/cilium/")
+    if name.startswith("quay.io/calico"):
+        new_image_name = name.replace("quay.io/calico/", f"{repository}/calico/")
+    if name.startswith("quay.io/cilium/"):
+        component = name.replace("quay.io/cilium/", "")
+        new_image_name = f"{repository}/cilium-{component}"
     if name.startswith("docker.io/k8scloudprovider"):
         new_image_name = name.replace("docker.io/k8scloudprovider", repository)
     if name.startswith("registry.k8s.io/sig-storage"):

@@ -12,7 +12,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import semver
 from magnum import objects
 from magnum.common import context, exception
 from oslo_log import log as logging
@@ -50,53 +49,3 @@ def is_service_enabled(service_type: str) -> bool:
 
     LOG.info("There is no %s service enabled in the cloud.", service_type)
     return False
-
-
-def get_cloud_provider_image(
-    cluster: objects.Cluster, tag_label: str, image_name: str
-) -> str:
-    tag = get_cloud_provider_tag(cluster, tag_label)
-    version = semver.VersionInfo.parse(tag[1:])
-
-    repository = "registry.k8s.io/provider-os"
-    if version.major == 1 and version.minor < 24:
-        repository = "docker.io/k8scloudprovider"
-
-    return f"{repository}/{image_name}:{tag}"
-
-
-def get_cloud_provider_tag(cluster: objects.Cluster, label: str) -> str:
-    tag_label = cluster.labels.get(label, None)
-    if tag_label:
-        return tag_label
-
-    kube_tag = utils.get_kube_tag(cluster)
-    version = semver.VersionInfo.parse(kube_tag[1:])
-
-    tag = None
-    if version.major == 1 and version.minor == 23:
-        tag = "v1.23.4"
-    elif version.major == 1 and version.minor == 24:
-        tag = "v1.24.6"
-    elif version.major == 1 and version.minor == 25:
-        tag = "v1.25.6"
-    elif version.major == 1 and version.minor == 26:
-        tag = "v1.26.3"
-    elif version.major == 1 and version.minor == 27:
-        tag = "v1.27.3"
-    elif version.major == 1 and version.minor == 28:
-        tag = "v1.28.2"
-    elif version.major == 1 and version.minor == 29:
-        tag = "v1.29.0"
-    elif version.major == 1 and version.minor == 30:
-        tag = "v1.30.0"
-    elif version.major == 1 and version.minor == 31:
-        tag = "v1.31.1"
-
-    if tag is None:
-        raise ValueError(
-            f"Unsupported Kubernetes version: {version}. "
-            "Please specify a supported version in the cluster template."
-        )
-
-    return tag

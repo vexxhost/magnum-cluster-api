@@ -11,19 +11,32 @@
           pkgs = import nixpkgs {
             inherit system;
           };
+
+          python = pkgs.python312;
         in
         {
           devShell = pkgs.mkShell
             {
               LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
+              PYO3_PYTHON = "${python}/bin/python";
+              RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
 
               buildInputs = with pkgs; [
-                kind
                 bashInteractive
+                black
+                cargo
+                clippy
                 glibcLocales
-                uv
-                python311Packages.tox
+                kind
                 kubernetes-helm
+                patchutils
+                pre-commit
+                python.pkgs.tox
+                python.pkgs.uv
+                renovate
+                rust-analyzer
+                rustc
+                rustfmt
               ];
             };
         }

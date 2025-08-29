@@ -27,13 +27,6 @@ else
     popd
 fi
 
-# Backport Magnum trusts fix
-pushd /opt/stack
-git clone https://github.com/openstack/magnum
-cd magnum
-git fetch https://review.opendev.org/openstack/magnum refs/changes/15/940815/1 && git checkout FETCH_HEAD
-popd
-
 # Create DevStack configuration file
 cat <<EOF > /opt/stack/local.conf
 [[local|localrc]]
@@ -75,7 +68,7 @@ enable_plugin ovn-octavia-provider https://opendev.org/openstack/ovn-octavia-pro
 enable_service octavia o-api o-cw o-hm o-hk o-da
 
 # Magnum
-enable_plugin magnum https://opendev.org/openstack/magnum
+enable_plugin magnum https://review.opendev.org/openstack/magnum refs/changes/10/949110/2
 enable_plugin magnum-ui https://opendev.org/openstack/magnum-ui
 
 # Manila
@@ -90,6 +83,8 @@ MANILA_OPTGROUP_generic_driver_handles_share_servers=True
 MANILA_OPTGROUP_generic_connect_share_server_to_tenant_network=True
 MANILA_DEFAULT_SHARE_TYPE_EXTRA_SPECS='snapshot_support=True create_share_from_snapshot_support=True'
 MANILA_CONFIGURE_DEFAULT_TYPES=True
+# NOTE(okozachenko): Disable UWSGI until https://bugs.launchpad.net/manila/+bug/2109645 is fixed
+MANILA_USE_UWSGI=False
 
 MANILA_SERVICE_IMAGE_ENABLED=True
 MANILA_USE_SERVICE_INSTANCE_PASSWORD=True

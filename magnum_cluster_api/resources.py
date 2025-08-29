@@ -14,6 +14,7 @@
 
 import abc
 import glob
+import math
 import os
 import types
 import typing
@@ -24,6 +25,7 @@ import pykube  # type: ignore
 import yaml
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.common import context, neutron  # type: ignore
+from magnum.common import utils as magnum_utils  # type: ignore
 from magnum.common.cert_manager import cert_manager  # type: ignore
 from magnum.common.x509 import operations as x509  # type: ignore
 from magnum.conductor.handlers.common import (
@@ -42,10 +44,10 @@ from magnum_cluster_api import (
     objects,
     utils,
 )
-from magnum_cluster_api.integrations import cinder, cloud_provider, manila
+from magnum_cluster_api.integrations import cinder, manila
 
 CONF = cfg.CONF
-CALICO_TAG = "v3.24.2"
+CALICO_TAG = "v3.30.2"
 
 CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
@@ -89,6 +91,12 @@ class ClusterAutoscalerHelmRelease:
                 },
                 "nodeSelector": {
                     "openstack-control-plane": "enabled",
+                },
+                "extraArgs": {
+                    "logtostderr": True,
+                    "stderrthreshold": "info",
+                    "v": 4,
+                    "enforce-node-group-min-size": True,
                 },
             },
         )
@@ -201,7 +209,7 @@ class ClusterBase(Base):
         }
 
 
-class ClusterResourcesConfigMap(ClusterBase):
+class CloudProviderClusterResourcesSecret(ClusterBase):
     def __init__(
         self,
         context: context.RequestContext,
@@ -222,71 +230,48 @@ class ClusterResourcesConfigMap(ClusterBase):
 
     @property
     def kind(self) -> str:
-        return "ConfigMap"
+        return "Secret"
+
+    @property
+    def name(self) -> str:
+        return f"{self.cluster.stack_id}-cloud-provider"
 
     def get_object(self) -> dict:
-        manifests_path = pkg_resources.resource_filename(
-            "magnum_cluster_api", "manifests"
-        )
-        calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
-
-        repository = utils.get_cluster_container_infra_prefix(self.cluster)
-
-        osc = clients.get_openstack_api(self.context)
-
-        data = magnum_cluster_api.MagnumCluster.get_config_data(self.cluster)
-
         data = {
-            **data,
+            **magnum_cluster_api.Driver.get_cloud_provider_cluster_resource_secret_data(
+                self.cluster
+            ),
             **{
-                os.path.basename(manifest): image_utils.update_manifest_images(
-                    self.cluster.uuid,
-                    manifest,
-                    repository=repository,
-                    replacements=[
-                        (
-                            "docker.io/k8scloudprovider/openstack-cloud-controller-manager:latest",
-                            cloud_provider.get_image(self.cluster),
-                        ),
-                    ],
-                )
-                for manifest in glob.glob(os.path.join(manifests_path, "ccm/*.yaml"))
+                "cloud-config-secret.yaml": yaml.dump(
+                    {
+                        "apiVersion": pykube.Secret.version,
+                        "kind": pykube.Secret.kind,
+                        "metadata": {
+                            "name": "cloud-config",
+                            "namespace": "kube-system",
+                        },
+                        "stringData": {
+                            "cloud.conf": utils.generate_cloud_controller_manager_config(
+                                self.context,
+                                self.pykube_api,
+                                self.cluster,
+                            ),
+                            "ca.crt": magnum_utils.get_openstack_ca(),
+                        },
+                    }
+                ),
             },
         }
 
-        if self.cluster.cluster_template.network_driver == "calico":
-            data = {
-                **data,
-                **{
-                    "calico.yml": image_utils.update_manifest_images(
-                        self.cluster.uuid,
-                        os.path.join(manifests_path, f"calico/{calico_version}.yaml"),
-                        repository=repository,
-                    )
-                },
-            }
-
+        osc = clients.get_openstack_api(self.context)
         if cinder.is_enabled(self.cluster):
             volume_types = osc.cinder().volume_types.list()
             default_volume_type = osc.cinder().volume_types.default()
             data = {
                 **data,
-                **{
-                    os.path.basename(manifest): image_utils.update_manifest_images(
-                        self.cluster.uuid,
-                        manifest,
-                        repository=repository,
-                        replacements=[
-                            (
-                                "docker.io/k8scloudprovider/cinder-csi-plugin:latest",
-                                cinder.get_image(self.cluster),
-                            ),
-                        ],
-                    )
-                    for manifest in glob.glob(
-                        os.path.join(manifests_path, "cinder-csi/*.yaml")
-                    )
-                },
+                **magnum_cluster_api.Driver.get_cinder_csi_cluster_resource_secret_data(
+                    self.cluster
+                ),
                 **{
                     f"storageclass-block-{vt.name}.yaml": yaml.dump(
                         {
@@ -321,6 +306,9 @@ class ClusterResourcesConfigMap(ClusterBase):
             share_network_id = self.cluster.labels.get("manila_csi_share_network_id")
             data = {
                 **data,
+                **magnum_cluster_api.Driver.get_manila_csi_cluster_resource_secret_data(
+                    self.cluster
+                ),
                 **{
                     "manila-csi-secret.yaml": yaml.dump(
                         {
@@ -338,32 +326,6 @@ class ClusterResourcesConfigMap(ClusterBase):
                         },
                     )
                 },
-                **{
-                    os.path.basename(manifest): image_utils.update_manifest_images(
-                        self.cluster.uuid,
-                        manifest,
-                        repository=repository,
-                    )
-                    for manifest in glob.glob(
-                        os.path.join(manifests_path, "nfs-csi/*.yaml")
-                    )
-                },
-                **{
-                    os.path.basename(manifest): image_utils.update_manifest_images(
-                        self.cluster.uuid,
-                        manifest,
-                        repository=repository,
-                        replacements=[
-                            (
-                                "registry.k8s.io/provider-os/manila-csi-plugin:latest",
-                                manila.get_image(self.cluster),
-                            ),
-                        ],
-                    )
-                    for manifest in glob.glob(
-                        os.path.join(manifests_path, "manila-csi/*.yaml")
-                    )
-                },
             }
             # NOTE: We only create StorageClasses if share_network_id specified.
             if share_network_id:
@@ -379,7 +341,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                                     "name": "share-%s"
                                     % utils.convert_to_rfc1123(st.name),
                                 },
-                                "provisioner": "manila.csi.openstack.org",
+                                "provisioner": "nfs.manila.csi.openstack.org",
                                 "parameters": {
                                     "type": st.name,
                                     "shareNetworkID": share_network_id,
@@ -400,6 +362,108 @@ class ClusterResourcesConfigMap(ClusterBase):
                     },
                 }
 
+        return {
+            "type": "addons.cluster.x-k8s.io/resource-set",
+            "stringData": data,
+        }
+
+    def get_or_none(self) -> objects.Cluster:
+        return pykube.Secret.objects(
+            self.pykube_api, namespace=self.namespace
+        ).get_or_none(name=self.name)
+
+    def delete(self):
+        cr_cm = self.get_or_none()
+        if cr_cm:
+            cr_cm.delete()
+
+
+class LegacyClusterResourcesSecret(ClusterBase):
+    def __init__(
+        self,
+        context: context.RequestContext,
+        api: magnum_cluster_api.KubeClient,
+        pykube_api: pykube.HTTPClient,
+        cluster: magnum_objects.Cluster,
+        namespace: str = "magnum-system",
+    ):
+        self.context = context
+        self.api = api
+        self.pykube_api = pykube_api
+        self.cluster = cluster
+        self.namespace = namespace
+
+    @property
+    def api_version(self) -> str:
+        return "v1"
+
+    @property
+    def kind(self) -> str:
+        return "Secret"
+
+    def get_object(self) -> dict:
+        repository = utils.get_cluster_container_infra_prefix(self.cluster)
+        manifests_path = pkg_resources.resource_filename(
+            "magnum_cluster_api", "manifests"
+        )
+
+        data = magnum_cluster_api.Driver.get_legacy_cluster_resource_secret_data(
+            self.cluster
+        )
+
+        data = {
+            **data,
+            **{
+                "cloud-config-secret.yaml": yaml.dump(
+                    {
+                        "apiVersion": pykube.Secret.version,
+                        "kind": pykube.Secret.kind,
+                        "metadata": {
+                            "name": "cloud-config",
+                            "namespace": "kube-system",
+                        },
+                        "stringData": {
+                            "cloud.conf": utils.generate_cloud_controller_manager_config(
+                                self.context,
+                                self.pykube_api,
+                                self.cluster,
+                            ),
+                            "ca.crt": magnum_utils.get_openstack_ca(),
+                        },
+                    }
+                ),
+            },
+        }
+
+        if self.cluster.cluster_template.network_driver == "calico":
+            calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
+            data = {
+                **data,
+                **{
+                    "calico.yml": image_utils.update_manifest_images(
+                        self.cluster.uuid,
+                        os.path.join(manifests_path, f"calico/{calico_version}.yaml"),
+                        repository=repository,
+                    )
+                },
+            }
+
+        if manila.is_enabled(self.cluster):
+            data = {
+                **data,
+                **{
+                    os.path.basename(manifest): image_utils.update_manifest_images(
+                        self.cluster.uuid,
+                        manifest,
+                        repository=repository,
+                    )
+                    for manifest in glob.glob(
+                        os.path.join(manifests_path, "nfs-csi/*.yaml")
+                    )
+                },
+            }
+
+        osc = clients.get_openstack_api(self.context)
         if utils.get_cluster_label_as_bool(self.cluster, "keystone_auth_enabled", True):
             auth_url = osc.url_for(
                 service_type="identity",
@@ -421,7 +485,7 @@ class ClusterResourcesConfigMap(ClusterBase):
                             "conf": {
                                 "auth_url": auth_url
                                 + ("" if auth_url.endswith("/v3") else "/v3"),
-                                "ca_cert": utils.get_cloud_ca_cert(),
+                                "ca_cert": magnum_utils.get_openstack_ca(),
                                 "policy": utils.get_keystone_auth_default_policy(
                                     self.cluster
                                 ),
@@ -432,11 +496,12 @@ class ClusterResourcesConfigMap(ClusterBase):
             }
 
         return {
-            "data": data,
+            "type": "addons.cluster.x-k8s.io/resource-set",
+            "stringData": data,
         }
 
     def get_or_none(self) -> objects.Cluster:
-        return pykube.ConfigMap.objects(
+        return pykube.Secret.objects(
             self.pykube_api, namespace="magnum-system"
         ).get_or_none(name=self.name)
 
@@ -668,15 +733,31 @@ def mutate_machine_deployment(
         "node.cluster.x-k8s.io/nodegroup": node_group.name,
     }
 
+    # Lookup the node group resources
+    osc = clients.get_openstack_api(context)
+    flavor = utils.lookup_flavor(osc, node_group.flavor_id)
+    image = utils.lookup_image(osc, node_group.image_id)
+
     # Replicas (or min/max if auto-scaling is enabled)
     if auto_scaling_enabled:
+        boot_volume_size = utils.get_node_group_label_as_int(
+            node_group,
+            "boot_volume_size",
+            CONF.cinder.default_boot_volume_size,
+        )
+        if boot_volume_size == 0:
+            boot_volume_size = flavor.disk
+
         machine_deployment["replicas"] = None
         machine_deployment["metadata"]["annotations"] = {
-            AUTOSCALE_ANNOTATION_MIN: str(
-                utils.get_node_group_min_node_count(node_group)
-            ),
+            AUTOSCALE_ANNOTATION_MIN: str(node_group.min_node_count),
             AUTOSCALE_ANNOTATION_MAX: str(
                 utils.get_node_group_max_node_count(node_group)
+            ),
+            "capacity.cluster-autoscaler.kubernetes.io/memory": f"{math.ceil(flavor.ram / 1024)}G",
+            "capacity.cluster-autoscaler.kubernetes.io/cpu": str(flavor.vcpus),
+            "capacity.cluster-autoscaler.kubernetes.io/ephemeral-disk": str(
+                boot_volume_size
             ),
         }
     else:
@@ -701,7 +782,7 @@ def mutate_machine_deployment(
         {
             "class": "default-worker",
             "name": node_group.name,
-            "failureDomain": node_group.labels.get("availability_zone", ""),
+            "failureDomain": node_group.labels.get("availability_zone"),
             "machineHealthCheck": {"enable": utils.get_auto_healing_enabled(cluster)},
             "variables": {
                 "overrides": [
@@ -721,7 +802,7 @@ def mutate_machine_deployment(
                     },
                     {
                         "name": "flavor",
-                        "value": node_group.flavor_id,
+                        "value": flavor.name,
                     },
                     {
                         "name": "imageRepository",
@@ -732,7 +813,11 @@ def mutate_machine_deployment(
                     },
                     {
                         "name": "imageUUID",
-                        "value": utils.get_image_uuid(node_group.image_id, context),
+                        "value": image.get("id"),
+                    },
+                    {
+                        "name": "hardwareDiskBus",
+                        "value": image.get("hw_disk_bus", ""),
                     },
                     # NOTE(oleks): Override using MachineDeployment-level variables for node groups
                     {
@@ -811,6 +896,18 @@ class Cluster(ClusterBase):
             self.pykube_api, namespace=self.namespace
         ).get_or_none(name=self.cluster.stack_id)
 
+    def _get_admission_control_list(self) -> str:
+        """Get admission control list with NodeRestriction as base.
+
+        This matches the behavior of the Heat templates where NodeRestriction
+        is always prepended to any user-provided admission plugins.
+        """
+        user_plugins = self.cluster.labels.get("admission_control_list", "")
+        if user_plugins:
+            return f"NodeRestriction,{user_plugins}"
+        else:
+            return "NodeRestriction"
+
     def get_object(self) -> dict:
         osc = clients.get_openstack_api(self.context)
         default_volume_type = osc.cinder().volume_types.default()
@@ -825,6 +922,11 @@ class Cluster(ClusterBase):
                 "cilium_ipv4pool",
                 DEFAULT_POD_CIDR,
             )
+
+        # Lookup the flavor from Nova
+        control_plane_flavor = utils.lookup_flavor(osc, self.cluster.master_flavor_id)
+        worker_flavor = utils.lookup_flavor(osc, self.cluster.flavor_id)
+        image = utils.lookup_image(osc, self.cluster.default_ng_master.image_id)
 
         api_server_load_balancer = {
             "enabled": self.cluster.master_lb_enabled,
@@ -957,20 +1059,6 @@ class Cluster(ClusterBase):
                             ),
                         },
                         {
-                            "name": "cloudCaCert",
-                            "value": base64.encode_as_text(utils.get_cloud_ca_cert()),
-                        },
-                        {
-                            "name": "cloudControllerManagerConfig",
-                            "value": base64.encode_as_text(
-                                utils.generate_cloud_controller_manager_config(
-                                    self.context,
-                                    self.pykube_api,
-                                    self.cluster,
-                                )
-                            ),
-                        },
-                        {
                             "name": "systemdProxyConfig",
                             "value": base64.encode_as_text(
                                 utils.generate_systemd_proxy_config(self.cluster)
@@ -990,7 +1078,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "controlPlaneFlavor",
-                            "value": self.cluster.master_flavor_id,
+                            "value": control_plane_flavor.name,
                         },
                         {
                             "name": "disableAPIServerFloatingIP",
@@ -1027,7 +1115,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "flavor",
-                            "value": self.cluster.flavor_id,
+                            "value": worker_flavor.name,
                         },
                         {
                             "name": "imageRepository",
@@ -1037,10 +1125,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "imageUUID",
-                            "value": utils.get_image_uuid(
-                                self.cluster.default_ng_master.image_id,
-                                self.context,
-                            ),
+                            "value": image.get("id"),
                         },
                         {
                             "name": "kubeletTLSCipherSuites",
@@ -1067,6 +1152,10 @@ class Cluster(ClusterBase):
                         {
                             "name": "operatingSystem",
                             "value": utils.get_operating_system(self.cluster),
+                        },
+                        {
+                            "name": "hardwareDiskBus",
+                            "value": image.get("hw_disk_bus", ""),
                         },
                         {
                             "name": "enableDockerVolume",
@@ -1139,6 +1228,10 @@ class Cluster(ClusterBase):
                                 cluster=self.cluster
                             ),
                         },
+                        {
+                            "name": "admissionControlList",
+                            "value": self._get_admission_control_list(),
+                        },
                     ],
                 },
             },
@@ -1162,7 +1255,8 @@ def apply_cluster_from_magnum_cluster(
     """
 
     ClusterServerGroups(context, cluster).apply()
-    ClusterResourcesConfigMap(context, api, pykube_api, cluster).apply()
+    LegacyClusterResourcesSecret(context, api, pykube_api, cluster).apply()
+    CloudProviderClusterResourcesSecret(context, api, pykube_api, cluster).apply()
 
     if not skip_auto_scaling_release and utils.get_auto_scaling_enabled(cluster):
         ClusterAutoscalerHelmRelease(api, cluster).apply()

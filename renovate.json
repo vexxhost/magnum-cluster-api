@@ -1,0 +1,49 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "local>vexxhost/.github"
+  ],
+  "baseBranches": [
+    "main"
+  ],
+  "packageRules": [
+    {
+      "enabled": false,
+      "matchFileNames": [
+        "magnum_cluster_api/charts/**"
+      ]
+    },
+    {
+      "groupName": "pyo3",
+      "matchPackageNames": [
+        "pyo3",
+        "pyo3-async-runtimes",
+        "pyo3-log",
+        "pythonize"
+      ]
+    },
+    {
+      "groupName": "kube-rs",
+      "matchPackageNames": [
+        "kube",
+        "k8s-openapi"
+      ]
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "magnum_cluster_api/resources.py"
+      ],
+      "matchStrings": [
+        "CALICO_TAG = \"v(?<currentValue>.*?)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "projectcalico/calico",
+      "depTypeTemplate": "requires",
+      "versioningTemplate": "semver",
+      "autoReplaceStringTemplate": "CALICO_TAG = \"v{{{newValue}}}\""
+    }
+  ]
+}

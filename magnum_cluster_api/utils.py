@@ -28,6 +28,7 @@ from magnum.api import attr_validator  # type: ignore
 from magnum.common import context, exception, neutron, octavia  # type: ignore
 from magnum.common import utils as magnum_utils
 from novaclient import exceptions as nova_exception  # type: ignore
+from novaclient.v2 import flavors  # type: ignore
 from oslo_config import cfg  # type: ignore
 from oslo_serialization import base64  # type: ignore
 from oslo_utils import strutils, uuidutils  # type: ignore
@@ -92,13 +93,6 @@ def cluster_exists(api: pykube.HTTPClient, name: str) -> bool:
         return False
 
 
-def get_cloud_ca_cert() -> str:
-    """
-    Get cloud ca certificate.
-    """
-    return magnum_utils.get_openstack_ca()
-
-
 def get_capi_client_ca_cert() -> str:
     ca_file = CONF.capi_client.ca_file
 
@@ -147,7 +141,7 @@ def generate_cloud_controller_manager_config(
         application-credential-id={cloud_config["clouds"]["default"]["auth"]["application_credential_id"]}
         application-credential-secret={cloud_config["clouds"]["default"]["auth"]["application_credential_secret"]}
         tls-insecure={"false" if CONF.drivers.verify_ca else "true"}
-        {"ca-file=/etc/config/ca.crt" if get_cloud_ca_cert() else ""}
+        {"ca-file=/etc/config/ca.crt" if magnum_utils.get_openstack_ca() else ""}
         [LoadBalancer]
         lb-provider={octavia_provider}
         lb-method={octavia_lb_algorithm}
@@ -187,7 +181,7 @@ def generate_manila_csi_cloud_config(
         ),
     }
 
-    if get_cloud_ca_cert():
+    if magnum_utils.get_openstack_ca():
         config["os-certAuthorityPath"] = "/etc/config/ca.crt"
 
     return config
@@ -280,15 +274,6 @@ def generate_apt_proxy_config(cluster: magnum_objects.Cluster):
         return ""
 
 
-def get_node_group_min_node_count(
-    node_group: magnum_objects.NodeGroup,
-    default=1,
-) -> int:
-    if node_group.min_node_count == 0:
-        return default
-    return node_group.min_node_count
-
-
 def get_node_group_max_node_count(
     node_group: magnum_objects.NodeGroup,
 ) -> int:
@@ -296,7 +281,7 @@ def get_node_group_max_node_count(
         return get_node_group_label_as_int(
             node_group,
             "max_node_count",
-            get_node_group_min_node_count(node_group) + 1,
+            node_group.min_node_count + 1,
         )
     return node_group.max_node_count
 
@@ -371,18 +356,25 @@ def format_event_message(event: pykube.Event):
     )
 
 
-def validate_flavor_name(cli: clients.OpenStackClients, flavor: str):
-    """Check if a flavor with this specified name exists"""
+def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
+    """Lookup a flavor either by name or id."""
 
     if flavor is None:
         return
     flavor_list = cli.nova().flavors.list()
     for f in flavor_list:
-        if f.name == flavor:
-            return
-        if f.id == flavor:
-            raise mcapi_exceptions.OpenstackFlavorInvalidName(flavor=flavor)
+        if f.name == flavor or f.id == flavor:
+            return f
     raise exception.FlavorNotFound(flavor=flavor)
+
+
+def lookup_image(cli: clients.OpenStackClients, image_ref: str) -> dict:
+    """
+    Get image object from image ref
+
+    :param image_ref: Image id or name
+    """
+    return attr_validator.validate_image(cli, image_ref)
 
 
 def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluster):
@@ -393,11 +385,6 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
     # Check master count
     if (cluster.master_count % 2) == 0:
         raise mcapi_exceptions.ClusterMasterCountEven
-
-    # Validate flavors
-    osc = clients.get_openstack_api(ctx)
-    validate_flavor_name(osc, cluster.master_flavor_id)
-    validate_flavor_name(osc, cluster.flavor_id)
 
     # Check if fixed_network exists
     if cluster.fixed_network:
@@ -433,13 +420,8 @@ def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
         raise mcapi_exceptions.MachineInvalidName(name=nodegroup.name)
 
 
-def validate_nodegroup(
-    nodegroup: magnum_objects.NodeGroup, ctx: context.RequestContext
-):
+def validate_nodegroup(nodegroup: magnum_objects.NodeGroup):
     validate_nodegroup_name(nodegroup)
-    # Validate flavors
-    osc = clients.get_openstack_api(ctx)
-    validate_flavor_name(osc, nodegroup.flavor_id)
 
 
 def get_operating_system(cluster: magnum_objects.Cluster):
@@ -448,16 +430,6 @@ def get_operating_system(cluster: magnum_objects.Cluster):
         if cluster_distro.startswith(ops):
             return ops
     return None
-
-
-def get_image_uuid(image_ref: str, ctx: context.RequestContext):
-    """Get image uuid from image ref
-
-    :param image_ref: Image id or name
-    """
-    osc = clients.get_openstack_api(ctx)
-    image_obj = attr_validator.validate_image(osc, image_ref)
-    return image_obj.get("id")
 
 
 def convert_to_rfc1123(input: str) -> str:
@@ -491,7 +463,7 @@ def get_keystone_auth_default_policy(cluster: magnum_objects.Cluster):
 
     try:
         with open(CONF.kubernetes.keystone_auth_default_policy) as f:
-            return json.loads(f.read())
+            return json.loads(f.read().replace("$PROJECT_ID", cluster.project_id))
     except Exception:
         return default_policy
 

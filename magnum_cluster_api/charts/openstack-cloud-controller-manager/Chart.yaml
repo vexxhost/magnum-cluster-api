@@ -1,0 +1,15 @@
+apiVersion: v2
+appVersion: v1.32.0
+dependencies:
+- name: common
+  repository: https://charts.bitnami.com/bitnami
+  version: 2.14.1
+description: Openstack Cloud Controller Manager Helm Chart
+home: https://github.com/kubernetes/cloud-provider-openstack
+icon: https://object-storage-ca-ymq-1.vexxhost.net/swift/v1/6e4619c416ff4bd19e1c087f27a43eea/www-images-prod/openstack-logo/OpenStack-Logo-Vertical.png
+maintainers:
+- email: f.kloeker@telekom.de
+  name: eumel8
+  url: https://www.telekom.com
+name: openstack-cloud-controller-manager
+version: 2.32.0

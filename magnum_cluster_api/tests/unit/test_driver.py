@@ -19,8 +19,10 @@ import openstack
 import pykube
 import pytest
 import responses
+from heatclient import exc  # type: ignore
 from magnum.objects import fields  # type: ignore
 from magnum.tests.unit.objects import utils  # type: ignore
+from novaclient.v2 import flavors  # type: ignore
 from oslo_serialization import base64, jsonutils  # type: ignore
 from oslo_utils import uuidutils  # type: ignore
 from responses import matchers
@@ -52,7 +54,9 @@ class TestDriver:
         if auto_healing_enabled is not None:
             self.cluster.labels["auto_healing_enabled"] = str(auto_healing_enabled)
 
-        self.node_group = utils.get_test_nodegroup(context, labels={})
+        self.node_group = utils.get_test_nodegroup(
+            context, labels={}, name="default-worker"
+        )
         if auto_scaling_enabled is not None:
             self.node_group.min_node_count = 1
             self.node_group.max_node_count = 3
@@ -66,8 +70,11 @@ class TestDriver:
         )
 
         mocker.patch(
-            "magnum_cluster_api.utils.validate_flavor_name",
-            return_value=True,
+            "magnum_cluster_api.utils.lookup_flavor",
+            return_value=flavors.Flavor(
+                None,
+                {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
+            ),
         )
 
         mocker.patch(
@@ -76,8 +83,8 @@ class TestDriver:
         )
 
         mocker.patch(
-            "magnum_cluster_api.utils.get_image_uuid",
-            return_value=uuidutils.generate_uuid(),
+            "magnum_cluster_api.utils.lookup_image",
+            return_value={"id": uuidutils.generate_uuid()},
         )
 
     def _assert_node_group_status(self, expected_status):
@@ -159,6 +166,44 @@ class TestDriver:
             json=json,
         )
 
+    def _response_for_openstack_machines(self, deployment_name, machine_specs=None):
+        """Helper method to create a mock response for OpenStackMachine API calls."""
+        json = {"items": []}
+
+        if machine_specs:
+            for spec in machine_specs:
+                json["items"].append(
+                    {
+                        "metadata": {
+                            "name": spec.get("name", "test-machine"),
+                            "namespace": "magnum-system",
+                        },
+                        "spec": {
+                            "image": {"id": spec.get("image_id", "test-image-id")},
+                            "flavor": spec.get("flavor", "test-flavor"),
+                        },
+                    }
+                )
+
+        return responses.Response(
+            responses.GET,
+            "http://localhost/apis/%s/namespaces/%s/%s"
+            % (
+                objects.OpenStackMachine.version,
+                "magnum-system",
+                objects.OpenStackMachine.endpoint,
+            ),
+            match=[
+                matchers.query_param_matcher(
+                    {
+                        "labelSelector": "cluster.x-k8s.io/cluster-name=%s,topology.cluster.x-k8s.io/deployment-name=%s"
+                        % (self.cluster.stack_id, deployment_name)
+                    }
+                ),
+            ],
+            json=json,
+        )
+
     def test_create_cluster(
         self,
         requests_mock,
@@ -168,7 +213,7 @@ class TestDriver:
         mock_osc,
         mock_certificates,
         mock_get_server_group,
-        mock_magnum_cluster,
+        mock_rust_driver,
     ):
         ubuntu_driver._kube_client = mock.MagicMock()
 
@@ -254,7 +299,15 @@ class TestDriver:
                     ).get_resource()
                 ),
                 mock.call(
-                    resources.ClusterResourcesConfigMap(
+                    resources.LegacyClusterResourcesSecret(
+                        context,
+                        ubuntu_driver._kube_client,
+                        ubuntu_driver.k8s_api,
+                        self.cluster,
+                    ).get_resource()
+                ),
+                mock.call(
+                    resources.CloudProviderClusterResourcesSecret(
                         context,
                         ubuntu_driver._kube_client,
                         ubuntu_driver.k8s_api,
@@ -277,16 +330,17 @@ class TestDriver:
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
 
-    def setup_node_group_tests(self, rsps, before, after):
+    def setup_node_group_tests(self, rsps, before, after=None):
         rsps.add(
             self._response_for_cluster_with_machine_deployments(*before),
         )
-        rsps.add(
-            self._response_for_cluster_with_machine_deployments(
-                *after,
-                method=responses.PATCH,
+        if after:
+            rsps.add(
+                self._response_for_cluster_with_machine_deployments(
+                    *after,
+                    method=responses.PATCH,
+                )
             )
-        )
 
     def test_create_nodegroup(self, context, ubuntu_driver, requests_mock):
         self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
@@ -417,3 +471,100 @@ class TestDriver:
 
         assert self.node_group.status == fields.ClusterStatus.DELETE_IN_PROGRESS
         self.node_group.save.assert_called_once()
+
+    def test_delete_missing_nodegroup(self, context, ubuntu_driver, requests_mock):
+        self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+
+        with requests_mock as rsps:
+            self.setup_node_group_tests(
+                rsps,
+                before=[
+                    {
+                        "name": "unrelated-machine-deployment",
+                        "replicas": 1,
+                        "metadata": {
+                            "annotations": {},
+                        },
+                    }
+                ],
+            )
+
+            with pytest.raises(exc.HTTPNotFound):
+                ubuntu_driver.delete_nodegroup(context, self.cluster, self.node_group)
+
+    def test_update_nodegroups_status_delete_complete(
+        self, context, ubuntu_driver, requests_mock
+    ):
+        """Test that nodegroups in DELETE_COMPLETE status are properly destroyed."""
+        self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        self.node_group.status = fields.ClusterStatus.DELETE_COMPLETE
+        self.node_group.is_default = False
+        self.node_group.destroy = mock.MagicMock()
+
+        with mock.patch(
+            "magnum.objects.NodeGroup.list", return_value=[self.node_group]
+        ):
+            with requests_mock as rsps:
+                rsps.add(
+                    self._response_for_cluster_with_machine_deployments(
+                        {
+                            "name": self.node_group.name,
+                            "replicas": 1,
+                            "metadata": {"labels": {}},
+                            "variables": {
+                                "overrides": [
+                                    {"name": "flavor", "value": "test-flavor"},
+                                    {"name": "imageUUID", "value": "test-image-id"},
+                                ]
+                            },
+                        }
+                    )
+                )
+
+                ubuntu_driver.update_nodegroups_status(context, self.cluster)
+
+                # Verify the nodegroup was destroyed
+                self.node_group.destroy.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "cluster_status,should_destroy",
+        [
+            (fields.ClusterStatus.UPDATE_IN_PROGRESS, False),
+            (fields.ClusterStatus.DELETE_IN_PROGRESS, True),
+        ],
+    )
+    def test_update_nodegroups_status_delete_complete_default_nodegroup(
+        self, context, ubuntu_driver, requests_mock, cluster_status, should_destroy
+    ):
+
+        self.cluster.status = cluster_status
+        self.node_group.status = fields.ClusterStatus.DELETE_COMPLETE
+        self.node_group.is_default = True
+        self.node_group.destroy = mock.MagicMock()
+
+        with mock.patch(
+            "magnum.objects.NodeGroup.list", return_value=[self.node_group]
+        ):
+            with requests_mock as rsps:
+                rsps.add(
+                    self._response_for_cluster_with_machine_deployments(
+                        {
+                            "name": "default-worker",
+                            "replicas": 1,
+                            "metadata": {"labels": {}},
+                            "variables": {
+                                "overrides": [
+                                    {"name": "flavor", "value": "test-flavor"},
+                                    {"name": "imageUUID", "value": "test-image-id"},
+                                ]
+                            },
+                        }
+                    )
+                )
+
+                ubuntu_driver.update_nodegroups_status(context, self.cluster)
+
+                if should_destroy:
+                    self.node_group.destroy.assert_called_once()
+                else:
+                    self.node_group.destroy.assert_not_called()

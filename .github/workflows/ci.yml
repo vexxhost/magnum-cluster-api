@@ -1,0 +1,184 @@
+name: ci
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions: {}
+
+jobs:
+  cargo:
+    uses: vexxhost/github-actions/.github/workflows/cargo.yml@main
+
+  build:
+    runs-on: ubuntu-24.04${{ matrix.target == 'aarch64' && '-arm' || '' }}
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64, aarch64]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: rui314/setup-mold@v1
+      - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 # v2.7.8
+      - run: rustup show
+      - uses: PyO3/maturin-action@e10f6c464b90acceb5f640d31beda6d586ba7b4a # v1.49.3
+        with:
+          command: build
+          manylinux: "2_28"
+          args: --release --sdist
+          sccache: "true"
+          target: ${{ matrix.target }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: wheel-${{ matrix.target }}
+          path: target/wheels/*.whl
+          if-no-files-found: error
+
+  coinstall:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        openstack-version:
+          ["zed", "2023.1", "2023.2", "2024.1", "2024.2", "2025.1", "master"]
+    steps:
+      - uses: astral-sh/setup-uv@bd01e18f51369d5a26f1651c3cb451d3417e3bba # v6.3.1
+        with:
+          ignore-empty-workdir: true
+          version: "0.7.3"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: wheel-x86_64
+      - run: |
+          uv venv
+          uv pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} ./*.whl
+
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.head_ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          token: ${{ secrets.VEXXHOST_BOT_PAT || github.token }}
+      - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
+      - uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0 # v6.0.1
+        if: github.event_name == 'pull_request' && github.event.pull_request.user.id == '29139614' && always()
+        with:
+          commit_message: "chore: apply pre-commit hook updates"
+          commit_author: "renovate[bot] <29139614+renovate[bot]@users.noreply.github.com>"
+
+  chart-vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: vexxhost/chart-vendor@14e1c5d5cfd7079f283ab92b9261afebccd3cc9c # main
+        with:
+          charts-root: magnum_cluster_api/charts
+
+  sonobuoy:
+    runs-on: vexxhost-ubuntu-22.04-16
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        network-driver: [calico, cilium]
+        kubernetes-version:
+          - 1.31.12
+          - 1.32.8
+          - 1.33.4
+    concurrency:
+      group: sonobuoy-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: magnum-cluster-api
+      - run: sudo mkdir -p /opt/stack
+      - run: sudo mv $GITHUB_WORKSPACE/magnum-cluster-api /opt/stack/magnum-cluster-api
+      - run: sudo chown -R $USER:$USER /opt/stack
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+      - uses: dev-hanz-ops/install-gh-cli-action@af38ce09b1ec248aeb08eea2b16bbecea9e059f8 # v0.2.1
+        with:
+          gh-cli-version: 2.78.0
+      - id: image-info
+        run: |
+          TAG_NAME=$(gh release list --repo vexxhost/capo-image-elements \
+            --limit 100 \
+            --exclude-pre-releases \
+            --exclude-drafts \
+            --json name,publishedAt \
+            --jq '([.[] | select(.name | startswith("ubuntu-jammy-${{ matrix.kubernetes-version }}"))] | sort_by(.publishedAt) | last | .name)')
+
+          echo "file=$TAG_NAME.qcow2.xz" >> $GITHUB_OUTPUT
+          echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: gophercloud/devstack-action@f4c936d2edcc7b7c657493b0073c38093c3c5ebd # v0.16
+        with:
+          conf_overrides: |
+            FIXED_RANGE=10.1.0.0/20
+            # NOTE(mnaser): https://review.opendev.org/c/openstack/devstack/+/942755
+            ZSWAP_ZPOOL=zsmalloc
+
+            enable_plugin magnum https://review.opendev.org/openstack/magnum refs/changes/10/949110/2
+            # TODO(mnaser): fix this when we have the matrix
+            MAGNUM_GUEST_IMAGE_URL=https://github.com/vexxhost/capo-image-elements/releases/download/${{ steps.image-info.outputs.name }}/${{ steps.image-info.outputs.file }}
+
+            enable_plugin manila https://github.com/openstack/manila
+            MANILA_ENABLED_BACKENDS=generic
+            MANILA_USE_SERVICE_INSTANCE_PASSWORD=True
+            MANILA_DEFAULT_SHARE_TYPE_EXTRA_SPECS="snapshot_support=True create_share_from_snapshot_support=True"
+
+            enable_plugin octavia https://github.com/openstack/octavia
+            OCTAVIA_NODE=api
+            DISABLE_AMP_IMAGE_BUILD=True
+
+            enable_plugin barbican https://github.com/openstack/barbican
+            enable_plugin ovn-octavia-provider https://github.com/openstack/ovn-octavia-provider
+            enable_plugin magnum-cluster-api https://github.com/vexxhost/magnum-cluster-apioutdoor speakersk
+
+            [[post-config|/etc/manila/manila.conf]]
+            [generic]
+            driver_handles_share_servers = True
+            connect_share_server_to_tenant_network = True
+
+            [[post-config|/etc/magnum/magnum.conf]]
+            [cluster_template]
+            kubernetes_allowed_network_drivers = calico,cilium
+            kubernetes_default_network_driver = calico
+            [nova_client]
+            api_version = 2.15
+          enabled_services: -s-account,-s-container,-s-object,-s-proxy,openstack-cli-server,octavia,o-api,o-hk,o-da
+      - run: |
+          # NOTE(okozachenko): Create volumev3 service and endpoint manually until this issue fixed.
+          #                    https://github.com/kubernetes/cloud-provider-openstack/issues/2884
+          openstack service create --name cinderv3 --description "Cinder Volume Service V3" volumev3
+          iface=public
+          url=$(openstack endpoint list --service block-storage --interface $iface -f value -c URL)
+          openstack endpoint create --region RegionOne volumev3 $iface "$url"
+        env:
+          OS_CLOUD: devstack-admin
+      - run: ./hack/run-integration-tests.sh
+        working-directory: /opt/stack/magnum-cluster-api
+        env:
+          OS_CLOUD: devstack
+          NETWORK_DRIVER: ${{ matrix.network-driver }}
+          IMAGE_NAME: ${{ steps.image-info.outputs.name }}
+          KUBE_TAG: v${{ matrix.kubernetes-version }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ always() }}
+        with:
+          name: sonobuoy-results-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}
+          path: /opt/stack/magnum-cluster-api/sonobuoy-results.tar.gz
+          if-no-files-found: error
