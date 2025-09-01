@@ -1,5 +1,5 @@
 use crate::{
-    addons::{cilium, ClusterAddon},
+    addons::{cilium, snapshot_controller_csi, ClusterAddon},
     cluster_api::clusterresourcesets::{
         ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
         ClusterResourceSetResourcesKind, ClusterResourceSetSpec, ClusterResourceSetStrategy,
@@ -56,6 +56,16 @@ pub struct ClusterLabels {
     #[pyo3(default="v1.32.0".to_owned())]
     pub manila_csi_plugin_tag: String,
 
+    /// Enable the snapshot controller CSI driver for the cluster.
+    #[builder(default = true)]
+    #[pyo3(default = true)]
+    pub snapshot_controller_csi_enabled: bool,
+
+    /// The tag of the snapshot controller CSI to use for the cluster.
+    #[builder(default="v8.2.1".to_owned())]
+    #[pyo3(default="v8.2.1".to_owned())]
+    pub snapshot_controller_csi_tag: String,
+
     /// The tag to use for the OpenStack cloud controller provider
     /// when bootstrapping the cluster.
     #[builder(default="v1.30.0".to_owned())]
@@ -94,8 +104,8 @@ pub struct ClusterLabels {
     pub csi_resizer_tag: String,
 
     /// CSI Snapshotter tag to use for the cluster.
-    #[builder(default="v8.1.0".to_owned())]
-    #[pyo3(default="v8.1.0".to_owned())]
+    #[builder(default="v8.2.1".to_owned())]
+    #[pyo3(default="v8.2.1".to_owned())]
     pub csi_snapshotter_tag: String,
 
     /// The Kubernetes version to use for the cluster.
@@ -308,6 +318,16 @@ impl From<Cluster> for Secret {
                     .unwrap()
                     .to_owned(),
             );
+        }
+
+        let snapshot_controller = snapshot_controller_csi::Addon::new(cluster.clone());
+        if snapshot_controller.enabled() {
+            // Get manifests and add them to the data map
+            if let Ok(manifests) = snapshot_controller.manifests() {
+                for (name, content) in manifests {
+                    data.insert(name, content);
+                }
+            }
         }
 
         Secret {
