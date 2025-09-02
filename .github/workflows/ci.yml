@@ -50,7 +50,7 @@ jobs:
         openstack-version:
           ["zed", "2023.1", "2023.2", "2024.1", "2024.2", "2025.1", "master"]
     steps:
-      - uses: astral-sh/setup-uv@bd01e18f51369d5a26f1651c3cb451d3417e3bba # v6.3.1
+      - uses: astral-sh/setup-uv@557e51de59eb14aaaba2ed9621916900a91d50c6 # v6.6.1
         with:
           ignore-empty-workdir: true
           version: "0.7.3"
