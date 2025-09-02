@@ -120,7 +120,7 @@ jobs:
             --json name,publishedAt \
             --jq '([.[] | select(.name | startswith("ubuntu-minimal-jammy-${{ matrix.kubernetes-version }}"))] | sort_by(.publishedAt) | last | .name)')
 
-          echo "file=$TAG_NAME.qcow2.xz" >> $GITHUB_OUTPUT
+          echo "file=$TAG_NAME.qcow2" >> $GITHUB_OUTPUT
           echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ github.token }}
