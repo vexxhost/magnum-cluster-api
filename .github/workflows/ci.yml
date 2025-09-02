@@ -53,7 +53,7 @@ jobs:
       - uses: astral-sh/setup-uv@557e51de59eb14aaaba2ed9621916900a91d50c6 # v6.6.1
         with:
           ignore-empty-workdir: true
-          version: "0.7.3"
+          version: "0.8.14"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: wheel-x86_64
