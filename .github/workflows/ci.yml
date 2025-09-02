@@ -118,7 +118,7 @@ jobs:
             --exclude-pre-releases \
             --exclude-drafts \
             --json name,publishedAt \
-            --jq '([.[] | select(.name | startswith("ubuntu-jammy-${{ matrix.kubernetes-version }}"))] | sort_by(.publishedAt) | last | .name)')
+            --jq '([.[] | select(.name | startswith("ubuntu-minimal-jammy-${{ matrix.kubernetes-version }}"))] | sort_by(.publishedAt) | last | .name)')
 
           echo "file=$TAG_NAME.qcow2.xz" >> $GITHUB_OUTPUT
           echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
