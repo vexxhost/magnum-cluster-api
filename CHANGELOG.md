@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.31.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.30.0...v0.31.0) (2025-09-02)
+
+
+### Features
+
+* custom registry improvements and bug fixes ([#725](https://github.com/vexxhost/magnum-cluster-api/issues/725)) ([ebae5c7](https://github.com/vexxhost/magnum-cluster-api/commit/ebae5c781f98812031d716451520066d05b30373))
+* drop guards around k8s versions ([#761](https://github.com/vexxhost/magnum-cluster-api/issues/761)) ([578ee86](https://github.com/vexxhost/magnum-cluster-api/commit/578ee86a847834bc61756b99acde633f81147e87))
+
+
+### Bug Fixes
+
+* **deps:** update rust crate backon to v1.5.1 ([#723](https://github.com/vexxhost/magnum-cluster-api/issues/723)) ([4401c7d](https://github.com/vexxhost/magnum-cluster-api/commit/4401c7d540787f207c659a59233e9e279708af0b))
+* **deps:** update rust crate pyo3 to v0.25.1 ([#734](https://github.com/vexxhost/magnum-cluster-api/issues/734)) ([b397a12](https://github.com/vexxhost/magnum-cluster-api/commit/b397a129987f0bf41842097c73e9252ab573f7ea))
+* **deps:** update rust crate syn to v2.0.102 ([#730](https://github.com/vexxhost/magnum-cluster-api/issues/730)) ([63761f8](https://github.com/vexxhost/magnum-cluster-api/commit/63761f841365dcd7ef4c1101eddf8085f1ea277a))
+* **deps:** update rust crate syn to v2.0.104 ([#735](https://github.com/vexxhost/magnum-cluster-api/issues/735)) ([e3ad332](https://github.com/vexxhost/magnum-cluster-api/commit/e3ad3329f514c38703215de3b10ed9b8c5620859))
+
 ## [0.30.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.29.3...v0.30.0) (2025-05-27)
 
 
