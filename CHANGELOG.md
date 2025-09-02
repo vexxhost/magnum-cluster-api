@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.31.0...v0.31.1) (2025-09-02)
+
+
+### Miscellaneous Chores
+
+* release 0.31.1 ([d777cdf](https://github.com/vexxhost/magnum-cluster-api/commit/d777cdfc274f54ffad1428193903c4b9a7a1d075))
+
 ## [0.31.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.30.0...v0.31.0) (2025-09-02)
 
 
