@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "magnum-cluster-api"
-version = "0.31.1"
+version = "0.31.2"
 description = "Cluster API driver for Magnum"
 readme = "README.md"
 license = "Apache-2.0"
