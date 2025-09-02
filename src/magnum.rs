@@ -576,6 +576,7 @@ mod tests {
     #[rstest]
     fn test_helm_charts_render_with_namespace(
         #[files("magnum_cluster_api/charts/*")]
+        #[dirs]
         #[exclude("patches")]
         path: PathBuf,
     ) {
