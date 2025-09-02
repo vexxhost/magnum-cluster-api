@@ -1,4 +1,4 @@
-name: release
+name: release-please
 
 on:
   push:
@@ -6,28 +6,18 @@ on:
       - main
 
 permissions:
-  id-token: write
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout project
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Run "release-please"
-        uses: google-github-actions/release-please-action@db8f2c60ee802b3748b512940dde88eabd7b7e01 # v3.7.13
+      - uses: googleapis/release-please-action@a02a34c4d625f9be7cb89156071d8567266a2445 # v4.2.0
         id: release
-        with:
-          release-type: python
-          package-name: magnum-cluster-api
-
-      - name: Checkout project
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         if: ${{ steps.release.outputs.release_created }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
       - name: Build package (x86_64)
         if: ${{ steps.release.outputs.release_created }}
         uses: PyO3/maturin-action@86b9d133d34bc1b40018696f782949dac11bd380 # v1.49.4
@@ -36,7 +26,6 @@ jobs:
           args: --non-interactive --skip-existing
           manylinux: '2_28'
           target: x86_64
-
       - name: Build package (aarch64)
         if: ${{ steps.release.outputs.release_created }}
         uses: PyO3/maturin-action@86b9d133d34bc1b40018696f782949dac11bd380 # v1.49.4
