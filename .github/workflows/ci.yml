@@ -41,19 +41,36 @@ jobs:
           if-no-files-found: error
 
   coinstall:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: build
     strategy:
       fail-fast: false
       matrix:
         openstack-version:
-          ["zed", "2023.1", "2023.2", "2024.1", "2024.2", "2025.1", "master"]
+          - "2023.1"
+          - "2023.2"
+          - "2024.1"
+          - "2024.2"
+          - "2025.1"
+          - "master"
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+        include:
+          - openstack-version: "zed"
+            python-version: "3.10"
+        exclude:
+          - openstack-version: "2023.1"
+            python-version: "3.12"
+          - openstack-version: "2023.2"
+            python-version: "3.12"
     steps:
       - uses: astral-sh/setup-uv@557e51de59eb14aaaba2ed9621916900a91d50c6 # v6.6.1
         with:
           ignore-empty-workdir: true
-          version: "0.7.3"
+          python-version: ${{ matrix.python-version }}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: wheel-x86_64
