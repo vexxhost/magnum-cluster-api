@@ -1,5 +1,6 @@
 CAPI_VERSION=${CAPI_VERSION:-v1.10.5}
-CAPO_VERSION=${CAPO_VERSION:-v0.11.2}
+CAPO_VERSION=${CAPO_VERSION:-v0.12.4}
+ORC_VERSION=${ORC_VERSION:-v2.2.0}
 KIND_VERSION=${KIND_VERSION:-v0.16.0}
 HELM_VERSION=${HELM_VERSION:-v3.10.3}
 
@@ -43,6 +44,8 @@ if is_service_enabled magnum-cluster-api; then
     sudo iptables -I DOCKER-USER -j ACCEPT
     # Create a KinD cluster
     ensure_kind_cluster
+    # Install ORC
+    kubectl apply -f "https://github.com/k-orc/openstack-resource-controller/releases/download/${ORC_VERSION}/install.yaml"
     # Deploy CAPI/CAPO
     export EXP_CLUSTER_RESOURCE_SET=true
     export EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true

@@ -20,7 +20,11 @@ export GOPROXY=off
 
 # Versions to test
 CAPI_VERSION=${CAPI_VERSION:-v1.10.5}
-CAPO_VERSION=${CAPO_VERSION:-v0.11.2}
+CAPO_VERSION=${CAPO_VERSION:-v0.12.4}
+ORC_VERSION=${ORC_VERSION:-v2.2.0}
+
+# Install ORC
+kubectl apply -f "https://github.com/k-orc/openstack-resource-controller/releases/download/${ORC_VERSION}/install.yaml"
 
 # Install the `clusterctl` CLI
 sudo curl -Lo /usr/local/bin/clusterctl https://github.com/kubernetes-sigs/cluster-api/releases/download/${CAPI_VERSION}/clusterctl-linux-amd64
