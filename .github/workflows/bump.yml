@@ -16,6 +16,7 @@ jobs:
       - uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           token: ${{ secrets.VEXXHOST_BOT_PAT }}
+          push-to-fork: vexxhost-bot/magnum-cluster-api
           commit-message: "chore(deps): update kubernetes"
           signoff: true
           title: "chore(deps): update kubernetes"
@@ -38,6 +39,7 @@ jobs:
       - uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           token: ${{ secrets.VEXXHOST_BOT_PAT }}
+          push-to-fork: vexxhost-bot/magnum-cluster-api
           commit-message: "chore(deps): update cluster-autoscaler"
           signoff: true
           title: "chore(deps): update cluster-autoscaler"
