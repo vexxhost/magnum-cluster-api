@@ -237,6 +237,8 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
         return f"{self.cluster.stack_id}-cloud-provider"
 
     def get_object(self) -> dict:
+        repository = utils.get_cluster_container_infra_prefix(self.cluster)
+
         data = {
             **magnum_cluster_api.Driver.get_cloud_provider_cluster_resource_secret_data(
                 self.cluster
@@ -361,6 +363,67 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
                         for st in share_types
                     },
                 }
+
+        # Add snapshot controller CSI chart if either Cinder CSI or Manila CSI is enabled
+        if (cinder.is_enabled(self.cluster) or manila.is_enabled(self.cluster)):
+            
+            # Build volume snapshot classes based on enabled CSI drivers
+            volume_snapshot_classes = []
+            
+            # Add Cinder CSI volume snapshot class if enabled
+            if cinder.is_enabled(self.cluster):
+                volume_snapshot_classes.append({
+                    "name": "block-snapshot",
+                    "annotations": {
+                        "snapshot.storage.kubernetes.io/is-default-class": "true"
+                    },
+                    "driver": "cinder.csi.openstack.org",
+                    "deletionPolicy": "Delete"
+                })
+            
+            # Add Manila CSI volume snapshot class if enabled
+            if manila.is_enabled(self.cluster):
+                volume_snapshot_classes.append({
+                    "name": "share-snapshot",
+                    "annotations": {
+                        "snapshot.storage.kubernetes.io/is-default-class": "true"
+                    },
+                    "driver": "manila.csi.openstack.org",
+                    "deletionPolicy": "Delete"
+                })
+
+            controller_values = {
+                "fullnameOverride": "snapshot-controller",
+                "volumeSnapshotClasses": volume_snapshot_classes
+            }
+
+            # Override image repository if custom registry is configured
+            if repository:  # repository is the container_infra_prefix
+                repository_clean = repository.rstrip('/')
+                # When using a custom registry, the image is named 'csi-snapshot-controller'
+                controller_values["image"] = {
+                    "repository": f"{repository_clean}/csi-snapshot-controller"
+                }
+            # For default registry, use the default image name 'snapshot-controller' from values.yaml
+
+            data = {
+                **data,
+                **{
+                    "snapshot-controller-csi.yaml": helm.TemplateReleaseCommand(
+                        namespace="kube-system",
+                        release_name="snapshot-controller",
+                        chart_ref=os.path.join(
+                            pkg_resources.resource_filename(
+                                "magnum_cluster_api", "charts"
+                            ),
+                            "snapshot-controller-csi/",
+                        ),
+                        values={
+                            "controller": controller_values
+                        },
+                    )(repository=repository)
+                },
+            }
 
         return {
             "type": "addons.cluster.x-k8s.io/resource-set",
