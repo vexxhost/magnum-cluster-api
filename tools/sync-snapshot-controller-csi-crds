@@ -36,7 +36,12 @@ def main():
     # Set target directory relative to script location
     script_dir = os.path.dirname(os.path.realpath(__file__))
     base_dir = os.path.join(
-        script_dir, "..", "magnum_cluster_api", "charts", "snapshot-controller-csi", "crds"
+        script_dir,
+        "..",
+        "magnum_cluster_api",
+        "charts",
+        "snapshot-controller-csi",
+        "crds",
     )
 
     tag = SNAPSHOT_CONTROLLER_CSI_TAG

@@ -112,7 +112,9 @@ class DeleteReleaseCommand(ReleaseCommand):
 class TemplateReleaseCommand(ReleaseCommand):
     COMMAND = ["template"]
 
-    def __init__(self, namespace, release_name, chart_ref, values={}, include_crds=True):
+    def __init__(
+        self, namespace, release_name, chart_ref, values={}, include_crds=True
+    ):
         super().__init__(namespace, release_name)
         self.chart_ref = chart_ref
         self.values = values
@@ -140,10 +142,11 @@ class TemplateReleaseCommand(ReleaseCommand):
             #              until  https://github.com/helm/helm/issues/10737 is fixed.
             for doc in yaml.safe_load_all(data):
                 # NOTE(fitbeard): Skip empty documents that can occur with YAML separators:
-                #                 helm template test . --include-crds --set controller.volumeSnapshotClasses[0].name=test \
+                #                 helm template test . --include-crds \
+                #                 --set controller.volumeSnapshotClasses[0].name=test \
                 #                 --set controller.volumeSnapshotClasses[0].driver=test.driver | head -20
                 #                 ---
-                #                 # Source: snapshot-controller-csi/crds/groupsnapshot.storage.k8s.io_volumegroupsnapshotclasses.yaml
+                #                 # Source: snapshot-controller-csi/crds/xxx.storage.k8s.io_xxxsnapshotclasses.yaml
                 #                 ---
                 #                 apiVersion: apiextensions.k8s.io/v1
                 if doc is None:
@@ -161,7 +164,11 @@ class TemplateReleaseCommand(ReleaseCommand):
                                 container["image"], repository
                             )
 
-                if doc["kind"] not in ("ClusterRole", "ClusterRoleBinding", "CustomResourceDefinition"):
+                if doc["kind"] not in (
+                    "ClusterRole",
+                    "ClusterRoleBinding",
+                    "CustomResourceDefinition",
+                ):
                     doc["metadata"]["namespace"] = self.namespace
                 docs.append(doc)
             return yaml.safe_dump_all(docs, default_flow_style=False)

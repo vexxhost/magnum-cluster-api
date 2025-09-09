@@ -365,41 +365,45 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
                 }
 
         # Add snapshot controller CSI chart if either Cinder CSI or Manila CSI is enabled
-        if (cinder.is_enabled(self.cluster) or manila.is_enabled(self.cluster)):
-            
+        if cinder.is_enabled(self.cluster) or manila.is_enabled(self.cluster):
+
             # Build volume snapshot classes based on enabled CSI drivers
             volume_snapshot_classes = []
-            
+
             # Add Cinder CSI volume snapshot class if enabled
             if cinder.is_enabled(self.cluster):
-                volume_snapshot_classes.append({
-                    "name": "block-snapshot",
-                    "annotations": {
-                        "snapshot.storage.kubernetes.io/is-default-class": "true"
-                    },
-                    "driver": "cinder.csi.openstack.org",
-                    "deletionPolicy": "Delete"
-                })
-            
+                volume_snapshot_classes.append(
+                    {
+                        "name": "block-snapshot",
+                        "annotations": {
+                            "snapshot.storage.kubernetes.io/is-default-class": "true"
+                        },
+                        "driver": "cinder.csi.openstack.org",
+                        "deletionPolicy": "Delete",
+                    }
+                )
+
             # Add Manila CSI volume snapshot class if enabled
             if manila.is_enabled(self.cluster):
-                volume_snapshot_classes.append({
-                    "name": "share-snapshot",
-                    "annotations": {
-                        "snapshot.storage.kubernetes.io/is-default-class": "true"
-                    },
-                    "driver": "manila.csi.openstack.org",
-                    "deletionPolicy": "Delete"
-                })
+                volume_snapshot_classes.append(
+                    {
+                        "name": "share-snapshot",
+                        "annotations": {
+                            "snapshot.storage.kubernetes.io/is-default-class": "true"
+                        },
+                        "driver": "manila.csi.openstack.org",
+                        "deletionPolicy": "Delete",
+                    }
+                )
 
             controller_values = {
                 "fullnameOverride": "snapshot-controller",
-                "volumeSnapshotClasses": volume_snapshot_classes
+                "volumeSnapshotClasses": volume_snapshot_classes,
             }
 
             # Override image repository if custom registry is configured
             if repository:  # repository is the container_infra_prefix
-                repository_clean = repository.rstrip('/')
+                repository_clean = repository.rstrip("/")
                 # When using a custom registry, the image is named 'csi-snapshot-controller'
                 controller_values["image"] = {
                     "repository": f"{repository_clean}/csi-snapshot-controller"
@@ -418,9 +422,7 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
                             ),
                             "snapshot-controller-csi/",
                         ),
-                        values={
-                            "controller": controller_values
-                        },
+                        values={"controller": controller_values},
                     )(repository=repository)
                 },
             }
