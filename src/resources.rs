@@ -191,6 +191,8 @@ pub mod fixtures {
                 api_server_load_balancer::APIServerLoadBalancerConfig::builder()
                     .enabled(true)
                     .provider("amphora".into())
+                    .flavor("worker".into())
+                    .availability_zone("zone1".into())
                     .build(),
             )
             .audit_log(
