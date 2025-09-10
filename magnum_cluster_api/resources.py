@@ -925,16 +925,12 @@ class Cluster(ClusterBase):
 
         api_server_load_balancer = {
             "enabled": self.cluster.master_lb_enabled,
-            "provider": self.cluster.labels.get("octavia_provider", "amphora")
+            "provider": self.cluster.labels.get("octavia_provider", "amphora"),
+            "availabilityZone": self.cluster.labels.get(
+                "api_server_lb_availability_zone", ""
+            ),
+            "flavor": self.cluster.labels.get("api_server_lb_flavor", ""),
         }
-        if self.cluster.labels.get("api_server_lb_availability_zone"):
-            api_server_load_balancer["availabilityZone"] = self.cluster.labels.get(
-                "api_server_lb_availability_zone"
-            )
-        if self.cluster.labels.get("api_server_lb_flavor"):
-            api_server_load_balancer["flavor"] = self.cluster.labels.get(
-                "api_server_lb_flavor"
-            )
         # Lookup the flavor from Nova
         control_plane_flavor = utils.lookup_flavor(osc, self.cluster.master_flavor_id)
         worker_flavor = utils.lookup_flavor(osc, self.cluster.flavor_id)

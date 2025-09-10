@@ -27,12 +27,10 @@ pub struct APIServerLoadBalancerConfig {
 
     pub provider: String,
 
-    #[builder(default)]
-    pub flavor: Option<String>,
+    pub flavor: String,
 
-    #[builder(default)]
     #[serde(rename = "availabilityZone")]
-    pub availability_zone: Option<String>,
+    pub availability_zone: String,
 }
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
