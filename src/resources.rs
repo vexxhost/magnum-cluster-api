@@ -242,6 +242,7 @@ pub mod fixtures {
             .dns_nameservers(vec!["1.1.1.1".into()])
             .fixed_network_id("".into())
             .fixed_subnet_id("".into())
+            .fixed_subnet_ids(vec!["".into()])
             .openid_connect(
                 openid_connect::OpenIdConnectConfig::builder()
                     .issuer_url("https://example.com".to_string())
@@ -369,6 +370,9 @@ mod tests {
                 }
                 "fixedSubnetId" => {
                     assert_eq!(var.value, json!(default_values().fixed_subnet_id));
+                }
+                "fixedSubnetIds" => {
+                    assert_eq!(var.value, json!(default_values().fixed_subnet_ids));
                 }
                 "openidConnect" => {
                     assert_eq!(var.value, json!(default_values().openid_connect));

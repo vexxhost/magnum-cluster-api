@@ -298,6 +298,15 @@ is often accomplished by deploying a driver on each node.
 
    Default value: `soft-anti-affinity`
 
+* `extra_fixed_subnets`
+
+    Extra fixed subnet names. This allow us to provide extra subnets for machines in cluster.
+    For example `'["$extra_subnet_name1", "$extra_subnet_name2"]'`.
+    This is not a override for the default fixed_subnet but a added-on list.
+    So we can have multiple subnets support (from same fixed network).
+
+   Default value: `None`
+
 ## TODO
 
 availability_zone
