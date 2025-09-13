@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.31.2...v0.31.3) (2025-09-13)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate log to v0.4.28 ([#792](https://github.com/vexxhost/magnum-cluster-api/issues/792)) ([1b2dcc6](https://github.com/vexxhost/magnum-cluster-api/commit/1b2dcc61299bce906ad32159aae61185ce6a739c))
+
 ## [0.31.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.31.1...v0.31.2) (2025-09-02)
 
 
