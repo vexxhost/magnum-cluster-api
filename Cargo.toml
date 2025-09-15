@@ -36,7 +36,7 @@ serde_plain = "1.0.2"
 serde_yaml = "0.9.34"
 thiserror = "2.0.11"
 tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
-typed-builder = "0.21.0"
+typed-builder = "0.22.0"
 
 [dependencies.pyo3]
 version = "0.25.0"
