@@ -740,7 +740,7 @@ def mutate_machine_deployment(
 
     # Replicas (or min/max if auto-scaling is enabled)
     if auto_scaling_enabled:
-        boot_volume_size = utils.get_node_group_boot_volume_size(node_group),
+        boot_volume_size = utils.get_node_group_boot_volume_size(node_group)
         if boot_volume_size == 0:
             boot_volume_size = flavor.disk
 

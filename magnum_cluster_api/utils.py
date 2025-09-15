@@ -386,6 +386,7 @@ def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
             return f
     raise exception.FlavorNotFound(flavor=flavor)
 
+
 def validate_flavor(
     cli: clients.OpenStackClients, flavor: str, root_vol_required: bool = False
 ):
