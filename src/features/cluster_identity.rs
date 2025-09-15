@@ -20,6 +20,7 @@ use crate::{
 use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
@@ -56,6 +57,12 @@ impl ClusterFeaturePatches for Feature {
                             }),
                             ..Default::default()
                         },
+                        ClusterClassPatchesDefinitionsJsonPatches {
+                            op: "replace".into(),
+                            path: "/spec/template/spec/identityRef/cloudName".into(),
+                            value: Some(json!("default")),
+                            ..Default::default()
+                        },
                     ],
                 },
                 ClusterClassPatchesDefinitions {
@@ -68,15 +75,21 @@ impl ClusterFeaturePatches for Feature {
                       },
                   },
                   json_patches: vec![
-                      ClusterClassPatchesDefinitionsJsonPatches {
-                          op: "add".into(),
-                          path: "/spec/template/spec/identityRef/name".into(),
-                          value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                              variable: Some("clusterIdentityRefName".into()),
-                              ..Default::default()
-                          }),
-                          ..Default::default()
-                      },
+                        ClusterClassPatchesDefinitionsJsonPatches {
+                            op: "add".into(),
+                            path: "/spec/template/spec/identityRef/name".into(),
+                            value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                variable: Some("clusterIdentityRefName".into()),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        },
+                        ClusterClassPatchesDefinitionsJsonPatches {
+                            op: "replace".into(),
+                            path: "/spec/template/spec/identityRef/cloudName".into(),
+                            value: Some(json!("default")),
+                            ..Default::default()
+                        },
                   ],
               },
             ]),
@@ -113,9 +126,22 @@ mod tests {
                 .template
                 .spec
                 .identity_ref
+                .clone()
                 .expect("identity ref should be set")
                 .name,
             values.cluster_identity_ref_name.clone()
+        );
+        assert_eq!(
+            resources
+                .control_plane_openstack_machine_template
+                .spec
+                .template
+                .spec
+                .identity_ref
+                .clone()
+                .expect("identity ref should be set")
+                .cloud_name,
+            "default".to_string()
         );
 
         assert_eq!(
@@ -125,9 +151,22 @@ mod tests {
                 .template
                 .spec
                 .identity_ref
+                .clone()
                 .expect("identity ref should be set")
                 .name,
             values.cluster_identity_ref_name.clone()
+        );
+        assert_eq!(
+            resources
+                .worker_openstack_machine_template
+                .spec
+                .template
+                .spec
+                .identity_ref
+                .clone()
+                .expect("identity ref should be set")
+                .cloud_name,
+            "default".to_string()
         );
 
         assert_eq!(
@@ -139,6 +178,16 @@ mod tests {
                 .identity_ref
                 .name,
             values.cluster_identity_ref_name.clone()
+        );
+        assert_eq!(
+            resources
+                .openstack_cluster_template
+                .spec
+                .template
+                .spec
+                .identity_ref
+                .cloud_name,
+            "default".to_string()
         );
     }
 }
