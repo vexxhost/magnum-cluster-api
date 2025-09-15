@@ -391,8 +391,12 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
                         "annotations": {
                             "snapshot.storage.kubernetes.io/is-default-class": "true"
                         },
-                        "driver": "manila.csi.openstack.org",
+                        "driver": "nfs.manila.csi.openstack.org",
                         "deletionPolicy": "Delete",
+                        "parameters": {
+                            "csi.storage.k8s.io/snapshotter-secret-name": "csi-manila-secrets",
+                            "csi.storage.k8s.io/snapshotter-secret-namespace": "kube-system",
+                        },
                     }
                 )
 
