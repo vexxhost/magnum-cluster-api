@@ -9,3 +9,4 @@ site
 .stestr
 target
 *.so
+.vscode
