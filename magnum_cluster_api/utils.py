@@ -472,7 +472,9 @@ def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
         raise mcapi_exceptions.MachineInvalidName(name=nodegroup.name)
 
 
-def validate_nodegroup(ctx: context.RequestContext, nodegroup: magnum_objects.NodeGroup):
+def validate_nodegroup(
+    ctx: context.RequestContext, nodegroup: magnum_objects.NodeGroup
+):
     validate_nodegroup_name(nodegroup)
     # Validate flavors
     osc = clients.get_openstack_api(ctx)
