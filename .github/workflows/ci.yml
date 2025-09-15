@@ -191,7 +191,7 @@ jobs:
         env:
           OS_CLOUD: devstack
           NETWORK_DRIVER: ${{ matrix.network-driver }}
-          IMAGE_NAME: ubuntu-22.04-v${{ matrix.kubernetes-version }}.qcow2
+          IMAGE_NAME: ubuntu-22.04-v${{ matrix.kubernetes-version }}
           KUBE_TAG: v${{ matrix.kubernetes-version }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ always() }}
