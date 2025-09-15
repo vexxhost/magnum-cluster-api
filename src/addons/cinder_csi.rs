@@ -81,7 +81,11 @@ impl ClusterAddonValues for CSIValues {
             Some(ref registry) => {
                 let name = image.name.split('/').next_back().unwrap();
                 // Add livenessprobe -> csi-livenessprobe transformation
-                let name = if name == "livenessprobe" { "csi-livenessprobe" } else { name };
+                let name = if name == "livenessprobe" {
+                    "csi-livenessprobe"
+                } else {
+                    name
+                };
                 format!("{}/{}", registry.trim_end_matches('/'), name)
             }
             None => image.to_string(),
