@@ -364,13 +364,13 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
                     },
                 }
 
-        # Add snapshot controller CSI chart if either Cinder CSI or Manila CSI is enabled
+        # Add snapshot controller CSI chart if either Cinder CSI or Manila CSI is enabled.
         if cinder.is_enabled(self.cluster) or manila.is_enabled(self.cluster):
 
-            # Build volume snapshot classes based on enabled CSI drivers
+            # Build volume snapshot classes based on enabled CSI drivers.
             volume_snapshot_classes = []
 
-            # Add Cinder CSI volume snapshot class if enabled
+            # Add Cinder CSI volume snapshot class if enabled.
             if cinder.is_enabled(self.cluster):
                 volume_snapshot_classes.append(
                     {
@@ -383,22 +383,26 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
                     }
                 )
 
-            # Add Manila CSI volume snapshot class if enabled
+            # Add Manila CSI volume snapshot class if enabled and share_network_id is specified.
             if manila.is_enabled(self.cluster):
-                volume_snapshot_classes.append(
-                    {
-                        "name": "share-snapshot",
-                        "annotations": {
-                            "snapshot.storage.kubernetes.io/is-default-class": "true"
-                        },
-                        "driver": "nfs.manila.csi.openstack.org",
-                        "deletionPolicy": "Delete",
-                        "parameters": {
-                            "csi.storage.k8s.io/snapshotter-secret-name": "csi-manila-secrets",
-                            "csi.storage.k8s.io/snapshotter-secret-namespace": "kube-system",
-                        },
-                    }
+                share_network_id = self.cluster.labels.get(
+                    "manila_csi_share_network_id"
                 )
+                if share_network_id:
+                    volume_snapshot_classes.append(
+                        {
+                            "name": "share-snapshot",
+                            "annotations": {
+                                "snapshot.storage.kubernetes.io/is-default-class": "true"
+                            },
+                            "driver": "nfs.manila.csi.openstack.org",
+                            "deletionPolicy": "Delete",
+                            "parameters": {
+                                "csi.storage.k8s.io/snapshotter-secret-name": "csi-manila-secrets",
+                                "csi.storage.k8s.io/snapshotter-secret-namespace": "kube-system",
+                            },
+                        }
+                    )
 
             controller_values = {
                 "fullnameOverride": "snapshot-controller",
