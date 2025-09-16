@@ -97,7 +97,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: vexxhost/chart-vendor@14e1c5d5cfd7079f283ab92b9261afebccd3cc9c # main
+      - uses: vexxhost/chart-vendor@54afe5fa09325aa8e7438eb29bf892579e6528ef # main
         with:
           charts-root: magnum_cluster_api/charts
 
@@ -109,10 +109,10 @@ jobs:
       matrix:
         network-driver: [calico, cilium]
         kubernetes-version:
-          - 1.31.12
-          - 1.32.8
-          - 1.33.4
-          - 1.34.0
+          - 1.31.13
+          - 1.32.9
+          - 1.33.5
+          - 1.34.1
     concurrency:
       group: sonobuoy-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -129,16 +129,15 @@ jobs:
       - uses: dev-hanz-ops/install-gh-cli-action@af38ce09b1ec248aeb08eea2b16bbecea9e059f8 # v0.2.1
         with:
           gh-cli-version: 2.78.0
-      - id: image-info
+      - id: tag-info
         run: |
           TAG_NAME=$(gh release list --repo vexxhost/capo-image-elements \
-            --limit 100 \
+            --limit 10 \
             --exclude-pre-releases \
             --exclude-drafts \
-            --json name,publishedAt \
-            --jq '([.[] | select(.name | startswith("ubuntu-minimal-jammy-${{ matrix.kubernetes-version }}"))] | sort_by(.publishedAt) | last | .name)')
+            --json name,isLatest \
+            --jq '.[] | select(.isLatest == true) | .name')
 
-          echo "file=$TAG_NAME.qcow2" >> $GITHUB_OUTPUT
           echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ github.token }}
@@ -151,7 +150,7 @@ jobs:
 
             enable_plugin magnum https://review.opendev.org/openstack/magnum refs/changes/10/949110/2
             # TODO(mnaser): fix this when we have the matrix
-            MAGNUM_GUEST_IMAGE_URL=https://github.com/vexxhost/capo-image-elements/releases/download/${{ steps.image-info.outputs.name }}/${{ steps.image-info.outputs.file }}
+            MAGNUM_GUEST_IMAGE_URL=https://github.com/vexxhost/capo-image-elements/releases/download/${{ steps.tag-info.outputs.name }}/ubuntu-22.04-v${{ matrix.kubernetes-version }}.qcow2
 
             enable_plugin manila https://github.com/openstack/manila
             MANILA_ENABLED_BACKENDS=generic
@@ -192,7 +191,7 @@ jobs:
         env:
           OS_CLOUD: devstack
           NETWORK_DRIVER: ${{ matrix.network-driver }}
-          IMAGE_NAME: ${{ steps.image-info.outputs.name }}
+          IMAGE_NAME: ubuntu-22.04-v${{ matrix.kubernetes-version }}
           KUBE_TAG: v${{ matrix.kubernetes-version }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ always() }}
