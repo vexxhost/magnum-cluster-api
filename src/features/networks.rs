@@ -6,12 +6,14 @@ use crate::{
             ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
             ClusterClassPatchesDefinitionsSelector,
             ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
+            ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
             ClusterClassVariablesSchema,
         },
         openstackclustertemplates::{
             OpenStackClusterTemplate, OpenStackClusterTemplateTemplateSpecNetwork,
             OpenStackClusterTemplateTemplateSpecSubnets,
         },
+        openstackmachinetemplates::OpenStackMachineTemplate,
     },
     features::{
         ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
@@ -36,6 +38,9 @@ pub struct FeatureValues {
 
     #[serde(rename = "fixedSubnetId")]
     pub fixed_subnet_id: String,
+
+    #[serde(rename = "fixedSubnetIds")]
+    pub fixed_subnet_ids: Vec<String>,
 }
 
 pub struct Feature {}
@@ -142,6 +147,44 @@ impl ClusterFeaturePatches for Feature {
                 }]),
                 ..Default::default()
             },
+            ClusterClassPatches {
+                name: "existingOpenStackMachinePorts".into(),
+                enabled_if: Some(r#"{{ if ne (index .fixedSubnetIds 0) "" }}true{{end}}"#.into()),
+                definitions: Some(vec![ClusterClassPatchesDefinitions {
+                    selector: ClusterClassPatchesDefinitionsSelector {
+                        api_version: OpenStackMachineTemplate::api_resource().api_version,
+                        kind: OpenStackMachineTemplate::api_resource().kind,
+                        match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                            control_plane: Some(true),
+                            machine_deployment_class: Some(ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass {
+                                names: Some(vec!["default-worker".to_string()])
+                            }),
+                            ..Default::default()
+                        },
+                    },
+                    json_patches: vec![ClusterClassPatchesDefinitionsJsonPatches {
+                        op: "add".into(),
+                        path: "/spec/template/spec/ports".into(),
+                        value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                            template: Some(
+                                indoc!(
+                                    r#"
+                                    {{- range .fixedSubnetIds }}
+                                    - fixedIPs:
+                                      - subnet:
+                                            id: {{ . }}
+                                    {{- end }}
+                                    "#
+                                )
+                                .into(),
+                            ),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }],
+                }]),
+                ..Default::default()
+        },
         ]
     }
 }
@@ -154,7 +197,14 @@ inventory::submit! {
 mod tests {
     use super::*;
     use crate::{
-        cluster_api::openstackclustertemplates::OpenStackClusterTemplateTemplateSpecManagedSubnets,
+        cluster_api::{
+            openstackclustertemplates::OpenStackClusterTemplateTemplateSpecManagedSubnets,
+            openstackmachinetemplates::{
+                OpenStackMachineTemplateTemplateSpecPorts,
+                OpenStackMachineTemplateTemplateSpecPortsFixedIPs,
+                OpenStackMachineTemplateTemplateSpecPortsFixedIPsSubnet,
+            },
+        },
         features::test::TestClusterResources, resources::fixtures::default_values,
     };
     use pretty_assertions::assert_eq;
@@ -168,6 +218,7 @@ mod tests {
         values.dns_nameservers = vec!["1.1.1.1".into(), "1.0.0.1".into()];
         values.fixed_network_id = "".into();
         values.fixed_subnet_id = "".into();
+        values.fixed_subnet_ids = vec!["".into()];
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -198,6 +249,7 @@ mod tests {
         values.dns_nameservers = vec!["1.1.1.1".into(), "1.0.0.1".into()];
         values.fixed_network_id = "e3172714-4ac5-4152-abf7-2d37387977e7".into();
         values.fixed_subnet_id = "".into();
+        values.fixed_subnet_ids = vec!["".into()];
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -227,6 +279,8 @@ mod tests {
         values.dns_nameservers = vec!["1.1.1.1".into(), "1.0.0.1".into()];
         values.fixed_network_id = "e3172714-4ac5-4152-abf7-2d37387977e7".into();
         values.fixed_subnet_id = "5ef0bdfa-c836-4753-ae38-d2ca71ef921a".into();
+        values.fixed_subnet_ids = vec!["5ef0bdfa-c836-4753-ae38-d2ca71ef921a".into(),
+        "6ef0bdfa-c836-4753-ae38-d2ca71ef921a".into()];
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -244,6 +298,40 @@ mod tests {
                 id: Some(values.fixed_network_id),
                 ..Default::default()
             }
+        );
+
+        assert_eq!(
+            resources
+                .worker_openstack_machine_template
+                .spec
+                .template
+                .spec
+                .ports
+                .expect("ports should be set"),
+            vec![
+                OpenStackMachineTemplateTemplateSpecPorts {
+                    fixed_i_ps: Some(vec![OpenStackMachineTemplateTemplateSpecPortsFixedIPs{
+                        subnet: Some(OpenStackMachineTemplateTemplateSpecPortsFixedIPsSubnet{
+                            id: Some(values.fixed_subnet_ids[0].clone()),
+                            ..Default::default()
+                            }),
+                        ..Default::default()
+                    }
+                    ]).into(),
+                    ..Default::default()
+                },
+                OpenStackMachineTemplateTemplateSpecPorts {
+                    fixed_i_ps: Some(vec![OpenStackMachineTemplateTemplateSpecPortsFixedIPs{
+                        subnet: Some(OpenStackMachineTemplateTemplateSpecPortsFixedIPsSubnet{
+                            id: Some(values.fixed_subnet_ids[1].clone()),
+                            ..Default::default()
+                            }),
+                        ..Default::default()
+                    }
+                    ]).into(),
+                    ..Default::default()
+                },
+            ]
         );
 
         assert_eq!(
