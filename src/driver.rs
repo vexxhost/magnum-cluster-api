@@ -39,7 +39,7 @@ impl Driver {
         py: Python<'_>,
         cluster: &magnum::Cluster,
     ) -> PyResult<()> {
-        py.allow_threads(|| {
+        Python::detach(py, || {
             get_runtime().block_on(async {
                 // TODO(mnaser): The secret is still being created by the Python
                 //               code, we need to move this to Rust.
@@ -63,7 +63,7 @@ impl Driver {
     ) -> PyResult<()> {
         let addon = addons::cloud_controller_manager::Addon::new(cluster.clone());
 
-        py.allow_threads(|| {
+        Python::detach(py, || {
             get_runtime().block_on(async {
                 // NOTE(mnaser): The updated cloud provider resource uses a different set of
                 //               labels and annotations (from the Helm chart) than the legacy
@@ -116,7 +116,7 @@ impl Driver {
         py: Python<'_>,
         cluster: &magnum::Cluster,
     ) -> PyResult<()> {
-        py.allow_threads(|| {
+        Python::detach(py, || {
             get_runtime().block_on(async {
                 let resource_name = ClusterResourceSet::from(cluster).metadata.name.unwrap();
 
@@ -145,7 +145,7 @@ impl Driver {
     ) -> PyResult<()> {
         let addon = addons::cloud_controller_manager::Addon::new(cluster.clone());
 
-        py.allow_threads(|| {
+        Python::detach(py, || {
             get_runtime().block_on(async {
                 self.client
                     .delete_resource(
@@ -202,7 +202,7 @@ impl Driver {
 
         let cluster_class = ClusterClassBuilder::default(metadata.clone());
 
-        py.allow_threads(|| {
+        Python::detach(py, || {
             get_runtime().block_on(async move {
                 self.client
                     .create_or_update_cluster_resource(Namespace::from(self))
@@ -243,7 +243,7 @@ impl Driver {
     #[pyo3(signature = (cluster))]
     fn get_legacy_cluster_resource_secret_data(
         _cls: &Bound<'_, PyType>,
-        cluster: PyObject,
+        cluster: Py<PyAny>,
         py: Python<'_>,
     ) -> PyResult<Option<BTreeMap<String, String>>> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
@@ -257,7 +257,7 @@ impl Driver {
     #[pyo3(signature = (cluster))]
     fn get_cloud_provider_cluster_resource_secret_data(
         _cls: &Bound<'_, PyType>,
-        cluster: PyObject,
+        cluster: Py<PyAny>,
         py: Python<'_>,
     ) -> PyResult<Option<BTreeMap<String, String>>> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
@@ -272,7 +272,7 @@ impl Driver {
     #[pyo3(signature = (cluster))]
     fn get_cinder_csi_cluster_resource_secret_data(
         _cls: &Bound<'_, PyType>,
-        cluster: PyObject,
+        cluster: Py<PyAny>,
         py: Python<'_>,
     ) -> PyResult<Option<BTreeMap<String, String>>> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
@@ -287,7 +287,7 @@ impl Driver {
     #[pyo3(signature = (cluster))]
     fn get_manila_csi_cluster_resource_secret_data(
         _cls: &Bound<'_, PyType>,
-        cluster: PyObject,
+        cluster: Py<PyAny>,
         py: Python<'_>,
     ) -> PyResult<Option<BTreeMap<String, String>>> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
@@ -296,7 +296,7 @@ impl Driver {
         Ok(cluster.cluster_addon_secret(&addon)?.string_data)
     }
 
-    fn create_cluster(&self, py: Python<'_>, cluster: PyObject) -> PyResult<()> {
+    fn create_cluster(&self, py: Python<'_>, cluster: Py<PyAny>) -> PyResult<()> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
         self.apply_cluster_class(py)?;
@@ -306,7 +306,7 @@ impl Driver {
         Ok(())
     }
 
-    fn upgrade_cluster(&self, py: Python<'_>, cluster: PyObject) -> PyResult<()> {
+    fn upgrade_cluster(&self, py: Python<'_>, cluster: Py<PyAny>) -> PyResult<()> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
         self.apply_cluster_class(py)?;
@@ -315,7 +315,7 @@ impl Driver {
         Ok(())
     }
 
-    fn delete_cluster(&self, py: Python<'_>, cluster: PyObject) -> PyResult<()> {
+    fn delete_cluster(&self, py: Python<'_>, cluster: Py<PyAny>) -> PyResult<()> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
         self.delete_cloud_provider_cluster_resource_set(py, &cluster)?;

@@ -26,9 +26,9 @@ k8s-openapi = { version = "0.25.0", features = ["schemars", "v1_30"] }
 kube = { version = "1.0.0", features = ["runtime", "derive"] }
 log = "0.4.27"
 maplit = "1.0.2"
-pyo3-async-runtimes = { version = "0.25.0", features = ["tokio-runtime"] }
-pyo3-log = "0.12.1"
-pythonize = "0.25.0"
+pyo3-async-runtimes = { version = "0.26.0", features = ["tokio-runtime"] }
+pyo3-log = "0.13.0"
+pythonize = "0.26.0"
 schemars = "0.8.21"
 serde = "1.0.218"
 serde_json = "1.0.138"
@@ -39,7 +39,7 @@ tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
 typed-builder = "0.22.0"
 
 [dependencies.pyo3]
-version = "0.25.0"
+version = "0.26.0"
 features = ["abi3-py38", "serde"]
 
 [features]
