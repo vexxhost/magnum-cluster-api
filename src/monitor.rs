@@ -122,7 +122,7 @@ pub struct Monitor {
 impl Monitor {
     #[new]
     #[pyo3(signature = (cluster))]
-    fn new(py: Python<'_>, cluster: PyObject) -> PyResult<Self> {
+    fn new(py: Python<'_>, cluster: Py<PyAny>) -> PyResult<Self> {
         let client = get_runtime()
             .block_on(async { Client::try_default().await })
             .map_err(kubernetes::Error::from)?;
@@ -130,7 +130,7 @@ impl Monitor {
         Ok(Self { client, cluster })
     }
 
-    fn poll_health_status(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn poll_health_status(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data = PyDict::new(py);
         let health_status_reason = PyDict::new(py);
 
@@ -159,7 +159,7 @@ impl Monitor {
         let kcp_api: Api<KubeadmControlPlane> =
             Api::namespaced(self.client.clone(), "magnum-system");
 
-        let (machines, kcp_list) = py.allow_threads(|| {
+        let (machines, kcp_list) = Python::detach(py, || {
             get_runtime().block_on(async {
                 futures::join!(machine_api.list(&list_params), kcp_api.list(&list_params))
             })
