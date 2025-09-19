@@ -60,7 +60,7 @@ impl KubeClient {
             .client
             .get_api_from_gvk(&gvk, object.metadata.namespace.as_deref());
 
-        py.allow_threads(|| {
+        Python::detach(py, || {
             get_runtime().block_on(async move {
                 self.client.create_or_update_resource(api, object).await?;
 
@@ -80,7 +80,7 @@ impl KubeClient {
         let object: Cluster = pythonize::depythonize(manifest)?;
         let api: Api<Cluster> = Api::namespaced(self.client.clone(), &namespace);
 
-        py.allow_threads(|| {
+        Python::detach(py, || {
             get_runtime().block_on(async {
                 match (|| async {
                     let object = object.clone();
@@ -120,7 +120,7 @@ impl KubeClient {
             .with_kind(kind);
         let api = self.client.get_api_from_gvk(&gvk, namespace);
 
-        py.allow_threads(|| {
+        Python::detach(py, || {
             get_runtime().block_on(async {
                 self.client.delete_resource(api, name).await?;
 
