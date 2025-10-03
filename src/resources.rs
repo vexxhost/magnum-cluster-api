@@ -186,10 +186,13 @@ pub mod fixtures {
 
     pub fn default_values() -> Values {
         Values::builder()
+            .api_server_floating_ip("".to_string())
             .api_server_load_balancer(
                 api_server_load_balancer::APIServerLoadBalancerConfig::builder()
                     .enabled(true)
-                    .provider("amphora".into())
+                    .provider("amphora".to_string())
+                    .flavor("worker".to_string())
+                    .availability_zone("zone1".to_string())
                     .build(),
             )
             .audit_log(
@@ -306,10 +309,13 @@ mod tests {
         let values = default_values();
         let variables: Vec<ClusterTopologyVariables> = values.into();
 
-        assert_eq!(variables.len(), 36);
+        assert_eq!(variables.len(), 37);
 
         for var in &variables {
             match var.name.as_str() {
+                "apiServerFloatingIP" => {
+                    assert_eq!(var.value, json!(default_values().api_server_floating_ip));
+                }
                 "apiServerLoadBalancer" => {
                     assert_eq!(var.value, json!(&default_values().api_server_load_balancer));
                 }
