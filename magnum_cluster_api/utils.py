@@ -412,6 +412,14 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
         else:
             neutron.get_subnet(ctx, cluster.fixed_subnet, source="name", target="id")
 
+    if not cluster.fixed_subnet and json.loads(
+        cluster.labels.get("extra_fixed_subnets", "[]")
+    ):
+        raise mcapi_exceptions.ClusterInvalidLabel(
+            label="extra_fixed_subnets",
+            reason="Label `extra_fixed_subnets` requires cluster fixed subnet",
+        )
+
 
 def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
     # Machine requires a lowercase RFC 1123 subdomain name.
