@@ -17,26 +17,12 @@ use crate::{
 };
 use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use typed_builder::TypedBuilder;
-
-#[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
-pub struct APIServerLoadBalancerConfig {
-    pub enabled: bool,
-
-    pub provider: String,
-
-    pub flavor: String,
-
-    #[serde(rename = "availabilityZone")]
-    pub availability_zone: String,
-}
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 pub struct FeatureValues {
-    #[serde(rename = "apiServerLoadBalancer")]
-    pub api_server_load_balancer: APIServerLoadBalancerConfig,
+    #[serde(rename = "apiServerFloatingIP")]
+    pub api_server_floating_ip: String,
 }
 
 pub struct Feature {}
@@ -44,7 +30,8 @@ pub struct Feature {}
 impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
-            name: "apiServerLoadBalancer".into(),
+            name: "apiServerFloatingIP".into(),
+            enabled_if: Some(r#"{{ if ne .apiServerFloatingIP "" }}true{{end}}"#.into()),
             definitions: Some(vec![ClusterClassPatchesDefinitions {
                 selector: ClusterClassPatchesDefinitionsSelector {
                     api_version: OpenStackClusterTemplate::api_resource().api_version,
@@ -56,9 +43,9 @@ impl ClusterFeaturePatches for Feature {
                 },
                 json_patches: vec![ClusterClassPatchesDefinitionsJsonPatches {
                     op: "add".into(),
-                    path: "/spec/template/spec/apiServerLoadBalancer".into(),
+                    path: "/spec/template/spec/apiServerFloatingIP".into(),
                     value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                        variable: Some("apiServerLoadBalancer".into()),
+                        variable: Some("apiServerFloatingIP".into()),
                         ..Default::default()
                     }),
                     ..Default::default()
@@ -81,45 +68,46 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn test_patches() {
+    fn test_patches_if_enabled() {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.api_server_load_balancer = APIServerLoadBalancerConfig::builder()
-            .enabled(true)
-            .provider("octavia".to_string())
-            .flavor("ha".to_string())
-            .availability_zone("zone-1".to_string())
-            .build();
+        values.api_server_floating_ip = "1.2.3.4".to_string();
 
         let patches = feature.patches();
 
         let mut resources = TestClusterResources::new();
         resources.apply_patches(&patches, &values);
 
-        let api_server_load_balancer = resources
-            .openstack_cluster_template
-            .spec
-            .template
-            .spec
-            .api_server_load_balancer
-            .expect("apiServerLoadBalancer should be set");
+        assert_eq!(
+            resources
+                .openstack_cluster_template
+                .spec
+                .template
+                .spec
+                .api_server_floating_ip,
+            Some("1.2.3.4".into())
+        );
+    }
+
+    #[test]
+    fn test_patches_if_disabled() {
+        let feature = Feature {};
+
+        let values = default_values();
+        let patches = feature.patches();
+
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
 
         assert_eq!(
-            api_server_load_balancer.enabled,
-            values.api_server_load_balancer.enabled
-        );
-        assert_eq!(
-            api_server_load_balancer.provider,
-            Some(values.api_server_load_balancer.provider)
-        );
-        assert_eq!(
-            api_server_load_balancer.flavor,
-            Some(values.api_server_load_balancer.flavor)
-        );
-        assert_eq!(
-            api_server_load_balancer.availability_zone,
-            Some(values.api_server_load_balancer.availability_zone)
+            resources
+                .openstack_cluster_template
+                .spec
+                .template
+                .spec
+                .api_server_floating_ip,
+            None
         );
     }
 }
