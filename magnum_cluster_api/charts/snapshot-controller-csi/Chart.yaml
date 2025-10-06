@@ -1,0 +1,8 @@
+apiVersion: v2
+name: snapshot-controller-csi
+description: A Helm chart for snapshot-controller-csi
+type: application
+version: 0.1.0
+appVersion: v8.3.0
+sources:
+- https://github.com/kubernetes-csi/external-snapshotter/
