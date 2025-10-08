@@ -338,7 +338,7 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
                                 "allowVolumeExpansion": True,
                                 "kind": objects.StorageClass.kind,
                                 "metadata": {
-                                    "name": "share-%s"
+                                    "name": "share-nfs-%s"
                                     % utils.convert_to_rfc1123(st.name),
                                 },
                                 "provisioner": "nfs.manila.csi.openstack.org",
