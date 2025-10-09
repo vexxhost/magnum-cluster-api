@@ -773,7 +773,9 @@ def mutate_machine_deployment(
     if machine_deployment.get("name") == node_group.name:
         current_failure_domain = machine_deployment.get("failureDomain")
         new_failure_domain = node_group.labels.get("availability_zone")
-        if current_failure_domain == "" and (new_failure_domain is None or new_failure_domain == ""):
+        if current_failure_domain == "" and (
+            new_failure_domain is None or new_failure_domain == ""
+        ):
             machine_deployment["failureDomain"] = None
         if current_failure_domain == "" and new_failure_domain:
             machine_deployment["failureDomain"] = new_failure_domain
@@ -862,7 +864,12 @@ def migrate_machineset_failure_domain(
 
     for ms in machine_sets:
         # Check if this MachineSet has an empty string failureDomain
-        current_failure_domain = ms.obj.get("spec", {}).get("template", {}).get("spec", {}).get("failureDomain")
+        current_failure_domain = (
+            ms.obj.get("spec", {})
+            .get("template", {})
+            .get("spec", {})
+            .get("failureDomain")
+        )
 
         if current_failure_domain == "":
             # Patch the MachineSet to set failureDomain to None
