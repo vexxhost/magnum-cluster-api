@@ -768,10 +768,23 @@ def mutate_machine_deployment(
     machine_deployment["nodeVolumeDetachTimeout"] = (
         CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT
     )
-
     # Anything beyond this point will *NOT* be changed in the machine deployment
     # for update operations (i.e. if the machine deployment already exists).
     if machine_deployment.get("name") == node_group.name:
+        # Check if we need to migrate the failureDomain field
+        current_failure_domain = machine_deployment.get("failureDomain", "")
+        new_failure_domain = node_group.labels.get("availability_zone")
+
+        # we need to explicitly set it to None to avoid validation errors
+        if current_failure_domain == "" and (new_failure_domain is None or new_failure_domain == ""):
+            machine_deployment["failureDomain"] = None
+
+        # If current failureDomain is empty but we have a new value, update it.
+        # This is needed because Cluster API v1.10+ requires non-empty failureDomain values
+        if current_failure_domain == "" and new_failure_domain:
+            machine_deployment["failureDomain"] = new_failure_domain
+
+        # For all other cases, don't modify existing machine deployments
         return machine_deployment
 
     # At this point, this is all code that will be added for brand-new machine
