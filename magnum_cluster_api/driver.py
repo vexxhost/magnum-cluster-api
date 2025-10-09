@@ -625,11 +625,14 @@ class BaseDriver(driver.Driver):
                 ctx=context, cluster=cluster, node_group=nodegroup
             )
 
-            # Migrate MachineSet failureDomain fields first to avoid rolling updates
-            # This handles the Cluster API v1.10+ validation issue where empty string
-            # failureDomain values are no longer allowed
+            # Migrate failureDomain fields to fix Cluster API v1.10+ validation issues
+            # This handles the case where empty string failureDomain values are no longer allowed
+            # Order: MachineSet → Cluster → MachineDeployment
             resources.migrate_machineset_failure_domain(
                 context, cluster, nodegroup, self.k8s_api
+            )
+            resources.migrate_cluster_failure_domain(
+                nodegroup, cluster_resource
             )
 
             current_md_spec = cluster_resource.get_machine_deployment_spec(
@@ -645,6 +648,7 @@ class BaseDriver(driver.Driver):
             if current_md_spec == target_md_spec:
                 return
 
+            # Normal update for other changes
             cluster_resource.set_machine_deployment_spec(nodegroup.name, target_md_spec)
 
         utils.kube_apply_patch(cluster_resource)

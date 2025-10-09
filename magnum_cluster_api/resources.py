@@ -878,6 +878,31 @@ def migrate_machineset_failure_domain(
             ms.update()
 
 
+def migrate_cluster_failure_domain(
+    node_group: magnum_objects.NodeGroup,
+    cluster_resource: objects.Cluster,
+) -> bool:
+    """
+    Migrate Cluster MachineDeployment failureDomain fields to fix Cluster API v1.10+ validation issues.
+
+    This function directly patches the Cluster resource to convert empty string
+    failureDomain values to None/null in MachineDeployment specs, avoiding rolling updates.
+    """
+
+    # Get the current machine deployment spec
+    current_md_spec = cluster_resource.get_machine_deployment_spec(node_group.name)
+    current_failure_domain = current_md_spec.get("failureDomain")
+
+    if current_failure_domain == "":
+        # Update the machine deployment spec to remove the failureDomain field
+        # We'll use obj.update() which should handle the field removal properly
+        current_md_spec["failureDomain"] = None
+        cluster_resource.set_machine_deployment_spec(node_group.name, current_md_spec)
+
+        # Use obj.update() to apply the change
+        cluster_resource.update()
+
+
 def generate_machine_deployments_for_cluster(
     context: context.RequestContext, cluster: objects.Cluster
 ) -> list:
