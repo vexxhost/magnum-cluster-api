@@ -631,9 +631,7 @@ class BaseDriver(driver.Driver):
             resources.migrate_machineset_failure_domain(
                 context, cluster, nodegroup, self.k8s_api
             )
-            resources.migrate_cluster_failure_domain(
-                nodegroup, cluster_resource
-            )
+            resources.migrate_cluster_failure_domain(nodegroup, cluster_resource)
 
             current_md_spec = cluster_resource.get_machine_deployment_spec(
                 nodegroup.name
