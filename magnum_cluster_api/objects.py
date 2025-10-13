@@ -132,6 +132,28 @@ class Machine(NamespacedAPIObject):
     kind = "Machine"
 
 
+class MachineSet(NamespacedAPIObject):
+    version = "cluster.x-k8s.io/v1beta1"
+    endpoint = "machinesets"
+    kind = "MachineSet"
+
+    @classmethod
+    def for_node_group(
+        cls,
+        api: pykube.HTTPClient,
+        cluster: magnum_objects.Cluster,
+        node_group: magnum_objects.NodeGroup,
+    ):
+        """Get all MachineSets for a specific node group."""
+        mss = cls.objects(api, namespace="magnum-system").filter(
+            selector={
+                "cluster.x-k8s.io/cluster-name": cluster.stack_id,
+                "topology.cluster.x-k8s.io/deployment-name": node_group.name,
+            },
+        )
+        return list(mss)
+
+
 class OpenStackCluster(NamespacedAPIObject):
     version = "infrastructure.cluster.x-k8s.io/v1beta1"
     endpoint = "openstackclusters"
