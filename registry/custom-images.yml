@@ -67,3 +67,5 @@ infra:
       tags: ["v2.7.0", "v2.8.0", "v2.9.0"]
     - name: "registry.k8s.io/sig-storage/nfsplugin"
       tags: ["v4.2.0"]
+    - name: "registry.k8s.io/sig-storage/snapshot-controller"
+      tags: ["v8.3.0"]
