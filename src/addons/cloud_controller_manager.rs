@@ -206,7 +206,7 @@ mod tests {
             values.image.repository,
             "registry.k8s.io/provider-os/openstack-cloud-controller-manager"
         );
-        assert_eq!(values.image.tag, "v1.30.0");
+        assert_eq!(values.image.tag, "v1.30.3");
     }
 
     #[test]
