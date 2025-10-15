@@ -30,6 +30,7 @@ pyo3-async-runtimes = { version = "0.26.0", features = ["tokio-runtime"] }
 pyo3-log = "0.13.0"
 pythonize = "0.26.0"
 schemars = "0.8.21"
+semver = "1.0.26"
 serde = "1.0.218"
 serde_json = "1.0.138"
 serde_plain = "1.0.2"

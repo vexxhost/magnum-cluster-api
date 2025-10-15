@@ -28,6 +28,7 @@
                 clippy
                 glibcLocales
                 go
+                jq
                 kind
                 kubernetes-helm
                 patchutils

@@ -57,10 +57,11 @@ pub struct ClusterLabels {
     pub manila_csi_plugin_tag: String,
 
     /// The tag to use for the OpenStack cloud controller provider
-    /// when bootstrapping the cluster.
-    #[builder(default="v1.30.0".to_owned())]
-    #[pyo3(default="v1.30.0".to_owned())]
-    pub cloud_provider_tag: String,
+    /// when bootstrapping the cluster. If not specified, it will be
+    /// automatically selected based on the Kubernetes version.
+    #[builder(default)]
+    #[pyo3(default)]
+    pub cloud_provider_tag: Option<String>,
 
     /// The prefix of the container images to use for the cluster, which
     /// defaults to the upstream images if not set.
@@ -101,6 +102,39 @@ pub struct ClusterLabels {
     /// The Kubernetes version to use for the cluster.
     #[builder(default="v1.30.0".to_owned())]
     pub kube_tag: String,
+}
+
+impl ClusterLabels {
+    const DEFAULT_CLOUD_PROVIDER_TAG: &'static str = "v1.34.0";
+
+    pub fn get_cloud_provider_tag(&self) -> String {
+        if let Some(tag) = &self.cloud_provider_tag {
+            return tag.clone();
+        }
+
+        let version_str = self.kube_tag.strip_prefix('v').unwrap_or(&self.kube_tag);
+        let version = match semver::Version::parse(version_str) {
+            Ok(v) => v,
+            Err(_) => return Self::DEFAULT_CLOUD_PROVIDER_TAG.to_owned(),
+        };
+
+        match (version.major, version.minor) {
+            (1, 22) => "v1.22.2".to_owned(),
+            (1, 23) => "v1.23.4".to_owned(),
+            (1, 24) => "v1.24.6".to_owned(),
+            (1, 25) => "v1.25.6".to_owned(),
+            (1, 26) => "v1.26.4".to_owned(),
+            (1, 27) => "v1.27.3".to_owned(),
+            (1, 28) => "v1.28.3".to_owned(),
+            (1, 29) => "v1.29.1".to_owned(),
+            (1, 30) => "v1.30.3".to_owned(),
+            (1, 31) => "v1.31.4".to_owned(),
+            (1, 32) => "v1.32.1".to_owned(),
+            (1, 33) => "v1.33.1".to_owned(),
+            (1, 34) => "v1.34.0".to_owned(),
+            _ => Self::DEFAULT_CLOUD_PROVIDER_TAG.to_owned(),
+        }
+    }
 }
 
 #[derive(Debug, Error)]
@@ -379,6 +413,55 @@ mod tests {
         let object_meta: ObjectMeta = cluster.into();
 
         assert_eq!(object_meta.name, Some("sample-uuid".into()));
+    }
+
+    #[test]
+    fn test_get_cloud_provider_tag_explicit() {
+        let labels = ClusterLabels::builder()
+            .cloud_provider_tag(Some("v1.29.5".to_owned()))
+            .build();
+
+        assert_eq!(labels.get_cloud_provider_tag(), "v1.29.5");
+    }
+
+    #[rstest]
+    #[case("v1.22.0", "v1.22.2")]
+    #[case("v1.23.0", "v1.23.4")]
+    #[case("v1.24.0", "v1.24.6")]
+    #[case("v1.25.0", "v1.25.6")]
+    #[case("v1.26.0", "v1.26.4")]
+    #[case("v1.27.0", "v1.27.3")]
+    #[case("v1.28.0", "v1.28.3")]
+    #[case("v1.29.0", "v1.29.1")]
+    #[case("v1.30.0", "v1.30.3")]
+    #[case("v1.31.0", "v1.31.4")]
+    #[case("v1.32.0", "v1.32.1")]
+    #[case("v1.33.0", "v1.33.1")]
+    #[case("v1.34.0", "v1.34.0")]
+    #[case("v1.60.1", "v1.34.0")]
+    #[case("v2.0.0", "v1.34.0")]
+    #[case("invalid", "v1.34.0")]
+    #[case("master", "v1.34.0")]
+    fn test_get_cloud_provider_tag_from_kube_tag(
+        #[case] kube_tag: &str,
+        #[case] expected_cloud_provider_tag: &str,
+    ) {
+        let labels = ClusterLabels::builder()
+            .kube_tag(kube_tag.to_owned())
+            .build();
+
+        assert_eq!(labels.get_cloud_provider_tag(), expected_cloud_provider_tag);
+    }
+
+    #[test]
+    fn test_cloud_provider_tag_override() {
+        // Test that explicit cloud_provider_tag overrides the automatic selection
+        let labels = ClusterLabels::builder()
+            .kube_tag("v1.30.0".to_owned())
+            .cloud_provider_tag(Some("v1.28.0".to_owned()))
+            .build();
+
+        assert_eq!(labels.get_cloud_provider_tag(), "v1.28.0");
     }
 
     #[test]
