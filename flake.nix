@@ -27,6 +27,7 @@
                 cargo
                 clippy
                 glibcLocales
+                go
                 kind
                 kubernetes-helm
                 patchutils
