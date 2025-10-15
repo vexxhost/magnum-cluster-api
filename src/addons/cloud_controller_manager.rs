@@ -82,7 +82,7 @@ impl TryFrom<magnum::Cluster> for CloudControllerManagerValues {
                         image,
                         &cluster.labels.container_infra_prefix,
                     ))
-                    .tag(cluster.labels.cloud_provider_tag)
+                    .tag(cluster.labels.get_cloud_provider_tag())
                     .build(),
             )
             .secret(
@@ -206,7 +206,7 @@ mod tests {
             values.image.repository,
             "registry.k8s.io/provider-os/openstack-cloud-controller-manager"
         );
-        assert_eq!(values.image.tag, "v1.30.0");
+        assert_eq!(values.image.tag, "v1.30.3");
     }
 
     #[test]
@@ -215,7 +215,7 @@ mod tests {
             uuid: "sample-uuid".to_string(),
             labels: magnum::ClusterLabels::builder()
                 .container_infra_prefix(Some("registry.example.com".to_string()))
-                .cloud_provider_tag("v1.32.0".to_string())
+                .cloud_provider_tag(Some("v1.32.0".to_string()))
                 .build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {

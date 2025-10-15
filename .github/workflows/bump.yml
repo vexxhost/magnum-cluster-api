@@ -27,6 +27,28 @@ jobs:
           delete-branch: true
           branch: bump/kubernetes
 
+  cloud-provider-openstack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          token: ${{ secrets.VEXXHOST_BOT_PAT }}
+      - run: ./hack/bump/cloud-provider-openstack.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+        with:
+          token: ${{ secrets.VEXXHOST_BOT_PAT }}
+          push-to-fork: vexxhost-bot/magnum-cluster-api
+          commit-message: "chore(deps): update cloud-provider-openstack"
+          signoff: true
+          title: "chore(deps): update cloud-provider-openstack"
+          body: |
+            ## Automated `cloud-provider-openstack` update
+            This PR updates the `cloud-provider-openstack` images to the latest versions.
+          delete-branch: true
+          branch: bump/cloud-provider-openstack
+
   cluster-autoscaler:
     runs-on: ubuntu-latest
     steps:
