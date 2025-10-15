@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.33.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.32.0...v0.33.0) (2025-10-15)
+
+
+### Features
+
+* bump cpo + add tool for autobumps ([#831](https://github.com/vexxhost/magnum-cluster-api/issues/831)) ([ad297aa](https://github.com/vexxhost/magnum-cluster-api/commit/ad297aa7e03fd73bd557aabd7389b0bf40b17ef9))
+
 ## [0.32.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.31.2...v0.32.0) (2025-10-14)
 
 
