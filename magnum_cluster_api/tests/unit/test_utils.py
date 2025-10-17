@@ -60,6 +60,10 @@ class TestGenerateCloudControllerManagerConfig:
         ).return_value
         mock_get_openstack_api.url_for.return_value = "http://localhost/v3"
 
+        # Mock the configuration
+        mock_conf = mocker.patch("magnum_cluster_api.utils.mcapi_conf.CONF")
+        mock_conf.driver.octavia_provider = "amphora"
+
     def _response_for_cloud_config_secret(self):
         return responses.Response(
             responses.GET,
@@ -244,6 +248,36 @@ class TestGenerateCloudControllerManagerConfig:
                 utils.generate_cloud_controller_manager_config(
                     self.context, self.pykube_api, self.cluster
                 )
+
+    def test_log_octavia_provider_warning(self, mocker):
+        """Test that a warning is logged when using amphora provider."""
+        self.cluster.labels = {"octavia_provider": "amphora"}
+
+        # Mock the logger to capture the warning
+        mock_logger = mocker.patch("magnum_cluster_api.utils.LOG")
+
+        # Call the warning function directly
+        utils.log_octavia_provider_warning(self.cluster)
+
+        # Verify that the warning was logged
+        mock_logger.warning.assert_called_once()
+        warning_message = mock_logger.warning.call_args[0][0]
+        assert "legacy Octavia provider 'amphora'" in warning_message
+        assert "amphorav2" in warning_message
+        assert self.cluster.uuid in warning_message
+
+    def test_log_octavia_provider_warning_no_warning_for_amphorav2(self, mocker):
+        """Test that no warning is logged when using amphorav2 provider."""
+        self.cluster.labels = {"octavia_provider": "amphorav2"}
+
+        # Mock the logger to capture the warning
+        mock_logger = mocker.patch("magnum_cluster_api.utils.LOG")
+
+        # Call the warning function directly
+        utils.log_octavia_provider_warning(self.cluster)
+
+        # Verify that no warning was logged
+        mock_logger.warning.assert_not_called()
 
 
 class TestUtils(base.BaseTestCase):

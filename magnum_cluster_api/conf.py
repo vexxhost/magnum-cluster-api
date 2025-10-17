@@ -27,6 +27,8 @@ manila_client_group = cfg.OptGroup(
 
 proxy_group = cfg.OptGroup(name="proxy", title="Options for Cluster API proxy")
 
+driver_group = cfg.OptGroup(name="driver", title="Options for the driver")
+
 
 auto_scaling_opts = [
     cfg.StrOpt(
@@ -82,6 +84,19 @@ proxy_opts = [
 ]
 
 
+driver_opts = [
+    cfg.StrOpt(
+        "octavia_provider",
+        default="amphora",
+        help=_(
+            "Default Octavia provider to use for load balancers. "
+            "Set to 'amphorav2' for better performance and features, "
+            "or 'amphora' for legacy compatibility."
+        ),
+    ),
+]
+
+
 common_security_opts = [
     cfg.StrOpt("ca_file", help=_("Optional CA cert file to use in SSL connections.")),
     cfg.StrOpt("cert_file", help=_("Optional PEM-formatted certificate chain file.")),
@@ -101,6 +116,7 @@ ALL_GROUPS = [
     capi_client_group,
     manila_client_group,
     proxy_group,
+    driver_group,
 ]
 
 ALL_OPTS = [
@@ -110,6 +126,7 @@ ALL_OPTS = [
     (manila_client_group, manila_client_opts),
     (manila_client_group, common_security_opts),
     (proxy_group, proxy_opts),
+    (driver_group, driver_opts),
 ]
 
 

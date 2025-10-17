@@ -102,6 +102,11 @@ pub struct ClusterLabels {
     /// The Kubernetes version to use for the cluster.
     #[builder(default="v1.30.0".to_owned())]
     pub kube_tag: String,
+
+    /// The Octavia provider to use for load balancers.
+    #[builder(default="amphora".to_owned())]
+    #[pyo3(default="amphora".to_owned())]
+    pub octavia_provider: String,
 }
 
 impl ClusterLabels {
