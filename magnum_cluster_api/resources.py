@@ -37,7 +37,9 @@ from oslo_utils import encodeutils  # type: ignore
 
 from magnum_cluster_api import (
     clients,
-    conf as mcapi_conf,
+)
+from magnum_cluster_api import conf as mcapi_conf
+from magnum_cluster_api import (
     helm,
     image_utils,
     images,
