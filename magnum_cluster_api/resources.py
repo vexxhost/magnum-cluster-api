@@ -37,6 +37,9 @@ from oslo_utils import encodeutils  # type: ignore
 
 from magnum_cluster_api import (
     clients,
+)
+from magnum_cluster_api import conf as mcapi_conf
+from magnum_cluster_api import (
     helm,
     image_utils,
     images,
@@ -994,7 +997,9 @@ class Cluster(ClusterBase):
 
         api_server_load_balancer = {
             "enabled": self.cluster.master_lb_enabled,
-            "provider": self.cluster.labels.get("octavia_provider", "amphora"),
+            "provider": self.cluster.labels.get(
+                "octavia_provider", mcapi_conf.CONF.driver.octavia_provider
+            ),
             "availabilityZone": self.cluster.labels.get(
                 "api_server_lb_availability_zone", ""
             ),
