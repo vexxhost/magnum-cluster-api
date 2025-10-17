@@ -35,7 +35,8 @@ from oslo_serialization import base64  # type: ignore
 from oslo_utils import strutils, uuidutils  # type: ignore
 from tenacity import retry, retry_if_exception_type
 
-from magnum_cluster_api import clients, conf as mcapi_conf
+from magnum_cluster_api import clients
+from magnum_cluster_api import conf as mcapi_conf
 from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import image_utils, images, objects
 from magnum_cluster_api.cache import ServerGroupCache
@@ -98,7 +99,9 @@ def cluster_exists(api: pykube.HTTPClient, name: str) -> bool:
 
 def log_octavia_provider_warning(cluster: magnum_objects.Cluster) -> None:
     """Log a warning if the cluster is using the legacy amphora provider."""
-    octavia_provider = cluster.labels.get("octavia_provider", mcapi_conf.CONF.driver.octavia_provider)
+    octavia_provider = cluster.labels.get(
+        "octavia_provider", mcapi_conf.CONF.driver.octavia_provider
+    )
 
     if octavia_provider == "amphora":
         LOG.warning(
@@ -106,7 +109,7 @@ def log_octavia_provider_warning(cluster: magnum_objects.Cluster) -> None:
             "for better performance and features. The default provider will be updated "
             "to 'amphorav2' in a future release. You can set the 'octavia_provider' "
             "label on your cluster to 'amphorav2' to use the new provider.",
-            cluster.uuid
+            cluster.uuid,
         )
 
 
@@ -138,7 +141,9 @@ def generate_cloud_controller_manager_config(
     cloud_config = yaml.safe_load(clouds_yaml)
 
     # Get octavia provider from cluster labels or use default from configuration
-    octavia_provider = cluster.labels.get("octavia_provider", mcapi_conf.CONF.driver.octavia_provider)
+    octavia_provider = cluster.labels.get(
+        "octavia_provider", mcapi_conf.CONF.driver.octavia_provider
+    )
     octavia_lb_algorithm = cluster.labels.get("octavia_lb_algorithm")
     octavia_lb_healthcheck = cluster.labels.get("octavia_lb_healthcheck", True)
 
