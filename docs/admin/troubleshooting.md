@@ -143,11 +143,17 @@ go into the database and update the `id` of the new project to match the
 7.  Create a new set of application credentials and update the existing
     `cloud-config` secret for the cluster
 
+    !!! warning
+
+        Make sure to use the `--unrestricted` flag when creating the application
+        credential. For more information about application credential requirements,
+        see the [Authentication](authentication.md) documentation.
+
     ```
     $ export CAPI_CLUSTER_NAME=$(openstack coe cluster show tst1-useg-k8s-1 -f value -c stack_id)
     $ export EXISTING_APPCRED_ID=$(kubectl -n magnum-system get secret/$CAPI_CLUSTER_NAME-cloud-config -ojson | jq -r '.data."clouds.yaml"' | base64 --decode | grep application_credential_id | awk '{print $2}')
     $ export EXISTING_APPCRED_SECRET=$(kubectl -n magnum-system get secret/$CAPI_CLUSTER_NAME-cloud-config -ojson | jq -r '.data."clouds.yaml"' | base64 --decode | grep application_credential_secret | awk '{print $2}')
-    $ export NEW_APPCRED_ID=$(openstack application credential create --secret $EXISTING_APPCRED_SECRET $CAPI_CLUSTER_NAME-cleanup -f value -c id)
+    $ export NEW_APPCRED_ID=$(openstack application credential create --unrestricted --secret $EXISTING_APPCRED_SECRET $CAPI_CLUSTER_NAME-cleanup -f value -c id)
     $  > /tmp/clouds.yaml
     $ kubectl -n magnum-system patch secret/$CAPI_CLUSTER_NAME-cloud-config -p '{"data":{"clouds.yaml":"'$(kubectl -n magnum-system get secret/$CAPI_CLUSTER_NAME-cloud-config -ojson | jq -r '.data."clouds.yaml"' | base64 --decode | sed "s/$EXISTING_APPCRED_ID/$NEW_APPCRED_ID/" | base64 --wrap=0)'"}}'
     ```
@@ -165,3 +171,35 @@ Once the cluster is gone, you can clean up the project:
 $ unset OS_PROJECT_ID
 $ openstack project delete $CURRENT_PROJECT_ID
 ```
+
+## Failed to create trustee or trust for Cluster
+
+If you encounter an error message similar to "Failed to create trustee or trust
+for Cluster" when creating or managing clusters, this is typically caused by
+using application credentials that were not created with the `--unrestricted`
+flag.
+
+### Root Cause
+
+Non-unrestricted application credentials have limited permissions that prevent
+them from creating the necessary trust relationships that Magnum requires for
+cluster management operations.
+
+### Solution
+
+Create a new application credential with the `--unrestricted` flag:
+
+```bash
+openstack application credential create --unrestricted <credential-name>
+```
+
+Then update your cluster configuration to use the new credentials. For detailed
+information about application credential requirements, see the
+[Authentication](authentication.md) documentation.
+
+### Prevention
+
+Always use the `--unrestricted` flag when creating application credentials for
+use with Magnum clusters. This ensures that the credentials have the necessary
+permissions to create trust relationships and manage cluster operations
+properly.
