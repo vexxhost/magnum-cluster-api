@@ -30,6 +30,7 @@ jobs:
   cloud-provider-openstack:
     runs-on: ubuntu-latest
     steps:
+      - run: sudo apt-get install patchutils
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           token: ${{ secrets.VEXXHOST_BOT_PAT }}
