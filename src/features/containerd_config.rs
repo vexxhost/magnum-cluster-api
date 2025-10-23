@@ -29,6 +29,7 @@ use kube::CustomResourceExt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
+#[allow(dead_code)]
 pub struct FeatureValues {
     #[serde(rename = "containerdConfig")]
     pub containerd_config: String,

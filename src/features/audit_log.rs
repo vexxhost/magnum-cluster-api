@@ -40,6 +40,7 @@ pub struct AuditLogConfig {
 }
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
+#[allow(dead_code)]
 pub struct FeatureValues {
     #[serde(rename = "auditLog")]
     pub audit_log: AuditLogConfig,

@@ -87,6 +87,7 @@ pub struct MachineBootstrap {
 /// allow users/operators to specify Bootstrap.DataSecretName without
 /// the need of a controller.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
+#[allow(dead_code)]
 pub struct MachineBootstrapConfigRef {
     /// API version of the referent.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiVersion")]
@@ -126,6 +127,7 @@ pub struct MachineBootstrapConfigRef {
 /// InfrastructureRef is a required reference to a custom resource
 /// offered by an infrastructure provider.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
+#[allow(dead_code)]
 pub struct MachineInfrastructureRef {
     /// API version of the referent.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiVersion")]
@@ -292,6 +294,7 @@ pub struct MachineStatusNodeInfo {
 
 /// NodeRef will point to the corresponding Node if it exists.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
+#[allow(dead_code)]
 pub struct MachineStatusNodeRef {
     /// API version of the referent.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiVersion")]

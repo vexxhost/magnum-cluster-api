@@ -43,6 +43,7 @@ struct KustomizePatch {
 }
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
+#[allow(dead_code)]
 pub struct FeatureValues {
     #[serde(rename = "enableKeystoneAuth")]
     pub enable_keystone_auth: bool,

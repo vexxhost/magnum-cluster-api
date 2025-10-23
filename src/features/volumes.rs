@@ -32,6 +32,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
+#[allow(dead_code)]
 pub struct FeatureValues {
     #[serde(rename = "hardwareDiskBus")]
     pub hardware_disk_bus: String,

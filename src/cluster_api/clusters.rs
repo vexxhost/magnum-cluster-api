@@ -120,6 +120,7 @@ pub struct ClusterControlPlaneEndpoint {
 /// ControlPlaneRef is an optional reference to a provider-specific resource that holds
 /// the details for provisioning the Control Plane for a Cluster.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
+#[allow(dead_code)]
 pub struct ClusterControlPlaneRef {
     /// API version of the referent.
     #[serde(
@@ -167,6 +168,7 @@ pub struct ClusterControlPlaneRef {
 /// InfrastructureRef is a reference to a provider-specific resource that holds the details
 /// for provisioning infrastructure for a cluster in said provider.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
+#[allow(dead_code)]
 pub struct ClusterInfrastructureRef {
     /// API version of the referent.
     #[serde(
@@ -394,6 +396,7 @@ pub struct ClusterTopologyControlPlaneMachineHealthCheck {
 /// creates a new object from the template referenced and hands off remediation of the machine to
 /// a controller that lives outside of Cluster API.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
+#[allow(dead_code)]
 pub struct ClusterTopologyControlPlaneMachineHealthCheckRemediationTemplate {
     /// API version of the referent.
     #[serde(
@@ -723,6 +726,7 @@ pub struct ClusterTopologyWorkersMachineDeploymentsMachineHealthCheck {
 /// creates a new object from the template referenced and hands off remediation of the machine to
 /// a controller that lives outside of Cluster API.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
+#[allow(dead_code)]
 pub struct ClusterTopologyWorkersMachineDeploymentsMachineHealthCheckRemediationTemplate {
     /// API version of the referent.
     #[serde(

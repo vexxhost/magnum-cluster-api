@@ -30,6 +30,7 @@ pub struct BootVolumeConfig {
 }
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
+#[allow(dead_code)]
 pub struct FeatureValues {
     #[serde(rename = "bootVolume")]
     pub boot_volume: BootVolumeConfig,

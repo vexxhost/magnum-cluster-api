@@ -45,6 +45,7 @@ pub enum OperatingSystem {
 }
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
+#[allow(dead_code)]
 pub struct FeatureValues {
     #[serde(rename = "operatingSystem")]
     pub operating_system: OperatingSystem,
