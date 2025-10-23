@@ -381,7 +381,7 @@ class GoTemplateLarkParser:
 
             # Add text before this expression
             if match.start() > 0:
-                text = tmpl_str[pos : pos + match.start()]
+                text = tmpl_str[pos: pos + match.start()]
                 if text:
                     children.append(TextNode(text))
 
