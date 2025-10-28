@@ -1121,13 +1121,13 @@ class Cluster(ClusterBase):
                         {
                             "name": "systemdProxyConfig",
                             "value": base64.encode_as_text(
-                                utils.generate_systemd_proxy_config(self.cluster)
+                                utils.generate_systemd_proxy_config(self.cluster) or "#"
                             ),
                         },
                         {
                             "name": "aptProxyConfig",
                             "value": base64.encode_as_text(
-                                utils.generate_apt_proxy_config(self.cluster)
+                                utils.generate_apt_proxy_config(self.cluster) or "#"
                             ),
                         },
                         {

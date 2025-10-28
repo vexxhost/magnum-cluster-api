@@ -155,3 +155,249 @@ class TestExistingMutateMachineDeployment:
         else:
             assert md["replicas"] == self.node_group.node_count
             assert md["metadata"]["annotations"] == {}
+
+
+class TestClusterProxyConfiguration:
+    """
+    Test that proxy configuration values are properly handled when base64-encoded.
+
+    This test class addresses the fix for GitHub issue #790:
+    https://github.com/vexxhost/magnum-cluster-api/issues/790
+
+    The issue: When no proxy is configured, empty strings from proxy generation
+    functions get base64-encoded, creating invalid YAML that breaks CAPI validation.
+
+    The fix: Use "or '#'" fallback to ensure a harmless comment character is
+    encoded instead of an empty string when no proxy is configured.
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup(self, context, mocker):
+        """Setup test fixtures for proxy configuration tests."""
+        self.context = context
+        self.cluster = utils.get_test_cluster(context, labels={})
+        self.cluster.cluster_template = utils.get_test_cluster_template(context)
+        self.cluster.stack_id = "test-cluster-stack-id"
+
+        # Mock API clients
+        self.api = mocker.Mock()
+        self.pykube_api = mocker.Mock()
+
+        # Mock OpenStack API
+        mock_osc = mocker.patch("magnum_cluster_api.clients.get_openstack_api")
+        self.mock_osc_instance = mock_osc.return_value
+
+        # Mock Cinder volume types
+        mock_volume_type = mocker.Mock()
+        mock_volume_type.name = "default"
+        self.mock_osc_instance.cinder().volume_types.default.return_value = (
+            mock_volume_type
+        )
+
+        # Mock Nova flavor lookup
+        mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
+        mock_lookup_flavor.return_value = flavors.Flavor(
+            None,
+            {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
+        )
+
+        # Mock Glance image lookup
+        mock_lookup_image = mocker.patch("magnum_cluster_api.utils.lookup_image")
+        mock_lookup_image.return_value = {"id": "fake-image-id", "hw_disk_bus": "scsi"}
+
+        # Mock Neutron network
+        mock_neutron = mocker.patch("magnum.common.neutron")
+        mock_neutron.get_external_network_id.return_value = "fake-network-id"
+        mock_neutron.get_fixed_subnet_id.return_value = "fake-subnet-id"
+
+        # Mock server groups
+        mocker.patch(
+            "magnum_cluster_api.utils.ensure_controlplane_server_group",
+            return_value="fake-server-group-id",
+        )
+
+    def test_cluster_without_proxy_configuration(self, mocker):
+        """
+        Test that clusters without proxy configuration get comment fallback.
+
+        When no proxy is configured:
+        - generate_systemd_proxy_config() returns ""
+        - generate_apt_proxy_config() returns ""
+        - The fix ensures "#" is encoded instead of ""
+        """
+        # Setup cluster without proxy
+        self.cluster.cluster_template.http_proxy = None
+        self.cluster.cluster_template.https_proxy = None
+        self.cluster.cluster_template.no_proxy = None
+
+        # Mock the proxy generation functions to return empty strings
+        mock_systemd_proxy = mocker.patch(
+            "magnum_cluster_api.utils.generate_systemd_proxy_config",
+            return_value="",
+        )
+        mock_apt_proxy = mocker.patch(
+            "magnum_cluster_api.utils.generate_apt_proxy_config", return_value=""
+        )
+
+        # Create Cluster resource
+        cluster_resource = resources.Cluster(
+            self.context, self.api, self.pykube_api, self.cluster
+        )
+        cluster_obj = cluster_resource.get_object()
+
+        # Verify proxy generation functions were called
+        mock_systemd_proxy.assert_called_once_with(self.cluster)
+        mock_apt_proxy.assert_called_once_with(self.cluster)
+
+        # Extract the proxy config variables from the cluster spec
+        variables = cluster_obj["spec"]["topology"]["variables"]
+        systemd_proxy_var = next(
+            v for v in variables if v["name"] == "systemdProxyConfig"
+        )
+        apt_proxy_var = next(v for v in variables if v["name"] == "aptProxyConfig")
+
+        # Import base64 for decoding
+        from oslo_serialization import base64
+
+        # Decode the base64 values
+        systemd_decoded = base64.decode_as_text(systemd_proxy_var["value"])
+        apt_decoded = base64.decode_as_text(apt_proxy_var["value"])
+
+        # Assert: When empty string is returned, fallback to "#" is used
+        # The decoded value should be "#" (comment character) not ""
+        assert systemd_decoded == "#", (
+            f"Expected '#' but got '{systemd_decoded}'. "
+            "Empty proxy config should fallback to comment character."
+        )
+        assert apt_decoded == "#", (
+            f"Expected '#' but got '{apt_decoded}'. "
+            "Empty proxy config should fallback to comment character."
+        )
+
+    def test_cluster_with_proxy_configuration(self, mocker):
+        """
+        Test that clusters with proxy configuration use actual proxy values.
+
+        When proxy is configured:
+        - generate_systemd_proxy_config() returns systemd configuration
+        - generate_apt_proxy_config() returns apt configuration
+        - The actual configuration should be base64-encoded (not the fallback)
+        """
+        # Setup cluster with proxy
+        self.cluster.cluster_template.http_proxy = "http://proxy.example.com:3128"
+        self.cluster.cluster_template.https_proxy = "https://proxy.example.com:3128"
+        self.cluster.cluster_template.no_proxy = "localhost,127.0.0.1"
+
+        # Expected proxy configurations (matching what utils.py generates)
+        expected_systemd_config = (
+            "[Service]\n"
+            'Environment="http_proxy=http://proxy.example.com:3128"\n'
+            'Environment="HTTP_PROXY=http://proxy.example.com:3128"\n'
+            'Environment="https_proxy=https://proxy.example.com:3128"\n'
+            'Environment="HTTPS_PROXY=https://proxy.example.com:3128"\n'
+            'Environment="no_proxy=localhost,127.0.0.1"\n'
+            'Environment="NO_PROXY=localhost,127.0.0.1"\n'
+        )
+
+        expected_apt_config = (
+            'Acquire::http::Proxy "http://proxy.example.com:3128";\n'
+            'Acquire::https::Proxy "https://proxy.example.com:3128";\n'
+        )
+
+        # Mock the proxy generation functions to return real configurations
+        mock_systemd_proxy = mocker.patch(
+            "magnum_cluster_api.utils.generate_systemd_proxy_config",
+            return_value=expected_systemd_config,
+        )
+        mock_apt_proxy = mocker.patch(
+            "magnum_cluster_api.utils.generate_apt_proxy_config",
+            return_value=expected_apt_config,
+        )
+
+        # Create Cluster resource
+        cluster_resource = resources.Cluster(
+            self.context, self.api, self.pykube_api, self.cluster
+        )
+        cluster_obj = cluster_resource.get_object()
+
+        # Verify proxy generation functions were called
+        mock_systemd_proxy.assert_called_once_with(self.cluster)
+        mock_apt_proxy.assert_called_once_with(self.cluster)
+
+        # Extract the proxy config variables
+        variables = cluster_obj["spec"]["topology"]["variables"]
+        systemd_proxy_var = next(
+            v for v in variables if v["name"] == "systemdProxyConfig"
+        )
+        apt_proxy_var = next(v for v in variables if v["name"] == "aptProxyConfig")
+
+        # Import base64 for decoding
+        from oslo_serialization import base64
+
+        # Decode the base64 values
+        systemd_decoded = base64.decode_as_text(systemd_proxy_var["value"])
+        apt_decoded = base64.decode_as_text(apt_proxy_var["value"])
+
+        # Assert: Actual proxy configurations are encoded (not the fallback)
+        assert systemd_decoded == expected_systemd_config, (
+            "Systemd proxy config should contain actual proxy settings when configured"
+        )
+        assert apt_decoded == expected_apt_config, (
+            "APT proxy config should contain actual proxy settings when configured"
+        )
+
+        # Assert: The fallback "#" should NOT be present
+        assert systemd_decoded != "#", "Should not use fallback when proxy is configured"
+        assert apt_decoded != "#", "Should not use fallback when proxy is configured"
+
+    def test_empty_string_never_encoded(self, mocker):
+        """
+        Critical test: Ensure empty strings are NEVER base64-encoded.
+
+        This is the core issue from GitHub #790:
+        - Empty strings break YAML parsing in CAPI
+        - Must always use "#" fallback for empty proxy configs
+        """
+        # Force empty string return from proxy functions
+        mocker.patch(
+            "magnum_cluster_api.utils.generate_systemd_proxy_config", return_value=""
+        )
+        mocker.patch(
+            "magnum_cluster_api.utils.generate_apt_proxy_config", return_value=""
+        )
+
+        # Create cluster without proxy
+        self.cluster.cluster_template.http_proxy = None
+        self.cluster.cluster_template.https_proxy = None
+
+        cluster_resource = resources.Cluster(
+            self.context, self.api, self.pykube_api, self.cluster
+        )
+        cluster_obj = cluster_resource.get_object()
+
+        # Extract variables
+        variables = cluster_obj["spec"]["topology"]["variables"]
+        systemd_proxy_var = next(
+            v for v in variables if v["name"] == "systemdProxyConfig"
+        )
+        apt_proxy_var = next(v for v in variables if v["name"] == "aptProxyConfig")
+
+        from oslo_serialization import base64
+
+        # Decode values
+        systemd_decoded = base64.decode_as_text(systemd_proxy_var["value"])
+        apt_decoded = base64.decode_as_text(apt_proxy_var["value"])
+
+        # CRITICAL ASSERTION: Must NEVER be empty string
+        assert systemd_decoded != "", (
+            "CRITICAL: Empty string must not be encoded. "
+            "This breaks CAPI YAML parsing. Must use '#' fallback."
+        )
+        assert apt_decoded != "", (
+            "CRITICAL: Empty string must not be encoded. "
+            "This breaks CAPI YAML parsing. Must use '#' fallback."
+        )
+
+        # Assert correct fallback is used
+        assert systemd_decoded == "#"
+        assert apt_decoded == "#"
