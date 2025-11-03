@@ -212,7 +212,6 @@ pub struct ClusterClassControlPlaneMachineHealthCheck {
 /// creates a new object from the template referenced and hands off remediation of the machine to
 /// a controller that lives outside of Cluster API.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-#[allow(dead_code)]
 pub struct ClusterClassControlPlaneMachineHealthCheckRemediationTemplate {
     /// API version of the referent.
     #[serde(
@@ -285,7 +284,6 @@ pub struct ClusterClassControlPlaneMachineInfrastructure {
 /// Ref is a required reference to a custom resource
 /// offered by a provider.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-#[allow(dead_code)]
 pub struct ClusterClassControlPlaneMachineInfrastructureRef {
     /// API version of the referent.
     #[serde(
@@ -371,7 +369,6 @@ pub struct ClusterClassControlPlaneNamingStrategy {
 /// Ref is a required reference to a custom resource
 /// offered by a provider.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-#[allow(dead_code)]
 pub struct ClusterClassControlPlaneRef {
     /// API version of the referent.
     #[serde(
@@ -432,7 +429,6 @@ pub struct ClusterClassInfrastructure {
 /// Ref is a required reference to a custom resource
 /// offered by a provider.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-#[allow(dead_code)]
 pub struct ClusterClassInfrastructureRef {
     /// API version of the referent.
     #[serde(
@@ -1167,7 +1163,6 @@ pub struct ClusterClassWorkersMachineDeploymentsMachineHealthCheck {
 /// creates a new object from the template referenced and hands off remediation of the machine to
 /// a controller that lives outside of Cluster API.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-#[allow(dead_code)]
 pub struct ClusterClassWorkersMachineDeploymentsMachineHealthCheckRemediationTemplate {
     /// API version of the referent.
     #[serde(
@@ -1387,7 +1382,6 @@ pub struct ClusterClassWorkersMachineDeploymentsTemplateBootstrap {
 /// Ref is a required reference to a custom resource
 /// offered by a provider.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-#[allow(dead_code)]
 pub struct ClusterClassWorkersMachineDeploymentsTemplateBootstrapRef {
     /// API version of the referent.
     #[serde(
@@ -1445,7 +1439,6 @@ pub struct ClusterClassWorkersMachineDeploymentsTemplateInfrastructure {
 /// Ref is a required reference to a custom resource
 /// offered by a provider.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-#[allow(dead_code)]
 pub struct ClusterClassWorkersMachineDeploymentsTemplateInfrastructureRef {
     /// API version of the referent.
     #[serde(
@@ -1621,7 +1614,6 @@ pub struct ClusterClassWorkersMachinePoolsTemplateBootstrap {
 /// Ref is a required reference to a custom resource
 /// offered by a provider.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-#[allow(dead_code)]
 pub struct ClusterClassWorkersMachinePoolsTemplateBootstrapRef {
     /// API version of the referent.
     #[serde(
@@ -1679,7 +1671,6 @@ pub struct ClusterClassWorkersMachinePoolsTemplateInfrastructure {
 /// Ref is a required reference to a custom resource
 /// offered by a provider.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-#[allow(dead_code)]
 pub struct ClusterClassWorkersMachinePoolsTemplateInfrastructureRef {
     /// API version of the referent.
     #[serde(

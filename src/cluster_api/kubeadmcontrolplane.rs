@@ -1614,7 +1614,6 @@ pub struct KubeadmControlPlaneMachineTemplate {
 /// infrastructureRef is a required reference to a custom resource
 /// offered by an infrastructure provider.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
-#[allow(dead_code)]
 pub struct KubeadmControlPlaneMachineTemplateInfrastructureRef {
     /// API version of the referent.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiVersion")]

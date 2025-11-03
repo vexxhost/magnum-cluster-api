@@ -1,4 +1,5 @@
 #![allow(clippy::all)]
+#![allow(dead_code)]
 pub mod clusterclasses;
 pub mod clusterresourcesets;
 pub mod clusters;
