@@ -13,6 +13,7 @@
 # under the License.
 
 import base64
+import functools
 import os
 import socket
 from datetime import datetime, timezone
@@ -48,6 +49,52 @@ class ProxyManager(periodic_task.PeriodicTasks):
         self.haproxy_bind = os.getenv("PROXY_BIND", "*")
         self.haproxy_pid = None
 
+    def _refresh_api_client(self):
+        """Refresh the Kubernetes API client to pick up new service account tokens."""
+        LOG.info("Refreshing Kubernetes API client")
+        self.api = clients.get_pykube_api()
+
+    def _is_auth_error(self, exception):
+        """Check if an exception is an authentication/authorization error."""
+        # Check for pykube HTTPError with 401 (Unauthorized) or 403 (Forbidden)
+        if isinstance(exception, pykube.exceptions.HTTPError):
+            return exception.code in (401, 403)
+        # Check for HTTPError with code attribute
+        if hasattr(exception, "code"):
+            return exception.code in (401, 403)
+        # Check for HTTPError in the exception message or string representation
+        error_str = str(exception).lower()
+        return (
+            "401" in error_str
+            or "403" in error_str
+            or "unauthorized" in error_str
+            or "forbidden" in error_str
+        )
+
+    @staticmethod
+    def _handle_auth_error(func):
+        """
+        Decorator to handle authentication errors and refresh the API client.
+        """
+
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except Exception as e:
+                if self._is_auth_error(e):
+                    LOG.warning(
+                        "Authentication error detected in %s, refreshing API client: %s",
+                        func.__name__,
+                        e,
+                    )
+                    self._refresh_api_client()
+                    # Retry once with the new client
+                    return func(self, *args, **kwargs)
+                raise
+
+        return wrapper
+
     def periodic_tasks(self, context, raise_on_error=False):
         return self.run_periodic_tasks(context, raise_on_error=raise_on_error)
 
@@ -78,6 +125,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
         # Update checksum
         self.checksum = hash(config)
 
+    @_handle_auth_error
     def _sync_services(self, proxied_clusters: list, openstack_clusters: list):
         labels = {
             structs.ProxiedCluster.SERVICE_LABEL: "true",
@@ -154,6 +202,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
                 service.obj["spec"]["ports"] = ports
                 service.update()
 
+    @_handle_auth_error
     def _sync_endpoint_slices(self, proxied_clusters: list):
         hostname = socket.gethostname()
 
@@ -275,6 +324,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
                 LOG.info("Updating EndpointSlice %s", endpoint_slice.name)
                 endpoint_slice.update()
 
+    @_handle_auth_error
     def _sync_kubeconfigs(self, proxied_clusters: list):
         for cluster in proxied_clusters:
             # NOTE(mnaser): We only modify the `kubeconfig` if the cluster does
@@ -311,6 +361,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
             ).decode("utf-8")
             secret.update()
 
+    @_handle_auth_error
     def _cleanup_endpoint_slices(self):
         # Get list of all endpoint slices managed by the proxy service
         endpoint_slices = objects.EndpointSlice.objects(
@@ -330,6 +381,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
                 endpoint_slice.delete()
 
     @periodic_task.periodic_task(spacing=10, run_immediately=True)
+    @_handle_auth_error
     def sync(self, context):
         # Generate list of all clusters
         clusters = objects.OpenStackCluster.objects(
