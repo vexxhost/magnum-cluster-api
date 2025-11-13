@@ -13,6 +13,7 @@
 # under the License.
 
 import abc
+import copy
 import glob
 import math
 import os
@@ -37,6 +38,7 @@ from oslo_utils import encodeutils  # type: ignore
 
 from magnum_cluster_api import (
     clients,
+    exceptions,
     helm,
     image_utils,
     images,
@@ -1333,3 +1335,161 @@ def get_kubeadm_control_plane(
     if len(kcps) == 1:
         return list(kcps)[0]
     return None
+
+
+def force_patch_openstack_cluster(
+    pykube_api: pykube.HTTPClient,
+    cluster: magnum_objects.Cluster,
+) -> None:
+    """
+    Force patch the OpenStackCluster's apiServerLoadBalancer spec.
+
+    If the force patch fails due to CAPO's admission webhook, we remove finalizers,
+    delete the existing OpenStackCluster, and create a new one with the updated spec.
+    """
+
+    try:
+        capi_cluster = objects.Cluster.for_magnum_cluster(pykube_api, cluster)
+    except pykube.exceptions.ObjectDoesNotExist:
+        # Cluster not created yet
+        return
+
+    try:
+        openstack_cluster = capi_cluster.openstack_cluster
+    except exceptions.OpenStackClusterNotCreated:
+        return
+
+    api_server_load_balancer = {
+        "enabled": cluster.master_lb_enabled,
+        "provider": cluster.labels.get("octavia_provider", "amphora"),
+        "availabilityZone": cluster.labels.get("api_server_lb_availability_zone", ""),
+        "flavor": cluster.labels.get("api_server_lb_flavor", ""),
+    }
+
+    # Create a minimal object with only the fields we want to manage
+    # With server-side apply, only these fields will be updated
+    patch_obj = {
+        "apiVersion": openstack_cluster.version,
+        "kind": openstack_cluster.kind,
+        "metadata": {
+            "name": openstack_cluster.name,
+            "namespace": openstack_cluster.namespace,
+        },
+        "spec": {
+            "apiServerLoadBalancer": api_server_load_balancer,
+        },
+    }
+
+    # Create a temporary resource object for the patch
+    patch_resource = objects.OpenStackCluster(pykube_api, patch_obj)
+
+    try:
+        utils.kube_apply_patch(patch_resource)
+    except pykube.exceptions.HTTPError as e:
+        # If the patch fails due to admission webhook (403 Forbidden), delete and recreate
+        if e.code != 422:
+            raise
+        error_msg = str(e).lower()
+        if (
+            "forbidden" in error_msg
+            or "admission" in error_msg
+            or "cannot be modified" in error_msg
+        ):
+            # Reload to get the latest state
+            openstack_cluster.reload()
+
+            # Save the existing spec and metadata before deletion
+            existing_spec = copy.deepcopy(openstack_cluster.obj.get("spec", {}))
+            existing_metadata = copy.deepcopy(openstack_cluster.obj.get("metadata", {}))
+            cluster_name = openstack_cluster.name
+            cluster_namespace = openstack_cluster.namespace
+            cluster_version = openstack_cluster.version
+            cluster_kind = openstack_cluster.kind
+
+            # Delete the existing OpenStackCluster first
+            openstack_cluster.delete()
+
+            # Wait for deletionTimestamp to be added to metadata
+            import time
+
+            for _ in range(30):  # Wait up to 30 seconds
+                try:
+                    openstack_cluster.reload()
+                    if "deletionTimestamp" in openstack_cluster.obj.get("metadata", {}):
+                        break
+                    time.sleep(1)
+                except pykube.exceptions.HTTPError as e:
+                    # Already deleted (404) or not found, skip to creation
+                    if e.code != 404:
+                        raise
+                    # Object is already deleted, skip to creation
+                    break
+            else:
+                # Timeout waiting for deletionTimestamp
+                raise Exception("Timeout waiting for deletionTimestamp")
+
+            # Now remove finalizers so deletion can proceed
+            # Reload to get the latest state with deletionTimestamp
+            try:
+                openstack_cluster.reload()
+                finalizers = openstack_cluster.obj.get("metadata", {}).get(
+                    "finalizers", []
+                )
+                if finalizers:
+                    # Use a JSON patch to remove finalizers
+                    import json
+
+                    patch = [
+                        {
+                            "op": "replace",
+                            "path": "/metadata/finalizers",
+                            "value": [],
+                        }
+                    ]
+                    resp = openstack_cluster.api.patch(
+                        **openstack_cluster.api_kwargs(
+                            headers={"Content-Type": "application/json-patch+json"},
+                            data=json.dumps(patch),
+                        )
+                    )
+                    openstack_cluster.api.raise_for_status(resp)
+            except pykube.exceptions.HTTPError as e:
+                # Already deleted or not found (404), continue
+                if e.code != 404:
+                    raise
+                # Object is already deleted, continue
+                pass
+
+            # Wait for actual deletion to complete
+            for _ in range(30):  # Wait up to 30 seconds
+                try:
+                    openstack_cluster.reload()
+                    time.sleep(1)
+                except pykube.exceptions.HTTPError as e:
+                    # Object is deleted (404) or not found
+                    if e.code != 404:
+                        raise
+                    # Object is deleted, break
+                    break
+
+            # Create a new OpenStackCluster with updated spec
+            # Copy the existing spec but update apiServerLoadBalancer
+            new_spec = existing_spec
+            new_spec["apiServerLoadBalancer"] = api_server_load_balancer
+
+            new_obj = {
+                "apiVersion": cluster_version,
+                "kind": cluster_kind,
+                "metadata": {
+                    "name": cluster_name,
+                    "namespace": cluster_namespace,
+                    "labels": existing_metadata.get("labels", {}),
+                    "ownerReferences": existing_metadata.get("ownerReferences", []),
+                },
+                "spec": new_spec,
+            }
+
+            new_cluster = objects.OpenStackCluster(pykube_api, new_obj)
+            new_cluster.create()
+        else:
+            raise

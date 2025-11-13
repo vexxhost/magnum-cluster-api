@@ -120,7 +120,7 @@ class BaseDriver(driver.Driver):
             cluster,
             skip_auto_scaling_release=True,
         )
-        resources.Cluster(context, self.kube_client, self.k8s_api, cluster).apply(),
+        resources.Cluster(context, self.kube_client, self.k8s_api, cluster).apply()
 
     def _get_cluster_status_reason(self, capi_cluster):
         capi_cluster_status_reason = ""
@@ -413,6 +413,9 @@ class BaseDriver(driver.Driver):
                 context, self.kube_client, self.k8s_api, cluster
             ).get_object(),
         )
+
+        # NOTE(okozachenko): recreate OpenStackCluster if patch fails due to immutable fields
+        resources.force_patch_openstack_cluster(self.k8s_api, cluster)
 
         # NOTE(mnaser): We do not save the cluster object here because the Magnum driver
         #               will save the object that it passed to us here.
