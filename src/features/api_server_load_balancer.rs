@@ -27,13 +27,13 @@ pub struct APIServerLoadBalancerConfig {
 
     pub provider: String,
 
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "str::is_empty")]
     #[builder(default)]
-    pub flavor: Option<String>,
+    pub flavor: String,
 
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "availabilityZone")]
+    #[serde(default, skip_serializing_if = "str::is_empty", rename = "availabilityZone")]
     #[builder(default)]
-    pub availability_zone: Option<String>,
+    pub availability_zone: String,
 }
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
