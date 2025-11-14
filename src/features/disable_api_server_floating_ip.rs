@@ -20,6 +20,7 @@ use kube::CustomResourceExt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
+#[allow(dead_code)]
 pub struct FeatureValues {
     #[serde(rename = "disableAPIServerFloatingIP")]
     pub disable_api_server_floating_ip: bool,

@@ -23,6 +23,7 @@ use kube::CustomResourceExt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
+#[allow(dead_code)]
 pub struct FeatureValues {
     #[serde(rename = "apiServerTLSCipherSuites")]
     pub api_server_tls_cipher_suites: String,

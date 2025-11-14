@@ -381,7 +381,7 @@ class GoTemplateLarkParser:
 
             # Add text before this expression
             if match.start() > 0:
-                text = tmpl_str[pos : pos + match.start()]
+                text = tmpl_str[pos : pos + match.start()]  # noqa: E203
                 if text:
                     children.append(TextNode(text))
 
@@ -397,9 +397,7 @@ class GoTemplateLarkParser:
 
                 while depth > 0 and search_pos < len(tmpl_str):
                     next_if = re.search(r"\{\{\s*if\s+", tmpl_str[search_pos:])
-                    next_end = re.search(
-                        r"\{\{\s*end\s*\}\}", tmpl_str[search_pos:]
-                    )
+                    next_end = re.search(r"\{\{\s*end\s*\}\}", tmpl_str[search_pos:])
 
                     if next_end:
                         if next_if and next_if.start() < next_end.start():

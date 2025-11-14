@@ -34,6 +34,7 @@ pub struct APIServerLoadBalancerConfig {
 }
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
+#[allow(dead_code)]
 pub struct FeatureValues {
     #[serde(rename = "apiServerLoadBalancer")]
     pub api_server_load_balancer: APIServerLoadBalancerConfig,
