@@ -13,7 +13,6 @@
 # under the License.
 
 import base64
-import functools
 import os
 import socket
 from datetime import datetime, timezone
@@ -37,7 +36,6 @@ class ProxyManager(periodic_task.PeriodicTasks):
     def __init__(self):
         super(ProxyManager, self).__init__(CONF)
 
-        self.api = clients.get_pykube_api()
         self.checksum = None
         self.template = jinja2.Environment(
             loader=jinja2.PackageLoader("magnum_cluster_api.proxy"),
@@ -48,52 +46,6 @@ class ProxyManager(periodic_task.PeriodicTasks):
         )
         self.haproxy_bind = os.getenv("PROXY_BIND", "*")
         self.haproxy_pid = None
-
-    def _refresh_api_client(self):
-        """Refresh the Kubernetes API client to pick up new service account tokens."""
-        LOG.info("Refreshing Kubernetes API client")
-        self.api = clients.get_pykube_api()
-
-    def _is_auth_error(self, exception):
-        """Check if an exception is an authentication/authorization error."""
-        # Check for pykube HTTPError with 401 (Unauthorized) or 403 (Forbidden)
-        if isinstance(exception, pykube.exceptions.HTTPError):
-            return exception.code in (401, 403)
-        # Check for HTTPError with code attribute
-        if hasattr(exception, "code"):
-            return exception.code in (401, 403)
-        # Check for HTTPError in the exception message or string representation
-        error_str = str(exception).lower()
-        return (
-            "401" in error_str
-            or "403" in error_str
-            or "unauthorized" in error_str
-            or "forbidden" in error_str
-        )
-
-    @staticmethod
-    def _handle_auth_error(func):
-        """
-        Decorator to handle authentication errors and refresh the API client.
-        """
-
-        @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
-            try:
-                return func(self, *args, **kwargs)
-            except Exception as e:
-                if self._is_auth_error(e):
-                    LOG.warning(
-                        "Authentication error detected in %s, refreshing API client: %s",
-                        func.__name__,
-                        e,
-                    )
-                    self._refresh_api_client()
-                    # Retry once with the new client
-                    return func(self, *args, **kwargs)
-                raise
-
-        return wrapper
 
     def periodic_tasks(self, context, raise_on_error=False):
         return self.run_periodic_tasks(context, raise_on_error=raise_on_error)
@@ -125,14 +77,15 @@ class ProxyManager(periodic_task.PeriodicTasks):
         # Update checksum
         self.checksum = hash(config)
 
-    @_handle_auth_error
-    def _sync_services(self, proxied_clusters: list, openstack_clusters: list):
+    def _sync_services(
+        self, api: pykube.HTTPClient, proxied_clusters: list, openstack_clusters: list
+    ):
         labels = {
             structs.ProxiedCluster.SERVICE_LABEL: "true",
         }
 
         # Get all services
-        services = pykube.Service.objects(self.api, namespace="magnum-system").filter(
+        services = pykube.Service.objects(api, namespace="magnum-system").filter(
             selector=labels
         )
 
@@ -166,16 +119,16 @@ class ProxyManager(periodic_task.PeriodicTasks):
             service_name = cluster.name
 
             try:
-                service = pykube.Service.objects(
-                    self.api, namespace="magnum-system"
-                ).get(name=service_name)
+                service = pykube.Service.objects(api, namespace="magnum-system").get(
+                    name=service_name
+                )
             except pykube.exceptions.ObjectDoesNotExist:
                 LOG.info(
                     "Creating service %s",
                     service_name,
                 )
                 pykube.objects.Service(
-                    self.api,
+                    api,
                     {
                         "apiVersion": pykube.Service.version,
                         "kind": pykube.Service.kind,
@@ -189,9 +142,9 @@ class ProxyManager(periodic_task.PeriodicTasks):
                         },
                     },
                 ).create()
-                service = pykube.Service.objects(
-                    self.api, namespace="magnum-system"
-                ).get(name=service_name)
+                service = pykube.Service.objects(api, namespace="magnum-system").get(
+                    name=service_name
+                )
 
             if (
                 service.metadata["labels"] != labels
@@ -202,13 +155,12 @@ class ProxyManager(periodic_task.PeriodicTasks):
                 service.obj["spec"]["ports"] = ports
                 service.update()
 
-    @_handle_auth_error
-    def _sync_endpoint_slices(self, proxied_clusters: list):
+    def _sync_endpoint_slices(self, api: pykube.HTTPClient, proxied_clusters: list):
         hostname = socket.gethostname()
 
         # Get list of all endpoint slices assigned to this host
         endpoint_slices_for_host = objects.EndpointSlice.objects(
-            self.api, namespace="magnum-system"
+            api, namespace="magnum-system"
         ).filter(selector={structs.ProxiedCluster.NODE_LABEL: hostname})
 
         # Get list of all endpoint slices that are supposed to exist
@@ -247,14 +199,14 @@ class ProxyManager(periodic_task.PeriodicTasks):
 
             try:
                 endpoint_slice = objects.EndpointSlice.objects(
-                    self.api, namespace="magnum-system"
+                    api, namespace="magnum-system"
                 ).get(name=proxied_cluster.endpoint_slice_name)
             except pykube.exceptions.ObjectDoesNotExist:
                 LOG.info(
                     "Creating EndpointSlice %s", proxied_cluster.endpoint_slice_name
                 )
                 objects.EndpointSlice(
-                    self.api,
+                    api,
                     {
                         "apiVersion": objects.EndpointSlice.version,
                         "kind": objects.EndpointSlice.kind,
@@ -270,7 +222,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
                     },
                 ).create()
                 endpoint_slice = objects.EndpointSlice.objects(
-                    self.api, namespace="magnum-system"
+                    api, namespace="magnum-system"
                 ).get(name=proxied_cluster.endpoint_slice_name)
 
             # NOTE(mnaser): We always update the annotations since it contains the timestamp
@@ -324,8 +276,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
                 LOG.info("Updating EndpointSlice %s", endpoint_slice.name)
                 endpoint_slice.update()
 
-    @_handle_auth_error
-    def _sync_kubeconfigs(self, proxied_clusters: list):
+    def _sync_kubeconfigs(self, api: pykube.HTTPClient, proxied_clusters: list):
         for cluster in proxied_clusters:
             # NOTE(mnaser): We only modify the `kubeconfig` if the cluster does
             #               not have a floating IP enabled.
@@ -333,7 +284,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
 
             # Get the kubeconfig secret
             try:
-                secret = pykube.Secret.objects(self.api, namespace="magnum-system").get(
+                secret = pykube.Secret.objects(api, namespace="magnum-system").get(
                     name=cluster.kubeconfig_secret_name
                 )
             except pykube.exceptions.ObjectDoesNotExist:
@@ -361,11 +312,10 @@ class ProxyManager(periodic_task.PeriodicTasks):
             ).decode("utf-8")
             secret.update()
 
-    @_handle_auth_error
-    def _cleanup_endpoint_slices(self):
+    def _cleanup_endpoint_slices(self, api: pykube.HTTPClient):
         # Get list of all endpoint slices managed by the proxy service
         endpoint_slices = objects.EndpointSlice.objects(
-            self.api, namespace="magnum-system"
+            api, namespace="magnum-system"
         ).filter(selector={structs.ProxiedCluster.SERVICE_LABEL: "true"})
 
         # Look if any of the endpoint slices should be expired (aka >30s age)
@@ -381,11 +331,12 @@ class ProxyManager(periodic_task.PeriodicTasks):
                 endpoint_slice.delete()
 
     @periodic_task.periodic_task(spacing=10, run_immediately=True)
-    @_handle_auth_error
     def sync(self, context):
+        api = clients.get_pykube_api()
+
         # Generate list of all clusters
         clusters = objects.OpenStackCluster.objects(
-            self.api, namespace="magnum-system"
+            api, namespace="magnum-system"
         ).all()
 
         # Generate list of proxied clusters
@@ -396,7 +347,7 @@ class ProxyManager(periodic_task.PeriodicTasks):
                 proxied_clusters.append(proxied_cluster)
 
         self._sync_haproxy(proxied_clusters)
-        self._sync_services(proxied_clusters, clusters)
-        self._sync_endpoint_slices(proxied_clusters)
-        self._sync_kubeconfigs(proxied_clusters)
-        self._cleanup_endpoint_slices()
+        self._sync_services(api, proxied_clusters, clusters)
+        self._sync_endpoint_slices(api, proxied_clusters)
+        self._sync_kubeconfigs(api, proxied_clusters)
+        self._cleanup_endpoint_slices(api)
