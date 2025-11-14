@@ -92,8 +92,8 @@ mod tests {
         values.api_server_load_balancer = APIServerLoadBalancerConfig::builder()
             .enabled(true)
             .provider("octavia".to_string())
-            .flavor(Some("ha".to_string()))
-            .availability_zone(Some("zone-1".to_string()))
+            .flavor("ha".to_string())
+            .availability_zone("zone-1".to_string())
             .build();
 
         let patches = feature.patches();
@@ -119,11 +119,11 @@ mod tests {
         );
         assert_eq!(
             api_server_load_balancer.flavor,
-            values.api_server_load_balancer.flavor
+            Some(values.api_server_load_balancer.flavor)
         );
         assert_eq!(
             api_server_load_balancer.availability_zone,
-            values.api_server_load_balancer.availability_zone
+            Some(values.api_server_load_balancer.availability_zone)
         );
     }
 
@@ -135,8 +135,8 @@ mod tests {
         values.api_server_load_balancer = APIServerLoadBalancerConfig::builder()
             .enabled(true)
             .provider("octavia".to_string())
-            .flavor(None)
-            .availability_zone(None)
+            .flavor("".to_string())
+            .availability_zone("".to_string())
             .build();
 
         let patches = feature.patches();
