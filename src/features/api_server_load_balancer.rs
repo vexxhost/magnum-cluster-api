@@ -27,10 +27,13 @@ pub struct APIServerLoadBalancerConfig {
 
     pub provider: String,
 
-    pub flavor: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
+    pub flavor: Option<String>,
 
-    #[serde(rename = "availabilityZone")]
-    pub availability_zone: String,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "availabilityZone")]
+    #[builder(default)]
+    pub availability_zone: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
@@ -89,8 +92,8 @@ mod tests {
         values.api_server_load_balancer = APIServerLoadBalancerConfig::builder()
             .enabled(true)
             .provider("octavia".to_string())
-            .flavor("ha".to_string())
-            .availability_zone("zone-1".to_string())
+            .flavor(Some("ha".to_string()))
+            .availability_zone(Some("zone-1".to_string()))
             .build();
 
         let patches = feature.patches();
@@ -116,11 +119,48 @@ mod tests {
         );
         assert_eq!(
             api_server_load_balancer.flavor,
-            Some(values.api_server_load_balancer.flavor)
+            values.api_server_load_balancer.flavor
         );
         assert_eq!(
             api_server_load_balancer.availability_zone,
-            Some(values.api_server_load_balancer.availability_zone)
+            values.api_server_load_balancer.availability_zone
         );
+    }
+
+    #[test]
+    fn test_patches_with_none_values() {
+        let feature = Feature {};
+
+        let mut values = default_values();
+        values.api_server_load_balancer = APIServerLoadBalancerConfig::builder()
+            .enabled(true)
+            .provider("octavia".to_string())
+            .flavor(None)
+            .availability_zone(None)
+            .build();
+
+        let patches = feature.patches();
+
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
+
+        let api_server_load_balancer = resources
+            .openstack_cluster_template
+            .spec
+            .template
+            .spec
+            .api_server_load_balancer
+            .expect("apiServerLoadBalancer should be set");
+
+        assert_eq!(
+            api_server_load_balancer.enabled,
+            values.api_server_load_balancer.enabled
+        );
+        assert_eq!(
+            api_server_load_balancer.provider,
+            Some(values.api_server_load_balancer.provider)
+        );
+        assert_eq!(api_server_load_balancer.flavor, None);
+        assert_eq!(api_server_load_balancer.availability_zone, None);
     }
 }

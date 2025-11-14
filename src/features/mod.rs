@@ -89,6 +89,95 @@ pub struct ClusterFeatureEntry {
 
 inventory::collect!(ClusterFeatureEntry);
 
+/// Recursively fixes JSON schemas to be compatible with Kubernetes ClusterClass.
+///
+/// When schemars generates schemas for `Option<T>`, it creates `type: ["T", "null"]`.
+/// This function:
+/// - Converts type arrays to just the non-null type (e.g., `["string", "null"]` → `"string"`)
+/// - For object schemas, ensures optional fields (those with nullable types) are not in `required`
+fn fix_type_arrays(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            // For object types, ensure optional fields (with nullable types) are not in required array
+            // This must be done BEFORE we convert the type arrays
+            // We need to collect the field names to remove first to avoid borrow conflicts
+            let fields_to_remove = if let Some(serde_json::Value::Object(properties)) = map.get("properties") {
+                if let Some(serde_json::Value::Array(required)) = map.get("required") {
+                    // Collect field names that have nullable types (type is an array containing "null")
+                    required
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, req_field)| {
+                            if let serde_json::Value::String(field_name) = req_field {
+                                if let Some(serde_json::Value::Object(prop_schema)) = properties.get(field_name) {
+                                    // Check if this property has a nullable type (was Option<T>)
+                                    if let Some(serde_json::Value::Array(arr)) = prop_schema.get("type") {
+                                        // If the array contains "null", it's an optional field
+                                        if arr.iter().any(|v| {
+                                            if let serde_json::Value::String(s) = v {
+                                                s == "null"
+                                            } else {
+                                                false
+                                            }
+                                        }) {
+                                            return Some(i);
+                                        }
+                                    }
+                                }
+                            }
+                            None
+                        })
+                        .collect::<Vec<usize>>()
+                } else {
+                    Vec::new()
+                }
+            } else {
+                Vec::new()
+            };
+
+            // Now remove the fields from required array (we have mutable access now)
+            if !fields_to_remove.is_empty() {
+                if let Some(serde_json::Value::Array(required)) = map.get_mut("required") {
+                    // Remove in reverse order to maintain indices
+                    for &i in fields_to_remove.iter().rev() {
+                        required.remove(i);
+                    }
+                }
+            }
+
+            // Fix type arrays - convert ["T", "null"] to "T"
+            if let Some(type_value) = map.get_mut("type") {
+                if let serde_json::Value::Array(arr) = type_value {
+                    // Find the first non-null type (works for any type: string, boolean, integer, number, etc.)
+                    if let Some(non_null_type) = arr.iter().find(|v| {
+                        if let serde_json::Value::String(s) = v {
+                            s != "null"
+                        } else {
+                            false
+                        }
+                    }) {
+                        *type_value = non_null_type.clone();
+                    } else if !arr.is_empty() {
+                        // If all are null or no string found, use the first element
+                        *type_value = arr[0].clone();
+                    }
+                }
+            }
+
+            // Recursively process nested objects and arrays
+            for v in map.values_mut() {
+                fix_type_arrays(v);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                fix_type_arrays(v);
+            }
+        }
+        _ => {}
+    }
+}
+
 pub trait ClusterClassVariablesSchemaExt {
     fn from_object<T: JsonSchema>() -> Self;
     fn from_root_schema(root_schema: schemars::schema::RootSchema) -> Self;
@@ -102,10 +191,26 @@ impl ClusterClassVariablesSchemaExt for ClusterClassVariablesSchema {
     }
 
     fn from_root_schema(root_schema: schemars::schema::RootSchema) -> Self {
-        let json_schema = serde_json::to_string(&root_schema).unwrap();
+        let mut json_schema = serde_json::to_value(&root_schema).unwrap();
+
+        // Recursively fix type arrays (e.g., ["string", "null"]) to just the non-null type (e.g., "string")
+        fix_type_arrays(&mut json_schema);
+
+        // Extract the schema field from RootSchema if it exists, otherwise use the whole object
+        let schema_value = if let serde_json::Value::Object(map) = &json_schema {
+            if let Some(schema) = map.get("schema") {
+                schema.clone()
+            } else {
+                json_schema
+            }
+        } else {
+            json_schema
+        };
+
+        let json_schema_str = serde_json::to_string(&schema_value).unwrap();
 
         ClusterClassVariablesSchema {
-            open_apiv3_schema: serde_json::from_str(&json_schema).unwrap(),
+            open_apiv3_schema: serde_json::from_str(&json_schema_str).unwrap(),
         }
     }
 }

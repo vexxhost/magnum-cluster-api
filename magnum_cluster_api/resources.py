@@ -995,11 +995,16 @@ class Cluster(ClusterBase):
         api_server_load_balancer = {
             "enabled": self.cluster.master_lb_enabled,
             "provider": self.cluster.labels.get("octavia_provider", "amphora"),
-            "availabilityZone": self.cluster.labels.get(
-                "api_server_lb_availability_zone", ""
-            ),
-            "flavor": self.cluster.labels.get("api_server_lb_flavor", ""),
         }
+
+        # Only add optional fields if they are not None
+        availability_zone = self.cluster.labels.get("api_server_lb_availability_zone")
+        if availability_zone is not None:
+            api_server_load_balancer["availabilityZone"] = availability_zone
+
+        flavor = self.cluster.labels.get("api_server_lb_flavor")
+        if flavor is not None:
+            api_server_load_balancer["flavor"] = flavor
 
         return {
             "metadata": {
