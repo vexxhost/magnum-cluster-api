@@ -27,9 +27,12 @@ pub struct APIServerLoadBalancerConfig {
 
     pub provider: String,
 
+    #[serde(default, skip_serializing_if = "str::is_empty")]
+    #[builder(default)]
     pub flavor: String,
 
-    #[serde(rename = "availabilityZone")]
+    #[serde(default, skip_serializing_if = "str::is_empty", rename = "availabilityZone")]
+    #[builder(default)]
     pub availability_zone: String,
 }
 
@@ -122,5 +125,42 @@ mod tests {
             api_server_load_balancer.availability_zone,
             Some(values.api_server_load_balancer.availability_zone)
         );
+    }
+
+    #[test]
+    fn test_patches_with_none_values() {
+        let feature = Feature {};
+
+        let mut values = default_values();
+        values.api_server_load_balancer = APIServerLoadBalancerConfig::builder()
+            .enabled(true)
+            .provider("octavia".to_string())
+            .flavor("".to_string())
+            .availability_zone("".to_string())
+            .build();
+
+        let patches = feature.patches();
+
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
+
+        let api_server_load_balancer = resources
+            .openstack_cluster_template
+            .spec
+            .template
+            .spec
+            .api_server_load_balancer
+            .expect("apiServerLoadBalancer should be set");
+
+        assert_eq!(
+            api_server_load_balancer.enabled,
+            values.api_server_load_balancer.enabled
+        );
+        assert_eq!(
+            api_server_load_balancer.provider,
+            Some(values.api_server_load_balancer.provider)
+        );
+        assert_eq!(api_server_load_balancer.flavor, None);
+        assert_eq!(api_server_load_balancer.availability_zone, None);
     }
 }
