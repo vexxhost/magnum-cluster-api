@@ -81,7 +81,6 @@ BLOCK=$(
 CPO_VERSION=$(gh release list \
     --repo kubernetes/cloud-provider-openstack \
     --json tagName \
-    --limit 1 \
     --jq '
         [ .[]
           | select(.tagName | startswith("v"))
