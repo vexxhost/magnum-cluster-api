@@ -8,7 +8,7 @@ charts:
     repository:
       url: https://helm.cilium.io/
   - name: openstack-cloud-controller-manager
-    version: 2.34.0
+    version: 2.34.1
     repository:
       url: https://kubernetes.github.io/cloud-provider-openstack
   - name: openstack-cinder-csi
