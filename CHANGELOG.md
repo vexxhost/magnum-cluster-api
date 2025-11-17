@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.34.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.33.0...v0.34.0) (2025-11-17)
+
+
+### Features
+
+* refresh service account token automatically ([#846](https://github.com/vexxhost/magnum-cluster-api/issues/846)) ([be65f9b](https://github.com/vexxhost/magnum-cluster-api/commit/be65f9b592f2b971b63bbd8f0f6615bd6c3b8aa8))
+
+
+### Bug Fixes
+
+* install patchutils in CI ([#839](https://github.com/vexxhost/magnum-cluster-api/issues/839)) ([d5c50af](https://github.com/vexxhost/magnum-cluster-api/commit/d5c50af73886ebe5c6aecaa477d54398dbffd33d))
+* make apiServerLoadbalancer sub-fields optional ([#850](https://github.com/vexxhost/magnum-cluster-api/issues/850)) ([aec4d2d](https://github.com/vexxhost/magnum-cluster-api/commit/aec4d2d022a0424656f9c5448e81c9f259098e4f))
+
 ## [0.33.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.32.0...v0.33.0) (2025-10-15)
 
 
