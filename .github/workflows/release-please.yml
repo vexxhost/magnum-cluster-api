@@ -23,6 +23,7 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         uses: PyO3/maturin-action@86b9d133d34bc1b40018696f782949dac11bd380 # v1.49.4
         with:
+          maturin-version: v1.9.6
           command: publish
           args: --non-interactive --skip-existing
           manylinux: '2_28'
@@ -31,6 +32,7 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         uses: PyO3/maturin-action@86b9d133d34bc1b40018696f782949dac11bd380 # v1.49.4
         with:
+          maturin-version: v1.9.6
           command: publish
           args: --non-interactive --skip-existing
           manylinux: '2_28'
