@@ -76,9 +76,6 @@ class BaseDriver(driver.Driver):
 
         utils.validate_cluster(context, cluster)
 
-        # Log warning if using legacy amphora provider
-        utils.log_octavia_provider_warning(cluster)
-
         return self._create_cluster(context, cluster)
 
     @cluster_lock_wrapper
@@ -406,8 +403,7 @@ class BaseDriver(driver.Driver):
         #               the expectation is that running an upgrade operation will change
         #               the cluster in some way.
 
-        # Log warning if using legacy amphora provider
-        utils.log_octavia_provider_warning(cluster)
+        utils.validate_cluster(context, cluster)
 
         self.rust_driver.upgrade_cluster(cluster)
         resources.apply_cluster_from_magnum_cluster(

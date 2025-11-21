@@ -106,9 +106,7 @@ def log_octavia_provider_warning(cluster: magnum_objects.Cluster) -> None:
     if octavia_provider == "amphora":
         LOG.warning(
             "Cluster %s is using legacy Octavia provider 'amphora'. Consider upgrading to 'amphorav2' "
-            "for better performance and features. The default provider will be updated "
-            "to 'amphorav2' in a future release. You can set the 'octavia_provider' "
-            "label on your cluster to 'amphorav2' to use the new provider.",
+            "for better performance and features.",
             cluster.uuid,
         )
 
@@ -434,6 +432,9 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
             neutron.get_subnet(ctx, cluster.fixed_subnet, source="id", target="name")
         else:
             neutron.get_subnet(ctx, cluster.fixed_subnet, source="name", target="id")
+
+    # Log warning if using legacy amphora provider
+    log_octavia_provider_warning(cluster)
 
 
 def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):

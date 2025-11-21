@@ -87,11 +87,10 @@ proxy_opts = [
 driver_opts = [
     cfg.StrOpt(
         "octavia_provider",
-        default="amphora",
+        default="amphorav2",
         help=_(
             "Default Octavia provider to use for load balancers. "
-            "Set to 'amphorav2' for better performance and features, "
-            "or 'amphora' for legacy compatibility."
+            "Set to 'amphora' for legacy compatibility."
         ),
     ),
 ]
