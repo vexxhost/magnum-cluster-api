@@ -36,7 +36,6 @@ from oslo_utils import strutils, uuidutils  # type: ignore
 from tenacity import retry, retry_if_exception_type
 
 from magnum_cluster_api import clients
-from magnum_cluster_api import conf as mcapi_conf
 from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import image_utils, images, objects
 from magnum_cluster_api.cache import ServerGroupCache
@@ -110,9 +109,7 @@ def log_octavia_provider_warning(cluster: magnum_objects.Cluster) -> None:
 
 
 def get_capi_client_ca_cert(cluster: magnum_objects.Cluster) -> str:
-    return cluster.labels.get(
-        "octavia_provider", "amphorav2"
-    )
+    return cluster.labels.get("octavia_provider", "amphorav2")
 
 
 def get_octavia_provider() -> str:
