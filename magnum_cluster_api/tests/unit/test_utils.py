@@ -60,10 +60,6 @@ class TestGenerateCloudControllerManagerConfig:
         ).return_value
         mock_get_openstack_api.url_for.return_value = "http://localhost/v3"
 
-        # Mock the configuration
-        mock_conf = mocker.patch("magnum_cluster_api.utils.mcapi_conf.CONF")
-        mock_conf.driver.octavia_provider = "amphora"
-
     def _response_for_cloud_config_secret(self):
         return responses.Response(
             responses.GET,
