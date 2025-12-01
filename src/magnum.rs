@@ -104,8 +104,8 @@ pub struct ClusterLabels {
     pub kube_tag: String,
 
     /// The Octavia provider to use for load balancers.
-    #[builder(default="amphora".to_owned())]
-    #[pyo3(default="amphora".to_owned())]
+    #[builder(default="amphorav2".to_owned())]
+    #[pyo3(default="amphorav2".to_owned())]
     pub octavia_provider: String,
 }
 
