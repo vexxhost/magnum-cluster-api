@@ -997,9 +997,7 @@ class Cluster(ClusterBase):
 
         api_server_load_balancer = {
             "enabled": self.cluster.master_lb_enabled,
-            "provider": self.cluster.labels.get(
-                "octavia_provider", mcapi_conf.CONF.driver.octavia_provider
-            ),
+            "provider": utils.get_octavia_provider(self.cluster),
             "availabilityZone": self.cluster.labels.get(
                 "api_server_lb_availability_zone", ""
             ),

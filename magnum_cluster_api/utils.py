@@ -98,7 +98,7 @@ def cluster_exists(api: pykube.HTTPClient, name: str) -> bool:
 
 def log_octavia_provider_warning(cluster: magnum_objects.Cluster) -> None:
     """Log a warning if the cluster is using the legacy amphora provider."""
-    octavia_provider = get_capi_client_ca_cert(cluster)
+    octavia_provider = get_octavia_provider(cluster)
 
     if octavia_provider == "amphora":
         LOG.warning(
@@ -108,11 +108,11 @@ def log_octavia_provider_warning(cluster: magnum_objects.Cluster) -> None:
         )
 
 
-def get_capi_client_ca_cert(cluster: magnum_objects.Cluster) -> str:
+def get_octavia_provider(cluster: magnum_objects.Cluster) -> str:
     return cluster.labels.get("octavia_provider", "amphorav2")
 
 
-def get_octavia_provider() -> str:
+def get_capi_client_ca_cert() -> str:
     ca_file = CONF.capi_client.ca_file
 
     if ca_file:
@@ -140,7 +140,7 @@ def generate_cloud_controller_manager_config(
     cloud_config = yaml.safe_load(clouds_yaml)
 
     # Get octavia provider from cluster labels or use default from configuration
-    octavia_provider = get_capi_client_ca_cert(cluster)
+    octavia_provider = get_octavia_provider(cluster)
     octavia_lb_algorithm = cluster.labels.get("octavia_lb_algorithm")
     octavia_lb_healthcheck = cluster.labels.get("octavia_lb_healthcheck", True)
 
