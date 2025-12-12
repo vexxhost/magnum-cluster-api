@@ -71,3 +71,15 @@ class MachineDeploymentNotFound(exception.ObjectNotFound):
 
 class InvalidOctaviaLoadBalancerAlgorithm(exception.Invalid):
     message = _("Invalid value for octavia_lb_algorithm: %(octavia_lb_algorithm)s.")
+
+
+class UnsupportedKubernetesVersion(exception.Invalid):
+    message = _(
+        "Kubernetes version %(k8s_version)s is not supported. %(message)s"
+    )
+
+
+class DeprecatedKubernetesVersion(exception.Invalid):
+    message = _(
+        "Kubernetes version %(k8s_version)s is deprecated. %(message)s"
+    )
