@@ -92,7 +92,10 @@ def get_version_status(k8s_version: str) -> tuple[str, str | None]:
     # Normalize k8s version for comparison (handle patch version variations)
     k8s_parsed = parse_k8s_version(k8s_version)
     if k8s_parsed is None:
-        return VersionStatus.UNSUPPORTED, f"Invalid Kubernetes version format: {k8s_version}"
+        return (
+            VersionStatus.UNSUPPORTED,
+            f"Invalid Kubernetes version format: {k8s_version}",
+        )
 
     # Check if exact version matches
     if k8s_version in supported:
@@ -184,4 +187,3 @@ def get_deprecated_versions() -> List[str]:
     :return: List of deprecated Kubernetes versions
     """
     return DEPRECATED_KUBERNETES_VERSIONS.copy()
-

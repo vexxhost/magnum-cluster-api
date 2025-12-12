@@ -74,12 +74,8 @@ class InvalidOctaviaLoadBalancerAlgorithm(exception.Invalid):
 
 
 class UnsupportedKubernetesVersion(exception.Invalid):
-    message = _(
-        "Kubernetes version %(k8s_version)s is not supported. %(message)s"
-    )
+    message = _("Kubernetes version %(k8s_version)s is not supported. %(message)s")
 
 
 class DeprecatedKubernetesVersion(exception.Invalid):
-    message = _(
-        "Kubernetes version %(k8s_version)s is deprecated. %(message)s"
-    )
+    message = _("Kubernetes version %(k8s_version)s is deprecated. %(message)s")
