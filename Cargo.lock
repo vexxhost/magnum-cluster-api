@@ -1094,7 +1094,7 @@ checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 
 [[package]]
 name = "magnum-cluster-api"
-version = "0.34.1"
+version = "0.34.2"
 dependencies = [
  "backon",
  "base64",

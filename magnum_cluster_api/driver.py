@@ -402,9 +402,6 @@ class BaseDriver(driver.Driver):
         # NOTE(mnaser): We run a full apply on the cluster regardless of the changes, since
         #               the expectation is that running an upgrade operation will change
         #               the cluster in some way.
-
-        utils.validate_cluster(context, cluster)
-
         self.rust_driver.upgrade_cluster(cluster)
         resources.apply_cluster_from_magnum_cluster(
             context, self.kube_client, self.k8s_api, cluster

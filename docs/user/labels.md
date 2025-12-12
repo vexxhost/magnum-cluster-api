@@ -114,9 +114,8 @@ is often accomplished by deploying a driver on each node.
 * `octavia_provider`
 
    The Octavia provider to configure for the load balancers created by the cluster.
-   Set to `amphora` for legacy compatibility. A warning will be logged when using
-   the legacy `amphora` provider.
-   Default value: `amphorav2`
+
+   Default value: Octavia default
 
 * `octavia_lb_algorithm`
 

@@ -30,7 +30,6 @@ from magnum.common import utils as magnum_utils
 from novaclient import exceptions as nova_exception  # type: ignore
 from novaclient.v2 import flavors  # type: ignore
 from oslo_config import cfg  # type: ignore
-from oslo_log import log as logging  # type: ignore
 from oslo_serialization import base64  # type: ignore
 from oslo_utils import strutils, uuidutils  # type: ignore
 from tenacity import retry, retry_if_exception_type
@@ -39,8 +38,6 @@ from magnum_cluster_api import clients
 from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import image_utils, images, objects
 from magnum_cluster_api.cache import ServerGroupCache
-
-LOG = logging.getLogger(__name__)
 
 AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar", "rockylinux"]
 DEFAULT_SERVER_GROUP_POLICIES = ["soft-anti-affinity"]
@@ -96,22 +93,6 @@ def cluster_exists(api: pykube.HTTPClient, name: str) -> bool:
         return False
 
 
-def log_octavia_provider_warning(cluster: magnum_objects.Cluster) -> None:
-    """Log a warning if the cluster is using the legacy amphora provider."""
-    octavia_provider = get_octavia_provider(cluster)
-
-    if octavia_provider == "amphora":
-        LOG.warning(
-            "Cluster %s is using legacy Octavia provider 'amphora'. Consider upgrading to 'amphorav2' "
-            "for better performance and features.",
-            cluster.uuid,
-        )
-
-
-def get_octavia_provider(cluster: magnum_objects.Cluster) -> str:
-    return cluster.labels.get("octavia_provider", "amphorav2")
-
-
 def get_capi_client_ca_cert() -> str:
     ca_file = CONF.capi_client.ca_file
 
@@ -139,12 +120,11 @@ def generate_cloud_controller_manager_config(
     clouds_yaml = base64.decode_as_text(data.obj["data"]["clouds.yaml"])
     cloud_config = yaml.safe_load(clouds_yaml)
 
-    # Get octavia provider from cluster labels or use default from configuration
-    octavia_provider = get_octavia_provider(cluster)
+    octavia_provider = cluster.labels.get("octavia_provider", "amphorav2")
     octavia_lb_algorithm = cluster.labels.get("octavia_lb_algorithm")
     octavia_lb_healthcheck = cluster.labels.get("octavia_lb_healthcheck", True)
 
-    if octavia_provider == "amphora" and octavia_lb_algorithm is None:
+    if octavia_provider in ("amphora", "amphorav2") and octavia_lb_algorithm is None:
         octavia_lb_algorithm = "ROUND_ROBIN"
     elif octavia_provider == "ovn" and octavia_lb_algorithm is None:
         octavia_lb_algorithm = "SOURCE_IP_PORT"
@@ -431,9 +411,6 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
             neutron.get_subnet(ctx, cluster.fixed_subnet, source="id", target="name")
         else:
             neutron.get_subnet(ctx, cluster.fixed_subnet, source="name", target="id")
-
-    # Log warning if using legacy amphora provider
-    log_octavia_provider_warning(cluster)
 
 
 def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
