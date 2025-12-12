@@ -16,7 +16,7 @@
 Version compatibility matrix for magnum-cluster-api.
 
 This module defines which Kubernetes versions are supported or deprecated
-for the current version of magnum-cluster-api.
+for the current version of magnum-cluster-api using version constraints.
 
 The deprecated versions list serves two purposes:
 1. Warn users about versions that will become unsupported in future mcapi versions
@@ -38,28 +38,19 @@ class VersionStatus:
     UNSUPPORTED = "unsupported"
 
 
-# Supported Kubernetes versions for the current magnum-cluster-api version
-# These are the versions that are fully supported and tested
-SUPPORTED_KUBERNETES_VERSIONS: List[str] = [
-    "v1.27.3",
-    "v1.27.8",
-    "v1.27.15",
-    "v1.28.11",
-    "v1.29.6",
-    "v1.30.2",
-    "v1.31.1",
-]
+# Supported Kubernetes version range for the current magnum-cluster-api version
+# These define the minimum and maximum versions that are fully supported and tested
+# Format: Version strings (e.g., "v1.27.0", "v1.31.0")
+# Versions >= MIN_SUPPORTED and <= MAX_SUPPORTED are supported
+MIN_SUPPORTED_KUBERNETES_VERSION: str = "v1.32.0"
+MAX_SUPPORTED_KUBERNETES_VERSION: str = "v1.34.2"
 
-# Deprecated Kubernetes versions for the current magnum-cluster-api version
+# Deprecated Kubernetes version range for the current magnum-cluster-api version
 # These versions are still supported but will be removed in a future mcapi version
-# Operators should use this list to identify clusters that need upgrading
-DEPRECATED_KUBERNETES_VERSIONS: List[str] = [
-    "v1.26.2",
-    "v1.26.6",
-    "v1.26.11",
-    "v1.25.3",
-    "v1.25.11",
-]
+# Operators should use this to identify clusters that need upgrading
+# Format: Version strings (e.g., "v1.25.0", "v1.26.99")
+# Versions >= MIN_DEPRECATED and < MIN_SUPPORTED are deprecated
+MIN_DEPRECATED_KUBERNETES_VERSION: str = "v1.26.0"
 
 
 def parse_k8s_version(version: str) -> semver.VersionInfo | None:
@@ -77,6 +68,26 @@ def parse_k8s_version(version: str) -> semver.VersionInfo | None:
         return None
 
 
+def is_version_in_range(
+    version: semver.VersionInfo,
+    min_version: semver.VersionInfo | None,
+    max_version: semver.VersionInfo | None,
+) -> bool:
+    """
+    Check if a version is within the specified range (inclusive).
+
+    :param version: Parsed version to check
+    :param min_version: Minimum version (inclusive), None means no minimum
+    :param max_version: Maximum version (inclusive), None means no maximum
+    :return: True if version is in range, False otherwise
+    """
+    if min_version is not None and version < min_version:
+        return False
+    if max_version is not None and version > max_version:
+        return False
+    return True
+
+
 def get_version_status(k8s_version: str) -> tuple[str, str | None]:
     """
     Get the status of a Kubernetes version for the current mcapi version.
@@ -86,10 +97,7 @@ def get_version_status(k8s_version: str) -> tuple[str, str | None]:
              VersionStatus.SUPPORTED, VersionStatus.DEPRECATED, VersionStatus.UNSUPPORTED
              and message is an optional human-readable message
     """
-    supported = set(SUPPORTED_KUBERNETES_VERSIONS)
-    deprecated = set(DEPRECATED_KUBERNETES_VERSIONS)
-
-    # Normalize k8s version for comparison (handle patch version variations)
+    # Parse the Kubernetes version
     k8s_parsed = parse_k8s_version(k8s_version)
     if k8s_parsed is None:
         return (
@@ -97,93 +105,65 @@ def get_version_status(k8s_version: str) -> tuple[str, str | None]:
             f"Invalid Kubernetes version format: {k8s_version}",
         )
 
-    # Check if exact version matches
-    if k8s_version in supported:
+    # Parse min/max versions
+    min_supported = parse_k8s_version(MIN_SUPPORTED_KUBERNETES_VERSION)
+    max_supported = parse_k8s_version(MAX_SUPPORTED_KUBERNETES_VERSION)
+    min_deprecated = parse_k8s_version(MIN_DEPRECATED_KUBERNETES_VERSION)
+
+    # Check if version is deprecated first
+    # Deprecated versions are >= MIN_DEPRECATED and < MIN_SUPPORTED
+    if min_deprecated is not None and min_supported is not None:
+        if k8s_parsed >= min_deprecated and k8s_parsed < min_supported:
+            return (
+                VersionStatus.DEPRECATED,
+                f"Kubernetes version {k8s_version} is deprecated. "
+                f"Supported versions: {MIN_SUPPORTED_KUBERNETES_VERSION} to {MAX_SUPPORTED_KUBERNETES_VERSION}. "
+                "Please upgrade to a supported version before upgrading magnum-cluster-api.",
+            )
+
+    # Check if version is in supported range
+    if is_version_in_range(k8s_parsed, min_supported, max_supported):
         return VersionStatus.SUPPORTED, None
 
-    if k8s_version in deprecated:
-        return (
-            VersionStatus.DEPRECATED,
-            f"Kubernetes version {k8s_version} is deprecated. "
-            "Please upgrade to a supported version before upgrading magnum-cluster-api.",
-        )
-
-    # Check if same minor version is supported (e.g., v1.27.3 is supported, v1.27.5 might work)
-    k8s_minor = f"v{k8s_parsed.major}.{k8s_parsed.minor}"
-    supported_minors = {
-        f"v{parse_k8s_version(v).major}.{parse_k8s_version(v).minor}"
-        for v in supported
-        if parse_k8s_version(v) is not None
-    }
-    deprecated_minors = {
-        f"v{parse_k8s_version(v).major}.{parse_k8s_version(v).minor}"
-        for v in deprecated
-        if parse_k8s_version(v) is not None
-    }
-
-    if k8s_minor in supported_minors:
-        return (
-            VersionStatus.SUPPORTED,
-            f"Kubernetes version {k8s_version} (minor {k8s_minor}) is supported, "
-            "though specific patch version may not be tested.",
-        )
-
-    if k8s_minor in deprecated_minors:
-        return (
-            VersionStatus.DEPRECATED,
-            f"Kubernetes version {k8s_version} (minor {k8s_minor}) is deprecated. "
-            "Please upgrade to a supported version before upgrading magnum-cluster-api.",
-        )
-
-    # Check if version is too old or too new
-    all_versions = list(supported) + list(deprecated)
-    if not all_versions:
-        return VersionStatus.UNSUPPORTED, "No version information available"
-
-    parsed_versions = [
-        parse_k8s_version(v) for v in all_versions if parse_k8s_version(v) is not None
-    ]
-    if not parsed_versions:
-        return VersionStatus.UNSUPPORTED, "Could not parse version information"
-
-    min_version = min(parsed_versions)
-    max_version = max(parsed_versions)
-
-    if k8s_parsed < min_version:
+    # Version is outside supported range
+    if min_supported is not None and k8s_parsed < min_supported:
         return (
             VersionStatus.UNSUPPORTED,
             f"Kubernetes version {k8s_version} is too old. "
-            f"Minimum supported version is {min_version}.",
+            f"Minimum supported version is {MIN_SUPPORTED_KUBERNETES_VERSION}.",
         )
 
-    if k8s_parsed > max_version:
+    if max_supported is not None and k8s_parsed > max_supported:
         return (
             VersionStatus.UNSUPPORTED,
             f"Kubernetes version {k8s_version} is too new. "
-            f"Maximum supported version is {max_version}.",
+            f"Maximum supported version is {MAX_SUPPORTED_KUBERNETES_VERSION}.",
         )
 
     return (
         VersionStatus.UNSUPPORTED,
-        f"Kubernetes version {k8s_version} is not supported.",
+        f"Kubernetes version {k8s_version} is not supported. "
+        f"Supported versions: {MIN_SUPPORTED_KUBERNETES_VERSION} to {MAX_SUPPORTED_KUBERNETES_VERSION}.",
     )
 
 
-def get_supported_versions() -> List[str]:
+def get_supported_version_range() -> tuple[str, str]:
     """
-    Get list of supported Kubernetes versions for the current mcapi version.
+    Get the supported Kubernetes version range for the current mcapi version.
 
-    :return: List of supported Kubernetes versions
+    :return: Tuple of (min_version, max_version) (e.g., ("v1.27.0", "v1.31.0"))
     """
-    return SUPPORTED_KUBERNETES_VERSIONS.copy()
+    return (MIN_SUPPORTED_KUBERNETES_VERSION, MAX_SUPPORTED_KUBERNETES_VERSION)
 
 
-def get_deprecated_versions() -> List[str]:
+def get_deprecated_version_range() -> tuple[str, str | None]:
     """
-    Get list of deprecated Kubernetes versions for the current mcapi version.
+    Get the deprecated Kubernetes version range for the current mcapi version.
 
-    This list helps operators identify clusters that may fail after an mcapi upgrade.
+    This helps operators identify clusters that may fail after an mcapi upgrade.
+    Deprecated versions are from MIN_DEPRECATED up to (but not including) MIN_SUPPORTED.
 
-    :return: List of deprecated Kubernetes versions
+    :return: Tuple of (min_deprecated, max_deprecated) where max_deprecated is None
+             (deprecated range ends at MIN_SUPPORTED, exclusive)
     """
-    return DEPRECATED_KUBERNETES_VERSIONS.copy()
+    return (MIN_DEPRECATED_KUBERNETES_VERSION, None)
