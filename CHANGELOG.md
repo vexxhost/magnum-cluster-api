@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.35.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.34.2...v0.35.0) (2025-12-12)
+
+
+### Features
+
+* add octavia_provider config option with amphora deprecation warning ([#834](https://github.com/vexxhost/magnum-cluster-api/issues/834)) ([eedf960](https://github.com/vexxhost/magnum-cluster-api/commit/eedf960c8985668f0f46bab1e38a9956b558dfd8))
+
 ## [0.34.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.34.1...v0.34.2) (2025-11-18)
 
 
