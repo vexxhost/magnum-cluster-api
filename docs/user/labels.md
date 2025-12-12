@@ -115,7 +115,7 @@ is often accomplished by deploying a driver on each node.
 
    The Octavia provider to configure for the load balancers created by the cluster.
 
-   Default value: `amphora`
+   Default value: Octavia default
 
 * `octavia_lb_algorithm`
 
