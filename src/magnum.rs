@@ -101,6 +101,7 @@ pub struct ClusterLabels {
 
     /// The Kubernetes version to use for the cluster.
     #[builder(default="v1.30.0".to_owned())]
+    #[pyo3(default="v1.30.0".to_owned())]
     pub kube_tag: String,
 }
 
