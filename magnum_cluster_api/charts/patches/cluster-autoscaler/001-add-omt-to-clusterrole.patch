@@ -15,5 +15,6 @@ index 4ef2782..fb1dc2a 100644
 +    - list
 +    - update
 +    - watch
- {{- end }}
- {{- end -}}
+   - apiGroups:
+     - cluster.x-k8s.io
+     resources:
