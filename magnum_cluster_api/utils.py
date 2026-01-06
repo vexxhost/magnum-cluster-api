@@ -34,7 +34,7 @@ from oslo_serialization import base64  # type: ignore
 from oslo_utils import strutils, uuidutils  # type: ignore
 from tenacity import retry, retry_if_exception_type
 
-from magnum_cluster_api import clients
+from magnum_cluster_api import clients, magnum_cluster_api
 from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import image_utils, images, objects
 from magnum_cluster_api.cache import ServerGroupCache
@@ -188,7 +188,7 @@ def generate_manila_csi_cloud_config(
 
 
 def get_kube_tag(cluster: magnum_objects.Cluster) -> str:
-    return cluster.labels.get("kube_tag", "v1.25.3")
+    return cluster.labels.get("kube_tag", magnum_cluster_api.DEFAULT_KUBE_TAG)
 
 
 def get_auto_scaling_enabled(cluster: magnum_objects.Cluster) -> bool:

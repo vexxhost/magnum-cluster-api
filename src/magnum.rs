@@ -18,91 +18,103 @@ use std::collections::BTreeMap;
 use thiserror::Error;
 use typed_builder::TypedBuilder;
 
+/// Default Kubernetes version for clusters
+pub const DEFAULT_KUBE_TAG: &str = "v1.30.0";
+
 #[derive(Clone, Default, Deserialize, FromPyObject)]
 pub struct ClusterTemplate {
     pub network_driver: String,
 }
 
-#[derive(Clone, Default, Deserialize, FromPyObject, TypedBuilder)]
+#[derive(Clone, Default, Deserialize, TypedBuilder)]
 #[pyo3(from_item_all)]
 pub struct ClusterLabels {
     /// The tag of the Cilium container image to use for the cluster.
     #[builder(default="v1.15.3".to_owned())]
-    #[pyo3(default="v1.15.3".to_owned())]
     pub cilium_tag: String,
 
     /// The IP address range to use for the Cilium IPAM pool.
     #[builder(default="10.100.0.0/16".to_owned())]
-    #[pyo3(default="10.100.0.0/16".to_owned())]
     pub cilium_ipv4pool: String,
 
     /// Enable the use of the Cinder CSI driver for the cluster.
     #[builder(default = true)]
-    #[pyo3(default = true)]
     pub cinder_csi_enabled: bool,
 
     /// The tag of the Cinder CSI container image to use for the cluster.
     #[builder(default="v1.32.0".to_owned())]
-    #[pyo3(default="v1.32.0".to_owned())]
     pub cinder_csi_plugin_tag: String,
 
     /// Enable the use of the Manila CSI driver for the cluster.
     #[builder(default = true)]
-    #[pyo3(default = true)]
     pub manila_csi_enabled: bool,
 
     /// The tag of the Manila CSI container image to use for the cluster.
     #[builder(default="v1.32.0".to_owned())]
-    #[pyo3(default="v1.32.0".to_owned())]
     pub manila_csi_plugin_tag: String,
 
     /// The tag to use for the OpenStack cloud controller provider
     /// when bootstrapping the cluster. If not specified, it will be
     /// automatically selected based on the Kubernetes version.
     #[builder(default)]
-    #[pyo3(default)]
     pub cloud_provider_tag: Option<String>,
 
     /// The prefix of the container images to use for the cluster, which
     /// defaults to the upstream images if not set.
     #[builder(default)]
-    #[pyo3(default)]
     pub container_infra_prefix: Option<String>,
 
     /// CSI attacher tag to use for the cluster.
     #[builder(default="v4.7.0".to_owned())]
-    #[pyo3(default="v4.7.0".to_owned())]
     pub csi_attacher_tag: String,
 
     /// CSI liveness probe tag to use for the cluster.
     #[builder(default="v2.14.0".to_owned())]
-    #[pyo3(default="v2.14.0".to_owned())]
     pub csi_liveness_probe_tag: String,
 
     /// CSI Node Driver Registrar tag to use for the cluster.
     #[builder(default="v2.12.0".to_owned())]
-    #[pyo3(default="v2.12.0".to_owned())]
     pub csi_node_driver_registrar_tag: String,
 
     // CSI Provisioner tag to use for the cluster.
     #[builder(default="v5.1.0".to_owned())]
-    #[pyo3(default="v5.1.0".to_owned())]
     pub csi_provisioner_tag: String,
 
     /// CSI Resizer tag to use for the cluster.
     #[builder(default="v1.12.0".to_owned())]
-    #[pyo3(default="v1.12.0".to_owned())]
     pub csi_resizer_tag: String,
 
     /// CSI Snapshotter tag to use for the cluster.
     #[builder(default="v8.1.0".to_owned())]
-    #[pyo3(default="v8.1.0".to_owned())]
     pub csi_snapshotter_tag: String,
 
     /// The Kubernetes version to use for the cluster.
-    #[builder(default="v1.30.0".to_owned())]
-    #[pyo3(default="v1.30.0".to_owned())]
+    #[builder(default=DEFAULT_KUBE_TAG.to_owned())]
     pub kube_tag: String,
+}
+
+impl<'py> FromPyObject<'py> for ClusterLabels {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let mut labels = ClusterLabels::default();
+
+        if let Ok(val) = ob.get_item("cilium_tag") { labels.cilium_tag = val.extract()?; }
+        if let Ok(val) = ob.get_item("cilium_ipv4pool") { labels.cilium_ipv4pool = val.extract()?; }
+        if let Ok(val) = ob.get_item("cinder_csi_enabled") { labels.cinder_csi_enabled = val.extract()?; }
+        if let Ok(val) = ob.get_item("cinder_csi_plugin_tag") { labels.cinder_csi_plugin_tag = val.extract()?; }
+        if let Ok(val) = ob.get_item("manila_csi_enabled") { labels.manila_csi_enabled = val.extract()?; }
+        if let Ok(val) = ob.get_item("manila_csi_plugin_tag") { labels.manila_csi_plugin_tag = val.extract()?; }
+        if let Ok(val) = ob.get_item("cloud_provider_tag") { labels.cloud_provider_tag = val.extract()?; }
+        if let Ok(val) = ob.get_item("container_infra_prefix") { labels.container_infra_prefix = val.extract()?; }
+        if let Ok(val) = ob.get_item("csi_attacher_tag") { labels.csi_attacher_tag = val.extract()?; }
+        if let Ok(val) = ob.get_item("csi_liveness_probe_tag") { labels.csi_liveness_probe_tag = val.extract()?; }
+        if let Ok(val) = ob.get_item("csi_node_driver_registrar_tag") { labels.csi_node_driver_registrar_tag = val.extract()?; }
+        if let Ok(val) = ob.get_item("csi_provisioner_tag") { labels.csi_provisioner_tag = val.extract()?; }
+        if let Ok(val) = ob.get_item("csi_resizer_tag") { labels.csi_resizer_tag = val.extract()?; }
+        if let Ok(val) = ob.get_item("csi_snapshotter_tag") { labels.csi_snapshotter_tag = val.extract()?; }
+        if let Ok(val) = ob.get_item("kube_tag") { labels.kube_tag = val.extract()?; }
+
+        Ok(labels)
+    }
 }
 
 impl ClusterLabels {
