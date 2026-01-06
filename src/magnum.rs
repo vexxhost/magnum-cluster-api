@@ -27,7 +27,6 @@ pub struct ClusterTemplate {
 }
 
 #[derive(Clone, Default, Deserialize, TypedBuilder)]
-#[pyo3(from_item_all)]
 pub struct ClusterLabels {
     /// The tag of the Cilium container image to use for the cluster.
     #[builder(default="v1.15.3".to_owned())]
