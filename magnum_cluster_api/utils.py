@@ -34,9 +34,9 @@ from oslo_serialization import base64  # type: ignore
 from oslo_utils import strutils, uuidutils  # type: ignore
 from tenacity import retry, retry_if_exception_type
 
-from magnum_cluster_api import clients, magnum_cluster_api
+from magnum_cluster_api import clients
 from magnum_cluster_api import exceptions as mcapi_exceptions
-from magnum_cluster_api import image_utils, images, objects
+from magnum_cluster_api import image_utils, images, magnum_cluster_api, objects
 from magnum_cluster_api.cache import ServerGroupCache
 
 AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar", "rockylinux"]
