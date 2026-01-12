@@ -94,7 +94,7 @@ pub struct ClusterLabels {
 
 impl<'py> FromPyObject<'py> for ClusterLabels {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let mut labels = ClusterLabels::default();
+        let mut labels = ClusterLabels::builder().build();
 
         if let Ok(val) = ob.get_item("cilium_tag") { labels.cilium_tag = val.extract()?; }
         if let Ok(val) = ob.get_item("cilium_ipv4pool") { labels.cilium_ipv4pool = val.extract()?; }
