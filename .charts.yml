@@ -19,3 +19,7 @@ charts:
     version: 2.32.0
     repository:
       url: https://kubernetes.github.io/cloud-provider-openstack
+  - name: snapshot-controller
+    version: 4.2.0
+    repository:
+      url: https://piraeus.io/helm-charts

@@ -146,7 +146,7 @@ class TemplateReleaseCommand(ReleaseCommand):
                 #                 --set controller.volumeSnapshotClasses[0].name=test \
                 #                 --set controller.volumeSnapshotClasses[0].driver=test.driver | head -20
                 #                 ---
-                #                 # Source: snapshot-controller-csi/crds/xxx.storage.k8s.io_xxxsnapshotclasses.yaml
+                #                 # Source: snapshot-controller/crds/xxx.storage.k8s.io_xxxsnapshotclasses.yaml
                 #                 ---
                 #                 apiVersion: apiextensions.k8s.io/v1
                 if doc is None:

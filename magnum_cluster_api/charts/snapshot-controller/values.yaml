@@ -3,8 +3,6 @@ controller:
 
   replicaCount: 1
 
-  fullnameOverride: ""
-
   revisionHistoryLimit: 10
 
   args:
@@ -63,15 +61,21 @@ controller:
     create: false
 
   volumeSnapshotClasses: []
-#    - name: block-snapshot
+#    - name: linstor-csi-delete
 #      annotations:
 #        snapshot.storage.kubernetes.io/is-default-class: "true"
-#      driver: cinder.csi.openstack.org
+#      labels:
+#        velero.io/csi-volumesnapshot-class: "true"
+#      driver: linstor.csi.linbit.com
 #      deletionPolicy: Delete
-#    - name: share-snapshot
+
+  volumeGroupSnapshotClasses: []
+#    - name: linstor-csi-delete
 #      annotations:
-#        snapshot.storage.kubernetes.io/is-default-class: "true"
-#      driver: manila.csi.openstack.org
+#        groupsnapshot.storage.kubernetes.io/is-default-class: "true"
+#      labels:
+#        velero.io/csi-volumegroupsnapshot-class: "true"
+#      driver: linstor.csi.linbit.com
 #      deletionPolicy: Delete
 
   priorityClassName: ""

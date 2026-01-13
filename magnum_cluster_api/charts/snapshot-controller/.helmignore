@@ -16,6 +16,8 @@
 *.tmp
 *.orig
 *~
+crds/README.md
+Makefile
 # Various IDEs
 .project
 .idea/

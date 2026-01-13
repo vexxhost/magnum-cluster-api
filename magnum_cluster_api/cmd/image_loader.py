@@ -406,7 +406,7 @@ def _get_infra_images(config: Optional[Dict] = None) -> List[str]:
         "registry.k8s.io/sig-storage/livenessprobe:v2.8.0",
         "registry.k8s.io/sig-storage/livenessprobe:v2.9.0",
         "registry.k8s.io/sig-storage/nfsplugin:v4.2.0",
-        "registry.k8s.io/sig-storage/snapshot-controller:v8.3.0",
+        "registry.k8s.io/sig-storage/snapshot-controller:v8.4.0",
     ]
 
 

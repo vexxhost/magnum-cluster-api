@@ -421,14 +421,14 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
             data = {
                 **data,
                 **{
-                    "snapshot-controller-csi.yaml": helm.TemplateReleaseCommand(
+                    "snapshot-controller.yaml": helm.TemplateReleaseCommand(
                         namespace="kube-system",
                         release_name="snapshot-controller",
                         chart_ref=os.path.join(
                             pkg_resources.resource_filename(
                                 "magnum_cluster_api", "charts"
                             ),
-                            "snapshot-controller-csi/",
+                            "snapshot-controller/",
                         ),
                         values={"controller": controller_values},
                     )(repository=repository)
