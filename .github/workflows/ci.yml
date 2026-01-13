@@ -23,12 +23,13 @@ jobs:
       matrix:
         target: [x86_64, aarch64]
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
       - uses: rui314/setup-mold@v1
-      - uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0 # v2.8.0
+      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
       - run: rustup show
       - uses: PyO3/maturin-action@86b9d133d34bc1b40018696f782949dac11bd380 # v1.49.4
         with:
+          maturin-version: v1.9.6
           command: build
           manylinux: "2_28"
           args: --release --sdist
@@ -37,8 +38,10 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: wheel-${{ matrix.target }}
-          path: target/wheels/*.whl
           if-no-files-found: error
+          path: |
+            target/wheels/*.whl
+            target/wheels/*.tar.gz
 
   coinstall:
     runs-on: ubuntu-latest
@@ -67,7 +70,7 @@ jobs:
           - openstack-version: "2023.2"
             python-version: "3.12"
     steps:
-      - uses: astral-sh/setup-uv@b75a909f75acd358c2196fb9a5f1299a9a8868a4 # v6.7.0
+      - uses: astral-sh/setup-uv@5a7eac68fb9809dea845d802897dc5c723910fa3 # v7.1.3
         with:
           ignore-empty-workdir: true
           python-version: ${{ matrix.python-version }}
@@ -81,13 +84,13 @@ jobs:
   pre-commit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           ref: ${{ github.head_ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           token: ${{ secrets.VEXXHOST_BOT_PAT || github.token }}
       - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
-      - uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0 # v6.0.1
+      - uses: stefanzweifel/git-auto-commit-action@28e16e81777b558cc906c8750092100bbb34c5e3 # v7.0.0
         if: github.event_name == 'pull_request' && github.event.pull_request.user.id == '29139614' && always()
         with:
           commit_message: "chore: apply pre-commit hook updates"
@@ -96,8 +99,8 @@ jobs:
   chart-vendor:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: vexxhost/chart-vendor@54afe5fa09325aa8e7438eb29bf892579e6528ef # main
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - uses: vexxhost/chart-vendor@d242f2d52e9f707faaf66de927936e337eb9679e # main
         with:
           charts-root: magnum_cluster_api/charts
 
@@ -109,15 +112,14 @@ jobs:
       matrix:
         network-driver: [calico, cilium]
         kubernetes-version:
-          - 1.31.13
-          - 1.32.9
-          - 1.33.5
-          - 1.34.1
+          - 1.32.10
+          - 1.33.7
+          - 1.34.3
     concurrency:
       group: sonobuoy-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           path: magnum-cluster-api
       - run: sudo mkdir -p /opt/stack

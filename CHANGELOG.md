@@ -1,5 +1,60 @@
 # Changelog
 
+## [0.34.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.34.1...v0.34.2) (2025-11-18)
+
+
+### Miscellaneous Chores
+
+* release 0.34.2 ([2ec4bd6](https://github.com/vexxhost/magnum-cluster-api/commit/2ec4bd6889109452cec4c4793d726cee8bf309c8))
+
+## [0.34.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.34.0...v0.34.1) (2025-11-17)
+
+
+### Miscellaneous Chores
+
+* release 0.34.1 ([405fe56](https://github.com/vexxhost/magnum-cluster-api/commit/405fe5613882d41cc847a2fffe1467aa4d03e8e2))
+
+## [0.34.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.33.0...v0.34.0) (2025-11-17)
+
+
+### Features
+
+* refresh service account token automatically ([#846](https://github.com/vexxhost/magnum-cluster-api/issues/846)) ([be65f9b](https://github.com/vexxhost/magnum-cluster-api/commit/be65f9b592f2b971b63bbd8f0f6615bd6c3b8aa8))
+
+
+### Bug Fixes
+
+* install patchutils in CI ([#839](https://github.com/vexxhost/magnum-cluster-api/issues/839)) ([d5c50af](https://github.com/vexxhost/magnum-cluster-api/commit/d5c50af73886ebe5c6aecaa477d54398dbffd33d))
+* make apiServerLoadbalancer sub-fields optional ([#850](https://github.com/vexxhost/magnum-cluster-api/issues/850)) ([aec4d2d](https://github.com/vexxhost/magnum-cluster-api/commit/aec4d2d022a0424656f9c5448e81c9f259098e4f))
+
+## [0.33.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.32.0...v0.33.0) (2025-10-15)
+
+
+### Features
+
+* bump cpo + add tool for autobumps ([#831](https://github.com/vexxhost/magnum-cluster-api/issues/831)) ([ad297aa](https://github.com/vexxhost/magnum-cluster-api/commit/ad297aa7e03fd73bd557aabd7389b0bf40b17ef9))
+
+## [0.32.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.31.2...v0.32.0) (2025-10-14)
+
+
+### Features
+
+* Add AZ, Flavor, and Floating IP labels for apiServerLoadBalancer [#510](https://github.com/vexxhost/magnum-cluster-api/issues/510) ([#798](https://github.com/vexxhost/magnum-cluster-api/issues/798)) ([0043157](https://github.com/vexxhost/magnum-cluster-api/commit/004315737efe5eb1c4b1d067c2a5533788fcbd61))
+
+
+### Bug Fixes
+
+* **deps:** update pyo3 ([#783](https://github.com/vexxhost/magnum-cluster-api/issues/783)) ([551268b](https://github.com/vexxhost/magnum-cluster-api/commit/551268bde1cf9b6a2f9f5ba1836746fe4f82f9d3))
+* **deps:** update rust crate json-patch to v4.1.0 ([#811](https://github.com/vexxhost/magnum-cluster-api/issues/811)) ([a68104a](https://github.com/vexxhost/magnum-cluster-api/commit/a68104afc9498e7e9061e8839d699140520cabf5))
+* **deps:** update rust crate log to v0.4.28 ([#792](https://github.com/vexxhost/magnum-cluster-api/issues/792)) ([1b2dcc6](https://github.com/vexxhost/magnum-cluster-api/commit/1b2dcc61299bce906ad32159aae61185ce6a739c))
+* **deps:** update rust crate serde to v1.0.223 ([#802](https://github.com/vexxhost/magnum-cluster-api/issues/802)) ([939e2f2](https://github.com/vexxhost/magnum-cluster-api/commit/939e2f2b5f8d0895fa864fec9f14edc6e4e9f234))
+* **deps:** update rust crate serde to v1.0.225 ([#808](https://github.com/vexxhost/magnum-cluster-api/issues/808)) ([a920727](https://github.com/vexxhost/magnum-cluster-api/commit/a92072712770a6915fa810a41197ba05fdbb445b))
+* **deps:** update rust crate serde_json to v1.0.145 ([#803](https://github.com/vexxhost/magnum-cluster-api/issues/803)) ([4c387b8](https://github.com/vexxhost/magnum-cluster-api/commit/4c387b8734f5fa499a7a180b549a73d48c32ff5d))
+* **deps:** update rust crate tempfile to v3.22.0 ([#796](https://github.com/vexxhost/magnum-cluster-api/issues/796)) ([d265ad7](https://github.com/vexxhost/magnum-cluster-api/commit/d265ad7f957e95b511fd532184b9a882590cad93))
+* **deps:** update rust crate typed-builder to 0.22.0 ([#809](https://github.com/vexxhost/magnum-cluster-api/issues/809)) ([c80c869](https://github.com/vexxhost/magnum-cluster-api/commit/c80c869e1eab80336a6998561fbccc001726650f))
+* image release path ([#806](https://github.com/vexxhost/magnum-cluster-api/issues/806)) ([9fa843a](https://github.com/vexxhost/magnum-cluster-api/commit/9fa843ab39e0937616137e0c998d78ba34fea2fb))
+* set failure domain as none for existing clusters ([#825](https://github.com/vexxhost/magnum-cluster-api/issues/825)) ([41a1fe0](https://github.com/vexxhost/magnum-cluster-api/commit/41a1fe05f91777829e5ae9da243ab299f7eeba19))
+
 ## [0.31.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.31.1...v0.31.2) (2025-09-02)
 
 

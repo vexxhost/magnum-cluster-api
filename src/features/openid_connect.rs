@@ -43,6 +43,7 @@ pub struct OpenIdConnectConfig {
 }
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
+#[allow(dead_code)]
 pub struct FeatureValues {
     #[serde(rename = "openidConnect")]
     pub openid_connect: OpenIdConnectConfig,

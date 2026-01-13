@@ -841,16 +841,24 @@ def mutate_machine_deployment(
     machine_deployment["nodeVolumeDetachTimeout"] = (
         CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT
     )
-
     # Anything beyond this point will *NOT* be changed in the machine deployment
     # for update operations (i.e. if the machine deployment already exists).
     if machine_deployment.get("name") == node_group.name:
+        current_failure_domain = machine_deployment.get("failureDomain")
+        new_failure_domain = node_group.labels.get("availability_zone")
+        if current_failure_domain == "" and (
+            new_failure_domain is None or new_failure_domain == ""
+        ):
+            machine_deployment["failureDomain"] = None
+        if current_failure_domain == "" and new_failure_domain:
+            machine_deployment["failureDomain"] = new_failure_domain
+
+        # For all other cases, don't modify existing machine deployments
         return machine_deployment
 
     # At this point, this is all code that will be added for brand-new machine
     # deployments.  We can bring any of this code into the above block if we
     # want to change it for existing machine deployments.
-
     machine_deployment.update(
         {
             "class": "default-worker",
@@ -910,6 +918,62 @@ def mutate_machine_deployment(
         }
     )
     return machine_deployment
+
+
+def migrate_machineset_failure_domain(
+    context: context.RequestContext,
+    cluster: magnum_objects.Cluster,
+    node_group: magnum_objects.NodeGroup,
+    pykube_api: pykube.HTTPClient,
+) -> bool:
+    """
+    Migrate MachineSet failureDomain fields to fix Cluster API v1.10+ validation issues.
+
+    This function directly patches MachineSet resources to convert empty string
+    failureDomain values to None/null, avoiding rolling updates that would occur
+    if we modified the MachineDeployment spec.
+    """
+    machine_sets = objects.MachineSet.for_node_group(pykube_api, cluster, node_group)
+
+    for ms in machine_sets:
+        # Check if this MachineSet has an empty string failureDomain
+        current_failure_domain = (
+            ms.obj.get("spec", {})
+            .get("template", {})
+            .get("spec", {})
+            .get("failureDomain")
+        )
+
+        if current_failure_domain == "":
+            # Patch the MachineSet to set failureDomain to None
+            # This avoids the validation error without triggering rolling updates
+            ms.obj["spec"]["template"]["spec"]["failureDomain"] = None
+            ms.update()
+
+
+def migrate_cluster_failure_domain(
+    node_group: magnum_objects.NodeGroup,
+    cluster_resource: objects.Cluster,
+) -> bool:
+    """
+    Migrate Cluster MachineDeployment failureDomain fields to fix Cluster API v1.10+ validation issues.
+
+    This function directly patches the Cluster resource to convert empty string
+    failureDomain values to None/null in MachineDeployment specs, avoiding rolling updates.
+    """
+
+    # Get the current machine deployment spec
+    current_md_spec = cluster_resource.get_machine_deployment_spec(node_group.name)
+    current_failure_domain = current_md_spec.get("failureDomain")
+
+    if current_failure_domain == "":
+        # Update the machine deployment spec to remove the failureDomain field
+        # We'll use obj.update() which should handle the field removal properly
+        current_md_spec["failureDomain"] = None
+        cluster_resource.set_machine_deployment_spec(node_group.name, current_md_spec)
+
+        # Use obj.update() to apply the change
+        cluster_resource.update()
 
 
 def generate_machine_deployments_for_cluster(
@@ -1001,6 +1065,23 @@ class Cluster(ClusterBase):
         worker_flavor = utils.lookup_flavor(osc, self.cluster.flavor_id)
         image = utils.lookup_image(osc, self.cluster.default_ng_master.image_id)
 
+        api_server_load_balancer = {
+            "enabled": self.cluster.master_lb_enabled,
+        }
+
+        # Only add optional fields if they are set
+        octavia_provider = self.cluster.labels.get("octavia_provider")
+        if octavia_provider is not None:
+            api_server_load_balancer["provider"] = octavia_provider
+
+        availability_zone = self.cluster.labels.get("api_server_lb_availability_zone")
+        if availability_zone is not None:
+            api_server_load_balancer["availabilityZone"] = availability_zone
+
+        flavor = self.cluster.labels.get("api_server_lb_flavor")
+        if flavor is not None:
+            api_server_load_balancer["flavor"] = flavor
+
         return {
             "metadata": {
                 "labels": self.labels,
@@ -1043,18 +1124,19 @@ class Cluster(ClusterBase):
                     "variables": [
                         {
                             "name": "apiServerLoadBalancer",
-                            "value": {
-                                "enabled": self.cluster.master_lb_enabled,
-                                "provider": self.cluster.labels.get(
-                                    "octavia_provider", "amphora"
-                                ),
-                            },
+                            "value": api_server_load_balancer,
                         },
                         {
                             "name": "apiServerTLSCipherSuites",
                             "value": self.cluster.labels.get(
                                 "api_server_tls_cipher_suites",
                                 "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",  # noqa: E501
+                            ),
+                        },
+                        {
+                            "name": "apiServerFloatingIP",
+                            "value": self.cluster.labels.get(
+                                "api_server_floating_ip", ""
                             ),
                         },
                         {

@@ -20,6 +20,7 @@ use kube::CustomResourceExt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
+#[allow(dead_code)]
 pub struct FeatureValues {
     #[serde(rename = "controlPlaneAvailabilityZones")]
     pub control_plane_availability_zones: Vec<String>,

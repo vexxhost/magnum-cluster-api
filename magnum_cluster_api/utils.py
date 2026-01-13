@@ -120,11 +120,11 @@ def generate_cloud_controller_manager_config(
     clouds_yaml = base64.decode_as_text(data.obj["data"]["clouds.yaml"])
     cloud_config = yaml.safe_load(clouds_yaml)
 
-    octavia_provider = cluster.labels.get("octavia_provider", "amphora")
+    octavia_provider = cluster.labels.get("octavia_provider", "amphorav2")
     octavia_lb_algorithm = cluster.labels.get("octavia_lb_algorithm")
     octavia_lb_healthcheck = cluster.labels.get("octavia_lb_healthcheck", True)
 
-    if octavia_provider == "amphora" and octavia_lb_algorithm is None:
+    if octavia_provider in ("amphora", "amphorav2") and octavia_lb_algorithm is None:
         octavia_lb_algorithm = "ROUND_ROBIN"
     elif octavia_provider == "ovn" and octavia_lb_algorithm is None:
         octavia_lb_algorithm = "SOURCE_IP_PORT"

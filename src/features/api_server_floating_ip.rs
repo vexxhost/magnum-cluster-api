@@ -22,8 +22,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 #[allow(dead_code)]
 pub struct FeatureValues {
-    #[serde(rename = "disableAPIServerFloatingIP")]
-    pub disable_api_server_floating_ip: bool,
+    #[serde(rename = "apiServerFloatingIP")]
+    pub api_server_floating_ip: String,
 }
 
 pub struct Feature {}
@@ -31,8 +31,8 @@ pub struct Feature {}
 impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
-            name: "disableAPIServerFloatingIP".into(),
-            enabled_if: Some("{{ if .disableAPIServerFloatingIP }}true{{end}}".into()),
+            name: "apiServerFloatingIP".into(),
+            enabled_if: Some(r#"{{ if ne .apiServerFloatingIP "" }}true{{end}}"#.into()),
             definitions: Some(vec![ClusterClassPatchesDefinitions {
                 selector: ClusterClassPatchesDefinitionsSelector {
                     api_version: OpenStackClusterTemplate::api_resource().api_version,
@@ -44,9 +44,9 @@ impl ClusterFeaturePatches for Feature {
                 },
                 json_patches: vec![ClusterClassPatchesDefinitionsJsonPatches {
                     op: "add".into(),
-                    path: "/spec/template/spec/disableAPIServerFloatingIP".into(),
+                    path: "/spec/template/spec/apiServerFloatingIP".into(),
                     value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                        variable: Some("disableAPIServerFloatingIP".into()),
+                        variable: Some("apiServerFloatingIP".into()),
                         ..Default::default()
                     }),
                     ..Default::default()
@@ -73,7 +73,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.disable_api_server_floating_ip = true;
+        values.api_server_floating_ip = "1.2.3.4".to_string();
 
         let patches = feature.patches();
 
@@ -86,8 +86,8 @@ mod tests {
                 .spec
                 .template
                 .spec
-                .disable_api_server_floating_ip,
-            Some(true)
+                .api_server_floating_ip,
+            Some("1.2.3.4".into())
         );
     }
 
@@ -95,9 +95,7 @@ mod tests {
     fn test_patches_if_disabled() {
         let feature = Feature {};
 
-        let mut values = default_values();
-        values.disable_api_server_floating_ip = false;
-
+        let values = default_values();
         let patches = feature.patches();
 
         let mut resources = TestClusterResources::new();
@@ -109,7 +107,7 @@ mod tests {
                 .spec
                 .template
                 .spec
-                .disable_api_server_floating_ip,
+                .api_server_floating_ip,
             None
         );
     }

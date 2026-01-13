@@ -24,10 +24,20 @@ use typed_builder::TypedBuilder;
 #[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
 pub struct APIServerLoadBalancerConfig {
     pub enabled: bool,
+
     pub provider: String,
+
+    #[serde(default, skip_serializing_if = "str::is_empty")]
+    #[builder(default)]
+    pub flavor: String,
+
+    #[serde(default, skip_serializing_if = "str::is_empty", rename = "availabilityZone")]
+    #[builder(default)]
+    pub availability_zone: String,
 }
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
+#[allow(dead_code)]
 pub struct FeatureValues {
     #[serde(rename = "apiServerLoadBalancer")]
     pub api_server_load_balancer: APIServerLoadBalancerConfig,
@@ -78,7 +88,14 @@ mod tests {
     fn test_patches() {
         let feature = Feature {};
 
-        let values = default_values();
+        let mut values = default_values();
+        values.api_server_load_balancer = APIServerLoadBalancerConfig::builder()
+            .enabled(true)
+            .provider("octavia".to_string())
+            .flavor("ha".to_string())
+            .availability_zone("zone-1".to_string())
+            .build();
+
         let patches = feature.patches();
 
         let mut resources = TestClusterResources::new();
@@ -100,5 +117,50 @@ mod tests {
             api_server_load_balancer.provider,
             Some(values.api_server_load_balancer.provider)
         );
+        assert_eq!(
+            api_server_load_balancer.flavor,
+            Some(values.api_server_load_balancer.flavor)
+        );
+        assert_eq!(
+            api_server_load_balancer.availability_zone,
+            Some(values.api_server_load_balancer.availability_zone)
+        );
+    }
+
+    #[test]
+    fn test_patches_with_none_values() {
+        let feature = Feature {};
+
+        let mut values = default_values();
+        values.api_server_load_balancer = APIServerLoadBalancerConfig::builder()
+            .enabled(true)
+            .provider("octavia".to_string())
+            .flavor("".to_string())
+            .availability_zone("".to_string())
+            .build();
+
+        let patches = feature.patches();
+
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
+
+        let api_server_load_balancer = resources
+            .openstack_cluster_template
+            .spec
+            .template
+            .spec
+            .api_server_load_balancer
+            .expect("apiServerLoadBalancer should be set");
+
+        assert_eq!(
+            api_server_load_balancer.enabled,
+            values.api_server_load_balancer.enabled
+        );
+        assert_eq!(
+            api_server_load_balancer.provider,
+            Some(values.api_server_load_balancer.provider)
+        );
+        assert_eq!(api_server_load_balancer.flavor, None);
+        assert_eq!(api_server_load_balancer.availability_zone, None);
     }
 }

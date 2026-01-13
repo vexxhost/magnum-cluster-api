@@ -24,6 +24,7 @@ use kube::CustomResourceExt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
+#[allow(dead_code)]
 pub struct FeatureValues {
     #[serde(rename = "nodeCidr")]
     pub node_cidr: String,

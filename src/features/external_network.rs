@@ -22,6 +22,7 @@ use kube::CustomResourceExt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
+#[allow(dead_code)]
 pub struct FeatureValues {
     #[serde(rename = "externalNetworkId")]
     pub external_network_id: String,
