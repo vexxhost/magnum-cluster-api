@@ -112,25 +112,15 @@ class DeleteReleaseCommand(ReleaseCommand):
 class TemplateReleaseCommand(ReleaseCommand):
     COMMAND = ["template"]
 
-    def __init__(
-        self, namespace, release_name, chart_ref, values={}, include_crds=True
-    ):
+    def __init__(self, namespace, release_name, chart_ref, values={}):
         super().__init__(namespace, release_name)
         self.chart_ref = chart_ref
         self.values = values
-        self.include_crds = include_crds
 
-    def __call__(self, *helm_args, repository=None, replacements=[]):
+    def __call__(self, repository=None, replacements=[]):
         try:
             docs = []
-
-            # Build the command arguments, include --include-crds by default
-            cmd_args = list(helm_args)
-            if self.include_crds:
-                cmd_args.append("--include-crds")
-
             data, _ = super().__call__(
-                *cmd_args,
                 self.chart_ref,
                 "--values",
                 "-",
@@ -141,17 +131,6 @@ class TemplateReleaseCommand(ReleaseCommand):
             #              On the other hand, helm template doesn't output namespace. We set it manually
             #              until  https://github.com/helm/helm/issues/10737 is fixed.
             for doc in yaml.safe_load_all(data):
-                # NOTE(fitbeard): Skip empty documents that can occur with YAML separators:
-                #                 helm template test . --include-crds \
-                #                 --set controller.volumeSnapshotClasses[0].name=test \
-                #                 --set controller.volumeSnapshotClasses[0].driver=test.driver | head -20
-                #                 ---
-                #                 # Source: snapshot-controller/crds/xxx.storage.k8s.io_xxxsnapshotclasses.yaml
-                #                 ---
-                #                 apiVersion: apiextensions.k8s.io/v1
-                if doc is None:
-                    continue
-
                 if doc["kind"] in ("DaemonSet", "Deployment", "StatefulSet"):
                     for container in itertools.chain(
                         doc["spec"]["template"]["spec"].get("initContainers", []),
@@ -164,11 +143,7 @@ class TemplateReleaseCommand(ReleaseCommand):
                                 container["image"], repository
                             )
 
-                if doc["kind"] not in (
-                    "ClusterRole",
-                    "ClusterRoleBinding",
-                    "CustomResourceDefinition",
-                ):
+                if doc["kind"] not in ("ClusterRole", "ClusterRoleBinding"):
                     doc["metadata"]["namespace"] = self.namespace
                 docs.append(doc)
             return yaml.safe_dump_all(docs, default_flow_style=False)

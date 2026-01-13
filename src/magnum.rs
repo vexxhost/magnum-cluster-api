@@ -99,6 +99,11 @@ pub struct ClusterLabels {
     #[pyo3(default="v8.1.0".to_owned())]
     pub csi_snapshotter_tag: String,
 
+    /// CSI Snapshot Controller tag to use for the cluster.
+    #[builder(default="v8.4.0".to_owned())]
+    #[pyo3(default="v8.4.0".to_owned())]
+    pub csi_snapshot_controller_tag: String,
+
     /// The Kubernetes version to use for the cluster.
     #[builder(default="v1.30.0".to_owned())]
     pub kube_tag: String,
