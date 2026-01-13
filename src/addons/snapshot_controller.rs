@@ -110,9 +110,9 @@ impl TryFrom<magnum::Cluster> for SnapshotControllerValues {
             });
         }
 
-        // Add Manila CSI volume snapshot class if enabled
+        // Add Manila CSI volume snapshot class if enabled and share_network_id is specified
         let manila_addon = manila_csi::Addon::new(cluster.clone());
-        if manila_addon.enabled() {
+        if manila_addon.enabled() && cluster.labels.manila_csi_share_network_id.is_some() {
             volume_snapshot_classes.push(VolumeSnapshotClass {
                 name: "share-snapshot".to_string(),
                 annotations: Some(btreemap! {
@@ -294,6 +294,7 @@ mod tests {
             labels: magnum::ClusterLabels::builder()
                 .cinder_csi_enabled(false)
                 .manila_csi_enabled(true)
+                .manila_csi_share_network_id(Some("share-net-123".to_string()))
                 .build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {
@@ -320,12 +321,35 @@ mod tests {
     }
 
     #[test]
+    fn test_snapshot_controller_values_with_manila_without_share_network_id() {
+        let cluster = magnum::Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: magnum::ClusterLabels::builder()
+                .cinder_csi_enabled(false)
+                .manila_csi_enabled(true)
+                .build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let values: SnapshotControllerValues =
+            cluster.clone().try_into().expect("failed to create values");
+
+        // No volume snapshot classes when share_network_id is not specified
+        assert_eq!(values.controller.volume_snapshot_classes.len(), 0);
+    }
+
+    #[test]
     fn test_snapshot_controller_values_with_both_csi() {
         let cluster = magnum::Cluster {
             uuid: "sample-uuid".to_string(),
             labels: magnum::ClusterLabels::builder()
                 .cinder_csi_enabled(true)
                 .manila_csi_enabled(true)
+                .manila_csi_share_network_id(Some("share-net-123".to_string()))
                 .build(),
             stack_id: "kube-abcde".to_string().into(),
             cluster_template: magnum::ClusterTemplate {

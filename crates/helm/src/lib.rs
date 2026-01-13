@@ -1,6 +1,5 @@
 use include_dir::Dir;
-use serde::{Deserialize, Serialize};
-use serde_yaml::Value;
+use serde::Serialize;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -127,70 +126,7 @@ pub fn template_with_options<T: Serialize>(
         return Err(HelmTemplateError::HelmCommand(error_str));
     }
 
-    let raw_output = String::from_utf8_lossy(&output.stdout).into_owned();
-
-    // Post-process YAML output to add namespace to resources
-    // NOTE: ClusterResourceSet fails to be applied without namespace set in resources.
-    //       On the other hand, helm template doesn't output namespace. We set it manually.
-    //       See: https://github.com/helm/helm/issues/10737
-    process_helm_output(&raw_output, namespace)
-}
-
-/// Process helm template output to add namespace to resources and filter empty documents.
-///
-/// Cluster-scoped resources (ClusterRole, ClusterRoleBinding, CustomResourceDefinition)
-/// are excluded from namespace injection.
-fn process_helm_output(output: &str, namespace: &str) -> Result<String, HelmTemplateError> {
-    let mut docs: Vec<Value> = Vec::new();
-
-    for doc in serde_yaml::Deserializer::from_str(output) {
-        let value: Value = match Value::deserialize(doc) {
-            Ok(v) => v,
-            Err(_) => continue, // Skip documents that can't be parsed
-        };
-
-        // Skip null/empty documents (can occur with YAML separators when using --include-crds)
-        if value.is_null() {
-            continue;
-        }
-
-        let mut value = value;
-
-        // Get the kind of the resource
-        let kind = value
-            .get("kind")
-            .and_then(|k| k.as_str())
-            .unwrap_or_default();
-
-        // Don't add namespace to cluster-scoped resources
-        if !matches!(
-            kind,
-            "ClusterRole" | "ClusterRoleBinding" | "CustomResourceDefinition"
-        ) {
-            // Add namespace to metadata
-            if let Some(metadata) = value.get_mut("metadata") {
-                if let Some(metadata_map) = metadata.as_mapping_mut() {
-                    metadata_map.insert(
-                        Value::String("namespace".to_string()),
-                        Value::String(namespace.to_string()),
-                    );
-                }
-            }
-        }
-
-        docs.push(value);
-    }
-
-    // Serialize all documents back to YAML
-    let mut result = String::new();
-    for (i, doc) in docs.iter().enumerate() {
-        if i > 0 {
-            result.push_str("---\n");
-        }
-        result.push_str(&serde_yaml::to_string(doc)?);
-    }
-
-    Ok(result)
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
 /// This is a helper function which allows you to use a `Dir` from the `include_dir` crate

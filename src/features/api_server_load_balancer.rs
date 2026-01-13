@@ -25,6 +25,8 @@ use typed_builder::TypedBuilder;
 pub struct APIServerLoadBalancerConfig {
     pub enabled: bool,
 
+    #[serde(default, skip_serializing_if = "str::is_empty")]
+    #[builder(default)]
     pub provider: String,
 
     #[serde(default, skip_serializing_if = "str::is_empty")]
@@ -128,15 +130,12 @@ mod tests {
     }
 
     #[test]
-    fn test_patches_with_none_values() {
+    fn test_patches_with_empty_optional_values() {
         let feature = Feature {};
 
         let mut values = default_values();
         values.api_server_load_balancer = APIServerLoadBalancerConfig::builder()
             .enabled(true)
-            .provider("octavia".to_string())
-            .flavor("".to_string())
-            .availability_zone("".to_string())
             .build();
 
         let patches = feature.patches();
@@ -156,10 +155,7 @@ mod tests {
             api_server_load_balancer.enabled,
             values.api_server_load_balancer.enabled
         );
-        assert_eq!(
-            api_server_load_balancer.provider,
-            Some(values.api_server_load_balancer.provider)
-        );
+        assert_eq!(api_server_load_balancer.provider, None);
         assert_eq!(api_server_load_balancer.flavor, None);
         assert_eq!(api_server_load_balancer.availability_zone, None);
     }
