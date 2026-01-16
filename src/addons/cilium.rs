@@ -90,7 +90,13 @@ impl TryFrom<magnum::Cluster> for CiliumValues {
                     .using_cluster::<Self>(&cluster, &cluster.labels.cilium_tag)?,
             },
             hubble: CiliumHubbleValues {
+                enabled: values.hubble.enabled,
                 relay: CiliumHubbleRelayValues {
+                    enabled: if cluster.labels.is_cilium_hubble_ui_enabled() {
+                        Some(true)
+                    } else {
+                        None
+                    },
                     image: values
                         .hubble
                         .relay
@@ -98,6 +104,11 @@ impl TryFrom<magnum::Cluster> for CiliumValues {
                         .using_cluster::<Self>(&cluster, &cluster.labels.cilium_tag)?,
                 },
                 ui: CiliumHubbleUiValues {
+                    enabled: if cluster.labels.is_cilium_hubble_ui_enabled() {
+                        Some(true)
+                    } else {
+                        None
+                    },
                     backend: CiliumHubbleUiBackendValues {
                         image: values
                             .hubble
@@ -212,6 +223,7 @@ struct CiliumCertGenValues {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct CiliumHubbleValues {
+    enabled: bool,
     relay: CiliumHubbleRelayValues,
     ui: CiliumHubbleUiValues,
 }
@@ -235,11 +247,15 @@ struct CiliumKubernetesValues {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct CiliumHubbleRelayValues {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    enabled: Option<bool>,
     image: ImageDetails,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 struct CiliumHubbleUiValues {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    enabled: Option<bool>,
     backend: CiliumHubbleUiBackendValues,
     frontend: CiliumHubbleUiFrontendValues,
 }
@@ -577,5 +593,146 @@ mod tests {
 
         let addon = Addon::new(cluster.clone());
         addon.manifests().expect("failed to get manifests");
+    }
+
+    #[test]
+    fn test_cilium_values_hubble_ui_disabled_by_default() {
+        let cluster = magnum::Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: magnum::ClusterLabels::builder().build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let values: CiliumValues = cluster.try_into().expect("failed to create values");
+
+        // HubbleUI should be disabled by default (None means not set, uses chart default)
+        assert_eq!(values.hubble.relay.enabled, None);
+        assert_eq!(values.hubble.ui.enabled, None);
+    }
+
+    #[test]
+    fn test_cilium_values_hubble_ui_enabled() {
+        let cluster = magnum::Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: magnum::ClusterLabels::builder()
+                .cilium_hubble_ui_enabled("true".to_owned())
+                .build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let values: CiliumValues = cluster.try_into().expect("failed to create values");
+
+        // HubbleUI and relay should be enabled
+        assert_eq!(values.hubble.relay.enabled, Some(true));
+        assert_eq!(values.hubble.ui.enabled, Some(true));
+    }
+
+    #[test]
+    fn test_get_manifests_with_hubble_ui_enabled() {
+        let cluster = magnum::Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: magnum::ClusterLabels::builder()
+                .cilium_hubble_ui_enabled("true".to_owned())
+                .build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let addon = Addon::new(cluster.clone());
+        let manifests = addon.manifests().expect("failed to get manifests");
+
+        // Verify HubbleUI resources are included in the manifests
+        let cilium_yaml = manifests.get("cilium.yaml").expect("cilium.yaml not found");
+
+        // Parse all YAML documents and check for Service resources
+        let docs: Vec<serde_yaml::Value> = serde_yaml::Deserializer::from_str(cilium_yaml)
+            .map(serde_yaml::Value::deserialize)
+            .collect::<Result<_, _>>()
+            .expect("failed to parse rendered documents");
+
+        let mut hubble_relay_service_found = false;
+        let mut hubble_ui_service_found = false;
+
+        for doc in &docs {
+            if let Some(kind) = doc.get("kind").and_then(|v| v.as_str()) {
+                if kind == "Service" {
+                    if let Some(name) = doc
+                        .get("metadata")
+                        .and_then(|m| m.get("name"))
+                        .and_then(|n| n.as_str())
+                    {
+                        if name == "hubble-relay" {
+                            hubble_relay_service_found = true;
+                        } else if name == "hubble-ui" {
+                            hubble_ui_service_found = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        assert!(
+            hubble_relay_service_found,
+            "hubble-relay Service should be in manifests when hubble_ui is enabled"
+        );
+        assert!(
+            hubble_ui_service_found,
+            "hubble-ui Service should be in manifests when hubble_ui is enabled"
+        );
+    }
+
+    #[test]
+    fn test_get_manifests_without_hubble_ui_no_services() {
+        let cluster = magnum::Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: magnum::ClusterLabels::builder()
+                .cilium_hubble_ui_enabled("false".to_owned())
+                .build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let addon = Addon::new(cluster.clone());
+        let manifests = addon.manifests().expect("failed to get manifests");
+
+        let cilium_yaml = manifests.get("cilium.yaml").expect("cilium.yaml not found");
+
+        // Parse all YAML documents and check for Service resources
+        let docs: Vec<serde_yaml::Value> = serde_yaml::Deserializer::from_str(cilium_yaml)
+            .map(serde_yaml::Value::deserialize)
+            .collect::<Result<_, _>>()
+            .expect("failed to parse rendered documents");
+
+        for doc in &docs {
+            if let Some(kind) = doc.get("kind").and_then(|v| v.as_str()) {
+                if kind == "Service" {
+                    if let Some(name) = doc
+                        .get("metadata")
+                        .and_then(|m| m.get("name"))
+                        .and_then(|n| n.as_str())
+                    {
+                        assert!(
+                            name != "hubble-relay" && name != "hubble-ui",
+                            "hubble-relay and hubble-ui Services should NOT be in manifests when hubble_ui is disabled, but found: {}",
+                            name
+                        );
+                    }
+                }
+            }
+        }
     }
 }

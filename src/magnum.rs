@@ -36,6 +36,12 @@ pub struct ClusterLabels {
     #[pyo3(default="10.100.0.0/16".to_owned())]
     pub cilium_ipv4pool: String,
 
+    /// Enable the Cilium Hubble UI for network observability.
+    /// Note: OpenStack labels are always strings, so this accepts "true"/"false".
+    #[builder(default="false".to_owned())]
+    #[pyo3(default="false".to_owned())]
+    pub cilium_hubble_ui_enabled: String,
+
     /// Enable the use of the Cinder CSI driver for the cluster.
     #[builder(default = true)]
     #[pyo3(default = true)]
@@ -106,6 +112,12 @@ pub struct ClusterLabels {
 
 impl ClusterLabels {
     const DEFAULT_CLOUD_PROVIDER_TAG: &'static str = "v1.34.1";
+
+    /// Returns true if Cilium Hubble UI is enabled.
+    /// Parses the string label value "true"/"false" to a boolean.
+    pub fn is_cilium_hubble_ui_enabled(&self) -> bool {
+        self.cilium_hubble_ui_enabled.eq_ignore_ascii_case("true")
+    }
 
     pub fn get_cloud_provider_tag(&self) -> String {
         if let Some(tag) = &self.cloud_provider_tag {

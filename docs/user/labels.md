@@ -150,6 +150,16 @@ is often accomplished by deploying a driver on each node.
    Default value: `v3.24.2`
    Supported values: `v3.24.2`, `v3.25.2`, `v3.26.5`, `v3.27.4`, `v3.28.2`, `v3.29.0`
 
+### Cilium
+
+* `cilium_hubble_ui_enabled`
+
+   Enable the Cilium Hubble UI for network observability. When enabled, both
+   the Hubble Relay and Hubble UI components are deployed, allowing users to
+   visualize network flows and service dependencies in their clusters.
+
+   Default value: `false`
+
 ## Container Storage Interface (CSI)
 
 ### Cinder
