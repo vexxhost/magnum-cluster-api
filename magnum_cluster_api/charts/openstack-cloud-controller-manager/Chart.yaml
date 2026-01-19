@@ -12,4 +12,4 @@ maintainers:
   name: eumel8
   url: https://www.telekom.com
 name: openstack-cloud-controller-manager
-version: 2.34.1
+version: 2.34.2
