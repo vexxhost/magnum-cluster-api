@@ -362,6 +362,15 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
                     },
                 }
 
+        # Add snapshot controller if either Cinder CSI or Manila CSI is enabled.
+        if cinder.is_enabled(self.cluster) or manila.is_enabled(self.cluster):
+            data = {
+                **data,
+                **magnum_cluster_api.Driver.get_snapshot_controller_cluster_resource_secret_data(
+                    self.cluster
+                ),
+            }
+
         return {
             "type": "addons.cluster.x-k8s.io/resource-set",
             "stringData": data,

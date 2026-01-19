@@ -9,6 +9,7 @@ pub mod cinder_csi;
 pub mod cloud_controller_manager;
 pub mod csi;
 pub mod manila_csi;
+pub mod snapshot_controller;
 
 #[cfg_attr(test, mockall::automock)]
 pub trait ClusterAddon {
