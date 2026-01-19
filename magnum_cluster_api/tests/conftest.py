@@ -28,7 +28,7 @@ from magnum.tests.unit.objects import utils
 from oslo_utils import uuidutils  # type: ignore
 from responses import matchers
 
-from magnum_cluster_api import driver
+from magnum_cluster_api import driver, magnum_cluster_api
 
 
 @pytest.fixture
@@ -179,7 +179,7 @@ def mock_certificates(mock_get_cluster_ca_certificate, mock_get_cluster_magnum_c
 
 @pytest.fixture(scope="session")
 def kube_tag():
-    return os.getenv("KUBE_TAG", "v1.25.3")
+    return os.getenv("KUBE_TAG", magnum_cluster_api.DEFAULT_KUBE_TAG)
 
 
 @pytest.fixture()
