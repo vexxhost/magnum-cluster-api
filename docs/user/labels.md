@@ -138,7 +138,7 @@ is often accomplished by deploying a driver on each node.
 
 ## Container Networking Interface (CNI)
 
-### Calcio
+### Calico
 
 * `calico_tag`
 
@@ -147,8 +147,8 @@ is often accomplished by deploying a driver on each node.
    Please note, that in case of selecting version out of the supported range,
    you will need to supply a manifest for it.
 
-   Default value: `v3.24.2`
-   Supported values: `v3.24.2`, `v3.25.2`, `v3.26.5`, `v3.27.4`, `v3.28.2`, `v3.29.0`
+   Default value: `v3.31.3`
+   Supported values: `v3.24.2`, `v3.25.2`, `v3.26.5`, `v3.27.4`, `v3.28.2`, `v3.29.0`, `v3.29.2`, `v3.29.3`, `v3.30.0`, `v3.30.1`, `v3.30.2`, `v3.31.3`
 
 ## Container Storage Interface (CSI)
 
