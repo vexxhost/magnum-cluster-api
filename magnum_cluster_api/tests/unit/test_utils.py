@@ -315,3 +315,30 @@ class TestUtils(base.BaseTestCase):
             context,
             fixed_network,
         )
+
+
+class TestValidateFlavor:
+    def test_valid_flavor_and_boot_volume(self, mock_osc, flavors):
+        # Test case where both flavor and boot_volume_size are valid
+        try:
+            utils.validate_flavor(mock_osc, flavors[1].name, True)
+            utils.validate_flavor(mock_osc, flavors[0].name, False)
+        except:
+            self.fail("utils.validate_flavor() raised exception!")
+
+    def test_zero_flavor_and_zero_boot_volume(self, mock_osc, flavors):
+        # Test case where both flavor and boot_volume_size are zero (should fail)
+        with pytest.raises(exceptions.OpenstackFlavorZeroRootVolume):
+            utils.validate_flavor(mock_osc, flavors[0].name, True)
+
+    def test_flavor_with_id_instead_of_name(self, mock_osc, flavors):
+        # Test case where flavor id provided instead of name (should fail)
+        with pytest.raises(exceptions.OpenstackFlavorInvalidName):
+            utils.validate_flavor(mock_osc, flavors[1].id, True)
+
+    def test_non_existing_flavor(self, mock_osc):
+        # Test case where flavor provided which doesn't exist
+        with pytest.raises(exception.FlavorNotFound):
+            utils.validate_flavor(mock_osc, "non-existing-flavor", True)
+        with pytest.raises(exception.FlavorNotFound):
+            utils.validate_flavor(mock_osc, "non-existing-flavor", False)
