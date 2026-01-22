@@ -292,6 +292,18 @@ def _get_calico_images(config: Optional[Dict] = None) -> List[str]:
         "quay.io/calico/cni:v3.30.0",
         "quay.io/calico/kube-controllers:v3.30.0",
         "quay.io/calico/node:v3.30.0",
+        # v3.30.1
+        "quay.io/calico/cni:v3.30.1",
+        "quay.io/calico/kube-controllers:v3.30.1",
+        "quay.io/calico/node:v3.30.1",
+        # v3.30.2
+        "quay.io/calico/cni:v3.30.2",
+        "quay.io/calico/kube-controllers:v3.30.2",
+        "quay.io/calico/node:v3.30.2",
+        # v3.31.3
+        "quay.io/calico/cni:v3.31.3",
+        "quay.io/calico/kube-controllers:v3.31.3",
+        "quay.io/calico/node:v3.31.3",
     ]
 
 
