@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.35.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.34.2...v0.35.0) (2026-01-29)
+
+
+### Features
+
+* add octavia_provider config option with amphora deprecation warning ([#834](https://github.com/vexxhost/magnum-cluster-api/issues/834)) ([eedf960](https://github.com/vexxhost/magnum-cluster-api/commit/eedf960c8985668f0f46bab1e38a9956b558dfd8))
+* add support for Cilium HubbleUI ([#870](https://github.com/vexxhost/magnum-cluster-api/issues/870)) ([6761fe5](https://github.com/vexxhost/magnum-cluster-api/commit/6761fe5adc9ce7730124b76f73f58f89d2727fcf))
+
 ## [0.34.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.34.1...v0.34.2) (2025-11-18)
 
 
