@@ -1,0 +1,1010 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../images/">
+      
+      
+        <link rel="next" href="../../admin/intro/">
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.15">
+    
+    
+      
+        <title>Labels - Cluster API driver for Magnum</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.26e3688c.min.css">
+      
+      
+
+    
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&"object"==typeof palette.color)for(var key of Object.keys(palette.color))document.body.setAttribute("data-md-color-"+key,palette.color[key])</script>
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#labels" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Cluster API driver for Magnum" class="md-header__button md-logo" aria-label="Cluster API driver for Magnum" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Cluster API driver for Magnum
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Labels
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Cluster API driver for Magnum" class="md-nav__button md-logo" aria-label="Cluster API driver for Magnum" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Cluster API driver for Magnum
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+    
+  
+  
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+      
+      
+      
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+      
+      
+      
+        <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+          User Guide
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+        <label class="md-nav__title" for="__nav_1">
+          <span class="md-nav__icon md-icon"></span>
+          User Guide
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        Getting Started
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configs/" class="md-nav__link">
+        Configuration Options
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../images/" class="md-nav__link">
+        Images
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Labels
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        Labels
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#volumes" class="md-nav__link">
+    Volumes
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#images" class="md-nav__link">
+    Images
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#network" class="md-nav__link">
+    Network
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auditing" class="md-nav__link">
+    Auditing
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cloud-controller-manager" class="md-nav__link">
+    Cloud Controller Manager
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#container-networking-interface-cni" class="md-nav__link">
+    Container Networking Interface (CNI)
+  </a>
+  
+    <nav class="md-nav" aria-label="Container Networking Interface (CNI)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#calico" class="md-nav__link">
+    Calico
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cilium" class="md-nav__link">
+    Cilium
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#container-storage-interface-csi" class="md-nav__link">
+    Container Storage Interface (CSI)
+  </a>
+  
+    <nav class="md-nav" aria-label="Container Storage Interface (CSI)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cinder" class="md-nav__link">
+    Cinder
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manila" class="md-nav__link">
+    Manila
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kubernetes" class="md-nav__link">
+    Kubernetes
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#oidc" class="md-nav__link">
+    OIDC
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#openstack" class="md-nav__link">
+    OpenStack
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#todo" class="md-nav__link">
+    TODO
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+      
+      
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+      
+      
+      
+        <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          Administrator Guide
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <label class="md-nav__title" for="__nav_2">
+          <span class="md-nav__icon md-icon"></span>
+          Administrator Guide
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/intro/" class="md-nav__link">
+        Introduction
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/troubleshooting/" class="md-nav__link">
+        Troubleshooting
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+      
+      
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+      
+      
+      
+        <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          Developer Guide
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <label class="md-nav__title" for="__nav_3">
+          <span class="md-nav__icon md-icon"></span>
+          Developer Guide
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developer/cluster-topology/" class="md-nav__link">
+        Cluster Topology
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developer/testing-and-development/" class="md-nav__link">
+        Testing & Development
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developer/upgrade-in-atmosphere/" class="md-nav__link">
+        Upgrading in Atmosphere environment
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#volumes" class="md-nav__link">
+    Volumes
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#images" class="md-nav__link">
+    Images
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#network" class="md-nav__link">
+    Network
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auditing" class="md-nav__link">
+    Auditing
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cloud-controller-manager" class="md-nav__link">
+    Cloud Controller Manager
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#container-networking-interface-cni" class="md-nav__link">
+    Container Networking Interface (CNI)
+  </a>
+  
+    <nav class="md-nav" aria-label="Container Networking Interface (CNI)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#calico" class="md-nav__link">
+    Calico
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cilium" class="md-nav__link">
+    Cilium
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#container-storage-interface-csi" class="md-nav__link">
+    Container Storage Interface (CSI)
+  </a>
+  
+    <nav class="md-nav" aria-label="Container Storage Interface (CSI)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cinder" class="md-nav__link">
+    Cinder
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manila" class="md-nav__link">
+    Manila
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kubernetes" class="md-nav__link">
+    Kubernetes
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#oidc" class="md-nav__link">
+    OIDC
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#openstack" class="md-nav__link">
+    OpenStack
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#todo" class="md-nav__link">
+    TODO
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+<h1 id="labels">Labels</h1>
+<p>Magnum cluster template labels are key-value pairs that are used to provide
+metadata and configuration information for Kubernetes clusters created through
+Magnum.</p>
+<p>They can be used to define characteristics such as the operating system,
+networking settings, container runtime, Kubernetes version, or any other custom
+attributes relevant to the cluster deployment.</p>
+<h2 id="volumes">Volumes</h2>
+<p>If you require your cluster to have the root filesystem on a volume, you can
+specify the volume size and type using the following labels:</p>
+<dl>
+<dt><code>boot_volume_size</code></dt>
+<dd>
+<p>The size in gigabytes of the boot volume.  If you set this value, it will
+enable boot from volume.
+<strong>Default value</strong>: Unset</p>
+</dd>
+<dt><code>boot_volume_type</code></dt>
+<dd>
+<p>The volume type of the boot volume.
+<strong>Default value</strong>: Default volume</p>
+</dd>
+<dt><code>etcd_volume_size</code></dt>
+<dd>
+<p>The size in gigabytes of the <code>etcd</code> volume.  If you set this value, it will
+create a volume for <code>etcd</code> specifically and mount it on the system.
+<strong>Default value</strong>: Unset</p>
+</dd>
+<dt><code>etcd_volume_type</code></dt>
+<dd>
+<p>The volume type of the <code>etcd</code> volume, this can be useful if you want to use an
+encrypted or high performance volume type.
+<strong>Default value</strong>: None</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Volume labels cannot be changed once the cluster is deployed.  However, you
+generally do not need a large boot volume since the root filesystem is
+only used for the operating system and container runtime.</p>
+</div>
+<h2 id="images">Images</h2>
+<p>The Cluster API driver for Magnum relies on specific container images for the
+deployment process.</p>
+<dl>
+<dt><code>container_infra_prefix</code></dt>
+<dd>
+<p>The prefix of the container images to use for the cluster.
+<strong>Default value</strong>: None, defaults to upstream images.</p>
+</dd>
+</dl>
+<h2 id="network">Network</h2>
+<p>The way containers talk to each other and the outside world is defined by the networking setup.
+This setup decides how information is shared among containers inside and outside the cluster, and
+is often accomplished by deploying a driver on each node.</p>
+<dl>
+<dt><code>calico_ipv4pool</code></dt>
+<dd>
+<p>IPv4 network in CIDR format.
+It refers to the IPv4 address pool used by the Calico network plugin for allocating IP addresses to pods in Kubernetes clusters.
+<strong>Default value</strong>: 10.100.0.0/16.</p>
+</dd>
+<dt><code>service_cluster_ip_range</code></dt>
+<dd>
+<p>IPv4 network in CIDR format.
+Defines the range of IP addresses allocated for Kubernetes services within clusters managed by Magnum.
+These IP addresses are used to expose and connect services.
+<strong>Default value</strong>: 10.254.0.0/16</p>
+</dd>
+</dl>
+<h2 id="auditing">Auditing</h2>
+<ul>
+<li><code>audit_log_enabled</code></li>
+</ul>
+<p>Enable audit logs for the cluster.  The audit logs are stored in the
+   <code>/var/log/kubernetes/audit/kube-apiserver-audit.log</code> file on the control
+   plane hosts.</p>
+<p>Default value: <code>false</code></p>
+<ul>
+<li><code>audit_log_maxage</code></li>
+</ul>
+<p>The number of days to retain audit logs.  This is only effective if the
+   <code>audit_log_enabled</code> label is set to <code>true</code>.</p>
+<p>Default value: <code>30</code></p>
+<ul>
+<li><code>audit_log_maxbackup</code></li>
+</ul>
+<p>The maximum number of audit log files to retain.  This is only effective if
+   the <code>audit_log_enabled</code> label is set to <code>true</code>.</p>
+<p>Default value: <code>10</code></p>
+<ul>
+<li><code>audit_log_maxsize</code></li>
+</ul>
+<p>The maximum size in megabytes of the audit log file before it gets rotated.
+   This is only effective if the <code>audit_log_enabled</code> label is set to <code>true</code>.</p>
+<p>Default value: <code>100</code></p>
+<h2 id="cloud-controller-manager">Cloud Controller Manager</h2>
+<ul>
+<li><code>cloud_provider_tag</code></li>
+</ul>
+<p>The tag to use for the OpenStack cloud controller provider when bootstrapping
+   the cluster.</p>
+<p>Default value: Automatically detected based on <code>kube_tag</code> label.</p>
+<ul>
+<li><code>octavia_provider</code></li>
+</ul>
+<p>The Octavia provider to configure for the load balancers created by the cluster.</p>
+<p>Default value: Octavia default</p>
+<ul>
+<li><code>octavia_lb_algorithm</code></li>
+</ul>
+<p>The Octavia load balancer algorithm to configure for the load balancers
+   created by the cluster (options are <code>ROUND_ROBIN</code>, <code>LEAST_CONNECTIONS</code>,
+   <code>SOURCE_IP</code> &amp; <code>SOURCE_IP_PORT</code>).</p>
+<p>It's important to note that the OVN provider supports only the <code>SOURCE_IP_PORT</code>
+   driver as part of it's <a href="https://docs.openstack.org/ovn-octavia-provider/latest/admin/driver.html">limitations</a>.</p>
+<p>Default value (<code>amphora</code> provider): <code>ROUND_ROBIN</code>
+   Default value (<code>ovn</code> provider): <code>SOURCE_IP_PORT</code></p>
+<ul>
+<li><code>octavia_lb_healthcheck</code></li>
+</ul>
+<p>The Octavia Load Balancer members can be monitored with health monitor.
+   This must be enabled when externalTrafficPolicy is set to <code>Local</code>.</p>
+<p>Default value: <code>True</code></p>
+<h2 id="container-networking-interface-cni">Container Networking Interface (CNI)</h2>
+<h3 id="calico">Calico</h3>
+<ul>
+<li><code>calico_tag</code></li>
+</ul>
+<p>The version of the Calico container image to use when bootstrapping the
+   cluster.
+   Please note, that in case of selecting version out of the supported range,
+   you will need to supply a manifest for it.</p>
+<p>Default value: <code>v3.31.3</code>
+   Supported values: <code>v3.24.2</code>, <code>v3.25.2</code>, <code>v3.26.5</code>, <code>v3.27.4</code>, <code>v3.28.2</code>, <code>v3.29.0</code>, <code>v3.29.2</code>, <code>v3.29.3</code>, <code>v3.30.0</code>, <code>v3.30.1</code>, <code>v3.30.2</code>, <code>v3.31.3</code></p>
+<h3 id="cilium">Cilium</h3>
+<ul>
+<li><code>cilium_hubble_ui_enabled</code></li>
+</ul>
+<p>Enable the Cilium Hubble UI for network observability. When enabled, both
+   the Hubble Relay and Hubble UI components are deployed, allowing users to
+   visualize network flows and service dependencies in their clusters.</p>
+<p>Default value: <code>false</code></p>
+<h2 id="container-storage-interface-csi">Container Storage Interface (CSI)</h2>
+<h3 id="cinder">Cinder</h3>
+<ul>
+<li><code>cinder_csi_plugin_tag</code></li>
+</ul>
+<p>The version of the Cinder CSI container image to use when bootstrapping the
+   cluster.</p>
+<p>Default value: Automatically detected based on <code>kube_tag</code> label.</p>
+<h3 id="manila">Manila</h3>
+<ul>
+<li><code>manila_csi_plugin_tag</code></li>
+</ul>
+<p>The version of the Manila CSI container image to use when bootstrapping the
+   cluster.</p>
+<p>Default value: Automatically detected based on <code>kube_tag</code> label.</p>
+<ul>
+<li><code>manila_csi_share_network_id</code></li>
+</ul>
+<p>Manila <a href="https://wiki.openstack.org/wiki/Manila/Concepts#share_network">share network</a> ID.</p>
+<p>Default value: <code>None</code></p>
+<h2 id="kubernetes">Kubernetes</h2>
+<ul>
+<li><code>api_server_cert_sans</code></li>
+</ul>
+<p>Specify the additional Subject Alternative Names (SANs) for the Kubernetes API Server,
+   separated by commas.</p>
+<ul>
+<li><code>api_server_tls_cipher_suites</code></li>
+</ul>
+<p>Specify the list of TLS cipher suites to use for the Kubernetes API server,
+   separated by commas.  If not specified, the default list of cipher suites
+   will be used using the <a href="https://ssl-config.mozilla.org/#server=go&amp;config=intermediate">Mozilla SSL Configuration Generator</a>.</p>
+<p>Default value: <code>TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305</code></p>
+<ul>
+<li><code>auto_healing_enabled</code></li>
+</ul>
+<p>Enable auto-healing for the cluster.  This will automatically replace failed
+   nodes in the cluster with new nodes (after 5 minutes of not being ready)
+   and stops further remediation if more than 40% of the cluster is unhealthy.</p>
+<p>Default value: <code>true</code></p>
+<ul>
+<li><code>auto_scaling_enabled</code></li>
+</ul>
+<p>Enable auto-scaling for the cluster.  This will automatically scale the
+   cluster up and down based on the number of pods running in the cluster.</p>
+<p>Default value: <code>false</code></p>
+<ul>
+<li><code>kubelet_tls_cipher_suites</code></li>
+</ul>
+<p>Specify the list of TLS cipher suites to use in communication between the
+   kubelet and applications, separated by commas.  If not specified, the
+   default list of cipher suites will be used.</p>
+<p>Default value: <code>TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305</code></p>
+<ul>
+<li><code>kube_tag</code></li>
+</ul>
+<p>The version of Kubernetes to use.</p>
+<p>Default value: <code>v1.25.3</code></p>
+<ul>
+<li><code>master_lb_floating_ip_enabled</code></li>
+</ul>
+<p>Attach a floating IP to the load balancer that fronts the Kubernetes API
+   servers.  In order to disable this, you must be running the
+   <code>magnum-cluster-api-proxy</code> service on all your Neutron network nodes.</p>
+<p>Default value: <code>true</code></p>
+<h2 id="oidc">OIDC</h2>
+<ul>
+<li><code>oidc_issuer_url</code></li>
+</ul>
+<p>The URL of the OpenID issuer, only HTTPS scheme will be accepted. If set, it
+   will be used to verify the OIDC JSON Web Token (JWT).</p>
+<p>Default value: ``</p>
+<ul>
+<li><code>oidc_client_id</code></li>
+</ul>
+<p>The client ID for the OpenID Connect client, must be set if <code>oidc_issuer_url</code>
+   is set.</p>
+<p>Default value: ``</p>
+<ul>
+<li><code>oidc_username_claim</code></li>
+</ul>
+<p>The OpenID claim to use as the user name.</p>
+<p>Default value: <code>sub</code></p>
+<ul>
+<li><code>oidc_username_prefix</code></li>
+</ul>
+<p>If provided, all usernames will be prefixed with this value. If not provided,
+   username claims other than 'email' are prefixed by the issuer URL to avoid
+   clashes. To skip any prefixing, use the default value.</p>
+<p>Default value: <code>-</code></p>
+<ul>
+<li><code>oidc_groups_claim</code></li>
+</ul>
+<p>If provided, the name of a custom OpenID Connect claim for specifying user
+   groups. The claim value is expected to be a string or array of strings.</p>
+<p>Default value: ``</p>
+<ul>
+<li><code>oidc_groups_prefix</code></li>
+</ul>
+<p>If provided, all groups will be prefixed with this value to prevent conflicts
+   with other authentication strategies.</p>
+<p>Default value: ``</p>
+<h2 id="openstack">OpenStack</h2>
+<ul>
+<li><code>fixed_subnet_cidr</code></li>
+</ul>
+<p>The CIDR of the fixed subnet to use for the cluster.</p>
+<p>Default value: <code>10.0.0.0/24</code></p>
+<ul>
+<li>
+<p><code>different_failure_domain</code></p>
+<p>Enable <a href="https://github.com/vexxhost/nova-scheduler-filters">failure domain filter</a>.
+This spreads cluster nodes across different failure domains.</p>
+</li>
+</ul>
+<p>Default value: <code>false</code></p>
+<ul>
+<li>
+<p><code>server_group_policies</code></p>
+<p>Specify the server group policies. A server group is created for each cluster node group.
+Nodes in a node group are scheduled following the policies specified for the corresponding
+server group.</p>
+<p>Controlplane node group uses the cluster label while other node groups use labels at each
+node group level. If node group label is not configured, cluster level label is applied.</p>
+</li>
+</ul>
+<p>Default value: <code>soft-anti-affinity</code></p>
+<h2 id="todo">TODO</h2>
+<p>availability_zone
+dns_cluster_domain
+calico_ipv4pool</p>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var tab,labels=set.querySelector(".tabbed-labels");for(tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Cluster API driver for Magnum is a community effort led by <a href="https://vexxhost.com">VEXXHOST, Inc.</a>
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["content.tabs.link", "navigation.tracking"], "search": "../../assets/javascripts/workers/search.208ed371.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.b4d07000.min.js"></script>
+      
+    
+  </body>
+</html>
