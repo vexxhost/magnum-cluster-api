@@ -36,7 +36,7 @@ from tenacity import retry, retry_if_exception_type
 
 from magnum_cluster_api import clients
 from magnum_cluster_api import exceptions as mcapi_exceptions
-from magnum_cluster_api import image_utils, images, objects
+from magnum_cluster_api import image_utils, images, objects, version_matrix
 from magnum_cluster_api.cache import ServerGroupCache
 
 AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar", "rockylinux"]
@@ -377,6 +377,48 @@ def lookup_image(cli: clients.OpenStackClients, image_ref: str) -> dict:
     return attr_validator.validate_image(cli, image_ref)
 
 
+def validate_kubernetes_version(
+    k8s_version: str,
+    raise_on_deprecated: bool = False,
+    log_deprecated: bool = True,
+) -> None:
+    """
+    Validate Kubernetes version compatibility with the current magnum-cluster-api version.
+
+    :param k8s_version: Kubernetes version to validate (e.g., "v1.27.3")
+    :param raise_on_deprecated: If True, raise exception for deprecated versions
+    :param log_deprecated: If True, log warning for deprecated versions
+    :raises UnsupportedKubernetesVersion: If version is unsupported
+    :raises DeprecatedKubernetesVersion: If version is deprecated and raise_on_deprecated is True
+    """
+    status, message = version_matrix.get_version_status(k8s_version)
+
+    if status == version_matrix.VersionStatus.UNSUPPORTED:
+        raise mcapi_exceptions.UnsupportedKubernetesVersion(
+            k8s_version=k8s_version,
+            mcapi_version="current",
+            message=message or "",
+        )
+
+    if status == version_matrix.VersionStatus.DEPRECATED:
+        if raise_on_deprecated:
+            raise mcapi_exceptions.DeprecatedKubernetesVersion(
+                k8s_version=k8s_version,
+                mcapi_version="current",
+                message=message or "",
+            )
+        elif log_deprecated:
+            # Import here to avoid circular dependency
+            from oslo_log import log as logging
+
+            LOG = logging.getLogger(__name__)
+            LOG.warning(
+                "Kubernetes version %s is deprecated. %s",
+                k8s_version,
+                message or "",
+            )
+
+
 def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluster):
     # Check network driver
     if cluster.cluster_template.network_driver not in ["cilium", "calico"]:
@@ -385,6 +427,10 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
     # Check master count
     if (cluster.master_count % 2) == 0:
         raise mcapi_exceptions.ClusterMasterCountEven
+
+    # Validate Kubernetes version compatibility
+    k8s_version = get_kube_tag(cluster)
+    validate_kubernetes_version(k8s_version, raise_on_deprecated=False)
 
     # Check if fixed_network exists
     if cluster.fixed_network:
