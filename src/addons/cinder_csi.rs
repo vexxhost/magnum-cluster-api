@@ -200,8 +200,8 @@ impl ClusterAddon for Addon {
         Self { cluster }
     }
 
-    fn enabled(&self) -> bool {
-        self.cluster.labels.cinder_csi_enabled
+    fn enabled(&self) ->  bool {
+        self.cluster.labels.cinder_csi_enabled.parse::<bool>().expect("failed to fetch cluster label")
     }
 
     fn secret_name(&self) -> Result<String, ClusterError> {

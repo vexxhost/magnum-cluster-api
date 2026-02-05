@@ -43,9 +43,9 @@ pub struct ClusterLabels {
     pub cilium_hubble_ui_enabled: String,
 
     /// Enable the use of the Cinder CSI driver for the cluster.
-    #[builder(default = true)]
-    #[pyo3(default = true)]
-    pub cinder_csi_enabled: bool,
+    #[builder(default = "true".to_owned())]
+    #[pyo3(default = "true".to_owned())]
+    pub cinder_csi_enabled: String,
 
     /// The tag of the Cinder CSI container image to use for the cluster.
     #[builder(default="v1.32.0".to_owned())]
@@ -53,9 +53,9 @@ pub struct ClusterLabels {
     pub cinder_csi_plugin_tag: String,
 
     /// Enable the use of the Manila CSI driver for the cluster.
-    #[builder(default = true)]
-    #[pyo3(default = true)]
-    pub manila_csi_enabled: bool,
+    #[builder(default = "true".to_owned())]
+    #[pyo3(default = "true".to_owned())]
+    pub manila_csi_enabled: String,
 
     /// The tag of the Manila CSI container image to use for the cluster.
     #[builder(default="v1.32.0".to_owned())]
