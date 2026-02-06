@@ -18,5 +18,8 @@ fn magnum_cluster_api(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<driver::Driver>()?;
     m.add_class::<monitor::Monitor>()?;
 
+    // Expose constants to Python
+    m.add("DEFAULT_KUBE_TAG", magnum::DEFAULT_KUBE_TAG)?;
+
     Ok(())
 }
