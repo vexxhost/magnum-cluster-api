@@ -36,12 +36,21 @@ pub enum HelmTemplateError {
     Extract(std::io::Error),
 }
 
+/// Options for helm template command
+#[derive(Debug, Default)]
+pub struct TemplateOptions {
+    /// Include CRDs in the templated output (--include-crds flag)
+    pub include_crds: bool,
+}
+
 /// Runs `helm template` for the given chart, feeding in the provided
 /// structured values (which are serialized to YAML) via standard input.
 ///
 /// # Arguments
 ///
 /// * `chart` - The name or path of the Helm chart.
+/// * `name` - The release name.
+/// * `namespace` - The namespace for the release.
 /// * `values` - A reference to any structure that implements `Serialize`.
 ///
 /// # Returns
@@ -54,16 +63,46 @@ pub fn template<T: Serialize>(
     namespace: &str,
     values: &T,
 ) -> Result<String, HelmTemplateError> {
+    template_with_options(chart, name, namespace, values, TemplateOptions::default())
+}
+
+/// Runs `helm template` with additional options.
+///
+/// # Arguments
+///
+/// * `chart` - The name or path of the Helm chart.
+/// * `name` - The release name.
+/// * `namespace` - The namespace for the release.
+/// * `values` - A reference to any structure that implements `Serialize`.
+/// * `options` - Template options (include_crds, etc.)
+///
+/// # Returns
+///
+/// * `Ok(String)` with the templated output if the command succeeds.
+/// * `Err(HelmTemplateError)` with the error if something goes wrong.
+pub fn template_with_options<T: Serialize>(
+    chart: &PathBuf,
+    name: &str,
+    namespace: &str,
+    values: &T,
+    options: TemplateOptions,
+) -> Result<String, HelmTemplateError> {
     let yaml_values = serde_yaml::to_string(values)?;
 
-    let mut child = Command::new("helm")
-        .arg("template")
+    let mut cmd = Command::new("helm");
+    cmd.arg("template")
         .arg("--namespace")
         .arg(namespace)
         .arg("--values")
-        .arg("-")
-        .arg(name)
-        .arg(chart)
+        .arg("-");
+
+    if options.include_crds {
+        cmd.arg("--include-crds");
+    }
+
+    cmd.arg(name).arg(chart);
+
+    let mut child = cmd
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -98,12 +137,24 @@ pub fn template_using_include_dir<T: Serialize>(
     namespace: &str,
     values: &T,
 ) -> Result<String, HelmTemplateError> {
+    template_using_include_dir_with_options(chart, name, namespace, values, TemplateOptions::default())
+}
+
+/// This is a helper function which allows you to use a `Dir` from the `include_dir` crate
+/// as the source for the chart, with additional options.
+pub fn template_using_include_dir_with_options<T: Serialize>(
+    chart: Dir,
+    name: &str,
+    namespace: &str,
+    values: &T,
+    options: TemplateOptions,
+) -> Result<String, HelmTemplateError> {
     let tmp_dir = TempDir::new().map_err(HelmTemplateError::TempDir)?;
     chart
         .extract(tmp_dir.path())
         .map_err(HelmTemplateError::Extract)?;
 
-    template(&tmp_dir.path().to_path_buf(), name, namespace, values)
+    template_with_options(&tmp_dir.path().to_path_buf(), name, namespace, values, options)
 }
 
 #[cfg(test)]

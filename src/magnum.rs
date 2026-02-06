@@ -62,6 +62,11 @@ pub struct ClusterLabels {
     #[pyo3(default="v1.32.0".to_owned())]
     pub manila_csi_plugin_tag: String,
 
+    /// The share network ID for Manila CSI.
+    #[builder(default)]
+    #[pyo3(default)]
+    pub manila_csi_share_network_id: Option<String>,
+
     /// The tag to use for the OpenStack cloud controller provider
     /// when bootstrapping the cluster. If not specified, it will be
     /// automatically selected based on the Kubernetes version.
@@ -104,6 +109,11 @@ pub struct ClusterLabels {
     #[builder(default="v8.1.0".to_owned())]
     #[pyo3(default="v8.1.0".to_owned())]
     pub csi_snapshotter_tag: String,
+
+    /// CSI Snapshot Controller tag to use for the cluster.
+    #[builder(default="v8.4.0".to_owned())]
+    #[pyo3(default="v8.4.0".to_owned())]
+    pub csi_snapshot_controller_tag: String,
 
     /// The Kubernetes version to use for the cluster.
     #[builder(default="v1.30.0".to_owned())]
