@@ -3,16 +3,13 @@ name: conformance
 on:
   workflow_dispatch:
     inputs:
-      kubernetes-version:
-        description: 'Kubernetes version to test (e.g., 1.32.10)'
-        required: true
-        default: '1.32.10'
       network-driver:
-        description: 'Network driver to use'
-        required: true
-        default: 'calico'
+        description: 'Network driver to use (leave empty for all drivers)'
+        required: false
+        default: ''
         type: choice
         options:
+          - ''
           - calico
           - cilium
   schedule:
@@ -29,8 +26,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        network-driver: ${{ fromJson(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.network-driver) || '["calico", "cilium"]') }}
-        kubernetes-version: ${{ fromJson(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.kubernetes-version) || '["1.32.10", "1.33.7", "1.34.3"]') }}
+        network-driver: ${{ fromJson(github.event_name == 'workflow_dispatch' && inputs.network-driver != '' && format('["{0}"]', inputs.network-driver) || '["calico", "cilium"]') }}
+        kubernetes-version:
+          - 1.32.10
+          - 1.33.7
+          - 1.34.3
     concurrency:
       group: conformance-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}-${{ github.run_id }}
       cancel-in-progress: false
