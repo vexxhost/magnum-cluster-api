@@ -51,3 +51,76 @@ steps to be able to test and develop the project.
    ```bash
    eval $(openstack coe cluster config k8s-v1.25.12)
    ```
+
+## Conformance Testing
+
+The project supports running Kubernetes conformance tests using [Hydrophone](https://github.com/kubernetes-sigs/hydrophone),
+which generates artifacts that can be submitted to the CNCF for Kubernetes conformance certification.
+
+### Running Conformance Tests
+
+Conformance tests can be run in two ways:
+
+#### 1. Manual Workflow Dispatch
+
+You can manually trigger conformance tests through the GitHub Actions workflow:
+
+1. Go to the Actions tab in the GitHub repository
+2. Select the "conformance" workflow
+3. Click "Run workflow"
+4. Choose:
+   - Kubernetes version to test
+   - Network driver (calico or cilium)
+   - Whether to test with kind first (recommended for first-time runs)
+
+#### 2. Scheduled Runs
+
+Conformance tests run automatically on a weekly schedule (Mondays at 2 AM UTC) to ensure
+continuous compliance with Kubernetes conformance requirements.
+
+### Testing with kind
+
+Before running conformance tests on actual clusters, you can test the Hydrophone setup
+with a local kind cluster to understand the output paths and verify the configuration:
+
+```bash
+./hack/test-hydrophone-kind.sh
+```
+
+This script will:
+- Create a kind cluster
+- Run Hydrophone conformance tests
+- Display the output structure
+- Clean up the kind cluster
+
+### Running Conformance Tests Locally
+
+To run conformance tests against an OpenStack-deployed cluster:
+
+```bash
+export OS_CLOUD=devstack
+export IMAGE_NAME=ubuntu-22.04-v1.32.10
+export KUBE_TAG=v1.32.10
+export NETWORK_DRIVER=calico
+./hack/run-conformance-tests.sh
+```
+
+This will:
+- Create a Kubernetes cluster using Magnum
+- Run the full Kubernetes conformance test suite
+- Generate CNCF-compliant artifacts (e2e.log, junit_01.xml, PRODUCT.yaml)
+- Package the results into `conformance-results.tar.gz`
+
+### Conformance Artifacts
+
+The conformance workflow uploads the following artifacts to GitHub:
+
+- **conformance-results-k8s-vX.Y.Z-driver**: Complete conformance test results
+- **cncf-submission-k8s-vX.Y.Z-driver**: Individual files ready for CNCF submission
+  - `e2e.log`: Full test execution logs
+  - `junit_01.xml`: JUnit test results
+  - `PRODUCT.yaml`: Product information file
+
+These artifacts can be downloaded and submitted to the
+[CNCF k8s-conformance repository](https://github.com/cncf/k8s-conformance)
+following the [instructions](https://github.com/cncf/k8s-conformance/blob/master/instructions.md).
