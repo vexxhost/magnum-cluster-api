@@ -24,24 +24,36 @@ HYDROPHONE_VERSION=${HYDROPHONE_VERSION:-v0.8.0}
 DNS_NAMESERVER=${DNS_NAMESERVER:-1.1.1.1}
 
 # Create cluster template
-openstack coe cluster template create \
-    --image $(openstack image show ${IMAGE_NAME} -c id -f value) \
-    --external-network public \
-    --dns-nameserver ${DNS_NAMESERVER} \
-    --master-lb-enabled \
-    --master-flavor m1.large \
-    --flavor m1.large \
-    --network-driver ${NETWORK_DRIVER} \
-    --docker-storage-driver overlay2 \
-    --coe kubernetes \
-    --label kube_tag=${KUBE_TAG} \
-    --label fixed_subnet_cidr=192.168.24.0/24 \
-    --label octavia_provider=ovn \
-    k8s-conformance-${KUBE_TAG};
+if ! openstack coe cluster template show k8s-conformance-${KUBE_TAG} &>/dev/null; then
+  echo "Creating cluster template k8s-conformance-${KUBE_TAG}..."
+  openstack coe cluster template create \
+      --image $(openstack image show ${IMAGE_NAME} -c id -f value) \
+      --external-network public \
+      --dns-nameserver ${DNS_NAMESERVER} \
+      --master-lb-enabled \
+      --master-flavor m1.large \
+      --flavor m1.large \
+      --network-driver ${NETWORK_DRIVER} \
+      --docker-storage-driver overlay2 \
+      --coe kubernetes \
+      --label kube_tag=${KUBE_TAG} \
+      --label fixed_subnet_cidr=192.168.24.0/24 \
+      --label octavia_provider=ovn \
+      k8s-conformance-${KUBE_TAG}
+else
+  echo "Cluster template k8s-conformance-${KUBE_TAG} already exists, reusing it."
+fi
+
+# Get the cluster template UUID
+CLUSTER_TEMPLATE_UUID=$(openstack coe cluster template show k8s-conformance-${KUBE_TAG} -c uuid -f value)
+if [ -z "${CLUSTER_TEMPLATE_UUID}" ]; then
+  echo "Error: Failed to get cluster template UUID"
+  exit 1
+fi
 
 # Create cluster
 openstack coe cluster create \
-  --cluster-template $(openstack coe cluster template show -c uuid -f value k8s-conformance-${KUBE_TAG}) \
+  --cluster-template ${CLUSTER_TEMPLATE_UUID} \
   --master-count 1 \
   --node-count ${NODE_COUNT} \
   --merge-labels \
@@ -78,6 +90,8 @@ for i in {1..240}; do
 done
 
 # Get the cluster configuration file
+# NOTE: This is the standard OpenStack CLI pattern for getting cluster credentials
+# The command generates export statements for KUBECONFIG that need to be evaluated
 eval $(openstack coe cluster config k8s-conformance-cluster)
 
 # Install hydrophone if not already installed
