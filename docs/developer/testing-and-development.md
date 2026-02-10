@@ -72,9 +72,7 @@ You can manually trigger conformance tests through the GitHub Actions workflow:
 1. Go to the Actions tab in the GitHub repository
 2. Select the "conformance" workflow
 3. Click "Run workflow"
-4. Optionally choose:
-   - Network driver (calico, cilium, or leave empty for all drivers)
-   - Tests will run for all maintained Kubernetes versions in the matrix
+4. Tests will run for all maintained Kubernetes versions and both network drivers (calico and cilium)
 
 #### 2. Scheduled Runs
 

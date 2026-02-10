@@ -1,22 +1,14 @@
 name: conformance
 
 on:
-  workflow_dispatch:
-    inputs:
-      network-driver:
-        description: 'Network driver to use (leave empty for all drivers)'
-        required: false
-        default: ''
-        type: choice
-        options:
-          - ''
-          - calico
-          - cilium
+  workflow_dispatch: {}
   schedule:
     # Run conformance tests weekly on Monday at 2 AM UTC
     - cron: '0 2 * * 1'
 
-permissions: {}
+permissions:
+  contents: read
+  actions: write
 
 jobs:
   # Run conformance tests on actual OpenStack clusters
@@ -26,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        network-driver: ${{ fromJson(github.event_name == 'workflow_dispatch' && inputs.network-driver != '' && format('["{0}"]', inputs.network-driver) || '["calico", "cilium"]') }}
+        network-driver: [calico, cilium]
         kubernetes-version:
           - 1.32.10
           - 1.33.7
@@ -38,73 +30,10 @@ jobs:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           path: magnum-cluster-api
-      - run: sudo mkdir -p /opt/stack
-      - run: sudo mv $GITHUB_WORKSPACE/magnum-cluster-api /opt/stack/magnum-cluster-api
-      - run: sudo chown -R $USER:$USER /opt/stack
-      - run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-pip
-      - uses: dev-hanz-ops/install-gh-cli-action@af38ce09b1ec248aeb08eea2b16bbecea9e059f8 # v0.2.1
+      - uses: ./magnum-cluster-api/.github/actions/setup-devstack
+        id: setup
         with:
-          gh-cli-version: 2.78.0
-      - id: tag-info
-        run: |
-          TAG_NAME=$(gh release list --repo vexxhost/capo-image-elements \
-            --limit 10 \
-            --exclude-pre-releases \
-            --exclude-drafts \
-            --json name,isLatest \
-            --jq '.[] | select(.isLatest == true) | .name')
-
-          echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ github.token }}
-      - uses: gophercloud/devstack-action@f4c936d2edcc7b7c657493b0073c38093c3c5ebd # v0.16
-        with:
-          conf_overrides: |
-            FIXED_RANGE=10.1.0.0/20
-            # NOTE(mnaser): https://review.opendev.org/c/openstack/devstack/+/942755
-            ZSWAP_ZPOOL=zsmalloc
-
-            # NOTE: Using the same Magnum plugin reference as ci.yml for consistency
-            enable_plugin magnum https://review.opendev.org/openstack/magnum refs/changes/10/949110/2
-            # TODO(mnaser): fix this when we have the matrix
-            MAGNUM_GUEST_IMAGE_URL=https://github.com/vexxhost/capo-image-elements/releases/download/${{ steps.tag-info.outputs.name }}/ubuntu-22.04-v${{ matrix.kubernetes-version }}.qcow2
-
-            enable_plugin manila https://github.com/openstack/manila
-            MANILA_ENABLED_BACKENDS=generic
-            MANILA_USE_SERVICE_INSTANCE_PASSWORD=True
-            MANILA_DEFAULT_SHARE_TYPE_EXTRA_SPECS="snapshot_support=True create_share_from_snapshot_support=True"
-
-            enable_plugin octavia https://github.com/openstack/octavia
-            OCTAVIA_NODE=api
-            DISABLE_AMP_IMAGE_BUILD=True
-
-            enable_plugin barbican https://github.com/openstack/barbican
-            enable_plugin ovn-octavia-provider https://github.com/openstack/ovn-octavia-provider
-            enable_plugin magnum-cluster-api https://github.com/vexxhost/magnum-cluster-api
-
-            [[post-config|/etc/manila/manila.conf]]
-            [generic]
-            driver_handles_share_servers = True
-            connect_share_server_to_tenant_network = True
-
-            [[post-config|/etc/magnum/magnum.conf]]
-            [cluster_template]
-            kubernetes_allowed_network_drivers = calico,cilium
-            kubernetes_default_network_driver = calico
-            [nova_client]
-            api_version = 2.15
-          enabled_services: -s-account,-s-container,-s-object,-s-proxy,openstack-cli-server,octavia,o-api,o-hk,o-da
-      - run: |
-          # NOTE(okozachenko): Create volumev3 service and endpoint manually until this issue fixed.
-          #                    https://github.com/kubernetes/cloud-provider-openstack/issues/2884
-          openstack service create --name cinderv3 --description "Cinder Volume Service V3" volumev3
-          iface=public
-          url=$(openstack endpoint list --service block-storage --interface $iface -f value -c URL)
-          openstack endpoint create --region RegionOne volumev3 $iface "$url"
-        env:
-          OS_CLOUD: devstack-admin
+          kubernetes-version: ${{ matrix.kubernetes-version }}
       - name: Run conformance tests
         run: ./hack/run-conformance-tests.sh
         working-directory: /opt/stack/magnum-cluster-api
