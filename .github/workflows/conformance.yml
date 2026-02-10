@@ -128,6 +128,8 @@ jobs:
         if: always()
         with:
           name: cncf-submission-k8s-v${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}
+          # Note: PRODUCT.yaml must be created manually per CNCF requirements
+          # See: https://github.com/cncf/k8s-conformance/blob/master/instructions.md
           path: |
             /opt/stack/magnum-cluster-api/conformance-results/e2e.log
             /opt/stack/magnum-cluster-api/conformance-results/junit_01.xml
