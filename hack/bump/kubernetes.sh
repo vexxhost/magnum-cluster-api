@@ -1,7 +1,27 @@
-set -e
+set -euo pipefail
 
-# Fetch current maintained Kubernetes versions
-VERSIONS=$(curl -s https://endoflife.date/api/v1/products/kubernetes | jq -r '.result.releases[] | select(.isMaintained == true).latest.name' | sort -V)
+# Fetch Kubernetes versions from the latest capo-image-elements release (Ubuntu images).
+TAG_NAME=$(
+  gh release list --repo vexxhost/capo-image-elements \
+    --limit 10 \
+    --exclude-pre-releases \
+    --exclude-drafts \
+    --json tagName,isLatest \
+    --jq '.[] | select(.isLatest == true) | .tagName'
+)
+
+ASSETS=$(
+  gh release view "$TAG_NAME" --repo vexxhost/capo-image-elements \
+    --json assets \
+    --jq '.assets[].name'
+)
+
+VERSIONS=$(
+  echo "$ASSETS" \
+    | jq -Rr 'select(test("^ubuntu-22\\.04-v[0-9]+\\.[0-9]+\\.[0-9]+\\.qcow2$"))' \
+    | sed -E 's/^ubuntu-22\.04-v([0-9]+\.[0-9]+\.[0-9]+)\.qcow2$/\1/' \
+    | sort -V
+)
 
 # Build the version list for YAML
 VERSION_LINES=""
