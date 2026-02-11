@@ -11,6 +11,12 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - run: sudo mkdir -p /opt/stack
+      shell: bash
+    - run: sudo mv $GITHUB_WORKSPACE/magnum-cluster-api /opt/stack/magnum-cluster-api
+      shell: bash
+    - run: sudo chown -R $USER:$USER /opt/stack
+      shell: bash
     - run: |
         sudo apt-get update
         sudo apt-get install -y python3-pip
