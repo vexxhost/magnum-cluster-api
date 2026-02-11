@@ -122,7 +122,10 @@ jobs:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           path: magnum-cluster-api
-      - uses: ./magnum-cluster-api/.github/actions/setup-devstack
+      - run: sudo mkdir -p /opt/stack
+      - run: sudo mv $GITHUB_WORKSPACE/magnum-cluster-api /opt/stack/magnum-cluster-api
+      - run: sudo chown -R $USER:$USER /opt/stack
+      - uses: /opt/stack/magnum-cluster-api/.github/actions/setup-devstack
         id: setup
         with:
           kubernetes-version: ${{ matrix.kubernetes-version }}
