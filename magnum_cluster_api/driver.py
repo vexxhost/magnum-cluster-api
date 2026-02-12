@@ -190,6 +190,27 @@ class BaseDriver(driver.Driver):
         #               need to refresh it to make sure we have the latest data.
         cluster.refresh()
 
+        # Check Kubernetes version compatibility (warn on deprecated, but don't block)
+        # This helps operators identify clusters that may fail after mcapi upgrade
+        k8s_version = utils.get_kube_tag(cluster)
+        try:
+            utils.validate_kubernetes_version(
+                k8s_version,
+                raise_on_deprecated=False,  # Don't block on deprecated, just warn
+                log_deprecated=True,  # Log warnings for deprecated versions
+            )
+        except exceptions.UnsupportedKubernetesVersion as e:
+            # Log error for unsupported versions but don't block status updates
+            from oslo_log import log as logging
+
+            LOG = logging.getLogger(__name__)
+            LOG.error(
+                "Cluster %s uses unsupported Kubernetes version %s: %s",
+                cluster.uuid,
+                k8s_version,
+                str(e),
+            )
+
         # TODO: watch for topology change instead
         node_groups = [
             self.update_cluster_control_plane_status(context, cluster)
@@ -391,7 +412,15 @@ class BaseDriver(driver.Driver):
         #              we ignore the `nodegroup` parameter and upgrade the entire cluster
         #              at once.
         cluster.cluster_template_id = cluster_template.uuid
-        cluster.labels["kube_tag"] = cluster_template.labels["kube_tag"]
+        new_k8s_version = cluster_template.labels["kube_tag"]
+
+        # Validate the target Kubernetes version before upgrading
+        utils.validate_kubernetes_version(
+            new_k8s_version,
+            raise_on_deprecated=True,  # Refuse upgrade to deprecated versions
+        )
+
+        cluster.labels["kube_tag"] = new_k8s_version
 
         for ng in cluster.nodegroups:
             ng.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
@@ -674,7 +703,6 @@ class BaseDriver(driver.Driver):
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
-
         # NOTE(mnaser): We want to switch the node group to `DELETE_IN_PROGRESS` state
         #               as soon as possible to make sure that the Magnum API knows that
         #               the node group is being deleted.
