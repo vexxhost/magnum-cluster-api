@@ -163,6 +163,7 @@ jobs:
 
             enable_plugin barbican https://github.com/openstack/barbican
             enable_plugin ovn-octavia-provider https://github.com/openstack/ovn-octavia-provider
+            enable_plugin magnum https://review.opendev.org/openstack/magnum
             enable_plugin magnum-cluster-api https://github.com/vexxhost/magnum-cluster-apioutdoor speakersk
 
             [[post-config|/etc/manila/manila.conf]]
