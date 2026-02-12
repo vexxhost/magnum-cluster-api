@@ -147,10 +147,7 @@ jobs:
         with:
           conf_overrides: |
             FIXED_RANGE=10.1.0.0/20
-            # NOTE(mnaser): https://review.opendev.org/c/openstack/devstack/+/942755
-            ZSWAP_ZPOOL=zsmalloc
 
-            enable_plugin magnum https://review.opendev.org/openstack/magnum refs/changes/10/949110/2
             # TODO(mnaser): fix this when we have the matrix
             MAGNUM_GUEST_IMAGE_URL=https://github.com/vexxhost/capo-image-elements/releases/download/${{ steps.tag-info.outputs.name }}/ubuntu-22.04-v${{ matrix.kubernetes-version }}.qcow2
 
