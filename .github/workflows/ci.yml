@@ -112,9 +112,10 @@ jobs:
       matrix:
         network-driver: [calico, cilium]
         kubernetes-version:
-          - 1.32.10
+          - 1.32.11
           - 1.33.7
           - 1.34.3
+          - 1.35.0
     concurrency:
       group: sonobuoy-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -198,3 +199,6 @@ jobs:
           name: sonobuoy-results-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}
           path: /opt/stack/magnum-cluster-api/sonobuoy-results.tar.gz
           if-no-files-found: error
+      - name: Setup tmate session
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
