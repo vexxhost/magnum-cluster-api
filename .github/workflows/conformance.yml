@@ -1,0 +1,65 @@
+name: conformance
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # Run conformance tests weekly on Monday at 2 AM UTC
+    - cron: '0 2 * * 1'
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  # Run conformance tests on actual OpenStack clusters
+  conformance:
+    runs-on: vexxhost-ubuntu-22.04-16
+    timeout-minutes: 360  # 6 hours for conformance tests
+    strategy:
+      fail-fast: false
+      matrix:
+        network-driver: [calico, cilium]
+        kubernetes-version:
+          - 1.32.10
+          - 1.33.7
+          - 1.34.3
+    concurrency:
+      group: conformance-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}-${{ github.run_id }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          path: magnum-cluster-api
+      - uses: ./magnum-cluster-api/.github/actions/setup-devstack
+        id: setup
+        with:
+          kubernetes-version: ${{ matrix.kubernetes-version }}
+      - name: Run conformance tests
+        run: ./hack/run-conformance-tests.sh
+        working-directory: /opt/stack/magnum-cluster-api
+        env:
+          OS_CLOUD: devstack
+          NETWORK_DRIVER: ${{ matrix.network-driver }}
+          IMAGE_NAME: ubuntu-22.04-v${{ matrix.kubernetes-version }}
+          KUBE_TAG: v${{ matrix.kubernetes-version }}
+          HYDROPHONE_VERSION: v0.8.0
+      - name: Upload conformance results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: conformance-results-k8s-v${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}
+          path: |
+            /opt/stack/magnum-cluster-api/conformance-results.tar.gz
+            /opt/stack/magnum-cluster-api/conformance-results/**/*
+          if-no-files-found: error
+      - name: Upload individual artifacts for CNCF submission
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: cncf-submission-k8s-v${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}
+          # Note: PRODUCT.yaml must be created manually per CNCF requirements
+          # See: https://github.com/cncf/k8s-conformance/blob/master/instructions.md
+          path: |
+            /opt/stack/magnum-cluster-api/conformance-results/e2e.log
+            /opt/stack/magnum-cluster-api/conformance-results/junit_01.xml
+          if-no-files-found: warn

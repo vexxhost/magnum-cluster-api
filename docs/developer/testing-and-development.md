@@ -51,3 +51,65 @@ steps to be able to test and develop the project.
    ```bash
    eval $(openstack coe cluster config k8s-v1.25.12)
    ```
+
+## Conformance Testing
+
+The project supports running Kubernetes conformance tests using [Hydrophone](https://github.com/kubernetes-sigs/hydrophone),
+which generates artifacts that can be submitted to the CNCF for Kubernetes conformance certification.
+
+Hydrophone has been validated to generate the required output files:
+- `e2e.log` - Full test execution logs
+- `junit_01.xml` - JUnit test results in XML format
+
+### Running Conformance Tests
+
+Conformance tests can be run in two ways:
+
+#### 1. Manual Workflow Dispatch
+
+You can manually trigger conformance tests through the GitHub Actions workflow:
+
+1. Go to the Actions tab in the GitHub repository
+2. Select the "conformance" workflow
+3. Click "Run workflow"
+4. Tests will run for all maintained Kubernetes versions and both network drivers (calico and cilium)
+
+#### 2. Scheduled Runs
+
+Conformance tests run automatically on a weekly schedule (Mondays at 2 AM UTC) to ensure
+continuous compliance with Kubernetes conformance requirements.
+
+### Running Conformance Tests Locally
+
+To run conformance tests against an OpenStack-deployed cluster:
+
+```bash
+export OS_CLOUD=devstack
+export IMAGE_NAME=ubuntu-22.04-v1.32.10
+export KUBE_TAG=v1.32.10
+export NETWORK_DRIVER=calico
+./hack/run-conformance-tests.sh
+```
+
+This will:
+- Create a Kubernetes cluster using Magnum
+- Run the full Kubernetes conformance test suite
+- Generate CNCF-compliant artifacts (e2e.log, junit_01.xml)
+- Package the results into `conformance-results.tar.gz`
+
+**Note**: For CNCF submission, you'll also need to create a `PRODUCT.yaml` file and `README.md`
+following the [CNCF instructions](https://github.com/cncf/k8s-conformance/blob/master/instructions.md).
+
+### Conformance Artifacts
+
+The conformance workflow uploads the following artifacts to GitHub:
+
+- **conformance-results-k8s-vX.Y.Z-driver**: Complete conformance test results tarball
+- **cncf-submission-k8s-vX.Y.Z-driver**: Individual files for CNCF submission
+  - `e2e.log`: Full test execution logs
+  - `junit_01.xml`: JUnit test results
+
+These artifacts can be downloaded and submitted to the
+[CNCF k8s-conformance repository](https://github.com/cncf/k8s-conformance)
+following the [instructions](https://github.com/cncf/k8s-conformance/blob/master/instructions.md).
+You will need to add a `PRODUCT.yaml` file and `README.md` as described in the CNCF instructions.
