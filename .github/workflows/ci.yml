@@ -112,9 +112,10 @@ jobs:
       matrix:
         network-driver: [calico, cilium]
         kubernetes-version:
-          - 1.32.10
+          - 1.32.11
           - 1.33.7
           - 1.34.3
+          - 1.35.0
     concurrency:
       group: sonobuoy-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -147,10 +148,7 @@ jobs:
         with:
           conf_overrides: |
             FIXED_RANGE=10.1.0.0/20
-            # NOTE(mnaser): https://review.opendev.org/c/openstack/devstack/+/942755
-            ZSWAP_ZPOOL=zsmalloc
 
-            enable_plugin magnum https://review.opendev.org/openstack/magnum refs/changes/10/949110/2
             # TODO(mnaser): fix this when we have the matrix
             MAGNUM_GUEST_IMAGE_URL=https://github.com/vexxhost/capo-image-elements/releases/download/${{ steps.tag-info.outputs.name }}/ubuntu-22.04-v${{ matrix.kubernetes-version }}.qcow2
 
@@ -165,6 +163,7 @@ jobs:
 
             enable_plugin barbican https://github.com/openstack/barbican
             enable_plugin ovn-octavia-provider https://github.com/openstack/ovn-octavia-provider
+            enable_plugin magnum https://review.opendev.org/openstack/magnum
             enable_plugin magnum-cluster-api https://github.com/vexxhost/magnum-cluster-apioutdoor speakersk
 
             [[post-config|/etc/manila/manila.conf]]
@@ -201,3 +200,6 @@ jobs:
           name: sonobuoy-results-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}
           path: /opt/stack/magnum-cluster-api/sonobuoy-results.tar.gz
           if-no-files-found: error
+      - name: Setup tmate session
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
