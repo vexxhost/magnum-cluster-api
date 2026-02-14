@@ -52,6 +52,15 @@ class BaseDriver(driver.Driver):
             magnum_cluster_api.Driver("magnum-system", resources.CLUSTER_CLASS_NAME)
         )
 
+    def __del__(self):
+        """Clean up resources to prevent file descriptor leaks."""
+        if hasattr(self, 'k8s_api') and self.k8s_api is not None:
+            try:
+                self.k8s_api.session.close()
+            except Exception:
+                # Ignore errors during cleanup
+                pass
+
     @property
     def kube_client(self):
         if not hasattr(self, "_kube_client"):

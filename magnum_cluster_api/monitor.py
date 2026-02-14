@@ -21,6 +21,18 @@ from magnum_cluster_api.magnum_cluster_api import Monitor as RustMonitor
 
 LOG = logging.getLogger(__name__)
 
+# Cache pykube client to avoid file descriptor leaks
+# Creating a new client on every poll causes "too many open files" errors
+_cached_k8s_api = None
+
+
+def _get_cached_k8s_api():
+    """Get or create a cached Kubernetes API client."""
+    global _cached_k8s_api
+    if _cached_k8s_api is None:
+        _cached_k8s_api = clients.get_pykube_api()
+    return _cached_k8s_api
+
 
 class Monitor(monitors.MonitorBase):
     def metrics_spec(self):
@@ -33,7 +45,7 @@ class Monitor(monitors.MonitorBase):
         """
         Poll the number of replicas of each nodegroup in the cluster when autoscaling enabled.
         """
-        k8s_api = clients.get_pykube_api()
+        k8s_api = _get_cached_k8s_api()
         if not utils.get_auto_scaling_enabled(self.cluster):
             return
         for node_group in self.cluster.nodegroups:

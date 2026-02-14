@@ -333,21 +333,25 @@ class ProxyManager(periodic_task.PeriodicTasks):
     @periodic_task.periodic_task(spacing=10, run_immediately=True)
     def sync(self, context):
         api = clients.get_pykube_api()
+        
+        try:
+            # Generate list of all clusters
+            clusters = objects.OpenStackCluster.objects(
+                api, namespace="magnum-system"
+            ).all()
 
-        # Generate list of all clusters
-        clusters = objects.OpenStackCluster.objects(
-            api, namespace="magnum-system"
-        ).all()
+            # Generate list of proxied clusters
+            proxied_clusters = []
+            for cluster in clusters:
+                proxied_cluster = structs.ProxiedCluster.from_openstack_cluster(cluster)
+                if proxied_cluster:
+                    proxied_clusters.append(proxied_cluster)
 
-        # Generate list of proxied clusters
-        proxied_clusters = []
-        for cluster in clusters:
-            proxied_cluster = structs.ProxiedCluster.from_openstack_cluster(cluster)
-            if proxied_cluster:
-                proxied_clusters.append(proxied_cluster)
-
-        self._sync_haproxy(proxied_clusters)
-        self._sync_services(api, proxied_clusters, clusters)
-        self._sync_endpoint_slices(api, proxied_clusters)
-        self._sync_kubeconfigs(api, proxied_clusters)
-        self._cleanup_endpoint_slices(api)
+            self._sync_haproxy(proxied_clusters)
+            self._sync_services(api, proxied_clusters, clusters)
+            self._sync_endpoint_slices(api, proxied_clusters)
+            self._sync_kubeconfigs(api, proxied_clusters)
+            self._cleanup_endpoint_slices(api)
+        finally:
+            # Close the session to prevent file descriptor leaks
+            api.session.close()
