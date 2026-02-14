@@ -12,6 +12,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import threading
+
 from eventlet import tpool  # type: ignore
 from magnum.conductor import monitors  # type: ignore
 from oslo_log import log as logging  # type: ignore
@@ -20,6 +22,22 @@ from magnum_cluster_api import clients, objects, utils
 from magnum_cluster_api.magnum_cluster_api import Monitor as RustMonitor
 
 LOG = logging.getLogger(__name__)
+
+# Cache pykube client to avoid file descriptor leaks
+# Creating a new client on every poll causes "too many open files" errors
+_cached_k8s_api = None
+_cached_k8s_api_lock = threading.Lock()
+
+
+def _get_cached_k8s_api():
+    """Get or create a cached Kubernetes API client (thread-safe)."""
+    global _cached_k8s_api
+    if _cached_k8s_api is None:
+        with _cached_k8s_api_lock:
+            # Double-check pattern to avoid race conditions
+            if _cached_k8s_api is None:
+                _cached_k8s_api = clients.get_pykube_api()
+    return _cached_k8s_api
 
 
 class Monitor(monitors.MonitorBase):
@@ -33,7 +51,7 @@ class Monitor(monitors.MonitorBase):
         """
         Poll the number of replicas of each nodegroup in the cluster when autoscaling enabled.
         """
-        k8s_api = clients.get_pykube_api()
+        k8s_api = _get_cached_k8s_api()
         if not utils.get_auto_scaling_enabled(self.cluster):
             return
         for node_group in self.cluster.nodegroups:
