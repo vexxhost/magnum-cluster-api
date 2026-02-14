@@ -12,6 +12,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import threading
+
 from eventlet import tpool  # type: ignore
 from magnum.conductor import monitors  # type: ignore
 from oslo_log import log as logging  # type: ignore
@@ -24,13 +26,17 @@ LOG = logging.getLogger(__name__)
 # Cache pykube client to avoid file descriptor leaks
 # Creating a new client on every poll causes "too many open files" errors
 _cached_k8s_api = None
+_cached_k8s_api_lock = threading.Lock()
 
 
 def _get_cached_k8s_api():
-    """Get or create a cached Kubernetes API client."""
+    """Get or create a cached Kubernetes API client (thread-safe)."""
     global _cached_k8s_api
     if _cached_k8s_api is None:
-        _cached_k8s_api = clients.get_pykube_api()
+        with _cached_k8s_api_lock:
+            # Double-check pattern to avoid race conditions
+            if _cached_k8s_api is None:
+                _cached_k8s_api = clients.get_pykube_api()
     return _cached_k8s_api
 
 
