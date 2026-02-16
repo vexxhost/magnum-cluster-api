@@ -105,7 +105,7 @@ jobs:
           charts-root: magnum_cluster_api/charts
 
   sonobuoy:
-    runs-on: vexxhost-ubuntu-22.04-16
+    runs-on: vexxhost-ubuntu-24.04-16
     timeout-minutes: 90
     strategy:
       fail-fast: false
