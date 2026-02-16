@@ -100,7 +100,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-      - uses: vexxhost/chart-vendor@d242f2d52e9f707faaf66de927936e337eb9679e # main
+      - uses: vexxhost/chart-vendor@16a7b50d8ac235cf83ae9763a093fbee7034b5bf # main
         with:
           charts-root: magnum_cluster_api/charts
 
@@ -112,10 +112,10 @@ jobs:
       matrix:
         network-driver: [calico, cilium]
         kubernetes-version:
-          - 1.32.11
-          - 1.33.7
-          - 1.34.3
-          - 1.35.0
+          - 1.32.12
+          - 1.33.8
+          - 1.34.4
+          - 1.35.1
     concurrency:
       group: sonobuoy-${{ matrix.kubernetes-version }}-${{ matrix.network-driver }}-${{ github.event.pull_request.number }}
       cancel-in-progress: true
