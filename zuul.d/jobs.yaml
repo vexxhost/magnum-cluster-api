@@ -58,85 +58,85 @@
             - controller
 
 - job:
-    name: magnum-cluster-api-sonobuoy
+    name: magnum-cluster-api-hydrophone
     parent: magnum-cluster-api-devstack
     abstract: true
-    pre-run: zuul.d/playbooks/sonobuoy/pre.yml
-    run: zuul.d/playbooks/sonobuoy/run.yml
-    post-run: zuul.d/playbooks/sonobuoy/post.yml
+    pre-run: zuul.d/playbooks/hydrophone/pre.yml
+    run: zuul.d/playbooks/hydrophone/run.yml
+    post-run: zuul.d/playbooks/hydrophone/post.yml
     vars:
       image_url: "https://github.com/vexxhost/capo-image-elements/releases/latest/download/ubuntu-22.04-{{ kube_tag }}.qcow2"
       devstack_localrc:
         MAGNUM_GUEST_IMAGE_URL: "{{ image_url }}"
 
 - job:
-    name: magnum-cluster-api-sonobuoy-v1.32.12
-    parent: magnum-cluster-api-sonobuoy
+    name: magnum-cluster-api-hydrophone-v1.32.12
+    parent: magnum-cluster-api-hydrophone
     vars:
       kube_tag: v1.32.12
 
 - job:
-    name: magnum-cluster-api-sonobuoy-v1.32.12-calico
-    parent: magnum-cluster-api-sonobuoy-v1.32.12
+    name: magnum-cluster-api-hydrophone-v1.32.12-calico
+    parent: magnum-cluster-api-hydrophone-v1.32.12
     vars:
       network_driver: calico
 
 - job:
-    name: magnum-cluster-api-sonobuoy-v1.32.12-cilium
-    parent: magnum-cluster-api-sonobuoy-v1.32.12
+    name: magnum-cluster-api-hydrophone-v1.32.12-cilium
+    parent: magnum-cluster-api-hydrophone-v1.32.12
     vars:
       network_driver: cilium
 
 - job:
-    name: magnum-cluster-api-sonobuoy-v1.33.8
-    parent: magnum-cluster-api-sonobuoy
+    name: magnum-cluster-api-hydrophone-v1.33.8
+    parent: magnum-cluster-api-hydrophone
     vars:
       kube_tag: v1.33.8
 
 - job:
-    name: magnum-cluster-api-sonobuoy-v1.33.8-calico
-    parent: magnum-cluster-api-sonobuoy-v1.33.8
+    name: magnum-cluster-api-hydrophone-v1.33.8-calico
+    parent: magnum-cluster-api-hydrophone-v1.33.8
     vars:
       network_driver: calico
 
 - job:
-    name: magnum-cluster-api-sonobuoy-v1.33.8-cilium
-    parent: magnum-cluster-api-sonobuoy-v1.33.8
+    name: magnum-cluster-api-hydrophone-v1.33.8-cilium
+    parent: magnum-cluster-api-hydrophone-v1.33.8
     vars:
       network_driver: cilium
 
 - job:
-    name: magnum-cluster-api-sonobuoy-v1.34.4
-    parent: magnum-cluster-api-sonobuoy
+    name: magnum-cluster-api-hydrophone-v1.34.4
+    parent: magnum-cluster-api-hydrophone
     vars:
       kube_tag: v1.34.4
 
 - job:
-    name: magnum-cluster-api-sonobuoy-v1.34.4-calico
-    parent: magnum-cluster-api-sonobuoy-v1.34.4
+    name: magnum-cluster-api-hydrophone-v1.34.4-calico
+    parent: magnum-cluster-api-hydrophone-v1.34.4
     vars:
       network_driver: calico
 
 - job:
-    name: magnum-cluster-api-sonobuoy-v1.34.4-cilium
-    parent: magnum-cluster-api-sonobuoy-v1.34.4
+    name: magnum-cluster-api-hydrophone-v1.34.4-cilium
+    parent: magnum-cluster-api-hydrophone-v1.34.4
     vars:
       network_driver: cilium
 
 - job:
-    name: magnum-cluster-api-sonobuoy-v1.35.1
-    parent: magnum-cluster-api-sonobuoy
+    name: magnum-cluster-api-hydrophone-v1.35.1
+    parent: magnum-cluster-api-hydrophone
     vars:
       kube_tag: v1.35.1
 
 - job:
-    name: magnum-cluster-api-sonobuoy-v1.35.1-calico
-    parent: magnum-cluster-api-sonobuoy-v1.35.1
+    name: magnum-cluster-api-hydrophone-v1.35.1-calico
+    parent: magnum-cluster-api-hydrophone-v1.35.1
     vars:
       network_driver: calico
 
 - job:
-    name: magnum-cluster-api-sonobuoy-v1.35.1-cilium
-    parent: magnum-cluster-api-sonobuoy-v1.35.1
+    name: magnum-cluster-api-hydrophone-v1.35.1-cilium
+    parent: magnum-cluster-api-hydrophone-v1.35.1
     vars:
       network_driver: cilium

@@ -1,9 +1,9 @@
 - hosts: all
   tasks:
-    - name: Copy Sonobuoy results to output folder
+    - name: Copy Hydrophone results to output folder
       copy:
-        src: "{{ zuul.project.src_dir }}/sonobuoy-results.tar.gz"
-        dest: "{{ zuul_output_dir }}/artifacts/sonobuoy-results.tar.gz"
+        src: "{{ zuul.project.src_dir }}/hydrophone-results.tar.gz"
+        dest: "{{ zuul_output_dir }}/artifacts/hydrophone-results.tar.gz"
         remote_src: true
       ignore_errors: true
 
@@ -12,8 +12,8 @@
         data:
           zuul:
             artifacts:
-              - name: "Sonobuoy Results"
-                url: "artifacts/sonobuoy-results.tar.gz"
+              - name: "Hydrophone Results"
+                url: "artifacts/hydrophone-results.tar.gz"
                 metadata:
                   type: tarball
 
