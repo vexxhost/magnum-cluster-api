@@ -1,7 +1,7 @@
 - hosts: all
   tasks:
     - name: Copy Hydrophone results to output folder
-      copy:
+      ansible.builtin.copy:
         src: "{{ zuul.project.src_dir }}/hydrophone-results.tar.gz"
         dest: "{{ zuul_output_dir }}/artifacts/hydrophone-results.tar.gz"
         remote_src: true
