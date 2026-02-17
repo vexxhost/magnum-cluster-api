@@ -89,8 +89,25 @@ tar -xzf hydrophone_${HYDROPHONE_VERSION}_linux_${HYDROPHONE_ARCH}.tar.gz
 ./hydrophone --conformance --output-dir=./hydrophone-results
 
 # Check if tests passed by examining the junit file
+# Verify that:
+# 1. Tests were actually run (tests attribute > 0)
+# 2. No failures occurred (failures="0")
+# 3. No errors occurred (errors="0")
+if ! grep -q 'errors="0"' ./hydrophone-results/junit_01.xml; then
+  echo "Hydrophone conformance tests had errors"
+  cat ./hydrophone-results/e2e.log
+  exit 1
+fi
+
 if ! grep -q 'failures="0"' ./hydrophone-results/junit_01.xml; then
   echo "Hydrophone conformance tests failed"
+  cat ./hydrophone-results/e2e.log
+  exit 1
+fi
+
+# Check that at least some tests were run
+if ! grep -E 'tests="[1-9][0-9]*"' ./hydrophone-results/junit_01.xml > /dev/null; then
+  echo "No Hydrophone conformance tests were run"
   cat ./hydrophone-results/e2e.log
   exit 1
 fi
