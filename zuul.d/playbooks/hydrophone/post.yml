@@ -1,6 +1,16 @@
 - hosts: all
   tasks:
-    - name: Copy Hydrophone results to output folder
+    - name: Copy individual Hydrophone result files
+      ansible.builtin.copy:
+        src: "{{ zuul.project.src_dir }}/hydrophone-results/{{ item }}"
+        dest: "{{ zuul_output_dir }}/artifacts/{{ item }}"
+        remote_src: true
+      ignore_errors: true
+      loop:
+        - e2e.log
+        - junit_01.xml
+
+    - name: Copy Hydrophone results tarball to output folder
       ansible.builtin.copy:
         src: "{{ zuul.project.src_dir }}/hydrophone-results.tar.gz"
         dest: "{{ zuul_output_dir }}/artifacts/hydrophone-results.tar.gz"
@@ -12,10 +22,14 @@
         data:
           zuul:
             artifacts:
-              - name: "Hydrophone Results"
+              - name: "Conformance Results"
                 url: "artifacts/hydrophone-results.tar.gz"
                 metadata:
                   type: tarball
+              - name: "e2e.log"
+                url: "artifacts/e2e.log"
+              - name: "junit_01.xml"
+                url: "artifacts/junit_01.xml"
 
     - name: Gather all pod logs from KinD
       become: true

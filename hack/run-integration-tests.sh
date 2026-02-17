@@ -82,12 +82,12 @@ done
 eval $(openstack coe cluster config k8s-cluster)
 
 # Download hydrophone
-curl -LO https://github.com/kubernetes-sigs/hydrophone/releases/download/${HYDROPHONE_VERSION}/hydrophone_${HYDROPHONE_VERSION}_linux_${HYDROPHONE_ARCH}.tar.gz
-tar -xzf hydrophone_${HYDROPHONE_VERSION}_linux_${HYDROPHONE_ARCH}.tar.gz
+curl -LO https://github.com/kubernetes-sigs/hydrophone/releases/download/${HYDROPHONE_VERSION}/hydrophone_Linux_x86_64.tar.gz
+tar -xzf hydrophone_Linux_x86_64.tar.gz
 
 # Run hydrophone conformance tests
 # Note: Conformance tests typically take 1-2 hours to complete
-./hydrophone --conformance --output-dir=./hydrophone-results
+./hydrophone --conformance --output-dir=./hydrophone-results --parallel $(nproc)
 
 # Check if tests passed by examining the junit file
 # Verify that:
