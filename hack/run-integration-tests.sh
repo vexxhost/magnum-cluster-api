@@ -16,12 +16,12 @@
 
 # This script will run the full functional tests for a given `KUBE_TAG`.  It
 # will download the image, create a cluster, wait for it to hit `CREATE_COMPLETE`
-# and then run `sonobuoy` against it.
+# and then run `hydrophone` against it.
 
 NODE_COUNT=${NODE_COUNT:-2}
 NETWORK_DRIVER=${NETWORK_DRIVER:-calico}
-SONOBUOY_VERSION=${SONOBUOY_VERSION:-0.56.16}
-SONOBUOY_ARCH=${SONOBUOY_ARCH:-amd64}
+HYDROPHONE_VERSION=${HYDROPHONE_VERSION:-v0.7.0}
+HYDROPHONE_ARCH=${HYDROPHONE_ARCH:-x86_64}
 DNS_NAMESERVER=${DNS_NAMESERVER:-1.1.1.1}
 
 # Create cluster template
@@ -81,22 +81,40 @@ done
 # Get the cluster configuration file
 eval $(openstack coe cluster config k8s-cluster)
 
-# Download sonobuoy
-curl -LO https://github.com/vmware-tanzu/sonobuoy/releases/download/v${SONOBUOY_VERSION}/sonobuoy_${SONOBUOY_VERSION}_linux_${SONOBUOY_ARCH}.tar.gz
-tar -xzf sonobuoy_${SONOBUOY_VERSION}_linux_${SONOBUOY_ARCH}.tar.gz
+# Download hydrophone
+curl -LO https://github.com/kubernetes-sigs/hydrophone/releases/download/${HYDROPHONE_VERSION}/hydrophone_Linux_${HYDROPHONE_ARCH}.tar.gz
+tar -xzf hydrophone_Linux_${HYDROPHONE_ARCH}.tar.gz
 
-# Run sonobuoy
-./sonobuoy run --wait --mode certified-conformance --plugin-env=e2e.E2E_PARALLEL=true
+# Run hydrophone conformance tests
+# Note: Conformance tests typically take 1-2 hours to complete
+./hydrophone --conformance --output-dir=./hydrophone-results --parallel $(nproc)
 
-# Retrieve results
-RESULTS_FILE=$(./sonobuoy retrieve --filename sonobuoy-results.tar.gz)
-
-# Print results
-./sonobuoy results ${RESULTS_FILE}
-
-
-# Fail if the Sonobuoy tests failed
-if ! ./sonobuoy results --plugin e2e ${RESULTS_FILE} | grep -q "Status: passed"; then
-  echo "Sonobuoy tests failed"
+# Check if tests passed by examining the junit file
+# Verify that:
+# 1. Tests were actually run (tests attribute > 0)
+# 2. No failures occurred (failures="0")
+# 3. No errors occurred (errors="0")
+if ! grep -q 'errors="0"' ./hydrophone-results/junit_01.xml; then
+  echo "Hydrophone conformance tests had errors"
+  cat ./hydrophone-results/e2e.log
   exit 1
 fi
+
+if ! grep -q 'failures="0"' ./hydrophone-results/junit_01.xml; then
+  echo "Hydrophone conformance tests failed"
+  cat ./hydrophone-results/e2e.log
+  exit 1
+fi
+
+# Extract and validate the test count to ensure tests actually ran
+TEST_COUNT=$(sed -nE 's/.*tests="([0-9]+)".*/\1/p' ./hydrophone-results/junit_01.xml | head -1)
+if [[ -z "$TEST_COUNT" ]] || [[ "$TEST_COUNT" -eq 0 ]]; then
+  echo "No Hydrophone conformance tests were run"
+  cat ./hydrophone-results/e2e.log
+  exit 1
+fi
+
+echo "Hydrophone conformance tests passed ($TEST_COUNT tests)"
+
+# Create a tarball of results for archival (similar to sonobuoy)
+tar -czf hydrophone-results.tar.gz -C hydrophone-results .
