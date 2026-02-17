@@ -1,0 +1,30 @@
+- hosts: all
+  tasks:
+    - name: Install DevStack
+      ansible.builtin.include_role:
+        name: orchestrate-devstack
+
+    # NOTE(okozachenko): Create volumev3 service and endpoint manually until this issue fixed.
+    #                    https://github.com/kubernetes/cloud-provider-openstack/issues/2884
+    - name: Create volumev3 service
+      ansible.builtin.shell: |
+        openstack service create --name cinderv3 --description "Cinder Volume Service V3" volumev3
+      environment:
+        OS_CLOUD: devstack-admin
+
+    - name: Create volumev3 endpoint
+      ansible.builtin.shell: |
+        iface=public
+        url=$(openstack endpoint list --service block-storage --interface $iface -f value -c URL)
+        openstack endpoint create --region RegionOne volumev3 $iface "$url"
+      environment:
+        OS_CLOUD: devstack-admin
+
+    - ansible.builtin.shell: "./hack/run-conformance-tests.sh"
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+      environment:
+        IMAGE_NAME: "{{ image_url.split('/')[-1].rsplit('.', 1)[0] }}"
+        KUBE_TAG: "{{ kube_tag }}"
+        NETWORK_DRIVER: "{{ network_driver }}"
+        OS_CLOUD: devstack

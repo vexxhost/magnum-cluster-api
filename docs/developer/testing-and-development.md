@@ -63,7 +63,13 @@ Hydrophone has been validated to generate the required output files:
 
 ### Running Conformance Tests
 
-Conformance tests can be run in two ways:
+Conformance tests are automatically run on all Pull Requests via Zuul CI for:
+- All maintained Kubernetes versions (currently 1.32.10, 1.33.7, 1.34.3)
+- Both network drivers (calico and cilium)
+
+Results are available as artifacts after each test run.
+
+Conformance tests can also be run manually in two ways:
 
 #### 1. Manual Workflow Dispatch
 
