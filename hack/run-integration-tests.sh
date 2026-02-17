@@ -86,6 +86,7 @@ curl -LO https://github.com/kubernetes-sigs/hydrophone/releases/download/${HYDRO
 tar -xzf hydrophone_${HYDROPHONE_VERSION}_linux_${HYDROPHONE_ARCH}.tar.gz
 
 # Run hydrophone conformance tests
+# Note: Conformance tests typically take 1-2 hours to complete
 ./hydrophone --conformance --output-dir=./hydrophone-results
 
 # Check if tests passed by examining the junit file
@@ -105,14 +106,15 @@ if ! grep -q 'failures="0"' ./hydrophone-results/junit_01.xml; then
   exit 1
 fi
 
-# Check that at least some tests were run
-if ! grep -E 'tests="[1-9][0-9]*"' ./hydrophone-results/junit_01.xml > /dev/null; then
+# Extract and validate the test count to ensure tests actually ran
+TEST_COUNT=$(grep -oP 'tests="\K[0-9]+' ./hydrophone-results/junit_01.xml | head -1)
+if [[ -z "$TEST_COUNT" || "$TEST_COUNT" -eq 0 ]]; then
   echo "No Hydrophone conformance tests were run"
   cat ./hydrophone-results/e2e.log
   exit 1
 fi
 
-echo "Hydrophone conformance tests passed"
+echo "Hydrophone conformance tests passed ($TEST_COUNT tests)"
 
 # Create a tarball of results for archival (similar to sonobuoy)
 tar -czf hydrophone-results.tar.gz -C hydrophone-results .
