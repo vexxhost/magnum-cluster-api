@@ -398,15 +398,15 @@ wheels = [
 
 [[package]]
 name = "eventlet"
-version = "0.39.0"
+version = "0.40.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dnspython" },
     { name = "greenlet" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/05/97/44dca90de4acc0d2d6e68783d53c50257dd96ad3ac4139f52738d4b9fbb9/eventlet-0.39.0.tar.gz", hash = "sha256:01ba0aa6ee2452690fc02b274a2409598a13b997c7b5af9dc66600fa42015a79", size = 562164, upload-time = "2025-01-24T13:37:31.551Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d1/d8/f72d8583db7c559445e0e9500a9b9787332370c16980802204a403634585/eventlet-0.40.4.tar.gz", hash = "sha256:69bef712b1be18b4930df6f0c495d2a882bf7b63aa111e7b6eeff461cfcaf26f", size = 565920, upload-time = "2025-11-26T13:57:31.126Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8d/08/f086fa53ff8092a72b7922d51838b85d6b5751b439469767690d56843879/eventlet-0.39.0-py3-none-any.whl", hash = "sha256:9522ca09ad4c1f874c238f06492a7e217ddb13bdeace4475d3b700dd0ba1f6be", size = 363347, upload-time = "2025-01-24T13:37:28.699Z" },
+    { url = "https://files.pythonhosted.org/packages/22/6d/8e1fa901f6a8307f90e7bd932064e27a0062a4a7a16af38966a9c3293c52/eventlet-0.40.4-py3-none-any.whl", hash = "sha256:6326c6d0bf55810bece151f7a5750207c610f389ba110ffd1541ed6e5215485b", size = 364588, upload-time = "2025-11-26T13:57:29.09Z" },
 ]
 
 [[package]]
