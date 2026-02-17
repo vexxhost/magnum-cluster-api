@@ -107,8 +107,8 @@ if ! grep -q 'failures="0"' ./hydrophone-results/junit_01.xml; then
 fi
 
 # Extract and validate the test count to ensure tests actually ran
-TEST_COUNT=$(sed -n 's/.*tests="\([0-9]*\)".*/\1/p' ./hydrophone-results/junit_01.xml | head -1)
-if [[ -z "$TEST_COUNT" ]] || [[ "$TEST_COUNT" -eq 0 ]]; then
+TEST_COUNT=$(sed -nE 's/.*tests="([0-9]+)".*/\1/p' ./hydrophone-results/junit_01.xml | head -1)
+if [[ -z "$TEST_COUNT" ]] || [[ "${TEST_COUNT:-0}" -eq 0 ]]; then
   echo "No Hydrophone conformance tests were run"
   cat ./hydrophone-results/e2e.log
   exit 1
