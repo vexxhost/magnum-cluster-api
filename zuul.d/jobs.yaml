@@ -1,21 +1,142 @@
 - job:
-    name: magnum-cluster-api-tox
-    parent: tox
+    name: magnum-cluster-api-devstack
+    parent: devstack
     abstract: true
-    pre-run: zuul.d/playbooks/tox/pre.yml
+    timeout: 7200
+    override-checkout: master
+    required-projects:
+      - opendev.org/openstack/barbican
+      - opendev.org/openstack/magnum
+      - opendev.org/openstack/manila
+      - opendev.org/openstack/octavia
+      - opendev.org/openstack/ovn-octavia-provider
+      - opendev.org/openstack/python-magnumclient
+    vars:
+      devstack_plugins:
+        barbican: https://github.com/openstack/barbican
+        magnum: https://review.opendev.org/openstack/magnum
+        manila: https://github.com/openstack/manila
+        octavia: https://github.com/openstack/octavia
+        ovn-octavia-provider: https://github.com/openstack/ovn-octavia-provider
+        magnum-cluster-api: https://github.com/vexxhost/magnum-cluster-api
+      devstack_localrc:
+        DISABLE_AMP_IMAGE_BUILD: true
+        FIXED_RANGE: 10.1.0.0/20
+        GIT_BASE: https://github.com
+        MANILA_DEFAULT_SHARE_TYPE_EXTRA_SPECS: snapshot_support=True create_share_from_snapshot_support=True
+        MANILA_ENABLED_BACKENDS: generic
+        MANILA_USE_SERVICE_INSTANCE_PASSWORD: true
+        OCTAVIA_NODE: api
+      devstack_local_conf:
+        post-config:
+          /etc/manila/manila.conf:
+            generic:
+              driver_handles_share_servers: true
+              connect_share_server_to_tenant_network: true
+          /etc/magnum/magnum.conf:
+            cluster_template:
+              kubernetes_allowed_network_drivers: calico,cilium
+              kubernetes_default_network_driver: calico
+            nova_client:
+              api_version: 2.15
+      devstack_services:
+        s-account: false
+        s-container: false
+        s-object: false
+        s-proxy: false
+        octavia: true
+        o-api: true
+        o-hk: true
+        o-da: true
+    nodeset:
+      nodes:
+        - name: controller
+          label: ubuntu-noble-16
+      groups:
+        - name: tempest
+          nodes:
+            - controller
 
 - job:
-    name: magnum-cluster-api-tox-unit
-    parent: magnum-cluster-api-tox
-    pre-run: zuul.d/playbooks/unit/pre.yml
+    name: magnum-cluster-api-sonobuoy
+    parent: magnum-cluster-api-devstack
+    abstract: true
+    pre-run: zuul.d/playbooks/sonobuoy/pre.yml
+    run: zuul.d/playbooks/sonobuoy/run.yml
+    post-run: zuul.d/playbooks/sonobuoy/post.yml
     vars:
-      tox_envlist: unit
+      image_url: "https://github.com/vexxhost/capo-image-elements/releases/latest/download/ubuntu-22.04-{{ kube_tag }}.qcow2"
+      devstack_localrc:
+        MAGNUM_GUEST_IMAGE_URL: "{{ image_url }}"
 
 - job:
-    name: magnum-cluster-api-tox-functional
-    parent: magnum-cluster-api-tox
-    pre-run: zuul.d/playbooks/functional/pre.yml
+    name: magnum-cluster-api-sonobuoy-v1.32.12
+    parent: magnum-cluster-api-sonobuoy
     vars:
-      tox_envlist: functional
-      tox_environment:
-        KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
+      kube_tag: v1.32.12
+
+- job:
+    name: magnum-cluster-api-sonobuoy-v1.32.12-calico
+    parent: magnum-cluster-api-sonobuoy-v1.32.12
+    vars:
+      network_driver: calico
+
+- job:
+    name: magnum-cluster-api-sonobuoy-v1.32.12-cilium
+    parent: magnum-cluster-api-sonobuoy-v1.32.12
+    vars:
+      network_driver: cilium
+
+- job:
+    name: magnum-cluster-api-sonobuoy-v1.33.8
+    parent: magnum-cluster-api-sonobuoy
+    vars:
+      kube_tag: v1.33.8
+
+- job:
+    name: magnum-cluster-api-sonobuoy-v1.33.8-calico
+    parent: magnum-cluster-api-sonobuoy-v1.33.8
+    vars:
+      network_driver: calico
+
+- job:
+    name: magnum-cluster-api-sonobuoy-v1.33.8-cilium
+    parent: magnum-cluster-api-sonobuoy-v1.33.8
+    vars:
+      network_driver: cilium
+
+- job:
+    name: magnum-cluster-api-sonobuoy-v1.34.4
+    parent: magnum-cluster-api-sonobuoy
+    vars:
+      kube_tag: v1.34.4
+
+- job:
+    name: magnum-cluster-api-sonobuoy-v1.34.4-calico
+    parent: magnum-cluster-api-sonobuoy-v1.34.4
+    vars:
+      network_driver: calico
+
+- job:
+    name: magnum-cluster-api-sonobuoy-v1.34.4-cilium
+    parent: magnum-cluster-api-sonobuoy-v1.34.4
+    vars:
+      network_driver: cilium
+
+- job:
+    name: magnum-cluster-api-sonobuoy-v1.35.1
+    parent: magnum-cluster-api-sonobuoy
+    vars:
+      kube_tag: v1.35.1
+
+- job:
+    name: magnum-cluster-api-sonobuoy-v1.35.1-calico
+    parent: magnum-cluster-api-sonobuoy-v1.35.1
+    vars:
+      network_driver: calico
+
+- job:
+    name: magnum-cluster-api-sonobuoy-v1.35.1-cilium
+    parent: magnum-cluster-api-sonobuoy-v1.35.1
+    vars:
+      network_driver: cilium

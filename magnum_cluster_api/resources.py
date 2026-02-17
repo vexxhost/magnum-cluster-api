@@ -14,6 +14,7 @@
 
 import abc
 import glob
+import importlib.metadata
 import math
 import os
 import types
@@ -49,7 +50,7 @@ from magnum_cluster_api.integrations import cinder, manila
 CONF = cfg.CONF
 CALICO_TAG = "v3.31.3"
 
-CLUSTER_CLASS_VERSION = pkg_resources.require("magnum_cluster_api")[0].version
+CLUSTER_CLASS_VERSION = importlib.metadata.version("magnum_cluster_api")
 CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
 CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT = "300s"  # seconds
 

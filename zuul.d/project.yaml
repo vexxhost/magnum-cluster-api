@@ -1,9 +1,21 @@
 - project:
     check:
       jobs:
-        - magnum-cluster-api-tox-functional
-        - magnum-cluster-api-tox-unit
+        - magnum-cluster-api-sonobuoy-v1.32.12-calico
+        - magnum-cluster-api-sonobuoy-v1.32.12-cilium
+        - magnum-cluster-api-sonobuoy-v1.33.8-calico
+        - magnum-cluster-api-sonobuoy-v1.33.8-cilium
+        - magnum-cluster-api-sonobuoy-v1.34.4-calico
+        - magnum-cluster-api-sonobuoy-v1.34.4-cilium
+        - magnum-cluster-api-sonobuoy-v1.35.1-calico
+        - magnum-cluster-api-sonobuoy-v1.35.1-cilium
     gate:
       jobs:
-        - magnum-cluster-api-tox-functional
-        - magnum-cluster-api-tox-unit
+        - magnum-cluster-api-sonobuoy-v1.32.12-calico
+        - magnum-cluster-api-sonobuoy-v1.32.12-cilium
+        - magnum-cluster-api-sonobuoy-v1.33.8-calico
+        - magnum-cluster-api-sonobuoy-v1.33.8-cilium
+        - magnum-cluster-api-sonobuoy-v1.34.4-calico
+        - magnum-cluster-api-sonobuoy-v1.34.4-cilium
+        - magnum-cluster-api-sonobuoy-v1.35.1-calico
+        - magnum-cluster-api-sonobuoy-v1.35.1-cilium
