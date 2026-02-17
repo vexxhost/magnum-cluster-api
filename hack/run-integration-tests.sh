@@ -21,7 +21,7 @@
 NODE_COUNT=${NODE_COUNT:-2}
 NETWORK_DRIVER=${NETWORK_DRIVER:-calico}
 HYDROPHONE_VERSION=${HYDROPHONE_VERSION:-v0.8.0}
-HYDROPHONE_ARCH=${HYDROPHONE_ARCH:-amd64}
+HYDROPHONE_ARCH=${HYDROPHONE_ARCH:-x86_64}
 DNS_NAMESERVER=${DNS_NAMESERVER:-1.1.1.1}
 
 # Create cluster template
@@ -82,8 +82,8 @@ done
 eval $(openstack coe cluster config k8s-cluster)
 
 # Download hydrophone
-curl -LO https://github.com/kubernetes-sigs/hydrophone/releases/download/${HYDROPHONE_VERSION}/hydrophone_Linux_x86_64.tar.gz
-tar -xzf hydrophone_Linux_x86_64.tar.gz
+curl -LO https://github.com/kubernetes-sigs/hydrophone/releases/download/${HYDROPHONE_VERSION}/hydrophone_Linux_${HYDROPHONE_ARCH}.tar.gz
+tar -xzf hydrophone_Linux_${HYDROPHONE_ARCH}.tar.gz
 
 # Run hydrophone conformance tests
 # Note: Conformance tests typically take 1-2 hours to complete
