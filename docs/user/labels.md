@@ -224,6 +224,17 @@ is often accomplished by deploying a driver on each node.
 
    Default value: `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305`
 
+* `kubelet_serving_tls_enabled`
+
+   Enable kubelet serving TLS by setting `serverTLSBootstrap: true` in the
+   kubelet config. The kubelet will request a cluster CA–signed serving
+   certificate (TLS bootstrap) and the API server is configured to verify
+   kubelet serving certificates when connecting to nodes (e.g. for logs, exec,
+   metrics). Communication between kubelet and apiserver is already TLS; this
+   option enables CA-signed kubelet *serving* certs instead of self-signed.
+
+   Default value: `false`
+
 * `kube_tag`
 
    The version of Kubernetes to use.

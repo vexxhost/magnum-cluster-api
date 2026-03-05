@@ -1276,9 +1276,9 @@ class Cluster(ClusterBase):
                             ),
                         },
                         {
-                            "name": "enableKubeletApiserverTLS",
+                            "name": "enableKubeletServingTLS",
                             "value": utils.get_cluster_label_as_bool(
-                                self.cluster, "kubelet_apiserver_tls_enabled", False
+                                self.cluster, "kubelet_serving_tls_enabled", False
                             ),
                         },
                         {

@@ -63,7 +63,7 @@ pub mod flavors;
 pub mod image_repository;
 pub mod images;
 pub mod keystone_auth;
-pub mod kubelet_apiserver_tls;
+pub mod kubelet_serving_tls;
 pub mod networks;
 pub mod openid_connect;
 pub mod operating_system;

@@ -272,7 +272,7 @@ pub mod fixtures {
             .etcd_volume_type("".into())
             .availability_zone("az1".into())
             .admission_control_list("NodeRestriction".into())
-            .enable_kubelet_apiserver_tls(false)
+            .enable_kubelet_serving_tls(false)
             .build()
     }
 }
@@ -437,10 +437,10 @@ mod tests {
                 "admissionControlList" => {
                     assert_eq!(var.value, json!(default_values().admission_control_list));
                 }
-                "enableKubeletApiserverTLS" => {
+                "enableKubeletServingTLS" => {
                     assert_eq!(
                         var.value,
-                        json!(default_values().enable_kubelet_apiserver_tls)
+                        json!(default_values().enable_kubelet_serving_tls)
                     );
                 }
                 other => panic!("Unexpected field name: {}", other),

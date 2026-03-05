@@ -1,4 +1,5 @@
-// Enable TLS between kubelet and kube-apiserver (kubelet serving cert + client cert to API server).
+// Enable kubelet serving TLS (serverTLSBootstrap): kubelet requests a cluster CA–signed
+// serving certificate; API server verifies it when connecting to the kubelet.
 // See: https://github.com/vexxhost/magnum-cluster-api/issues/365
 
 use crate::{
@@ -27,8 +28,8 @@ use serde_json::json;
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 #[allow(dead_code)]
 pub struct FeatureValues {
-    #[serde(rename = "enableKubeletApiserverTLS")]
-    pub enable_kubelet_apiserver_tls: bool,
+    #[serde(rename = "enableKubeletServingTLS")]
+    pub enable_kubelet_serving_tls: bool,
 }
 
 pub struct Feature {}
@@ -38,8 +39,8 @@ const SERVER_TLS_BOOTSTRAP_CMD: &str = "if ! grep -q '^serverTLSBootstrap:' /var
 impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
-            name: "kubeletApiserverTLS".into(),
-            enabled_if: Some("{{ if .enableKubeletApiserverTLS }}true{{end}}".into()),
+            name: "kubeletServingTLS".into(),
+            enabled_if: Some("{{ if .enableKubeletServingTLS }}true{{end}}".into()),
             definitions: Some(vec![
                 ClusterClassPatchesDefinitions {
                     selector: ClusterClassPatchesDefinitionsSelector {
@@ -51,31 +52,31 @@ impl ClusterFeaturePatches for Feature {
                         },
                     },
                     json_patches: vec![
-                        // API server verifies kubelet client certificates using the cluster CA.
+                        // API server verifies kubelet serving certificates using the cluster CA.
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
                             path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/kubelet-certificate-authority".into(),
                             value: Some(json!("/etc/kubernetes/pki/ca.crt")),
                             ..Default::default()
                         },
-                        // Enable kubelet TLS bootstrap (request cert from API server), idempotent.
+                        // Enable kubelet serverTLSBootstrap (request serving cert from API server), idempotent.
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
                             path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
-                            value: Some(SERVER_TLS_BOOTSTRAP_CMD.into()),
+                            value: Some(json!(SERVER_TLS_BOOTSTRAP_CMD)),
                             ..Default::default()
                         },
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
                             path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
-                            value: Some("systemctl restart kubelet".into()),
+                            value: Some(json!("systemctl restart kubelet")),
                             ..Default::default()
                         },
                         // Approve pending kubelet-serving CSRs so they get signed, without approving arbitrary CSRs.
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
                             path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
-                            value: Some(r#"kubectl --kubeconfig=/etc/kubernetes/admin.conf get csr --no-headers 2>/dev/null | awk '$3=="kubernetes.io/kubelet-serving" && $NF!="Approved" { print $1 }' | xargs -r -n1 kubectl --kubeconfig=/etc/kubernetes/admin.conf certificate approve 2>/dev/null || true"#.into()),
+                            value: Some(json!(r#"kubectl --kubeconfig=/etc/kubernetes/admin.conf get csr --no-headers 2>/dev/null | awk '$3=="kubernetes.io/kubelet-serving" && $NF!="Approved" { print $1 }' | xargs -r -n1 kubectl --kubeconfig=/etc/kubernetes/admin.conf certificate approve 2>/dev/null || true"#)),
                             ..Default::default()
                         },
                     ],
@@ -95,17 +96,17 @@ impl ClusterFeaturePatches for Feature {
                         },
                     },
                     json_patches: vec![
-                        // Enable kubelet TLS bootstrap on worker nodes, idempotent.
+                        // Enable kubelet serverTLSBootstrap on worker nodes, idempotent.
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
                             path: "/spec/template/spec/postKubeadmCommands/-".into(),
-                            value: Some(SERVER_TLS_BOOTSTRAP_CMD.into()),
+                            value: Some(json!(SERVER_TLS_BOOTSTRAP_CMD)),
                             ..Default::default()
                         },
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
                             path: "/spec/template/spec/postKubeadmCommands/-".into(),
-                            value: Some("systemctl restart kubelet".into()),
+                            value: Some(json!("systemctl restart kubelet")),
                             ..Default::default()
                         },
                     ],
@@ -132,7 +133,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.enable_kubelet_apiserver_tls = true;
+        values.enable_kubelet_serving_tls = true;
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -196,7 +197,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.enable_kubelet_apiserver_tls = false;
+        values.enable_kubelet_serving_tls = false;
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -226,7 +227,7 @@ mod tests {
         let variables = feature.variables();
 
         assert_eq!(variables.len(), 1);
-        assert_eq!(variables[0].name, "enableKubeletApiserverTLS");
+        assert_eq!(variables[0].name, "enableKubeletServingTLS");
         assert_eq!(variables[0].required, true);
     }
 }
