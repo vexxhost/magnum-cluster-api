@@ -230,4 +230,3 @@ mod tests {
         assert_eq!(variables[0].required, true);
     }
 }
-
