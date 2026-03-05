@@ -6,11 +6,12 @@ use crate::{
         clusterclasses::{
             ClusterClassPatches, ClusterClassPatchesDefinitions,
             ClusterClassPatchesDefinitionsJsonPatches,
-            ClusterClassPatchesDefinitionsJsonPatchesValueFrom,
             ClusterClassPatchesDefinitionsSelector,
-            ClusterClassPatchesDefinitionsSelectorMatchResources, ClusterClassVariables,
-            ClusterClassVariablesSchema,
+            ClusterClassPatchesDefinitionsSelectorMatchResources,
+            ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
+            ClusterClassVariables, ClusterClassVariablesSchema,
         },
+        kubeadmconfigtemplates::KubeadmConfigTemplate,
         kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate,
     },
     features::{
@@ -32,50 +33,84 @@ pub struct FeatureValues {
 
 pub struct Feature {}
 
+const SERVER_TLS_BOOTSTRAP_CMD: &str = "if ! grep -q '^serverTLSBootstrap:' /var/lib/kubelet/config.yaml; then if grep -q '^cgroupDriver:' /var/lib/kubelet/config.yaml; then sed -i '0,/^cgroupDriver:/s//&\\nserverTLSBootstrap: true/' /var/lib/kubelet/config.yaml; else printf '\\nserverTLSBootstrap: true\\n' >> /var/lib/kubelet/config.yaml; fi; fi";
+
 impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
             name: "kubeletApiserverTLS".into(),
             enabled_if: Some("{{ if .enableKubeletApiserverTLS }}true{{end}}".into()),
-            definitions: Some(vec![ClusterClassPatchesDefinitions {
-                selector: ClusterClassPatchesDefinitionsSelector {
-                    api_version: KubeadmControlPlaneTemplate::api_resource().api_version,
-                    kind: KubeadmControlPlaneTemplate::api_resource().kind,
-                    match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
-                        control_plane: Some(true),
-                        ..Default::default()
+            definitions: Some(vec![
+                ClusterClassPatchesDefinitions {
+                    selector: ClusterClassPatchesDefinitionsSelector {
+                        api_version: KubeadmControlPlaneTemplate::api_resource().api_version,
+                        kind: KubeadmControlPlaneTemplate::api_resource().kind,
+                        match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                            control_plane: Some(true),
+                            ..Default::default()
+                        },
                     },
+                    json_patches: vec![
+                        // API server verifies kubelet client certificates using the cluster CA.
+                        ClusterClassPatchesDefinitionsJsonPatches {
+                            op: "add".into(),
+                            path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/kubelet-certificate-authority".into(),
+                            value: Some(json!("/etc/kubernetes/pki/ca.crt")),
+                            ..Default::default()
+                        },
+                        // Enable kubelet TLS bootstrap (request cert from API server), idempotent.
+                        ClusterClassPatchesDefinitionsJsonPatches {
+                            op: "add".into(),
+                            path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
+                            value: Some(SERVER_TLS_BOOTSTRAP_CMD.into()),
+                            ..Default::default()
+                        },
+                        ClusterClassPatchesDefinitionsJsonPatches {
+                            op: "add".into(),
+                            path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
+                            value: Some("systemctl restart kubelet".into()),
+                            ..Default::default()
+                        },
+                        // Approve pending kubelet-serving CSRs so they get signed, without approving arbitrary CSRs.
+                        ClusterClassPatchesDefinitionsJsonPatches {
+                            op: "add".into(),
+                            path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
+                            value: Some(r#"kubectl --kubeconfig=/etc/kubernetes/admin.conf get csr --no-headers 2>/dev/null | awk '$3=="kubernetes.io/kubelet-serving" && $NF!="Approved" { print $1 }' | xargs -r -n1 kubectl --kubeconfig=/etc/kubernetes/admin.conf certificate approve 2>/dev/null || true"#.into()),
+                            ..Default::default()
+                        },
+                    ],
                 },
-                json_patches: vec![
-                    // API server verifies kubelet client certificates using the cluster CA.
-                    ClusterClassPatchesDefinitionsJsonPatches {
-                        op: "add".into(),
-                        path: "/spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/kubelet-certificate-authority".into(),
-                        value: Some(json!("/etc/kubernetes/pki/ca.crt")),
-                        ..Default::default()
+                // Worker nodes also need serverTLSBootstrap to request serving certs from the API.
+                ClusterClassPatchesDefinitions {
+                    selector: ClusterClassPatchesDefinitionsSelector {
+                        api_version: KubeadmConfigTemplate::api_resource().api_version,
+                        kind: KubeadmConfigTemplate::api_resource().kind,
+                        match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                            machine_deployment_class: Some(
+                                ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass {
+                                    names: Some(vec!["default-worker".to_string()]),
+                                },
+                            ),
+                            ..Default::default()
+                        },
                     },
-                    // Enable kubelet TLS bootstrap (request cert from API server).
-                    ClusterClassPatchesDefinitionsJsonPatches {
-                        op: "add".into(),
-                        path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
-                        value: Some("sed -i '/^cgroupDriver: systemd.*/a serverTLSBootstrap: true' /var/lib/kubelet/config.yaml".into()),
-                        ..Default::default()
-                    },
-                    ClusterClassPatchesDefinitionsJsonPatches {
-                        op: "add".into(),
-                        path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
-                        value: Some("systemctl restart kubelet".into()),
-                        ..Default::default()
-                    },
-                    // Approve pending kubelet CSRs so they get signed.
-                    ClusterClassPatchesDefinitionsJsonPatches {
-                        op: "add".into(),
-                        path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
-                        value: Some("kubectl --kubeconfig=/etc/kubernetes/admin.conf certificate approve $(kubectl --kubeconfig=/etc/kubernetes/admin.conf get csr --no-headers 2>/dev/null | awk '{ print $1 }' | tr '\\n' ' ') 2>/dev/null || true".into()),
-                        ..Default::default()
-                    },
-                ],
-            }]),
+                    json_patches: vec![
+                        // Enable kubelet TLS bootstrap on worker nodes, idempotent.
+                        ClusterClassPatchesDefinitionsJsonPatches {
+                            op: "add".into(),
+                            path: "/spec/template/spec/postKubeadmCommands/-".into(),
+                            value: Some(SERVER_TLS_BOOTSTRAP_CMD.into()),
+                            ..Default::default()
+                        },
+                        ClusterClassPatchesDefinitionsJsonPatches {
+                            op: "add".into(),
+                            path: "/spec/template/spec/postKubeadmCommands/-".into(),
+                            value: Some("systemctl restart kubelet".into()),
+                            ..Default::default()
+                        },
+                    ],
+                },
+            ]),
             ..Default::default()
         }]
     }
@@ -124,7 +159,7 @@ mod tests {
             Some(&"/etc/kubernetes/pki/ca.crt".to_string())
         );
 
-        let post_cmds = resources
+        let cp_post_cmds = resources
             .kubeadm_control_plane_template
             .spec
             .template
@@ -132,11 +167,28 @@ mod tests {
             .kubeadm_config_spec
             .post_kubeadm_commands
             .as_ref()
-            .expect("post kubeadm commands should be set");
+            .expect("control plane post kubeadm commands should be set");
 
-        assert!(post_cmds.iter().any(|c| c.contains("serverTLSBootstrap")));
-        assert!(post_cmds.iter().any(|c| c == "systemctl restart kubelet"));
-        assert!(post_cmds.iter().any(|c| c.contains("certificate approve")));
+        assert!(cp_post_cmds.iter().any(|c| c.contains("serverTLSBootstrap")));
+        assert!(cp_post_cmds.iter().any(|c| c == "systemctl restart kubelet"));
+        assert!(cp_post_cmds.iter().any(|c| c.contains("certificate approve")));
+        assert!(cp_post_cmds.iter().any(|c| c.contains("kubernetes.io/kubelet-serving")));
+
+        let worker_post_cmds = resources
+            .kubeadm_config_template
+            .spec
+            .template
+            .spec
+            .as_ref()
+            .expect("kubeadm config template spec should be set")
+            .post_kubeadm_commands
+            .as_ref()
+            .expect("worker post kubeadm commands should be set");
+
+        assert!(worker_post_cmds.iter().any(|c| c.contains("serverTLSBootstrap")));
+        assert!(worker_post_cmds.iter().any(|c| c == "systemctl restart kubelet"));
+        // CSR approval should NOT be in worker commands (admin.conf not available on workers)
+        assert!(!worker_post_cmds.iter().any(|c| c.contains("certificate approve")));
     }
 
     #[test]
@@ -178,3 +230,4 @@ mod tests {
         assert_eq!(variables[0].required, true);
     }
 }
+
