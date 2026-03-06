@@ -40,8 +40,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if let syn::Fields::Named(fields_named) = &item_struct.fields {
                     for field in fields_named.named.iter() {
                         if let Some(ident) = &field.ident {
-                            // Preserve all attributes for the field (like #[serde(rename = "...")])
-                            let attrs = &field.attrs;
+                            // Preserve attributes for the field (e.g. #[serde(rename = "...")]),
+                            // but drop #[cluster_feature(...)] which is only for the derive macro.
+                            let attrs: Vec<_> = field
+                                .attrs
+                                .iter()
+                                .filter(|attr| !attr.path().is_ident("cluster_feature"))
+                                .collect();
                             let ty = &field.ty;
 
                             let qualified_ty = match &field.ty {
