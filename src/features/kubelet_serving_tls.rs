@@ -28,13 +28,16 @@ use serde_json::json;
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 #[allow(dead_code)]
 pub struct FeatureValues {
+    /// Optional so pre-existing clusters without this variable continue to reconcile.
     #[serde(rename = "enableKubeletServingTLS")]
+    #[cluster_feature(required = false)]
     pub enable_kubelet_serving_tls: bool,
 }
 
 pub struct Feature {}
 
-const SERVER_TLS_BOOTSTRAP_CMD: &str = "if ! grep -q '^serverTLSBootstrap:' /var/lib/kubelet/config.yaml; then if grep -q '^cgroupDriver:' /var/lib/kubelet/config.yaml; then sed -i '0,/^cgroupDriver:/s//&\\nserverTLSBootstrap: true/' /var/lib/kubelet/config.yaml; else printf '\\nserverTLSBootstrap: true\\n' >> /var/lib/kubelet/config.yaml; fi; fi";
+// Match the full cgroupDriver line so the value (e.g. systemd) stays on that line.
+const SERVER_TLS_BOOTSTRAP_CMD: &str = "if ! grep -q '^serverTLSBootstrap:' /var/lib/kubelet/config.yaml; then if grep -q '^cgroupDriver:' /var/lib/kubelet/config.yaml; then sed -i 's/^cgroupDriver:.*/&\\nserverTLSBootstrap: true/' /var/lib/kubelet/config.yaml; else printf '\\nserverTLSBootstrap: true\\n' >> /var/lib/kubelet/config.yaml; fi; fi";
 
 impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
@@ -228,6 +231,7 @@ mod tests {
 
         assert_eq!(variables.len(), 1);
         assert_eq!(variables[0].name, "enableKubeletServingTLS");
-        assert_eq!(variables[0].required, true);
+        // Optional so pre-existing clusters without this variable continue to reconcile.
+        assert_eq!(variables[0].required, false);
     }
 }
