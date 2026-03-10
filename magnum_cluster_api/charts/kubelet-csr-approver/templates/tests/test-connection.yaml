@@ -2,6 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: "{{ include "kubelet-csr-approver.fullname" . }}-test-connection"
+  namespace: {{ include "kubelet-csr-approver.namespace" . }}
   labels:
     {{- include "kubelet-csr-approver.labels" . | nindent 4 }}
   annotations:
