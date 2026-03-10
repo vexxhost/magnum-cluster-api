@@ -504,9 +504,7 @@ class LegacyClusterResourcesSecret(ClusterBase):
                 "kubelet-csr-approver",
             )
             if os.path.isdir(chart_path):
-                node_cidr = self.cluster.labels.get(
-                    "fixed_subnet_cidr", "10.0.0.0/24"
-                )
+                node_cidr = self.cluster.labels.get("fixed_subnet_cidr", "10.0.0.0/24")
                 data = {
                     **data,
                     **{
