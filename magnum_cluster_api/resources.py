@@ -496,6 +496,32 @@ class LegacyClusterResourcesSecret(ClusterBase):
                 },
             }
 
+        if utils.get_cluster_label_as_bool(
+            self.cluster, "kubelet_serving_tls_enabled", False
+        ):
+            chart_path = os.path.join(
+                pkg_resources.resource_filename("magnum_cluster_api", "charts"),
+                "kubelet-csr-approver",
+            )
+            if os.path.isdir(chart_path):
+                node_cidr = self.cluster.labels.get(
+                    "fixed_subnet_cidr", "10.0.0.0/24"
+                )
+                data = {
+                    **data,
+                    **{
+                        "kubelet-csr-approver.yaml": helm.TemplateReleaseCommand(
+                            namespace="kube-system",
+                            release_name="kubelet-csr-approver",
+                            chart_ref=chart_path + "/",
+                            values={
+                                "bypassDnsResolution": True,
+                                "providerIpPrefixes": [node_cidr],
+                            },
+                        )()
+                    },
+                }
+
         return {
             "type": "addons.cluster.x-k8s.io/resource-set",
             "stringData": data,

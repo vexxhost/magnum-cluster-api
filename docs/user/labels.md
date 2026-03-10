@@ -232,6 +232,11 @@ is often accomplished by deploying a driver on each node.
    kubelet serving certificates when connecting to nodes (e.g. for logs, exec,
    metrics). Communication between kubelet and apiserver is already TLS; this
    option enables CA-signed kubelet *serving* certs instead of self-signed.
+   The [postfinance/kubelet-csr-approver](https://github.com/postfinance/kubelet-csr-approver)
+   chart is installed via ClusterResourceSet (like CCM and CSI) to approve
+   kubelet-serving CSRs automatically. The chart must be present under
+   `magnum_cluster_api/charts/kubelet-csr-approver/` (e.g. unpack the
+   [Helm chart tarball](https://postfinance.github.io/kubelet-csr-approver/)).
 
    Default value: `false`
 
