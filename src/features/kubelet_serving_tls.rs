@@ -63,6 +63,7 @@ impl ClusterFeaturePatches for Feature {
                             ..Default::default()
                         },
                         // Enable kubelet serverTLSBootstrap (request serving cert from API server), idempotent.
+                        // kubelet-csr-approver is installed via ClusterResourceSet (LegacyClusterResourcesSecret) like CCM/CSI.
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
                             path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
@@ -73,13 +74,6 @@ impl ClusterFeaturePatches for Feature {
                             op: "add".into(),
                             path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
                             value: Some(json!("systemctl restart kubelet")),
-                            ..Default::default()
-                        },
-                        // Approve pending kubelet-serving CSRs so they get signed, without approving arbitrary CSRs.
-                        ClusterClassPatchesDefinitionsJsonPatches {
-                            op: "add".into(),
-                            path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
-                            value: Some(json!(r#"kubectl --kubeconfig=/etc/kubernetes/admin.conf get csr --no-headers 2>/dev/null | awk '$3=="kubernetes.io/kubelet-serving" && $NF!="Approved" { print $1 }' | xargs -r -n1 kubectl --kubeconfig=/etc/kubernetes/admin.conf certificate approve 2>/dev/null || true"#)),
                             ..Default::default()
                         },
                     ],
@@ -175,8 +169,6 @@ mod tests {
 
         assert!(cp_post_cmds.iter().any(|c| c.contains("serverTLSBootstrap")));
         assert!(cp_post_cmds.iter().any(|c| c == "systemctl restart kubelet"));
-        assert!(cp_post_cmds.iter().any(|c| c.contains("certificate approve")));
-        assert!(cp_post_cmds.iter().any(|c| c.contains("kubernetes.io/kubelet-serving")));
 
         let worker_post_cmds = resources
             .kubeadm_config_template
@@ -191,8 +183,6 @@ mod tests {
 
         assert!(worker_post_cmds.iter().any(|c| c.contains("serverTLSBootstrap")));
         assert!(worker_post_cmds.iter().any(|c| c == "systemctl restart kubelet"));
-        // CSR approval should NOT be in worker commands (admin.conf not available on workers)
-        assert!(!worker_post_cmds.iter().any(|c| c.contains("certificate approve")));
     }
 
     #[test]
