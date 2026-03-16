@@ -9,13 +9,18 @@ jobs:
   kubernetes:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           token: ${{ secrets.VEXXHOST_BOT_PAT }}
       - run: ./hack/bump/kubernetes.sh
         env:
           GH_TOKEN: ${{ github.token }}
-      - uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+      - uses: step-security/create-pull-request@e604d57b37b404d8bb34d152fa905e45d003a895 # v8.1.0
         with:
           token: ${{ secrets.VEXXHOST_BOT_PAT }}
           push-to-fork: vexxhost-bot/magnum-cluster-api
@@ -32,6 +37,11 @@ jobs:
   cloud-provider-openstack:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        with:
+          egress-policy: audit
+
       - run: sudo apt-get install patchutils
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
@@ -39,7 +49,7 @@ jobs:
       - run: ./hack/bump/cloud-provider-openstack.sh
         env:
           GH_TOKEN: ${{ github.token }}
-      - uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+      - uses: step-security/create-pull-request@e604d57b37b404d8bb34d152fa905e45d003a895 # v8.1.0
         with:
           token: ${{ secrets.VEXXHOST_BOT_PAT }}
           push-to-fork: vexxhost-bot/magnum-cluster-api
@@ -55,13 +65,18 @@ jobs:
   cluster-autoscaler:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           token: ${{ secrets.VEXXHOST_BOT_PAT }}
       - run: ./hack/bump/cluster-autoscaler.sh
         env:
           GH_TOKEN: ${{ github.token }}
-      - uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+      - uses: step-security/create-pull-request@e604d57b37b404d8bb34d152fa905e45d003a895 # v8.1.0
         with:
           token: ${{ secrets.VEXXHOST_BOT_PAT }}
           push-to-fork: vexxhost-bot/magnum-cluster-api
