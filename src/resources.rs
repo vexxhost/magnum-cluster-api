@@ -272,6 +272,7 @@ pub mod fixtures {
             .etcd_volume_type("".into())
             .availability_zone("az1".into())
             .admission_control_list("NodeRestriction".into())
+            .enable_kubelet_serving_tls(false)
             .build()
     }
 }
@@ -309,7 +310,7 @@ mod tests {
         let values = default_values();
         let variables: Vec<ClusterTopologyVariables> = values.into();
 
-        assert_eq!(variables.len(), 37);
+        assert_eq!(variables.len(), 38);
 
         for var in &variables {
             match var.name.as_str() {
@@ -435,6 +436,12 @@ mod tests {
                 }
                 "admissionControlList" => {
                     assert_eq!(var.value, json!(default_values().admission_control_list));
+                }
+                "enableKubeletServingTLS" => {
+                    assert_eq!(
+                        var.value,
+                        json!(default_values().enable_kubelet_serving_tls)
+                    );
                 }
                 other => panic!("Unexpected field name: {}", other),
             }

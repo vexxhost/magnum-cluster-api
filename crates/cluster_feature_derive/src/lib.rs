@@ -4,7 +4,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput, Token};
 
-#[proc_macro_derive(ClusterFeatureValues, attributes(serde))]
+#[proc_macro_derive(ClusterFeatureValues, attributes(serde, cluster_feature))]
 pub fn derive_cluster_variable_values(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree.
     let input = parse_macro_input!(input as DeriveInput);
@@ -27,6 +27,8 @@ pub fn derive_cluster_variable_values(input: TokenStream) -> TokenStream {
         let field_ident = field.ident.as_ref().unwrap();
         // Look for a serde(rename = "...") attribute on the field.
         let mut rename_value: Option<String> = None;
+        // Optional variable: set to false when #[cluster_feature(required = false)].
+        let mut required = true;
 
         for attr in &field.attrs {
             if attr.path().is_ident("serde") {
@@ -38,6 +40,16 @@ pub fn derive_cluster_variable_values(input: TokenStream) -> TokenStream {
                         // Parse the string literal
                         let lit: syn::LitStr = meta.input.parse()?;
                         rename_value = Some(lit.value());
+                    }
+                    Ok(())
+                });
+            }
+            if attr.path().is_ident("cluster_feature") {
+                let _ = attr.parse_nested_meta(|meta| {
+                    if meta.path.is_ident("required") {
+                        let _: Token![=] = meta.input.parse()?;
+                        let lit: syn::LitBool = meta.input.parse()?;
+                        required = lit.value;
                     }
                     Ok(())
                 });
@@ -55,7 +67,7 @@ pub fn derive_cluster_variable_values(input: TokenStream) -> TokenStream {
             ClusterClassVariables {
                 name: #var_name.into(),
                 metadata: None,
-                required: true,
+                required: #required,
                 schema: ClusterClassVariablesSchema::from_object::<#ty>(),
             }
         });

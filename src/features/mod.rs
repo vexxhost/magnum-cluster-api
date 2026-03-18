@@ -63,6 +63,7 @@ pub mod flavors;
 pub mod image_repository;
 pub mod images;
 pub mod keystone_auth;
+pub mod kubelet_serving_tls;
 pub mod networks;
 pub mod openid_connect;
 pub mod operating_system;
@@ -270,6 +271,9 @@ pub static KUBEADM_CONFIG_TEMPLATE: LazyLock<KubeadmConfigTemplate> =
                         ),
                         ..Default::default()
                     }),
+                    post_kubeadm_commands: Some(vec![
+                        "echo PLACEHOLDER".to_string(),
+                    ]),
                     ..Default::default()
                 }),
                 ..Default::default()
