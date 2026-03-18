@@ -271,7 +271,7 @@ class TestGenerateSystemdProxyConfig:
 
         config = utils.generate_systemd_proxy_config(cluster)
 
-        assert config == "# No proxy configured\n"
+        assert config == ""
 
 
 class TestGenerateAptProxyConfig:
@@ -296,7 +296,7 @@ class TestGenerateAptProxyConfig:
 
         config = utils.generate_apt_proxy_config(cluster)
 
-        assert config == "# No proxy configured\n"
+        assert config == ""
 
 
 class TestUtils(base.BaseTestCase):

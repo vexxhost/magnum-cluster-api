@@ -42,130 +42,165 @@ pub struct Feature {}
 
 impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
-        vec![ClusterClassPatches {
-            name: "containerdConfig".into(),
-            definitions: Some(vec![
-                ClusterClassPatchesDefinitions {
-                    selector: ClusterClassPatchesDefinitionsSelector {
-                        api_version: KubeadmControlPlaneTemplate::api_resource().api_version,
-                        kind: KubeadmControlPlaneTemplate::api_resource().kind,
-                        match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
-                            control_plane: Some(true),
-                            ..Default::default()
+        vec![
+            ClusterClassPatches {
+                name: "containerdConfig".into(),
+                definitions: Some(vec![
+                    ClusterClassPatchesDefinitions {
+                        selector: ClusterClassPatchesDefinitionsSelector {
+                            api_version: KubeadmControlPlaneTemplate::api_resource().api_version,
+                            kind: KubeadmControlPlaneTemplate::api_resource().kind,
+                            match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                                control_plane: Some(true),
+                                ..Default::default()
+                            },
                         },
+                        json_patches: vec![
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/files/-".into(),
+                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                    template: Some(
+                                        serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles {
+                                            path: "/etc/containerd/config.toml".to_string(),
+                                            owner: Some("root:root".into()),
+                                            permissions: Some("0644".to_string()),
+                                            encoding: Some(
+                                                KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64,
+                                            ),
+                                            content: Some("{{ .containerdConfig }}".to_string()),
+                                            ..Default::default()
+                                        }).unwrap(),
+                                    ),
+                                    ..Default::default()
+                                }),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-".into(),
+                                value: Some("systemctl daemon-reload && systemctl restart containerd".into()),
+                                ..Default::default()
+                            },
+                        ],
                     },
-                    json_patches: vec![
-                        ClusterClassPatchesDefinitionsJsonPatches {
-                            op: "add".into(),
-                            path: "/spec/template/spec/kubeadmConfigSpec/files/-".into(),
-                            value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                template: Some(
-                                    serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles {
-                                        path: "/etc/systemd/system/containerd.service.d/proxy.conf".to_string(),
-                                        owner: Some("root:root".into()),
-                                        permissions: Some("0644".to_string()),
-                                        encoding: Some(
-                                            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64,
-                                        ),
-                                        content: Some("{{ .systemdProxyConfig }}".to_string()),
-                                        ..Default::default()
-                                    }).unwrap(),
-                                ),
+                    ClusterClassPatchesDefinitions {
+                        selector: ClusterClassPatchesDefinitionsSelector {
+                            api_version: KubeadmConfigTemplate::api_resource().api_version,
+                            kind: KubeadmConfigTemplate::api_resource().kind,
+                            match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                                machine_deployment_class: Some(ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass {
+                                    names: Some(vec!["default-worker".to_string()])
+                                }),
                                 ..Default::default()
-                            }),
-                            ..Default::default()
+                            },
                         },
-                        ClusterClassPatchesDefinitionsJsonPatches {
-                            op: "add".into(),
-                            path: "/spec/template/spec/kubeadmConfigSpec/files/-".into(),
-                            value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                template: Some(
-                                    serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles {
-                                        path: "/etc/containerd/config.toml".to_string(),
-                                        owner: Some("root:root".into()),
-                                        permissions: Some("0644".to_string()),
-                                        encoding: Some(
-                                            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64,
-                                        ),
-                                        content: Some("{{ .containerdConfig }}".to_string()),
-                                        ..Default::default()
-                                    }).unwrap(),
-                                ),
+                        json_patches: vec![
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/files/-".into(),
+                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                    template: Some(
+                                        serde_yaml::to_string(&KubeadmConfigTemplateTemplateSpecFiles {
+                                            path: "/etc/containerd/config.toml".to_string(),
+                                            owner: Some("root:root".into()),
+                                            permissions: Some("0644".to_string()),
+                                            encoding: Some(
+                                                KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64,
+                                            ),
+                                            content: Some("{{ .containerdConfig }}".to_string()),
+                                            ..Default::default()
+                                        }).unwrap(),
+                                    ),
+                                    ..Default::default()
+                                }),
                                 ..Default::default()
-                            }),
-                            ..Default::default()
-                        },
-                        ClusterClassPatchesDefinitionsJsonPatches {
-                            op: "add".into(),
-                            path: "/spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-".into(),
-                            value: Some("systemctl daemon-reload && systemctl restart containerd".into()),
-                            ..Default::default()
-                        },
-                    ],
-                },
-                ClusterClassPatchesDefinitions {
-                    selector: ClusterClassPatchesDefinitionsSelector {
-                        api_version: KubeadmConfigTemplate::api_resource().api_version,
-                        kind: KubeadmConfigTemplate::api_resource().kind,
-                        match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
-                            machine_deployment_class: Some(ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass {
-                                names: Some(vec!["default-worker".to_string()])
-                            }),
-                            ..Default::default()
-                        },
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/preKubeadmCommands".into(),
+                                value: Some(vec!["systemctl daemon-reload", "systemctl restart containerd"].into()),
+                                ..Default::default()
+                            },
+                        ],
                     },
-                    json_patches: vec![
-                        ClusterClassPatchesDefinitionsJsonPatches {
-                            op: "add".into(),
-                            path: "/spec/template/spec/files/-".into(),
-                            value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                template: Some(
-                                    serde_yaml::to_string(&KubeadmConfigTemplateTemplateSpecFiles {
-                                        path: "/etc/systemd/system/containerd.service.d/proxy.conf".to_string(),
-                                        owner: Some("root:root".into()),
-                                        permissions: Some("0644".to_string()),
-                                        encoding: Some(
-                                            KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64,
-                                        ),
-                                        content: Some("{{ .systemdProxyConfig }}".to_string()),
-                                        ..Default::default()
-                                    }).unwrap(),
-                                ),
+                ]),
+                ..Default::default()
+            },
+            ClusterClassPatches {
+                name: "systemdProxyConfig".into(),
+                enabled_if: Some(r#"{{ if ne .systemdProxyConfig "" }}true{{end}}"#.into()),
+                definitions: Some(vec![
+                    ClusterClassPatchesDefinitions {
+                        selector: ClusterClassPatchesDefinitionsSelector {
+                            api_version: KubeadmControlPlaneTemplate::api_resource().api_version,
+                            kind: KubeadmControlPlaneTemplate::api_resource().kind,
+                            match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                                control_plane: Some(true),
                                 ..Default::default()
-                            }),
-                            ..Default::default()
+                            },
                         },
-                        ClusterClassPatchesDefinitionsJsonPatches {
-                            op: "add".into(),
-                            path: "/spec/template/spec/files/-".into(),
-                            value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                                template: Some(
-                                    serde_yaml::to_string(&KubeadmConfigTemplateTemplateSpecFiles {
-                                        path: "/etc/containerd/config.toml".to_string(),
-                                        owner: Some("root:root".into()),
-                                        permissions: Some("0644".to_string()),
-                                        encoding: Some(
-                                            KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64,
-                                        ),
-                                        content: Some("{{ .containerdConfig }}".to_string()),
-                                        ..Default::default()
-                                    }).unwrap(),
-                                ),
+                        json_patches: vec![
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/kubeadmConfigSpec/files/-".into(),
+                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                    template: Some(
+                                        serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles {
+                                            path: "/etc/systemd/system/containerd.service.d/proxy.conf".to_string(),
+                                            owner: Some("root:root".into()),
+                                            permissions: Some("0644".to_string()),
+                                            encoding: Some(
+                                                KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64,
+                                            ),
+                                            content: Some("{{ .systemdProxyConfig }}".to_string()),
+                                            ..Default::default()
+                                        }).unwrap(),
+                                    ),
+                                    ..Default::default()
+                                }),
                                 ..Default::default()
-                            }),
-                            ..Default::default()
+                            },
+                        ],
+                    },
+                    ClusterClassPatchesDefinitions {
+                        selector: ClusterClassPatchesDefinitionsSelector {
+                            api_version: KubeadmConfigTemplate::api_resource().api_version,
+                            kind: KubeadmConfigTemplate::api_resource().kind,
+                            match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                                machine_deployment_class: Some(ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass {
+                                    names: Some(vec!["default-worker".to_string()])
+                                }),
+                                ..Default::default()
+                            },
                         },
-                        ClusterClassPatchesDefinitionsJsonPatches {
-                            op: "add".into(),
-                            path: "/spec/template/spec/preKubeadmCommands".into(),
-                            value: Some(vec!["systemctl daemon-reload", "systemctl restart containerd"].into()),
-                            ..Default::default()
-                        },
-                    ],
-                },
-            ]),
-            ..Default::default()
-        }]
+                        json_patches: vec![
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/files/-".into(),
+                                value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                    template: Some(
+                                        serde_yaml::to_string(&KubeadmConfigTemplateTemplateSpecFiles {
+                                            path: "/etc/systemd/system/containerd.service.d/proxy.conf".to_string(),
+                                            owner: Some("root:root".into()),
+                                            permissions: Some("0644".to_string()),
+                                            encoding: Some(
+                                                KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64,
+                                            ),
+                                            content: Some("{{ .systemdProxyConfig }}".to_string()),
+                                            ..Default::default()
+                                        }).unwrap(),
+                                    ),
+                                    ..Default::default()
+                                }),
+                                ..Default::default()
+                            },
+                        ],
+                    },
+                ]),
+                ..Default::default()
+            },
+        ]
     }
 }
 
@@ -181,7 +216,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn test_apply_patches() {
+    fn test_apply_patches_with_proxy() {
         let feature = Feature {};
 
         let values = default_values();
@@ -212,11 +247,7 @@ mod tests {
         let kcpt_systemd_file = kcpt_files
             .iter()
             .find(|f| f.path == "/etc/systemd/system/containerd.service.d/proxy.conf")
-            .expect("file should be set");
-        assert_eq!(
-            kcpt_systemd_file.path,
-            "/etc/systemd/system/containerd.service.d/proxy.conf"
-        );
+            .expect("proxy file should be set when proxy is configured");
         assert_eq!(kcpt_systemd_file.owner.as_deref(), Some("root:root"));
         assert_eq!(kcpt_systemd_file.permissions.as_deref(), Some("0644"));
         assert_eq!(
@@ -263,11 +294,7 @@ mod tests {
         let kct_systemd_file = kct_files
             .iter()
             .find(|f| f.path == "/etc/systemd/system/containerd.service.d/proxy.conf")
-            .expect("file should be set");
-        assert_eq!(
-            kct_systemd_file.path,
-            "/etc/systemd/system/containerd.service.d/proxy.conf"
-        );
+            .expect("proxy file should be set when proxy is configured");
         assert_eq!(kct_systemd_file.owner.as_deref(), Some("root:root"));
         assert_eq!(kct_systemd_file.permissions.as_deref(), Some("0644"));
         assert_eq!(
@@ -293,6 +320,69 @@ mod tests {
         assert_eq!(
             kct_containerd_file.content,
             Some(values.containerd_config.clone())
+        );
+    }
+
+    #[test]
+    fn test_apply_patches_without_proxy() {
+        let feature = Feature {};
+
+        let mut values = default_values();
+        values.systemd_proxy_config = "".to_string();
+
+        let patches = feature.patches();
+
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
+
+        let kcpt_spec = resources.kubeadm_control_plane_template.spec.template.spec;
+
+        // containerd config should still be applied
+        let kcpt_files = kcpt_spec
+            .kubeadm_config_spec
+            .files
+            .expect("files should be set");
+
+        assert!(
+            kcpt_files
+                .iter()
+                .find(|f| f.path == "/etc/containerd/config.toml")
+                .is_some(),
+            "containerd config file should still be set"
+        );
+
+        // proxy config should NOT be applied
+        assert!(
+            kcpt_files
+                .iter()
+                .find(|f| f.path == "/etc/systemd/system/containerd.service.d/proxy.conf")
+                .is_none(),
+            "proxy file should not be set when proxy is empty"
+        );
+
+        let kct_spec = resources
+            .kubeadm_config_template
+            .spec
+            .template
+            .spec
+            .expect("spec should be set");
+
+        let kct_files = kct_spec.files.expect("files should be set");
+
+        assert!(
+            kct_files
+                .iter()
+                .find(|f| f.path == "/etc/containerd/config.toml")
+                .is_some(),
+            "containerd config file should still be set"
+        );
+
+        assert!(
+            kct_files
+                .iter()
+                .find(|f| f.path == "/etc/systemd/system/containerd.service.d/proxy.conf")
+                .is_none(),
+            "proxy file should not be set when proxy is empty"
         );
     }
 }
