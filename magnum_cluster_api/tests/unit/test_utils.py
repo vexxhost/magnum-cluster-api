@@ -265,11 +265,13 @@ class TestGenerateSystemdProxyConfig:
 
     def test_without_proxy(self, context):
         cluster = magnum_test_utils.get_test_cluster(context, labels={})
-        cluster.cluster_template = magnum_test_utils.get_test_cluster_template(context)
+        cluster.cluster_template = magnum_test_utils.get_test_cluster_template(
+            context, http_proxy=None, https_proxy=None, no_proxy=None
+        )
 
         config = utils.generate_systemd_proxy_config(cluster)
 
-        assert len(config) > 0
+        assert config == "# No proxy configured\n"
 
 
 class TestGenerateAptProxyConfig:
@@ -288,11 +290,13 @@ class TestGenerateAptProxyConfig:
 
     def test_without_proxy(self, context):
         cluster = magnum_test_utils.get_test_cluster(context, labels={})
-        cluster.cluster_template = magnum_test_utils.get_test_cluster_template(context)
+        cluster.cluster_template = magnum_test_utils.get_test_cluster_template(
+            context, http_proxy=None, https_proxy=None
+        )
 
         config = utils.generate_apt_proxy_config(cluster)
 
-        assert len(config) > 0
+        assert config == "# No proxy configured\n"
 
 
 class TestUtils(base.BaseTestCase):
