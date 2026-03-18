@@ -253,7 +253,7 @@ def generate_systemd_proxy_config(cluster: magnum_objects.Cluster):
             no_proxy=cluster.cluster_template.no_proxy,
         )
     else:
-        return ""
+        return "# No proxy configured\n"
 
 
 def generate_apt_proxy_config(cluster: magnum_objects.Cluster):
@@ -271,7 +271,7 @@ def generate_apt_proxy_config(cluster: magnum_objects.Cluster):
             https_proxy=cluster.cluster_template.https_proxy,
         )
     else:
-        return ""
+        return "# No proxy configured\n"
 
 
 def get_node_group_max_node_count(
