@@ -70,73 +70,55 @@
         MAGNUM_GUEST_IMAGE_URL: "{{ image_url }}"
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.32.12
+    name: magnum-cluster-api-hydrophone-v1.33.9
     parent: magnum-cluster-api-hydrophone
     vars:
-      kube_tag: v1.32.12
+      kube_tag: v1.33.9
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.32.12-calico
-    parent: magnum-cluster-api-hydrophone-v1.32.12
+    name: magnum-cluster-api-hydrophone-v1.33.9-calico
+    parent: magnum-cluster-api-hydrophone-v1.33.9
     vars:
       network_driver: calico
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.32.12-cilium
-    parent: magnum-cluster-api-hydrophone-v1.32.12
+    name: magnum-cluster-api-hydrophone-v1.33.9-cilium
+    parent: magnum-cluster-api-hydrophone-v1.33.9
     vars:
       network_driver: cilium
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.33.8
+    name: magnum-cluster-api-hydrophone-v1.34.5
     parent: magnum-cluster-api-hydrophone
     vars:
-      kube_tag: v1.33.8
+      kube_tag: v1.34.5
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.33.8-calico
-    parent: magnum-cluster-api-hydrophone-v1.33.8
+    name: magnum-cluster-api-hydrophone-v1.34.5-calico
+    parent: magnum-cluster-api-hydrophone-v1.34.5
     vars:
       network_driver: calico
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.33.8-cilium
-    parent: magnum-cluster-api-hydrophone-v1.33.8
+    name: magnum-cluster-api-hydrophone-v1.34.5-cilium
+    parent: magnum-cluster-api-hydrophone-v1.34.5
     vars:
       network_driver: cilium
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.34.4
+    name: magnum-cluster-api-hydrophone-v1.35.2
     parent: magnum-cluster-api-hydrophone
     vars:
-      kube_tag: v1.34.4
+      kube_tag: v1.35.2
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.34.4-calico
-    parent: magnum-cluster-api-hydrophone-v1.34.4
+    name: magnum-cluster-api-hydrophone-v1.35.2-calico
+    parent: magnum-cluster-api-hydrophone-v1.35.2
     vars:
       network_driver: calico
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.34.4-cilium
-    parent: magnum-cluster-api-hydrophone-v1.34.4
-    vars:
-      network_driver: cilium
-
-- job:
-    name: magnum-cluster-api-hydrophone-v1.35.1
-    parent: magnum-cluster-api-hydrophone
-    vars:
-      kube_tag: v1.35.1
-
-- job:
-    name: magnum-cluster-api-hydrophone-v1.35.1-calico
-    parent: magnum-cluster-api-hydrophone-v1.35.1
-    vars:
-      network_driver: calico
-
-- job:
-    name: magnum-cluster-api-hydrophone-v1.35.1-cilium
-    parent: magnum-cluster-api-hydrophone-v1.35.1
+    name: magnum-cluster-api-hydrophone-v1.35.2-cilium
+    parent: magnum-cluster-api-hydrophone-v1.35.2
     vars:
       network_driver: cilium
