@@ -113,9 +113,10 @@ is often accomplished by deploying a driver on each node.
 
 * `octavia_provider`
 
-   The Octavia provider to configure for the load balancers created by the cluster.
+   The Octavia provider to configure for the load balancers created by the cloud
+   controller manager in the cluster.
 
-   Default value: Octavia default
+   Default value: `amphorav2`
 
 * `octavia_lb_algorithm`
 

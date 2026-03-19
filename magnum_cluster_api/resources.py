@@ -993,14 +993,31 @@ class Cluster(ClusterBase):
         worker_flavor = utils.lookup_flavor(osc, self.cluster.flavor_id)
         image = utils.lookup_image(osc, self.cluster.default_ng_master.image_id)
 
+        # Determine the octavia provider for the API server load balancer:
+        # 1. If explicitly set via label, always use that
+        # 2. If a CAPI Cluster already exists, preserve its current provider
+        # 3. Default to "amphorav2" for new clusters
+        octavia_provider_label = self.cluster.labels.get("octavia_provider")
+        if octavia_provider_label is not None:
+            octavia_provider = octavia_provider_label
+        else:
+            existing = self.get_or_none()
+            if existing is not None:
+                existing_variables = {
+                    v["name"]: v["value"]
+                    for v in existing.obj.get("spec", {})
+                    .get("topology", {})
+                    .get("variables", [])
+                }
+                existing_lb = existing_variables.get("apiServerLoadBalancer", {})
+                octavia_provider = existing_lb.get("provider", "amphorav2")
+            else:
+                octavia_provider = "amphorav2"
+
         api_server_load_balancer = {
             "enabled": self.cluster.master_lb_enabled,
+            "provider": octavia_provider,
         }
-
-        # Only add optional fields if they are set
-        octavia_provider = self.cluster.labels.get("octavia_provider")
-        if octavia_provider is not None:
-            api_server_load_balancer["provider"] = octavia_provider
 
         availability_zone = self.cluster.labels.get("api_server_lb_availability_zone")
         if availability_zone is not None:
