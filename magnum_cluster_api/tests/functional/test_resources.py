@@ -123,7 +123,7 @@ class ResourceBaseTestCase(base.BaseTestCase):
 class TestClusterClass(ResourceBaseTestCase):
     def _test_disable_api_server_floating_ip(
         self,
-        master_lb_floating_ip_enabled: bool | None,
+        floating_ip_enabled: bool,
         expected: bool,
     ):
         cluster = magnum_objects.Cluster(
@@ -133,6 +133,7 @@ class TestClusterClass(ResourceBaseTestCase):
                 flavor_id="m1.large",
                 keypair="fake-keypair",
                 labels={},
+                floating_ip_enabled=floating_ip_enabled,
             ),
         )
         cluster.cluster_template = magnum_objects.ClusterTemplate(
@@ -141,11 +142,6 @@ class TestClusterClass(ResourceBaseTestCase):
                 cluster_distro="ubuntu",
             ),
         )
-
-        if master_lb_floating_ip_enabled is not None:
-            cluster.labels["master_lb_floating_ip_enabled"] = str(
-                master_lb_floating_ip_enabled
-            )
 
         capi_cluster: resources.Cluster = self.useFixture(
             mcapi_fixtures.ClusterFixture(
@@ -193,17 +189,12 @@ class TestClusterClass(ResourceBaseTestCase):
             expected, capi_oc.obj["spec"].get("disableAPIServerFloatingIP", False)
         )
 
-    def test_disable_api_server_floating_ip_unset(self):
+    def test_disable_api_server_floating_ip_enabled(self):
         self._test_disable_api_server_floating_ip(
-            master_lb_floating_ip_enabled=None, expected=False
+            floating_ip_enabled=True, expected=False
         )
 
-    def test_disable_api_server_floating_ip_true(self):
+    def test_disable_api_server_floating_ip_disabled(self):
         self._test_disable_api_server_floating_ip(
-            master_lb_floating_ip_enabled=True, expected=False
-        )
-
-    def test_disable_api_server_floating_ip_false(self):
-        self._test_disable_api_server_floating_ip(
-            master_lb_floating_ip_enabled=False, expected=True
+            floating_ip_enabled=False, expected=True
         )
