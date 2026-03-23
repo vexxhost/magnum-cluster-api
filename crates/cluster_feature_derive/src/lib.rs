@@ -4,7 +4,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput, Token};
 
-#[proc_macro_derive(ClusterFeatureValues, attributes(serde))]
+#[proc_macro_derive(ClusterFeatureValues, attributes(serde, variable))]
 pub fn derive_cluster_variable_values(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree.
     let input = parse_macro_input!(input as DeriveInput);
@@ -27,6 +27,9 @@ pub fn derive_cluster_variable_values(input: TokenStream) -> TokenStream {
         let field_ident = field.ident.as_ref().unwrap();
         // Look for a serde(rename = "...") attribute on the field.
         let mut rename_value: Option<String> = None;
+        // Look for a variable(required = false) or variable(default = "...") attribute.
+        let mut required = true;
+        let mut default_value: Option<String> = None;
 
         for attr in &field.attrs {
             if attr.path().is_ident("serde") {
@@ -42,6 +45,21 @@ pub fn derive_cluster_variable_values(input: TokenStream) -> TokenStream {
                     Ok(())
                 });
             }
+            if attr.path().is_ident("variable") {
+                let _ = attr.parse_nested_meta(|meta| {
+                    if meta.path.is_ident("required") {
+                        let _: Token![=] = meta.input.parse()?;
+                        let lit: syn::LitBool = meta.input.parse()?;
+                        required = lit.value();
+                    }
+                    if meta.path.is_ident("default") {
+                        let _: Token![=] = meta.input.parse()?;
+                        let lit: syn::LitStr = meta.input.parse()?;
+                        default_value = Some(lit.value());
+                    }
+                    Ok(())
+                });
+            }
         }
 
         // Use the rename value if present; otherwise, use the field name in snake_case.
@@ -51,14 +69,29 @@ pub fn derive_cluster_variable_values(input: TokenStream) -> TokenStream {
         };
 
         let ty = &field.ty;
-        var_entries.push(quote! {
-            ClusterClassVariables {
-                name: #var_name.into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<#ty>(),
-            }
-        });
+        if let Some(ref default) = default_value {
+            var_entries.push(quote! {
+                {
+                    let mut schema = ClusterClassVariablesSchema::from_object::<#ty>();
+                    schema.open_apiv3_schema.default = Some(serde_json::json!(#default));
+                    ClusterClassVariables {
+                        name: #var_name.into(),
+                        metadata: None,
+                        required: #required,
+                        schema,
+                    }
+                }
+            });
+        } else {
+            var_entries.push(quote! {
+                ClusterClassVariables {
+                    name: #var_name.into(),
+                    metadata: None,
+                    required: #required,
+                    schema: ClusterClassVariablesSchema::from_object::<#ty>(),
+                }
+            });
+        }
     }
 
     // Generate the final implementation.

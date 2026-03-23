@@ -1122,6 +1122,13 @@ class Cluster(ClusterBase):
                             },
                         },
                         {
+                            "name": "bootVolumeAvailabilityZone",
+                            "value": self.cluster.labels.get(
+                                "boot_volume_az",
+                                self.cluster.labels.get("availability_zone", ""),
+                            ),
+                        },
+                        {
                             "name": "clusterIdentityRefName",
                             "value": utils.get_cluster_api_cloud_config_secret_name(
                                 self.cluster

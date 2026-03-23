@@ -40,8 +40,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if let syn::Fields::Named(fields_named) = &item_struct.fields {
                     for field in fields_named.named.iter() {
                         if let Some(ident) = &field.ident {
-                            // Preserve all attributes for the field (like #[serde(rename = "...")])
-                            let attrs = &field.attrs;
+                            // Preserve only serde attributes for the field (like #[serde(rename = "...")])
+                            // We skip #[variable(...)] attributes since the Values struct does not
+                            // use the ClusterFeatureValues derive and would get unrecognized attribute errors.
+                            let attrs: Vec<_> = field
+                                .attrs
+                                .iter()
+                                .filter(|a| a.path().is_ident("serde"))
+                                .collect();
                             let ty = &field.ty;
 
                             let qualified_ty = match &field.ty {
