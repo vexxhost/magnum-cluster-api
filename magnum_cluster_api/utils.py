@@ -204,6 +204,8 @@ def get_cluster_container_infra_prefix(cluster: magnum_objects.Cluster) -> str:
 
 
 def get_cluster_floating_ip_disabled(cluster: magnum_objects.Cluster) -> bool:
+    if cluster.master_lb_enabled:
+        return not get_cluster_label_as_bool(cluster, "master_lb_floating_ip_enabled", True)
     return not cluster.floating_ip_enabled
 
 

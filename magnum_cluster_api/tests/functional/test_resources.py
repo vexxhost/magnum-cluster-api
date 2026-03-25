@@ -123,7 +123,9 @@ class ResourceBaseTestCase(base.BaseTestCase):
 class TestClusterClass(ResourceBaseTestCase):
     def _test_disable_api_server_floating_ip(
         self,
+        master_lb_enabled: bool,
         floating_ip_enabled: bool,
+        master_lb_floating_ip_enabled: bool | None,
         expected: bool,
     ):
         cluster = magnum_objects.Cluster(
@@ -134,6 +136,7 @@ class TestClusterClass(ResourceBaseTestCase):
                 keypair="fake-keypair",
                 labels={},
                 floating_ip_enabled=floating_ip_enabled,
+                master_lb_enabled=master_lb_enabled,
             ),
         )
         cluster.cluster_template = magnum_objects.ClusterTemplate(
@@ -142,6 +145,11 @@ class TestClusterClass(ResourceBaseTestCase):
                 cluster_distro="ubuntu",
             ),
         )
+
+        if master_lb_floating_ip_enabled is not None:
+            cluster.labels["master_lb_floating_ip_enabled"] = str(
+                master_lb_floating_ip_enabled
+            )
 
         capi_cluster: resources.Cluster = self.useFixture(
             mcapi_fixtures.ClusterFixture(
@@ -189,12 +197,47 @@ class TestClusterClass(ResourceBaseTestCase):
             expected, capi_oc.obj["spec"].get("disableAPIServerFloatingIP", False)
         )
 
-    def test_disable_api_server_floating_ip_enabled(self):
+    def test_disable_api_server_floating_ip_lb_enabled_default(self):
+        # LB enabled, master_lb_floating_ip_enabled unset (defaults to True)
         self._test_disable_api_server_floating_ip(
-            floating_ip_enabled=True, expected=False
+            master_lb_enabled=True,
+            floating_ip_enabled=True,
+            master_lb_floating_ip_enabled=None,
+            expected=False,
         )
 
-    def test_disable_api_server_floating_ip_disabled(self):
+    def test_disable_api_server_floating_ip_lb_enabled_fip_enabled(self):
+        # LB enabled, master_lb_floating_ip_enabled=True
         self._test_disable_api_server_floating_ip(
-            floating_ip_enabled=False, expected=True
+            master_lb_enabled=True,
+            floating_ip_enabled=True,
+            master_lb_floating_ip_enabled=True,
+            expected=False,
+        )
+
+    def test_disable_api_server_floating_ip_lb_enabled_fip_disabled(self):
+        # LB enabled, master_lb_floating_ip_enabled=False
+        self._test_disable_api_server_floating_ip(
+            master_lb_enabled=True,
+            floating_ip_enabled=True,
+            master_lb_floating_ip_enabled=False,
+            expected=True,
+        )
+
+    def test_disable_api_server_floating_ip_lb_disabled_fip_enabled(self):
+        # LB disabled, floating_ip_enabled=True: FIP goes to control plane node
+        self._test_disable_api_server_floating_ip(
+            master_lb_enabled=False,
+            floating_ip_enabled=True,
+            master_lb_floating_ip_enabled=False,
+            expected=False,
+        )
+
+    def test_disable_api_server_floating_ip_lb_disabled_fip_disabled(self):
+        # LB disabled, floating_ip_enabled=False: no FIP at all
+        self._test_disable_api_server_floating_ip(
+            master_lb_enabled=False,
+            floating_ip_enabled=False,
+            master_lb_floating_ip_enabled=None,
+            expected=True,
         )
