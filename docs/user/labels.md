@@ -113,8 +113,10 @@ is often accomplished by deploying a driver on each node.
 
 * `octavia_provider`
 
-   The Octavia provider to configure for the load balancers created by the cloud
-   controller manager in the cluster.
+   The Octavia provider to configure for load balancers created by the cloud
+   controller manager (for Kubernetes Services of type `LoadBalancer`) and for
+   the API server load balancer (via the Cluster topology variable
+   `apiServerLoadBalancer.provider`).
 
    Default value: `amphorav2`
 
