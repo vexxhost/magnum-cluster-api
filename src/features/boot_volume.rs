@@ -180,7 +180,7 @@ mod tests {
             Some(OpenStackMachineTemplateTemplateSpecRootVolume {
                 r#type: Some(values.clone().boot_volume.r#type),
                 size_gi_b: values.clone().boot_volume.size,
-                ..Default::default()
+                availability_zone: None,
             })
         );
 
@@ -194,7 +194,7 @@ mod tests {
             Some(OpenStackMachineTemplateTemplateSpecRootVolume {
                 r#type: Some(values.clone().boot_volume.r#type),
                 size_gi_b: values.clone().boot_volume.size,
-                ..Default::default()
+                availability_zone: None,
             })
         );
     }
