@@ -24,7 +24,7 @@ specify the volume size and type using the following labels:
 :   The volume type of the boot volume.
     **Default value**: Default volume
 
-`boot_volume_az`
+`boot_volume_availability_zone`
 
 :   The availability zone for the boot volume.  This is useful when the volume
     type backend is tied to a specific availability zone that differs from the

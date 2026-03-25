@@ -1124,7 +1124,7 @@ class Cluster(ClusterBase):
                         {
                             "name": "bootVolumeAvailabilityZone",
                             "value": self.cluster.labels.get(
-                                "boot_volume_az",
+                                "boot_volume_availability_zone",
                                 self.cluster.labels.get("availability_zone", ""),
                             ),
                         },
