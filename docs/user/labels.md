@@ -29,7 +29,7 @@ specify the volume size and type using the following labels:
 :   The availability zone for the boot volume.  This is useful when the volume
     type backend is tied to a specific availability zone that differs from the
     compute availability zone.
-    **Default value**: Falls back to `availability_zone` label, then empty
+    **Default value**: Falls back to `availability_zone` label, then empty string.
 
 `etcd_volume_size`
 
