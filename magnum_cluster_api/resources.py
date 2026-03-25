@@ -760,6 +760,10 @@ def mutate_machine_deployment(
             "capacity.cluster-autoscaler.kubernetes.io/ephemeral-disk": str(
                 boot_volume_size
             ),
+            "capacity.cluster-autoscaler.kubernetes.io/labels": (
+                f"node-role.kubernetes.io/{node_group.role}=,"
+                f"node.cluster.x-k8s.io/nodegroup={node_group.name}"
+            ),
         }
     else:
         machine_deployment["replicas"] = node_group.node_count
