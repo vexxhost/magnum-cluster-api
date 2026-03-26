@@ -1,5 +1,10 @@
 // Enable kubelet serving TLS (serverTLSBootstrap): kubelet requests a cluster CA–signed
 // serving certificate; API server verifies it when connecting to the kubelet.
+//
+// Uses kubeadm's native patch mechanism (patches.directory) so that
+// serverTLSBootstrap is applied *before* kubelet starts — no post-kubeadm
+// sed hacks or kubelet restarts needed.
+//
 // See: https://github.com/vexxhost/magnum-cluster-api/issues/365
 
 use crate::{
@@ -12,8 +17,11 @@ use crate::{
             ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
             ClusterClassVariables, ClusterClassVariablesSchema,
         },
-        kubeadmconfigtemplates::KubeadmConfigTemplate,
-        kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate,
+        kubeadmconfigtemplates::{KubeadmConfigTemplate, KubeadmConfigTemplateTemplateSpecFiles},
+        kubeadmcontrolplanetemplates::{
+            KubeadmControlPlaneTemplate,
+            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles,
+        },
     },
     features::{
         ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
@@ -36,8 +44,14 @@ pub struct FeatureValues {
 
 pub struct Feature {}
 
-// Match the full cgroupDriver line so the value (e.g. systemd) stays on that line.
-const SERVER_TLS_BOOTSTRAP_CMD: &str = "if ! grep -q '^serverTLSBootstrap:' /var/lib/kubelet/config.yaml; then if grep -q '^cgroupDriver:' /var/lib/kubelet/config.yaml; then sed -i 's/^cgroupDriver:.*/&\\nserverTLSBootstrap: true/' /var/lib/kubelet/config.yaml; else printf '\\nserverTLSBootstrap: true\\n' >> /var/lib/kubelet/config.yaml; fi; fi";
+/// Strategic-merge patch applied by kubeadm to KubeletConfiguration.
+const KUBELET_CONFIG_PATCH: &str = r#"{"apiVersion":"kubelet.config.k8s.io/v1beta1","kind":"KubeletConfiguration","serverTLSBootstrap":true}"#;
+
+/// Directory where kubeadm looks for component patches during init/join.
+const PATCHES_DIR: &str = "/etc/kubernetes/patches";
+
+/// Patch file name: target=kubeletconfiguration, suffix=0, patchtype=strategic, ext=json.
+const PATCH_FILE: &str = "/etc/kubernetes/patches/kubeletconfiguration0+strategic.json";
 
 impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
@@ -45,6 +59,7 @@ impl ClusterFeaturePatches for Feature {
             name: "kubeletServingTLS".into(),
             enabled_if: Some("{{ if .enableKubeletServingTLS }}true{{end}}".into()),
             definitions: Some(vec![
+                // ── Control-plane nodes ──────────────────────────────────────
                 ClusterClassPatchesDefinitions {
                     selector: ClusterClassPatchesDefinitionsSelector {
                         api_version: KubeadmControlPlaneTemplate::api_resource().api_version,
@@ -62,23 +77,37 @@ impl ClusterFeaturePatches for Feature {
                             value: Some(json!("/etc/kubernetes/pki/ca.crt")),
                             ..Default::default()
                         },
-                        // Enable kubelet serverTLSBootstrap (request serving cert from API server), idempotent.
+                        // Inject the kubelet config strategic-merge patch file.
                         // kubelet-csr-approver is installed via ClusterResourceSet (LegacyClusterResourcesSecret) like CCM/CSI.
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
-                            path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
-                            value: Some(json!(SERVER_TLS_BOOTSTRAP_CMD)),
+                            path: "/spec/template/spec/kubeadmConfigSpec/files/-".into(),
+                            value: Some(json!(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles {
+                                path: PATCH_FILE.into(),
+                                owner: Some("root:root".into()),
+                                permissions: Some("0644".into()),
+                                content: Some(KUBELET_CONFIG_PATCH.into()),
+                                ..Default::default()
+                            })),
                             ..Default::default()
                         },
+                        // Tell kubeadm init to apply patches from the directory.
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
-                            path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
-                            value: Some(json!("systemctl restart kubelet")),
+                            path: "/spec/template/spec/kubeadmConfigSpec/initConfiguration/patches".into(),
+                            value: Some(json!({"directory": PATCHES_DIR})),
+                            ..Default::default()
+                        },
+                        // Tell kubeadm join (additional control-plane nodes) to apply patches.
+                        ClusterClassPatchesDefinitionsJsonPatches {
+                            op: "add".into(),
+                            path: "/spec/template/spec/kubeadmConfigSpec/joinConfiguration/patches".into(),
+                            value: Some(json!({"directory": PATCHES_DIR})),
                             ..Default::default()
                         },
                     ],
                 },
-                // Worker nodes also need serverTLSBootstrap to request serving certs from the API.
+                // ── Worker nodes ─────────────────────────────────────────────
                 ClusterClassPatchesDefinitions {
                     selector: ClusterClassPatchesDefinitionsSelector {
                         api_version: KubeadmConfigTemplate::api_resource().api_version,
@@ -93,17 +122,24 @@ impl ClusterFeaturePatches for Feature {
                         },
                     },
                     json_patches: vec![
-                        // Enable kubelet serverTLSBootstrap on worker nodes, idempotent.
+                        // Inject the same kubelet config patch file for workers.
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
-                            path: "/spec/template/spec/postKubeadmCommands/-".into(),
-                            value: Some(json!(SERVER_TLS_BOOTSTRAP_CMD)),
+                            path: "/spec/template/spec/files/-".into(),
+                            value: Some(json!(KubeadmConfigTemplateTemplateSpecFiles {
+                                path: PATCH_FILE.into(),
+                                owner: Some("root:root".into()),
+                                permissions: Some("0644".into()),
+                                content: Some(KUBELET_CONFIG_PATCH.into()),
+                                ..Default::default()
+                            })),
                             ..Default::default()
                         },
+                        // Tell kubeadm join on workers to apply patches.
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
-                            path: "/spec/template/spec/postKubeadmCommands/-".into(),
-                            value: Some(json!("systemctl restart kubelet")),
+                            path: "/spec/template/spec/joinConfiguration/patches".into(),
+                            value: Some(json!({"directory": PATCHES_DIR})),
                             ..Default::default()
                         },
                     ],
@@ -136,6 +172,7 @@ mod tests {
         let mut resources = TestClusterResources::new();
         resources.apply_patches(&patches, &values);
 
+        // API server extra arg should be set.
         let api_server = resources
             .kubeadm_control_plane_template
             .spec
@@ -157,32 +194,81 @@ mod tests {
             Some(&"/etc/kubernetes/pki/ca.crt".to_string())
         );
 
-        let cp_post_cmds = resources
+        // Control-plane: kubelet config patch file should be injected.
+        let cp_files = resources
             .kubeadm_control_plane_template
             .spec
             .template
             .spec
             .kubeadm_config_spec
-            .post_kubeadm_commands
+            .files
             .as_ref()
-            .expect("control plane post kubeadm commands should be set");
+            .expect("control plane files should be set");
 
-        assert!(cp_post_cmds.iter().any(|c| c.contains("serverTLSBootstrap")));
-        assert!(cp_post_cmds.iter().any(|c| c == "systemctl restart kubelet"));
+        assert!(cp_files.iter().any(|f| f.path == PATCH_FILE));
 
-        let worker_post_cmds = resources
+        // Control-plane: initConfiguration.patches.directory should be set.
+        let cp_init_patches = resources
+            .kubeadm_control_plane_template
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .init_configuration
+            .as_ref()
+            .expect("init configuration should be set")
+            .patches
+            .as_ref()
+            .expect("init configuration patches should be set");
+
+        assert_eq!(cp_init_patches.directory.as_deref(), Some(PATCHES_DIR));
+
+        // Control-plane: joinConfiguration.patches.directory should be set.
+        let cp_join_patches = resources
+            .kubeadm_control_plane_template
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .join_configuration
+            .as_ref()
+            .expect("join configuration should be set")
+            .patches
+            .as_ref()
+            .expect("join configuration patches should be set");
+
+        assert_eq!(cp_join_patches.directory.as_deref(), Some(PATCHES_DIR));
+
+        // Worker: kubelet config patch file should be injected.
+        let worker_files = resources
             .kubeadm_config_template
             .spec
             .template
             .spec
             .as_ref()
             .expect("kubeadm config template spec should be set")
-            .post_kubeadm_commands
+            .files
             .as_ref()
-            .expect("worker post kubeadm commands should be set");
+            .expect("worker files should be set");
 
-        assert!(worker_post_cmds.iter().any(|c| c.contains("serverTLSBootstrap")));
-        assert!(worker_post_cmds.iter().any(|c| c == "systemctl restart kubelet"));
+        assert!(worker_files.iter().any(|f| f.path == PATCH_FILE));
+
+        // Worker: joinConfiguration.patches.directory should be set.
+        let worker_join_patches = resources
+            .kubeadm_config_template
+            .spec
+            .template
+            .spec
+            .as_ref()
+            .expect("kubeadm config template spec should be set")
+            .join_configuration
+            .as_ref()
+            .expect("worker join configuration should be set")
+            .patches
+            .as_ref()
+            .expect("worker join configuration patches should be set");
+
+        assert_eq!(worker_join_patches.directory.as_deref(), Some(PATCHES_DIR));
     }
 
     #[test]
