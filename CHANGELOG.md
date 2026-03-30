@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.36.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.0...v0.36.1) (2026-03-25)
+
+
+### Bug Fixes
+
+* add autoscaler labels annotation to MachineDeployment for scale-from-zero support ([#909](https://github.com/vexxhost/magnum-cluster-api/issues/909)) ([1481884](https://github.com/vexxhost/magnum-cluster-api/commit/148188486a78e2e6e3fc2c5d8d7d8730c49603dd))
+* pass availability zone to boot (root) volumes ([#908](https://github.com/vexxhost/magnum-cluster-api/issues/908)) ([8e92234](https://github.com/vexxhost/magnum-cluster-api/commit/8e92234874690a263e2acf0bd82f5a1e72fb57dd))
+* skip proxy file patches when no proxy is configured ([#897](https://github.com/vexxhost/magnum-cluster-api/issues/897)) ([37e280f](https://github.com/vexxhost/magnum-cluster-api/commit/37e280f3db0fe612f0b201e71076fa9ba94d76eb))
+
 ## [0.36.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.35.0...v0.36.0) (2026-03-16)
 
 
