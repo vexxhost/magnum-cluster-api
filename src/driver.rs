@@ -296,6 +296,19 @@ impl Driver {
         Ok(cluster.cluster_addon_secret(&addon)?.string_data)
     }
 
+    #[classmethod]
+    #[pyo3(signature = (cluster))]
+    fn get_snapshot_controller_cluster_resource_secret_data(
+        _cls: &Bound<'_, PyType>,
+        cluster: Py<PyAny>,
+        py: Python<'_>,
+    ) -> PyResult<Option<BTreeMap<String, String>>> {
+        let cluster: magnum::Cluster = cluster.extract(py)?;
+
+        let addon = addons::snapshot_controller::Addon::new(cluster.clone());
+        Ok(cluster.cluster_addon_secret(&addon)?.string_data)
+    }
+
     fn create_cluster(&self, py: Python<'_>, cluster: Py<PyAny>) -> PyResult<()> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
