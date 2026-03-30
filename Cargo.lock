@@ -155,16 +155,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fd1289c04a9ea8cb22300a459a72a385d7c73d3259e2ed7dcb2af674838cfa9"
 
 [[package]]
-name = "chrono"
-version = "0.4.41"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c469d952047f47f91b68d1cba3f10d63c11d73e4636f24f08daf0278abf01c4d"
-dependencies = [
- "num-traits",
- "serde",
-]
-
-[[package]]
 name = "cluster_feature_derive"
 version = "0.1.0"
 dependencies = [
@@ -897,25 +887,13 @@ dependencies = [
 
 [[package]]
 name = "k8s-openapi"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa60a41b57ae1a0a071af77dbcf89fc9819cfe66edaf2beeb204c34459dcf0b2"
-dependencies = [
- "base64",
- "chrono",
- "schemars 0.8.22",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "k8s-openapi"
 version = "0.27.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51b326f5219dd55872a72c1b6ddd1b830b8334996c667449c29391d657d78d5e"
 dependencies = [
  "base64",
  "jiff",
+ "schemars",
  "serde",
  "serde_json",
 ]
@@ -926,7 +904,7 @@ version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acc5a6a69da2975ed9925d56b5dcfc9cc739b66f37add06785b7c9f6d1e88741"
 dependencies = [
- "k8s-openapi 0.27.1",
+ "k8s-openapi",
  "kube-client",
  "kube-core",
  "kube-derive",
@@ -952,7 +930,7 @@ dependencies = [
  "hyper-util",
  "jiff",
  "jsonpath-rust",
- "k8s-openapi 0.27.1",
+ "k8s-openapi",
  "kube-core",
  "pem",
  "rustls",
@@ -979,8 +957,8 @@ dependencies = [
  "http",
  "jiff",
  "json-patch",
- "k8s-openapi 0.27.1",
- "schemars 1.2.1",
+ "k8s-openapi",
+ "schemars",
  "serde",
  "serde-value",
  "serde_json",
@@ -1016,7 +994,7 @@ dependencies = [
  "hashbrown 0.16.1",
  "hostname",
  "json-patch",
- "k8s-openapi 0.27.1",
+ "k8s-openapi",
  "kube-client",
  "parking_lot",
  "pin-project",
@@ -1081,7 +1059,7 @@ dependencies = [
  "indoc",
  "inventory",
  "json-patch",
- "k8s-openapi 0.25.0",
+ "k8s-openapi",
  "kube",
  "log",
  "maplit",
@@ -1094,7 +1072,7 @@ dependencies = [
  "pythonize",
  "quote",
  "rstest",
- "schemars 0.8.22",
+ "schemars",
  "semver",
  "serde",
  "serde_gtmpl",
@@ -1702,39 +1680,15 @@ dependencies = [
 
 [[package]]
 name = "schemars"
-version = "0.8.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fbf2ae1b8bc8e02df939598064d22402220cd5bbcca1c76f7d6a310974d5615"
-dependencies = [
- "dyn-clone",
- "schemars_derive 0.8.22",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "schemars"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2b42f36aa1cd011945615b92222f6bf73c599a102a300334cd7f8dbeec726cc"
 dependencies = [
  "dyn-clone",
  "ref-cast",
- "schemars_derive 1.2.1",
+ "schemars_derive",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "schemars_derive"
-version = "0.8.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32e265784ad618884abaea0600a9adf15393368d840e0222d101a072f3f7534d"
-dependencies = [
- "proc-macro2",
- "quote",
- "serde_derive_internals",
- "syn",
 ]
 
 [[package]]
