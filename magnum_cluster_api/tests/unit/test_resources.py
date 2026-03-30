@@ -153,6 +153,12 @@ class TestExistingMutateMachineDeployment:
             assert md["metadata"]["annotations"][
                 resources.AUTOSCALE_ANNOTATION_MAX
             ] == str(self.node_group.max_node_count)
+            assert md["metadata"]["annotations"][
+                "capacity.cluster-autoscaler.kubernetes.io/labels"
+            ] == (
+                f"node-role.kubernetes.io/{self.node_group.role}=,"
+                f"node.cluster.x-k8s.io/nodegroup={self.node_group.name}"
+            )
         else:
             assert md["replicas"] == self.node_group.node_count
             assert md["metadata"]["annotations"] == {}

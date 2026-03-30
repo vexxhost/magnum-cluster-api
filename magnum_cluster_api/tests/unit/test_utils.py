@@ -246,6 +246,59 @@ class TestGenerateCloudControllerManagerConfig:
                 )
 
 
+class TestGenerateSystemdProxyConfig:
+    def test_with_proxy(self, context):
+        cluster = magnum_test_utils.get_test_cluster(context, labels={})
+        cluster.cluster_template = magnum_test_utils.get_test_cluster_template(
+            context,
+            http_proxy="http://proxy.example.com:3128",
+            https_proxy="https://proxy.example.com:3128",
+            no_proxy="localhost,127.0.0.1",
+        )
+
+        config = utils.generate_systemd_proxy_config(cluster)
+
+        assert "[Service]" in config
+        assert 'Environment="http_proxy=http://proxy.example.com:3128"' in config
+        assert 'Environment="https_proxy=https://proxy.example.com:3128"' in config
+        assert 'Environment="no_proxy=localhost,127.0.0.1"' in config
+
+    def test_without_proxy(self, context):
+        cluster = magnum_test_utils.get_test_cluster(context, labels={})
+        cluster.cluster_template = magnum_test_utils.get_test_cluster_template(
+            context, http_proxy=None, https_proxy=None, no_proxy=None
+        )
+
+        config = utils.generate_systemd_proxy_config(cluster)
+
+        assert config == ""
+
+
+class TestGenerateAptProxyConfig:
+    def test_with_proxy(self, context):
+        cluster = magnum_test_utils.get_test_cluster(context, labels={})
+        cluster.cluster_template = magnum_test_utils.get_test_cluster_template(
+            context,
+            http_proxy="http://proxy.example.com:3128",
+            https_proxy="https://proxy.example.com:3128",
+        )
+
+        config = utils.generate_apt_proxy_config(cluster)
+
+        assert 'Acquire::http::Proxy "http://proxy.example.com:3128"' in config
+        assert 'Acquire::https::Proxy "https://proxy.example.com:3128"' in config
+
+    def test_without_proxy(self, context):
+        cluster = magnum_test_utils.get_test_cluster(context, labels={})
+        cluster.cluster_template = magnum_test_utils.get_test_cluster_template(
+            context, http_proxy=None, https_proxy=None
+        )
+
+        config = utils.generate_apt_proxy_config(cluster)
+
+        assert config == ""
+
+
 class TestUtils(base.BaseTestCase):
     """Test case for utils."""
 

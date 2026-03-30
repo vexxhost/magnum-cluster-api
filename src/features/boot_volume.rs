@@ -34,6 +34,9 @@ pub struct BootVolumeConfig {
 pub struct FeatureValues {
     #[serde(rename = "bootVolume")]
     pub boot_volume: BootVolumeConfig,
+
+    #[serde(rename = "bootVolumeAvailabilityZone")]
+    pub boot_volume_availability_zone: String,
 }
 
 pub struct Feature {}
@@ -61,9 +64,18 @@ impl ClusterFeaturePatches for Feature {
                     op: "add".into(),
                     path: "/spec/template/spec/rootVolume".into(),
                     value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                        template: Some(indoc!("
-                            type: {{ .bootVolume.type }}
-                            sizeGiB: {{ .bootVolume.size }}").to_string(),
+                        template: Some(
+                            indoc!(
+                                r#"
+                                type: {{ .bootVolume.type }}
+                                sizeGiB: {{ .bootVolume.size }}
+                                {{- if .bootVolumeAvailabilityZone }}
+                                availabilityZone:
+                                  name: "{{ .bootVolumeAvailabilityZone }}"
+                                {{- end }}
+                                "#
+                            )
+                            .into(),
                         ),
                         ..Default::default()
                     }),
@@ -83,7 +95,10 @@ inventory::submit! {
 mod tests {
     use super::*;
     use crate::{
-        cluster_api::openstackmachinetemplates::OpenStackMachineTemplateTemplateSpecRootVolume,
+        cluster_api::openstackmachinetemplates::{
+            OpenStackMachineTemplateTemplateSpecRootVolume,
+            OpenStackMachineTemplateTemplateSpecRootVolumeAvailabilityZone,
+        },
         features::test::TestClusterResources, resources::fixtures::default_values,
     };
     use pretty_assertions::assert_eq;
@@ -97,6 +112,7 @@ mod tests {
             .r#type("ssd".into())
             .size(10)
             .build();
+        values.boot_volume_availability_zone = "az1".into();
 
         let patches = feature.patches();
 
@@ -113,7 +129,10 @@ mod tests {
             Some(OpenStackMachineTemplateTemplateSpecRootVolume {
                 r#type: Some(values.clone().boot_volume.r#type),
                 size_gi_b: values.clone().boot_volume.size,
-                ..Default::default()
+                availability_zone: Some(OpenStackMachineTemplateTemplateSpecRootVolumeAvailabilityZone {
+                    name: Some(values.clone().boot_volume_availability_zone),
+                    ..Default::default()
+                }),
             })
         );
 
@@ -127,7 +146,55 @@ mod tests {
             Some(OpenStackMachineTemplateTemplateSpecRootVolume {
                 r#type: Some(values.clone().boot_volume.r#type),
                 size_gi_b: values.clone().boot_volume.size,
-                ..Default::default()
+                availability_zone: Some(OpenStackMachineTemplateTemplateSpecRootVolumeAvailabilityZone {
+                    name: Some(values.clone().boot_volume_availability_zone),
+                    ..Default::default()
+                }),
+            })
+        );
+    }
+
+    #[test]
+    fn test_enabled_without_availability_zone() {
+        let feature = Feature {};
+
+        let mut values = default_values();
+        values.boot_volume = BootVolumeConfig::builder()
+            .r#type("ssd".into())
+            .size(10)
+            .build();
+        values.boot_volume_availability_zone = "".into();
+
+        let patches = feature.patches();
+
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
+
+        assert_eq!(
+            resources
+                .control_plane_openstack_machine_template
+                .spec
+                .template
+                .spec
+                .root_volume,
+            Some(OpenStackMachineTemplateTemplateSpecRootVolume {
+                r#type: Some(values.clone().boot_volume.r#type),
+                size_gi_b: values.clone().boot_volume.size,
+                availability_zone: None,
+            })
+        );
+
+        assert_eq!(
+            resources
+                .worker_openstack_machine_template
+                .spec
+                .template
+                .spec
+                .root_volume,
+            Some(OpenStackMachineTemplateTemplateSpecRootVolume {
+                r#type: Some(values.clone().boot_volume.r#type),
+                size_gi_b: values.clone().boot_volume.size,
+                availability_zone: None,
             })
         );
     }
