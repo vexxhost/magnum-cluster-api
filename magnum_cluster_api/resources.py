@@ -994,14 +994,11 @@ class Cluster(ClusterBase):
         image = utils.lookup_image(osc, self.cluster.default_ng_master.image_id)
 
         # Determine the octavia provider for the API server load balancer:
-        # 1. If explicitly set via label, always use that (non-empty after stripping)
+        # 1. If explicitly set via label, always use that
         # 2. If a CAPI Cluster already exists, preserve its current provider
         # 3. Default to "amphorav2" for new clusters
         octavia_provider_label = self.cluster.labels.get("octavia_provider")
-        if octavia_provider_label is not None:
-            # Normalize the label value and require a non-empty provider
-            octavia_provider_label = octavia_provider_label.strip()
-        if octavia_provider_label:
+        if octavia_provider_label in ["amphora", "amphorav2"]:
             octavia_provider = octavia_provider_label
         else:
             existing = self.get_or_none()
