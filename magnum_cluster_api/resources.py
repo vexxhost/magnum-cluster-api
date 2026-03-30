@@ -1002,7 +1002,7 @@ class Cluster(ClusterBase):
         # 2. If a CAPI Cluster already exists, preserve its current provider
         # 3. Default to "amphorav2" for new clusters
         octavia_provider_label = self.cluster.labels.get("octavia_provider")
-        if octavia_provider_label in ["amphora", "amphorav2"]:
+        if octavia_provider_label in ["amphora", "amphorav2", "ovn"]:
             octavia_provider = octavia_provider_label
         else:
             existing = self.get_or_none()
