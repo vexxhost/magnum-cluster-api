@@ -89,6 +89,25 @@ pub struct ClusterFeatureEntry {
 
 inventory::collect!(ClusterFeatureEntry);
 
+/// Schema helper for optional string fields in ClusterClass variable schemas.
+///
+/// `Option<String>` produces `"type": ["string", "null"]` (an array), but
+/// CAPI's Go `JSONSchemaProps.Type` is a plain `string`.  The Go JSON
+/// unmarshaller rejects arrays with "cannot unmarshal array into Go struct
+/// field … of type string".  This helper emits `{"type": "string"}` and,
+/// combined with `#[serde(default)]`, keeps the field out of the `required`
+/// array — making it optional without breaking CAPI's webhook.
+///
+/// Usage:
+/// ```ignore
+/// #[serde(default, skip_serializing_if = "Option::is_none")]
+/// #[schemars(schema_with = "features::optional_string_schema")]
+/// pub my_field: Option<String>,
+/// ```
+pub fn optional_string_schema(_gen: &mut SchemaGenerator) -> Schema {
+    schemars::json_schema!({"type": "string"})
+}
+
 pub trait ClusterClassVariablesSchemaExt {
     fn from_object<T: JsonSchema>() -> Self;
     fn from_root_schema(root_schema: Schema) -> Self;

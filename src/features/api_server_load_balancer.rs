@@ -11,8 +11,8 @@ use crate::{
         openstackclustertemplates::OpenStackClusterTemplate,
     },
     features::{
-        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
-        ClusterFeatureVariables,
+        optional_string_schema, ClusterClassVariablesSchemaExt, ClusterFeatureEntry,
+        ClusterFeaturePatches, ClusterFeatureVariables,
     },
 };
 use cluster_feature_derive::ClusterFeatureValues;
@@ -20,22 +20,6 @@ use kube::CustomResourceExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
-
-/// Schema helper: emit `{"type":"string"}` for an optional string field.
-///
-/// CAPI's admission webhook uses Go's `JSONSchemaProps.Type` which is a plain
-/// `string`, not a `[]string`.  The default schemars derivation for
-/// `Option<String>` produces `"type": ["string", "null"]` (an array), which
-/// the Go JSON unmarshaller rejects with "cannot unmarshal array into Go struct
-/// field … of type string".  Using this helper keeps the field out of the
-/// schema's `required` array (via `#[serde(default)]`) while generating a
-/// plain `"type": "string"` that CAPI accepts.
-fn optional_string_schema(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    schemars::schema::Schema::Object(schemars::schema::SchemaObject {
-        instance_type: Some(schemars::schema::InstanceType::String.into()),
-        ..Default::default()
-    })
-}
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
 pub struct APIServerLoadBalancerConfig {
