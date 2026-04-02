@@ -83,6 +83,7 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::features::assert_optional_string_schema_for_field;
     use crate::features::test::TestClusterResources;
     use crate::resources::fixtures::default_values;
     use pretty_assertions::assert_eq;
@@ -169,7 +170,6 @@ mod tests {
 
     #[test]
     fn test_schema_provider_is_optional_string() {
-        use crate::features::assert_optional_string_schema_for_field;
         assert_optional_string_schema_for_field::<APIServerLoadBalancerConfig>("provider");
     }
     #[test]
