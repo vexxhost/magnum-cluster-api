@@ -27,6 +27,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   ## NOTE(okozachenko1203): Disable this job for now.
