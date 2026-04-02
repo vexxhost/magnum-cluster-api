@@ -27,6 +27,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   ## NOTE(okozachenko1203): Disable this job for now.
@@ -70,7 +71,7 @@ jobs:
 
       - name: Generate image metadata
         id: meta
-        uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f # v5.8.0
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: quay.io/vexxhost/magnum-cluster-api-registry
           tags: |
