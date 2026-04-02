@@ -1,17 +1,4 @@
 - job:
-    name: magnum-cluster-api-tox
-    parent: tox
-    abstract: true
-    pre-run: zuul.d/playbooks/tox/pre.yml
-
-- job:
-    name: magnum-cluster-api-tox-unit
-    parent: magnum-cluster-api-tox
-    pre-run: zuul.d/playbooks/unit/pre.yml
-    vars:
-      tox_envlist: unit
-
-- job:
     name: magnum-cluster-api-devstack
     parent: devstack
     abstract: true
