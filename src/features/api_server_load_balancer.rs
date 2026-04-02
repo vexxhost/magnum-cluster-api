@@ -21,11 +21,28 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 
+/// Schema helper: emit `{"type":"string"}` for an optional string field.
+///
+/// CAPI's admission webhook uses Go's `JSONSchemaProps.Type` which is a plain
+/// `string`, not a `[]string`.  The default schemars derivation for
+/// `Option<String>` produces `"type": ["string", "null"]` (an array), which
+/// the Go JSON unmarshaller rejects with "cannot unmarshal array into Go struct
+/// field … of type string".  Using this helper keeps the field out of the
+/// schema's `required` array (via `#[serde(default)]`) while generating a
+/// plain `"type": "string"` that CAPI accepts.
+fn optional_string_schema(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    schemars::schema::Schema::Object(schemars::schema::SchemaObject {
+        instance_type: Some(schemars::schema::InstanceType::String.into()),
+        ..Default::default()
+    })
+}
+
 #[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
 pub struct APIServerLoadBalancerConfig {
     pub enabled: bool,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(schema_with = "optional_string_schema")]
     #[builder(default)]
     pub provider: Option<String>,
 
@@ -164,6 +181,34 @@ mod tests {
         );
         assert_eq!(api_server_load_balancer.flavor, None);
         assert_eq!(api_server_load_balancer.availability_zone, None);
+    }
+
+    #[test]
+    fn test_schema_provider_is_optional_string() {
+        use crate::features::ClusterClassVariablesSchemaExt;
+
+        let schema = ClusterClassVariablesSchema::from_object::<APIServerLoadBalancerConfig>();
+        let v: serde_json::Value = serde_json::from_str(
+            &serde_json::to_string(&schema.open_apiv3_schema).unwrap(),
+        )
+        .unwrap();
+
+        // provider must NOT be in required (field is optional)
+        let required = v.get("required").and_then(|r| r.as_array());
+        if let Some(req) = required {
+            assert!(
+                !req.iter().any(|r| r.as_str() == Some("provider")),
+                "provider should not be in required"
+            );
+        }
+
+        // provider.type must be a plain string "string", not an array
+        let provider_type = &v["properties"]["provider"]["type"];
+        assert_eq!(
+            provider_type,
+            "string",
+            "provider type must be a plain string (CAPI rejects arrays)"
+        );
     }
 
     #[test]
