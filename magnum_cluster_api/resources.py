@@ -993,22 +993,31 @@ class Cluster(ClusterBase):
         worker_flavor = utils.lookup_flavor(osc, self.cluster.flavor_id)
         image = utils.lookup_image(osc, self.cluster.default_ng_master.image_id)
 
-        api_server_load_balancer = {
+        api_server_load_balancer: dict = {
             "enabled": self.cluster.master_lb_enabled,
         }
 
-        # Only add optional fields if they are set
-        octavia_provider = self.cluster.labels.get("octavia_provider")
-        if octavia_provider is not None:
-            api_server_load_balancer["provider"] = octavia_provider
+        if self.cluster.master_lb_enabled:
+            # Only add optional fields if they are set
+            octavia_provider = self.cluster.labels.get("octavia_provider")
+            if octavia_provider is not None:
+                api_server_load_balancer["provider"] = octavia_provider
 
-        availability_zone = self.cluster.labels.get("api_server_lb_availability_zone")
-        if availability_zone is not None:
-            api_server_load_balancer["availabilityZone"] = availability_zone
+            availability_zone = self.cluster.labels.get(
+                "api_server_lb_availability_zone"
+            )
+            if availability_zone is not None:
+                api_server_load_balancer["availabilityZone"] = availability_zone
 
-        flavor = self.cluster.labels.get("api_server_lb_flavor")
-        if flavor is not None:
-            api_server_load_balancer["flavor"] = flavor
+            flavor = self.cluster.labels.get("api_server_lb_flavor")
+            if flavor is not None:
+                api_server_load_balancer["flavor"] = flavor
+
+            disable_api_server_floating_ip = not utils.get_cluster_label_as_bool(
+                self.cluster, "master_lb_floating_ip_enabled", True
+            )
+        else:
+            disable_api_server_floating_ip = not self.cluster.floating_ip_enabled
 
         return {
             "metadata": {
@@ -1151,9 +1160,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "disableAPIServerFloatingIP",
-                            "value": utils.get_cluster_floating_ip_disabled(
-                                self.cluster
-                            ),
+                            "value": disable_api_server_floating_ip,
                         },
                         {
                             "name": "dnsNameservers",
