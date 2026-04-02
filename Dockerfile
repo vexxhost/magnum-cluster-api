@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.23
 
-FROM alpine:edge AS registry-base
+FROM alpine:3.23@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659 AS registry-base
 RUN apk add --no-cache docker-registry
 ADD registry/config.yml /etc/docker-registry/config.yml
 
