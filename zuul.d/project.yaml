@@ -1,6 +1,7 @@
 - project:
     check:
       jobs:
+        - magnum-cluster-api-tox-unit
         - magnum-cluster-api-hydrophone-v1.33.9-calico
         - magnum-cluster-api-hydrophone-v1.33.9-cilium
         - magnum-cluster-api-hydrophone-v1.34.5-calico
@@ -9,6 +10,7 @@
         - magnum-cluster-api-hydrophone-v1.35.2-cilium
     gate:
       jobs:
+        - magnum-cluster-api-tox-unit
         - magnum-cluster-api-hydrophone-v1.33.9-calico
         - magnum-cluster-api-hydrophone-v1.33.9-cilium
         - magnum-cluster-api-hydrophone-v1.34.5-calico
