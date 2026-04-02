@@ -1,14 +1,12 @@
 # syntax=docker/dockerfile:1.19
 
-FROM alpine:3.22@sha256:55ae5d250caebc548793f321534bc6a8ef1d116f334f18f4ada1b2daad3251b2 AS registry-base
+FROM alpine:edge AS registry-base
 RUN apk add --no-cache docker-registry
 ADD registry/config.yml /etc/docker-registry/config.yml
 
 FROM registry-base AS registry-loader
 COPY --from=ghcr.io/astral-sh/uv:0.11.2 /uv /uvx /bin/
-RUN apk add --no-cache crane curl gcc linux-headers musl-dev netcat-openbsd py3-pip python3-dev
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
-ENV PATH="/root/.cargo/bin:${PATH}"
+RUN apk add --no-cache cargo crane gcc linux-headers musl-dev netcat-openbsd py3-pip python3-dev
 COPY . /src
 WORKDIR /src
 RUN <<EOF
