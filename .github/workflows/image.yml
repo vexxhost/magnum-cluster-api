@@ -80,7 +80,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Authenticate with Quay.io
-        uses: step-security/docker-login-action@c3e677aae8393bc9c81cfdf9709648720ea4bd4d # v3.6.0
+        uses: step-security/docker-login-action@6aa05fe688caf2c58e784663f01b3415ced503e8 # v3.7.0
         if: ${{ github.event_name == 'push' || github.event_name == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.image_push == true) }}
         with:
           registry: quay.io
