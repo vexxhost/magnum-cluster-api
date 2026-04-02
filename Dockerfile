@@ -1,11 +1,11 @@
-# syntax=docker/dockerfile:1.19
+# syntax=docker/dockerfile:1.23
 
 FROM alpine:edge AS registry-base
 RUN apk add --no-cache docker-registry
 ADD registry/config.yml /etc/docker-registry/config.yml
 
 FROM registry-base AS registry-loader
-COPY --from=ghcr.io/astral-sh/uv:0.11.2 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.3 /uv /uvx /bin/
 RUN apk add --no-cache cargo crane gcc linux-headers musl-dev netcat-openbsd py3-pip python3-dev
 COPY . /src
 WORKDIR /src

@@ -201,9 +201,11 @@ pub enum ClusterStatus {
     AdoptComplete,
 }
 
-impl FromPyObject<'_> for ClusterStatus {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let status = ob.extract::<String>()?;
+impl<'a, 'py> FromPyObject<'a, 'py> for ClusterStatus {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        let status = obj.extract::<String>()?;
 
         serde_plain::from_str(&status).map_err(|err| {
             PyErr::new::<PyRuntimeError, _>(format!(
@@ -371,7 +373,7 @@ mod tests {
     use super::*;
     use crate::addons;
     use pretty_assertions::assert_eq;
-    use pyo3::{prepare_freethreaded_python, types::PyString};
+    use pyo3::types::PyString;
     use rstest::rstest;
     use serde_yaml::{Mapping, Value};
     use std::path::PathBuf;
@@ -389,9 +391,8 @@ mod tests {
     #[case("CREATE_IN_PROGRESS", ClusterStatus::CreateInProgress)]
     #[case("CREATE_FAILED", ClusterStatus::CreateFailed)]
     fn test_cluster_status_from_pyobject(#[case] status: &str, #[case] expected: ClusterStatus) {
-        prepare_freethreaded_python();
-
-        Python::with_gil(|py| {
+        Python::initialize();
+        Python::attach(|py| {
             let py_status = PyString::new(py, status);
             let result: ClusterStatus = py_status
                 .extract()
@@ -402,9 +403,8 @@ mod tests {
 
     #[test]
     fn test_cluster_status_from_pyobject_invalid() {
-        prepare_freethreaded_python();
-
-        Python::with_gil(|py| {
+        Python::initialize();
+        Python::attach(|py| {
             let py_status = PyString::new(py, "INVALID_STATUS");
             let result: Result<ClusterStatus, _> = py_status.extract();
             assert!(result.is_err());
