@@ -11,8 +11,8 @@ use crate::{
         openstackclustertemplates::OpenStackClusterTemplate,
     },
     features::{
-        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
-        ClusterFeatureVariables,
+        optional_string_schema, ClusterClassVariablesSchemaExt, ClusterFeatureEntry,
+        ClusterFeaturePatches, ClusterFeatureVariables,
     },
 };
 use cluster_feature_derive::ClusterFeatureValues;
@@ -25,7 +25,10 @@ use typed_builder::TypedBuilder;
 pub struct APIServerLoadBalancerConfig {
     pub enabled: bool,
 
-    pub provider: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(schema_with = "optional_string_schema")]
+    #[builder(default)]
+    pub provider: Option<String>,
 
     #[serde(default, skip_serializing_if = "str::is_empty")]
     #[builder(default)]
@@ -80,6 +83,7 @@ inventory::submit! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::features::assert_optional_string_schema_for_field;
     use crate::features::test::TestClusterResources;
     use crate::resources::fixtures::default_values;
     use pretty_assertions::assert_eq;
@@ -91,7 +95,7 @@ mod tests {
         let mut values = default_values();
         values.api_server_load_balancer = APIServerLoadBalancerConfig::builder()
             .enabled(true)
-            .provider("octavia".to_string())
+            .provider(Some("octavia".to_string()))
             .flavor("ha".to_string())
             .availability_zone("zone-1".to_string())
             .build();
@@ -115,7 +119,7 @@ mod tests {
         );
         assert_eq!(
             api_server_load_balancer.provider,
-            Some(values.api_server_load_balancer.provider)
+            values.api_server_load_balancer.provider
         );
         assert_eq!(
             api_server_load_balancer.flavor,
@@ -134,7 +138,7 @@ mod tests {
         let mut values = default_values();
         values.api_server_load_balancer = APIServerLoadBalancerConfig::builder()
             .enabled(true)
-            .provider("octavia".to_string())
+            .provider(Some("octavia".to_string()))
             .flavor("".to_string())
             .availability_zone("".to_string())
             .build();
@@ -158,8 +162,40 @@ mod tests {
         );
         assert_eq!(
             api_server_load_balancer.provider,
-            Some(values.api_server_load_balancer.provider)
+            values.api_server_load_balancer.provider
         );
+        assert_eq!(api_server_load_balancer.flavor, None);
+        assert_eq!(api_server_load_balancer.availability_zone, None);
+    }
+
+    #[test]
+    fn test_schema_provider_is_optional_string() {
+        assert_optional_string_schema_for_field::<APIServerLoadBalancerConfig>("provider");
+    }
+    #[test]
+    fn test_patches_without_provider() {
+        let feature = Feature {};
+
+        let mut values = default_values();
+        values.api_server_load_balancer = APIServerLoadBalancerConfig::builder()
+            .enabled(true)
+            .build();
+
+        let patches = feature.patches();
+
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
+
+        let api_server_load_balancer = resources
+            .openstack_cluster_template
+            .spec
+            .template
+            .spec
+            .api_server_load_balancer
+            .expect("apiServerLoadBalancer should be set");
+
+        assert_eq!(api_server_load_balancer.enabled, true);
+        assert_eq!(api_server_load_balancer.provider, None);
         assert_eq!(api_server_load_balancer.flavor, None);
         assert_eq!(api_server_load_balancer.availability_zone, None);
     }

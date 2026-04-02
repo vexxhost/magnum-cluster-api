@@ -89,6 +89,77 @@ pub struct ClusterFeatureEntry {
 
 inventory::collect!(ClusterFeatureEntry);
 
+/// Schema helper for optional string fields in ClusterClass variable schemas.
+///
+/// `Option<String>` produces `"type": ["string", "null"]` (an array), but
+/// CAPI's Go `JSONSchemaProps.Type` is a plain `string`.  The Go JSON
+/// unmarshaller rejects arrays with "cannot unmarshal array into Go struct
+/// field … of type string".  This helper emits `{"type": "string"}` and,
+/// combined with `#[serde(default)]`, keeps the field out of the `required`
+/// array — making it optional without breaking CAPI's webhook.
+///
+/// Usage:
+/// ```ignore
+/// #[serde(default, skip_serializing_if = "Option::is_none")]
+/// #[schemars(schema_with = "features::optional_string_schema")]
+/// pub my_field: Option<String>,
+/// ```
+pub fn optional_string_schema(_gen: &mut SchemaGenerator) -> Schema {
+    schemars::json_schema!({"type": "string"})
+}
+
+/// Test helper: assert that a named field in a CAPI `ClusterClassVariablesSchema`
+/// is rendered as an optional plain-string (i.e. not in `required` and
+/// `"type"` is the scalar `"string"`, not an array).
+///
+/// Call this from feature-level tests to verify that an `Option<String>` field
+/// annotated with `#[schemars(schema_with = "optional_string_schema")]` is
+/// correctly encoded for CAPI's Go webhook.
+#[cfg(test)]
+pub fn assert_optional_string_schema_for_field<T: JsonSchema>(field: &str) {
+    let schema = ClusterClassVariablesSchema::from_object::<T>();
+    let v: serde_json::Value =
+        serde_json::from_str(&serde_json::to_string(&schema.open_apiv3_schema).unwrap()).unwrap();
+
+    // Field must NOT be in required (it is optional)
+    if let Some(req) = v.get("required").and_then(|r| r.as_array()) {
+        assert!(
+            !req.iter().any(|r| r.as_str() == Some(field)),
+            "field `{field}` should not be in required"
+        );
+    }
+
+    // Field type must be the scalar "string", not an array — CAPI's Go
+    // JSONSchemaProps.Type is a plain string and rejects JSON arrays.
+    let field_type = &v["properties"][field]["type"];
+    assert_eq!(
+        field_type,
+        "string",
+        "field `{field}` type must be a plain string (CAPI rejects arrays)"
+    );
+}
+
+#[cfg(test)]
+mod schema_tests {
+    use super::*;
+    use schemars::JsonSchema;
+    use serde::{Deserialize, Serialize};
+
+    /// Smoke-test for `optional_string_schema`: a minimal struct with one
+    /// optional string field must render as a non-required plain `"string"`.
+    #[test]
+    fn test_optional_string_schema_emits_plain_type() {
+        #[derive(JsonSchema, Serialize, Deserialize)]
+        struct Fixture {
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            #[schemars(schema_with = "optional_string_schema")]
+            pub optional_field: Option<String>,
+        }
+
+        assert_optional_string_schema_for_field::<Fixture>("optional_field");
+    }
+}
+
 pub trait ClusterClassVariablesSchemaExt {
     fn from_object<T: JsonSchema>() -> Self;
     fn from_root_schema(root_schema: Schema) -> Self;
