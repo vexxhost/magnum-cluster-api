@@ -6,7 +6,9 @@ ADD registry/config.yml /etc/docker-registry/config.yml
 
 FROM registry-base AS registry-loader
 COPY --from=ghcr.io/astral-sh/uv:0.11.2 /uv /uvx /bin/
-RUN apk add --no-cache cargo crane gcc linux-headers musl-dev netcat-openbsd py3-pip python3-dev
+RUN apk add --no-cache crane curl gcc linux-headers musl-dev netcat-openbsd py3-pip python3-dev
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
+ENV PATH="/root/.cargo/bin:${PATH}"
 COPY . /src
 WORKDIR /src
 RUN <<EOF
