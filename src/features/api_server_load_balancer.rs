@@ -169,32 +169,9 @@ mod tests {
 
     #[test]
     fn test_schema_provider_is_optional_string() {
-        use crate::features::ClusterClassVariablesSchemaExt;
-
-        let schema = ClusterClassVariablesSchema::from_object::<APIServerLoadBalancerConfig>();
-        let v: serde_json::Value = serde_json::from_str(
-            &serde_json::to_string(&schema.open_apiv3_schema).unwrap(),
-        )
-        .unwrap();
-
-        // provider must NOT be in required (field is optional)
-        let required = v.get("required").and_then(|r| r.as_array());
-        if let Some(req) = required {
-            assert!(
-                !req.iter().any(|r| r.as_str() == Some("provider")),
-                "provider should not be in required"
-            );
-        }
-
-        // provider.type must be a plain string "string", not an array
-        let provider_type = &v["properties"]["provider"]["type"];
-        assert_eq!(
-            provider_type,
-            "string",
-            "provider type must be a plain string (CAPI rejects arrays)"
-        );
+        use crate::features::assert_optional_string_schema_for_field;
+        assert_optional_string_schema_for_field::<APIServerLoadBalancerConfig>("provider");
     }
-
     #[test]
     fn test_patches_without_provider() {
         let feature = Feature {};
