@@ -50,7 +50,7 @@ default = []
 [dev-dependencies]
 gtmpl = "0.7.1"
 http = "1.3.1"
-mockall = "0.13.1"
+mockall = "0.14.0"
 pretty_assertions = "1.4.1"
 rstest = "0.26.0"
 semver = "1.0.26"
