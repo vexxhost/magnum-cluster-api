@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.36.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.1...v0.36.2) (2026-04-02)
+
+
+### Bug Fixes
+
+* **deps:** update pyo3 ([#837](https://github.com/vexxhost/magnum-cluster-api/issues/837)) ([c1d136b](https://github.com/vexxhost/magnum-cluster-api/commit/c1d136bbfa2f1723205450d553f3687963db6898))
+* **deps:** update rust crate kube to v3 ([#702](https://github.com/vexxhost/magnum-cluster-api/issues/702)) ([c58d3f3](https://github.com/vexxhost/magnum-cluster-api/commit/c58d3f37de143748bf62b9ce3ee6530b2891fe43))
+* make apiServerLoadBalancer.provider optional in ClusterClass schema ([#924](https://github.com/vexxhost/magnum-cluster-api/issues/924)) ([72d3afc](https://github.com/vexxhost/magnum-cluster-api/commit/72d3afcc3aeeeefab7b83f1f0649c61e38cc4e30))
+* update kubernetes bump script for Zuul CI jobs ([#926](https://github.com/vexxhost/magnum-cluster-api/issues/926)) ([2f78c99](https://github.com/vexxhost/magnum-cluster-api/commit/2f78c9901bc33279aa9e8b6c3d84a7f401fb2d2d))
+
 ## [0.36.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.0...v0.36.1) (2026-03-25)
 
 
