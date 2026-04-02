@@ -209,7 +209,7 @@ mod tests {
                 .map(|(type_, status)| Condition {
                     type_: type_.to_string(),
                     status: status.to_string(),
-                    last_transition_time: Time(k8s_openapi::chrono::Utc::now()),
+                    last_transition_time: Time(k8s_openapi::jiff::Timestamp::now()),
                     message: "".to_string(),
                     reason: "".to_string(),
                     observed_generation: None,

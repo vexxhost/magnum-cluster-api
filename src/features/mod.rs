@@ -45,7 +45,7 @@ use crate::cluster_api::{
 };
 use base64::prelude::*;
 use maplit::btreemap;
-use schemars::{gen::SchemaGenerator, JsonSchema};
+use schemars::{generate::SchemaGenerator, JsonSchema, Schema};
 use std::sync::LazyLock;
 
 pub mod admission_plugins;
@@ -91,7 +91,7 @@ inventory::collect!(ClusterFeatureEntry);
 
 pub trait ClusterClassVariablesSchemaExt {
     fn from_object<T: JsonSchema>() -> Self;
-    fn from_root_schema(root_schema: schemars::schema::RootSchema) -> Self;
+    fn from_root_schema(root_schema: Schema) -> Self;
 }
 
 impl ClusterClassVariablesSchemaExt for ClusterClassVariablesSchema {
@@ -101,7 +101,7 @@ impl ClusterClassVariablesSchemaExt for ClusterClassVariablesSchema {
         Self::from_root_schema(schema)
     }
 
-    fn from_root_schema(root_schema: schemars::schema::RootSchema) -> Self {
+    fn from_root_schema(root_schema: Schema) -> Self {
         let json_schema = serde_json::to_string(&root_schema).unwrap();
 
         ClusterClassVariablesSchema {
