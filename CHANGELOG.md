@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.2...v0.36.3) (2026-04-06)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate ignition-config to 0.6.0 ([#946](https://github.com/vexxhost/magnum-cluster-api/issues/946)) ([036b270](https://github.com/vexxhost/magnum-cluster-api/commit/036b270f2f412f617269dade25757366849a2dff))
+
 ## [0.36.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.1...v0.36.2) (2026-04-02)
 
 
