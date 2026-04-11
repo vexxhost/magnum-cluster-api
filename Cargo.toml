@@ -9,7 +9,7 @@ syn = { version = "2.0.100", features = ["full", "parsing"] }
 quote = "1.0"
 proc-macro2 = "1.0"
 heck = "0.5"
-vergen-gix = "1"
+vergen-gix = "9"
 
 [dependencies]
 backon = "1.5.0"
