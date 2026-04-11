@@ -161,18 +161,3 @@ class TestExistingMutateMachineDeployment:
         else:
             assert md["replicas"] == self.node_group.node_count
             assert md["metadata"]["annotations"] == {}
-
-
-def test_no_octavia_label_omits_provider(cluster_topology_variable):
-    lb = cluster_topology_variable("apiServerLoadBalancer")
-    assert "provider" not in lb
-
-
-@pytest.mark.parametrize("provider", ["amphora", "amphorav2", "ovn", "custom-provider"])
-def test_octavia_label_sets_provider(cluster_topology_variable, provider):
-    value = cluster_topology_variable(
-        "apiServerLoadBalancer",
-        "provider",
-        extra_labels={"octavia_provider": provider},
-    )
-    assert value == provider

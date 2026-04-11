@@ -14,7 +14,6 @@
 
 import abc
 import glob
-import importlib.metadata
 import math
 import os
 import types
@@ -50,8 +49,6 @@ from magnum_cluster_api.integrations import cinder, manila
 CONF = cfg.CONF
 CALICO_TAG = "v3.31.3"
 
-CLUSTER_CLASS_VERSION = importlib.metadata.version("magnum_cluster_api")
-CLUSTER_CLASS_NAME = f"magnum-v{CLUSTER_CLASS_VERSION}"
 CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT = "300s"  # seconds
 
 AUTOSCALE_ANNOTATION_MIN = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size"
@@ -929,6 +926,7 @@ class Cluster(ClusterBase):
         api: magnum_cluster_api.KubeClient,
         pykube_api: pykube.HTTPClient,
         cluster: magnum_objects.Cluster,
+        rust_driver: magnum_cluster_api.Driver,
         namespace: str = "magnum-system",
     ):
         self.context = context
@@ -936,6 +934,7 @@ class Cluster(ClusterBase):
         self.pykube_api = pykube_api
         self.cluster = cluster
         self.namespace = namespace
+        self.rust_driver = rust_driver
 
     @property
     def api_version(self) -> str:
@@ -997,22 +996,12 @@ class Cluster(ClusterBase):
         worker_flavor = utils.lookup_flavor(osc, self.cluster.flavor_id)
         image = utils.lookup_image(osc, self.cluster.default_ng_master.image_id)
 
-        api_server_load_balancer = {
-            "enabled": self.cluster.master_lb_enabled,
+        variables = {
+            "apiServerLoadBalancer": {"enabled": self.cluster.master_lb_enabled},
         }
-
-        # Only add optional fields if they are set
-        octavia_provider = self.cluster.labels.get("octavia_provider")
-        if octavia_provider is not None:
-            api_server_load_balancer["provider"] = octavia_provider
-
-        availability_zone = self.cluster.labels.get("api_server_lb_availability_zone")
-        if availability_zone is not None:
-            api_server_load_balancer["availabilityZone"] = availability_zone
-
-        flavor = self.cluster.labels.get("api_server_lb_flavor")
-        if flavor is not None:
-            api_server_load_balancer["flavor"] = flavor
+        variables = self.rust_driver.resolve_immutable_fields(
+            self.cluster.stack_id, dict(self.cluster.labels), variables
+        )
 
         return {
             "metadata": {
@@ -1035,7 +1024,7 @@ class Cluster(ClusterBase):
                     },
                 },
                 "topology": {
-                    "class": CLUSTER_CLASS_NAME,
+                    "class": magnum_cluster_api.CLUSTER_CLASS_NAME,
                     "version": utils.get_kube_tag(self.cluster),
                     "controlPlane": {
                         "metadata": {
@@ -1056,7 +1045,7 @@ class Cluster(ClusterBase):
                     "variables": [
                         {
                             "name": "apiServerLoadBalancer",
-                            "value": api_server_load_balancer,
+                            "value": variables["apiServerLoadBalancer"],
                         },
                         {
                             "name": "apiServerTLSCipherSuites",

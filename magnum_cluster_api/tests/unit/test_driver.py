@@ -320,6 +320,7 @@ class TestDriver:
                         ubuntu_driver._kube_client,
                         ubuntu_driver.k8s_api,
                         self.cluster,
+                        rust_driver=ubuntu_driver.rust_driver,
                     ).get_resource()
                 ),
             ]

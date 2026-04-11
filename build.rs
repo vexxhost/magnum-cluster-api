@@ -3,8 +3,16 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use std::{env, error::Error, fs, path::Path};
 use syn::{parse_file, Ident, Item, Type};
+use vergen_gix::{Emitter, GixBuilder};
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let gix = GixBuilder::default()
+        .describe(true, false, None)
+        .build()?;
+    Emitter::default()
+        .idempotent()
+        .add_instructions(&gix)?
+        .emit()?;
     let pattern = "src/features/*.rs";
     let mut field_tokens: Vec<TokenStream> = Vec::new();
 
