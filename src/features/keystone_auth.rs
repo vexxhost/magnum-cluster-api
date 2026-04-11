@@ -113,7 +113,7 @@ impl ClusterFeaturePatches for Feature {
                     ClusterClassPatchesDefinitionsJsonPatches {
                         op: "add".into(),
                         path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
-                        value: Some("cp /etc/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml".into()),
+                        value: Some("test -f /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml || cp /etc/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml".into()),
                         ..Default::default()
                     },
                     ClusterClassPatchesDefinitionsJsonPatches {
@@ -243,7 +243,7 @@ mod tests {
             .kubeadm_config_spec
             .post_kubeadm_commands
             .expect("post commands should be set");
-        assert!(post_cmds.contains(&"cp /etc/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml".to_string()));
+        assert!(post_cmds.contains(&"test -f /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml || cp /etc/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml".to_string()));
         assert!(post_cmds.contains(&"kubectl kustomize /etc/kubernetes/keystone-kustomization -o /etc/kubernetes/manifests/kube-apiserver.yaml".to_string()));
     }
 }
