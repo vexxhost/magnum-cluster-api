@@ -13,7 +13,7 @@ permissions: {}
 
 jobs:
   cargo:
-    uses: vexxhost/github-actions/.github/workflows/cargo.yml@1792807163c61621500aaf37d61363646eede63e # main
+    uses: vexxhost/github-actions/.github/workflows/cargo.yml@1a9b39d8b3f28736b3ad19b45cd9493a91aa2519 # main
 
   build:
     runs-on: ubuntu-24.04${{ matrix.target == 'aarch64' && '-arm' || '' }}
@@ -29,6 +29,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
       - uses: rui314/setup-mold@725a8794d15fc7563f59595bd9556495c0564878 # v1
       - uses: step-security/rust-cache@9be15b830520fab0ec3939586e917e4855cf76bd # v2.8.3
       - run: rustup show

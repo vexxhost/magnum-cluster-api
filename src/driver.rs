@@ -16,8 +16,16 @@ use kube::{
     Client,
 };
 use log::debug;
-use pyo3::{prelude::*, types::PyType};
+use pyo3::{create_exception, exceptions::PyException, prelude::*, types::PyType};
 use pyo3_async_runtimes::tokio::get_runtime;
+
+create_exception!(magnum_cluster_api, ImmutableFieldError, PyException);
+
+impl From<crate::immutable_fields::Error> for PyErr {
+    fn from(err: crate::immutable_fields::Error) -> PyErr {
+        PyErr::new::<ImmutableFieldError, _>(err.to_string())
+    }
+}
 
 #[pyclass]
 pub struct Driver {
@@ -26,7 +34,6 @@ pub struct Driver {
     // NOTE(mnaser): The following are legacy values that we need to inject
     //               while we are still in the transition phase.
     namespace: String,
-    cluster_class_name: String,
 }
 
 /// For this driver, the function that are prefixed with `apply_` can always
@@ -169,21 +176,17 @@ impl Driver {
 #[pymethods]
 impl Driver {
     #[new]
-    fn new(namespace: String, cluster_class_name: String) -> Result<Self, kubernetes::Error> {
+    fn new(namespace: String) -> Result<Self, kubernetes::Error> {
         let client = get_runtime().block_on(async { Client::try_default().await })?;
 
-        Ok(Self {
-            client,
-            namespace,
-            cluster_class_name,
-        })
+        Ok(Self { client, namespace })
     }
 
     // TODO(mnaser): We should move this out of the Python-facing implementation once we have
     //               migrated all the code to Rust.
     fn apply_cluster_class(&self, py: Python<'_>) -> Result<(), kubernetes::Error> {
         let metadata = ObjectMeta {
-            name: Some(self.cluster_class_name.clone()),
+            name: Some(crate::CLUSTER_CLASS_NAME.clone()),
             namespace: Some(self.namespace.clone()),
             ..Default::default()
         };
@@ -323,6 +326,35 @@ impl Driver {
 
         Ok(())
     }
+
+    fn resolve_immutable_fields(
+        &self,
+        py: Python<'_>,
+        cluster_name: String,
+        labels: std::collections::HashMap<String, String>,
+        variables: Py<PyAny>,
+    ) -> PyResult<Py<PyAny>> {
+        let json_variables: serde_json::Value = pythonize::depythonize(variables.bind(py))?;
+        let client = self.client.clone();
+        let namespace = self.namespace.clone();
+
+        let json_variables = Python::detach(py, || {
+            get_runtime().block_on(async {
+                crate::immutable_fields::OPENSTACK_CLUSTER_FIELDS
+                    .resolve(
+                        &client,
+                        &namespace,
+                        &cluster_name,
+                        &labels,
+                        json_variables,
+                    )
+                    .await
+            })
+        })?;
+
+        let result = pythonize::pythonize(py, &json_variables)?;
+        Ok(result.unbind())
+    }
 }
 
 impl From<&Driver> for Namespace {
@@ -352,7 +384,6 @@ mod tests {
         let cluster = Driver {
             client: client.clone(),
             namespace: "magnum-system".to_owned(),
-            cluster_class_name: "sample-cluster-class".to_owned(),
         };
 
         let namespace = Namespace::from(&cluster);

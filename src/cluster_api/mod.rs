@@ -7,5 +7,6 @@ pub mod kubeadmconfigtemplates;
 pub mod kubeadmcontrolplane;
 pub mod kubeadmcontrolplanetemplates;
 pub mod machines;
+pub mod openstackclusters;
 pub mod openstackclustertemplates;
 pub mod openstackmachinetemplates;

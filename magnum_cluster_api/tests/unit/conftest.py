@@ -17,9 +17,6 @@ import textwrap
 import pykube  # type: ignore
 import pytest
 import responses
-from novaclient.v2 import flavors  # type: ignore
-
-from magnum_cluster_api import resources
 
 
 @pytest.fixture(scope="session")
@@ -71,60 +68,6 @@ def requests_mock(session_mocker, kubeconfig):
 
 @pytest.fixture(scope="session")
 def mock_rust_driver(session_mocker):
-    return session_mocker.patch("magnum_cluster_api.magnum_cluster_api.Driver")
-
-
-@pytest.fixture()
-def cluster_topology_variable(
-    context, mocker, cluster_obj, pykube_api, mock_osc, mock_get_server_group
-):
-    """Return a callable that builds a Cluster and walks a topology variable path.
-
-    Usage::
-
-        cluster_topology_variable("apiServerLoadBalancer")
-        cluster_topology_variable("apiServerLoadBalancer", "provider",
-                                  extra_labels={"octavia_provider": "ovn"})
-    """
-    mocker.patch(
-        "magnum_cluster_api.resources.generate_machine_deployments_for_cluster",
-        return_value=[],
-    )
-    mocker.patch(
-        "magnum_cluster_api.utils.ensure_controlplane_server_group",
-        return_value="sg-1",
-    )
-    mocker.patch(
-        "magnum_cluster_api.utils.lookup_flavor",
-        return_value=flavors.Flavor(
-            None, {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1}
-        ),
-    )
-    mocker.patch(
-        "magnum_cluster_api.utils.lookup_image",
-        return_value={"id": "img-1"},
-    )
-
-    original_labels = dict(cluster_obj.labels)
-
-    def _get(*path, extra_labels=None):
-        labels = dict(cluster_obj.labels)
-        if extra_labels:
-            labels.update(extra_labels)
-        cluster_obj.labels = labels
-        try:
-            cluster_res = resources.Cluster(
-                context, api=None, pykube_api=pykube_api, cluster=cluster_obj
-            )
-            obj = cluster_res.get_object()
-        finally:
-            cluster_obj.labels = dict(original_labels)
-        variables = {
-            v["name"]: v["value"] for v in obj["spec"]["topology"]["variables"]
-        }
-        result = variables
-        for key in path:
-            result = result[key]
-        return result
-
-    return _get
+    driver = session_mocker.patch("magnum_cluster_api.magnum_cluster_api.Driver")
+    driver.resolve_immutable_fields = lambda _cn, _lbls, variables: variables
+    return driver

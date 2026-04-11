@@ -48,9 +48,7 @@ def cluster_lock_wrapper(func):
 class BaseDriver(driver.Driver):
     def __init__(self):
         self.k8s_api = clients.get_pykube_api()
-        self.rust_driver = tpool.Proxy(
-            magnum_cluster_api.Driver("magnum-system", resources.CLUSTER_CLASS_NAME)
-        )
+        self.rust_driver = tpool.Proxy(magnum_cluster_api.Driver("magnum-system"))
 
     @property
     def kube_client(self):
@@ -120,7 +118,13 @@ class BaseDriver(driver.Driver):
             cluster,
             skip_auto_scaling_release=True,
         )
-        resources.Cluster(context, self.kube_client, self.k8s_api, cluster).apply(),
+        resources.Cluster(
+            context,
+            self.kube_client,
+            self.k8s_api,
+            cluster,
+            rust_driver=self.rust_driver,
+        ).apply(),
 
     def _get_cluster_status_reason(self, capi_cluster):
         capi_cluster_status_reason = ""
@@ -197,7 +201,11 @@ class BaseDriver(driver.Driver):
         osc = clients.get_openstack_api(context)
 
         capi_cluster = resources.Cluster(
-            context, self.kube_client, self.k8s_api, cluster
+            context,
+            self.kube_client,
+            self.k8s_api,
+            cluster,
+            rust_driver=self.rust_driver,
         ).get_or_none()
 
         if cluster.status in (
@@ -410,7 +418,11 @@ class BaseDriver(driver.Driver):
             "magnum-system",
             cluster.stack_id,
             resources.Cluster(
-                context, self.kube_client, self.k8s_api, cluster
+                context,
+                self.kube_client,
+                self.k8s_api,
+                cluster,
+                rust_driver=self.rust_driver,
             ).get_object(),
         )
 
@@ -434,7 +446,13 @@ class BaseDriver(driver.Driver):
         utils.delete_loadbalancers(context, cluster)
 
         self.rust_driver.delete_cluster(cluster)
-        resources.Cluster(context, self.kube_client, self.k8s_api, cluster).delete()
+        resources.Cluster(
+            context,
+            self.kube_client,
+            self.k8s_api,
+            cluster,
+            rust_driver=self.rust_driver,
+        ).delete()
         resources.ClusterAutoscalerHelmRelease(self.k8s_api, cluster).delete()
 
     # magnum-cluster-api driver supports control plane resize
