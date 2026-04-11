@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.36.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.2...v0.36.3) (2026-04-11)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate ignition-config to 0.6.0 ([#946](https://github.com/vexxhost/magnum-cluster-api/issues/946)) ([036b270](https://github.com/vexxhost/magnum-cluster-api/commit/036b270f2f412f617269dade25757366849a2dff))
+* **deps:** update rust crate typed-builder to 0.23.0 ([#948](https://github.com/vexxhost/magnum-cluster-api/issues/948)) ([a3a9d68](https://github.com/vexxhost/magnum-cluster-api/commit/a3a9d68a6efaa0e32ad08260fb8d4aa91ded406f))
+* preserve immutable fields via Rust resolver and version cluster class names ([#956](https://github.com/vexxhost/magnum-cluster-api/issues/956)) ([87b88ab](https://github.com/vexxhost/magnum-cluster-api/commit/87b88ab8a8d8253c890935c6f7ceb6e4e28b8607))
+
 ## [0.36.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.1...v0.36.2) (2026-04-02)
 
 
