@@ -182,7 +182,7 @@ dependencies = [
 
 [[package]]
 name = "cluster_feature_derive"
-version = "0.36.4"
+version = "0.36.5"
 dependencies = [
  "heck",
  "quote",
@@ -1545,7 +1545,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "helm"
-version = "0.36.4"
+version = "0.36.5"
 dependencies = [
  "include_dir",
  "serde",
@@ -2023,7 +2023,7 @@ checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 
 [[package]]
 name = "magnum-cluster-api"
-version = "0.36.4"
+version = "0.36.5"
 dependencies = [
  "backon",
  "base64",
@@ -2847,7 +2847,7 @@ dependencies = [
 
 [[package]]
 name = "serde_gtmpl"
-version = "0.36.4"
+version = "0.36.5"
 dependencies = [
  "gtmpl_value",
  "serde",
