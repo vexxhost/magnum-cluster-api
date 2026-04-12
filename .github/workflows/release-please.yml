@@ -26,6 +26,8 @@ jobs:
           release-type: rust
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         if: ${{ steps.release.outputs.release_created }}
+        with:
+          fetch-depth: 0
       - name: Build package (x86_64)
         if: ${{ steps.release.outputs.release_created }}
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
