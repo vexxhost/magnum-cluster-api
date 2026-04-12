@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.4](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.3...v0.36.4) (2026-04-12)
+
+
+### Bug Fixes
+
+* fetch full history for release publish ([#968](https://github.com/vexxhost/magnum-cluster-api/issues/968)) ([effe6ff](https://github.com/vexxhost/magnum-cluster-api/commit/effe6ff15e0de3061233acce11b72c818be4ba37))
+
 ## [0.36.3](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.2...v0.36.3) (2026-04-11)
 
 
