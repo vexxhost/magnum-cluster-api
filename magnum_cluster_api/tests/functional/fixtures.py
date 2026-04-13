@@ -49,11 +49,14 @@ class ClusterFixture(fixtures.Fixture):
         self.mutate_callback = mutate_callback
 
     def _setUp(self):
+        rust_driver = magnum_cluster_api.Driver(self.namespace)
+
         self.cluster = resources.Cluster(
             self.context,
             self.api,
             self.pykube_api,
             self.magnum_cluster,
+            rust_driver=rust_driver,
             namespace=self.namespace,
         )
 
@@ -65,9 +68,7 @@ class ClusterFixture(fixtures.Fixture):
                 self.mutate_callback(resource)
             return resource
 
-        magnum_cluster_api.Driver(
-            self.namespace, resources.CLUSTER_CLASS_NAME
-        ).apply_cluster_class()
+        rust_driver.apply_cluster_class()
 
         self.cluster.get_resource = get_resource_override
         self.cluster.apply()

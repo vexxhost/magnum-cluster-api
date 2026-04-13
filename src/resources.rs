@@ -190,7 +190,6 @@ pub mod fixtures {
             .api_server_load_balancer(
                 api_server_load_balancer::APIServerLoadBalancerConfig::builder()
                     .enabled(true)
-                    .provider("amphora".to_string())
                     .flavor("worker".to_string())
                     .availability_zone("zone1".to_string())
                     .build(),
@@ -204,6 +203,7 @@ pub mod fixtures {
                     .build(),
             )
             .boot_volume(boot_volume::BootVolumeConfig::builder().r#type("nvme".into()).size(0).build())
+            .boot_volume_availability_zone("".into())
             .cluster_identity_ref_name("identity-ref-name".into())
             .containerd_config(
                 BASE64_STANDARD.encode(indoc! {r#"
@@ -309,7 +309,7 @@ mod tests {
         let values = default_values();
         let variables: Vec<ClusterTopologyVariables> = values.into();
 
-        assert_eq!(variables.len(), 37);
+        assert_eq!(variables.len(), 38);
 
         for var in &variables {
             match var.name.as_str() {
@@ -324,6 +324,9 @@ mod tests {
                 }
                 "bootVolume" => {
                     assert_eq!(var.value, json!(default_values().boot_volume));
+                }
+                "bootVolumeAvailabilityZone" => {
+                    assert_eq!(var.value, json!(default_values().boot_volume_availability_zone));
                 }
                 "clusterIdentityRefName" => {
                     assert_eq!(var.value, json!(default_values().cluster_identity_ref_name));

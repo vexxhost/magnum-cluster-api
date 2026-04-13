@@ -60,8 +60,8 @@ impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![
             ClusterClassPatches {
-                name: "ubuntu".into(),
-                enabled_if: Some(r#"{{ if eq .operatingSystem "ubuntu" }}true{{end}}"#.into()),
+                name: "aptProxyConfig".into(),
+                enabled_if: Some(r#"{{ if and (eq .operatingSystem "ubuntu") (ne .aptProxyConfig "") }}true{{end}}"#.into()),
                 definitions: Some(vec![
                     ClusterClassPatchesDefinitions {
                         selector: ClusterClassPatchesDefinitionsSelector {
@@ -321,7 +321,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn test_apply_patches_for_ubuntu() {
+    fn test_apply_patches_for_ubuntu_with_proxy() {
         let feature = Feature {};
 
         let mut values = default_values();
@@ -349,7 +349,7 @@ mod tests {
         let kcpt_proxy_file = kcpt_files
             .iter()
             .find(|f| f.path == "/etc/apt/apt.conf.d/90proxy")
-            .expect("file should be set");
+            .expect("proxy file should be set when proxy is configured");
         assert_eq!(kcpt_proxy_file.path, "/etc/apt/apt.conf.d/90proxy");
         assert_eq!(kcpt_proxy_file.owner.as_deref(), Some("root:root"));
         assert_eq!(kcpt_proxy_file.permissions.as_deref(), Some("0644"));
@@ -374,7 +374,7 @@ mod tests {
         let kct_proxy_file = kct_files
             .iter()
             .find(|f| f.path == "/etc/apt/apt.conf.d/90proxy")
-            .expect("file should be set");
+            .expect("proxy file should be set when proxy is configured");
         assert_eq!(kct_proxy_file.path, "/etc/apt/apt.conf.d/90proxy");
         assert_eq!(kct_proxy_file.owner.as_deref(), Some("root:root"));
         assert_eq!(kct_proxy_file.permissions.as_deref(), Some("0644"));
@@ -386,6 +386,56 @@ mod tests {
             kct_proxy_file.content,
             Some(values.apt_proxy_config.clone())
         );
+    }
+
+    #[test]
+    fn test_apply_patches_for_ubuntu_without_proxy() {
+        let feature = Feature {};
+
+        let mut values = default_values();
+        values.operating_system = OperatingSystem::Ubuntu;
+        values.apt_proxy_config = "".to_string();
+
+        let patches = feature.patches();
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
+
+        let kcpt_files = resources
+            .kubeadm_control_plane_template
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .files;
+
+        // No proxy file should be added when apt_proxy_config is empty
+        if let Some(files) = kcpt_files {
+            assert!(
+                files
+                    .iter()
+                    .find(|f| f.path == "/etc/apt/apt.conf.d/90proxy")
+                    .is_none(),
+                "proxy file should not be set when proxy is empty"
+            );
+        }
+
+        let kct_spec = resources
+            .kubeadm_config_template
+            .spec
+            .template
+            .spec;
+
+        if let Some(spec) = kct_spec {
+            if let Some(files) = spec.files {
+                assert!(
+                    files
+                        .iter()
+                        .find(|f| f.path == "/etc/apt/apt.conf.d/90proxy")
+                        .is_none(),
+                    "proxy file should not be set when proxy is empty"
+                );
+            }
+        }
     }
 
     #[test]

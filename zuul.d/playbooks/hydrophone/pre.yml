@@ -1,0 +1,11 @@
+- hosts: all
+  pre_tasks:
+    # TODO(mnaser): Remove once the ubuntu-noble-16 image includes curl
+    - name: Install curl
+      become: true
+      ansible.builtin.apt:
+        name: curl
+        state: present
+        update_cache: true
+  roles:
+    - ensure-rust
