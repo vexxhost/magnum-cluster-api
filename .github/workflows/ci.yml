@@ -107,7 +107,7 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           token: ${{ secrets.VEXXHOST_BOT_PAT || github.token }}
       - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
-      - uses: step-security/git-auto-commit-action@905c3cd6e9ed2b67b4d46ff401fdb6d745d0ff9d # v7.1.0
+      - uses: step-security/git-auto-commit-action@749bc1cc775376092cc4227ba537137f445ca7c3 # v7.1.1
         if: github.event_name == 'pull_request' && github.event.pull_request.user.id == '29139614' && always()
         with:
           commit_message: "chore: apply pre-commit hook updates"
