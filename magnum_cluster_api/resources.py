@@ -1156,6 +1156,27 @@ class Cluster(ClusterBase):
                             ),
                         },
                         {
+                            # Companion flag for `disableAPIServerFloatingIP`
+                            # that gates whether the ClusterClass patch fires.
+                            #
+                            # For fresh clusters we mirror the user's intent
+                            # (derived from the `master_lb_floating_ip_enabled`
+                            # label) so the patch only fires when the field is
+                            # actually supposed to be set.
+                            #
+                            # On upgrades of clusters created by pre-v0.25.x
+                            # versions of magnum-cluster-api, the Rust
+                            # `resolve_immutable_fields` driver will flip this
+                            # to True whenever the existing OpenStackCluster
+                            # spec already has `disableAPIServerFloatingIP`
+                            # set — so CAPI keeps emitting the field and CAPO's
+                            # immutability webhook does not reject the update.
+                            "name": "disableAPIServerFloatingIPManaged",
+                            "value": utils.get_cluster_floating_ip_disabled(
+                                self.cluster
+                            ),
+                        },
+                        {
                             "name": "dnsNameservers",
                             "value": self.cluster.cluster_template.dns_nameserver.split(
                                 ","
