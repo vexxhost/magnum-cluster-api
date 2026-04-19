@@ -399,12 +399,45 @@ class BaseDriver(driver.Driver):
         #              we ignore the `nodegroup` parameter and upgrade the entire cluster
         #              at once.
         cluster.cluster_template_id = cluster_template.uuid
-        cluster.labels["kube_tag"] = cluster_template.labels["kube_tag"]
+
+        # NOTE: oslo.versionedobjects only detects field changes via __setattr__,
+        # not via in-place dict mutation (dict["k"] = v bypasses dirty tracking).
+        # We must build a new dict and reassign cluster.labels / ng.labels so that
+        # the ORM marks the field dirty and persists it on the subsequent save().
+        _cluster_labels = dict(cluster.labels)
+        _cluster_labels["kube_tag"] = cluster_template.labels["kube_tag"]
+
+        # Option C: Opt-in CNI upgrades.
+        #
+        # When `auto_upgrade_cni=true` is set on the cluster or the new
+        # template, copy the CNI version labels (calico_tag / cilium_tag)
+        # from the new template into the cluster labels so the Rust driver
+        # can create a Reconcile-strategy ClusterResourceSet that forces CAPI
+        # to re-apply the updated CNI manifests on the workload cluster.
+        #
+        # See: https://github.com/vexxhost/magnum-cluster-api/issues/919
+        _auto_upgrade_cni = utils.get_cluster_label_as_bool(
+            cluster, "auto_upgrade_cni", False
+        ) or utils.get_cluster_label_as_bool(
+            cluster_template, "auto_upgrade_cni", False
+        )
+        if _auto_upgrade_cni:
+            for _cni_label in ("calico_tag", "cilium_tag"):
+                if _cni_label in cluster_template.labels:
+                    _cluster_labels[_cni_label] = cluster_template.labels[_cni_label]
+
+        cluster.labels = _cluster_labels
 
         for ng in cluster.nodegroups:
             ng.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
             ng.image_id = cluster_template.image_id
-            ng.labels["kube_tag"] = cluster_template.labels["kube_tag"]
+            _ng_labels = dict(ng.labels)
+            _ng_labels["kube_tag"] = cluster_template.labels["kube_tag"]
+            if _auto_upgrade_cni:
+                for _cni_label in ("calico_tag", "cilium_tag"):
+                    if _cni_label in cluster_template.labels:
+                        _ng_labels[_cni_label] = cluster_template.labels[_cni_label]
+            ng.labels = _ng_labels
             ng.save()
 
         # NOTE(mnaser): We run a full apply on the cluster regardless of the changes, since
