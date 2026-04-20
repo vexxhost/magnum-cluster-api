@@ -29,7 +29,7 @@ import pytest
 # The kube::Client construction / drop leak only manifests when each
 # invocation happens on a distinct native thread, which is exactly what
 # ``tpool.Proxy`` arranges.
-import eventlet  # noqa: E402  -- must be imported before magnum_cluster_api
+import eventlet  # noqa: E402 - must be imported before magnum_cluster_api
 
 eventlet.monkey_patch()
 from eventlet import tpool  # noqa: E402
