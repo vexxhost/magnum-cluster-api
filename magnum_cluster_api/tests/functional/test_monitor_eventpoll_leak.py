@@ -59,7 +59,8 @@ pytestmark = [
 
 # The subprocess body. Kept as a string so the parent test process stays
 # completely untouched by ``eventlet.monkey_patch()``.
-_SUBPROCESS_SCRIPT = textwrap.dedent('''
+_SUBPROCESS_SCRIPT = textwrap.dedent(
+    '''
     import os
     import sys
     import threading
@@ -175,7 +176,8 @@ _SUBPROCESS_SCRIPT = textwrap.dedent('''
     # threshold, 1 = leak detected. The parent asserts on the exit code so
     # the test harness surfaces the result in the normal pytest way.
     sys.exit(0 if leaked < 10 else 1)
-    ''')
+    '''
+)
 
 
 def test_rust_log_does_not_leak_eventpoll_fds(tmp_path):
