@@ -5,6 +5,7 @@ mod cluster_api;
 mod driver;
 mod features;
 pub mod immutable_fields;
+mod logging;
 mod magnum;
 mod monitor;
 mod resources;
@@ -23,7 +24,7 @@ const _: () = assert!(
 
 #[pymodule]
 fn magnum_cluster_api(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    pyo3_log::init();
+    logging::init();
 
     m.add("CLUSTER_CLASS_NAME", CLUSTER_CLASS_NAME.as_str())?;
     m.add_class::<client::KubeClient>()?;
