@@ -177,7 +177,7 @@ impl Driver {
 impl Driver {
     #[new]
     fn new(namespace: String) -> Result<Self, kubernetes::Error> {
-        let client = get_runtime().block_on(async { Client::try_default().await })?;
+        let client = kubernetes::shared_client()?;
 
         Ok(Self { client, namespace })
     }

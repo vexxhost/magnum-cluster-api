@@ -6,7 +6,47 @@ use kube::{
     Client, ResourceExt,
 };
 use pyo3::{exceptions::PyRuntimeError, PyErr};
+use pyo3_async_runtimes::tokio::get_runtime;
 use std::fmt::Debug;
+use std::sync::OnceLock;
+
+/// Process-wide cache for the shared `kube::Client`.
+///
+/// Every `kube::Client` constructed via `Client::try_default()` owns its own
+/// `hyper_util` connection pool. The pool spawns background tokio tasks that
+/// hold onto sockets (and transitively eventfd/eventpoll file descriptors),
+/// and those tasks are not joined/aborted when the client is dropped — see
+/// <https://github.com/tokio-rs/tokio/issues/1830>. In a long-running
+/// process like `magnum-conductor`, where `Monitor::poll_health_status` is
+/// invoked continuously for every cluster, that leak eventually exhausts the
+/// open-file limit and surfaces as "Too many open files"
+/// (<https://github.com/vexxhost/magnum-cluster-api/issues/822>).
+///
+/// The fix is to build the client exactly once per process and reuse clones
+/// of it at every call site. `kube::Client` is cheap to clone (its inner
+/// service is `Arc`-wrapped), so sharing a single instance is safe and
+/// efficient.
+static SHARED_CLIENT: OnceLock<Client> = OnceLock::new();
+
+/// Returns a clone of the process-wide shared `kube::Client`, constructing it
+/// on first use. All call sites in this crate should prefer this function
+/// over calling `kube::Client::try_default()` directly.
+pub fn shared_client() -> Result<Client, Error> {
+    if let Some(client) = SHARED_CLIENT.get() {
+        return Ok(client.clone());
+    }
+
+    let client = get_runtime().block_on(async { Client::try_default().await })?;
+
+    // `OnceLock::set` fails only if another thread beat us to initialisation;
+    // in that case we return the already-cached client so callers still see
+    // a single shared instance.
+    let _ = SHARED_CLIENT.set(client);
+    Ok(SHARED_CLIENT
+        .get()
+        .expect("SHARED_CLIENT must be initialised")
+        .clone())
+}
 
 #[derive(Debug)]
 pub struct Error(kube::Error);

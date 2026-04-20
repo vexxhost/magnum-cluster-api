@@ -169,6 +169,9 @@ pub enum ClusterError {
 
     #[error("failed to load kubeconfig: {0}")]
     KubeconfigLoad(#[from] kube::config::KubeconfigError),
+
+    #[error("failed to build shared kube client: {0}")]
+    SharedClient(String),
 }
 
 impl From<ClusterError> for PyErr {
@@ -248,7 +251,8 @@ impl Cluster {
     }
 
     async fn kubeconfig(&self) -> Result<Kubeconfig, ClusterError> {
-        let client = Client::try_default().await?;
+        let client = crate::clients::kubernetes::shared_client()
+            .map_err(|e| ClusterError::SharedClient(format!("{:?}", e)))?;
         let api: Api<Secret> = Api::namespaced(client, "magnum-system");
         let secret_name = self.kubeconfig_secret_name()?;
 

@@ -45,7 +45,7 @@ impl From<KubeClientError> for PyErr {
 impl KubeClient {
     #[new]
     pub fn new() -> Result<Self, kubernetes::Error> {
-        let client = get_runtime().block_on(async { Client::try_default().await })?;
+        let client = kubernetes::shared_client()?;
         Ok(KubeClient { client })
     }
 
