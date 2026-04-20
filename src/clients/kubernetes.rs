@@ -8,7 +8,7 @@ use kube::{
 use pyo3::{exceptions::PyRuntimeError, PyErr};
 use pyo3_async_runtimes::tokio::get_runtime;
 use std::fmt::Debug;
-use std::sync::OnceLock;
+use tokio::sync::OnceCell;
 
 /// Process-wide cache for the shared `kube::Client`.
 ///
@@ -26,30 +26,60 @@ use std::sync::OnceLock;
 /// of it at every call site. `kube::Client` is cheap to clone (its inner
 /// service is `Arc`-wrapped), so sharing a single instance is safe and
 /// efficient.
-static SHARED_CLIENT: OnceLock<Client> = OnceLock::new();
+///
+/// We use [`tokio::sync::OnceCell`] so that the *same* cell can be initialised
+/// from either a synchronous context (pyo3 entry points that call
+/// `shared_client()`) or an asynchronous one (`shared_client_async()`), and in
+/// both cases exactly one `Client::try_default()` call is ever made regardless
+/// of how many threads/tasks race on first use. This closes the
+/// check-then-init gap and eliminates the "loser builds and drops a client"
+/// regression that would otherwise leak a few FDs on startup.
+static SHARED_CLIENT: OnceCell<Client> = OnceCell::const_new();
 
-/// Returns a clone of the process-wide shared `kube::Client`, constructing it
-/// on first use. All call sites in this crate should prefer this function
-/// over calling `kube::Client::try_default()` directly.
+/// Async accessor for the process-wide shared `kube::Client`.
+///
+/// Safe to call from inside a running tokio runtime (e.g. from `async fn`s
+/// that are driven by `get_runtime().block_on(...)`), where the sync variant
+/// would panic on a nested `block_on`.
+pub async fn shared_client_async() -> Result<Client, Error> {
+    SHARED_CLIENT
+        .get_or_try_init(|| async { Client::try_default().await.map_err(Error) })
+        .await
+        .cloned()
+}
+
+/// Blocking accessor for the process-wide shared `kube::Client`.
+///
+/// Intended for pyo3 constructors (`Monitor::new`, `Driver::new`,
+/// `KubeClient::new`) which are called synchronously from Python and must
+/// return an already-built `Client`. Internally driven on the tokio runtime
+/// shared with `pyo3_async_runtimes`, so only a single `Client` is ever
+/// constructed even if sync and async callers race.
 pub fn shared_client() -> Result<Client, Error> {
-    if let Some(client) = SHARED_CLIENT.get() {
-        return Ok(client.clone());
-    }
-
-    let client = get_runtime().block_on(async { Client::try_default().await })?;
-
-    // `OnceLock::set` fails only if another thread beat us to initialisation;
-    // in that case we return the already-cached client so callers still see
-    // a single shared instance.
-    let _ = SHARED_CLIENT.set(client);
-    Ok(SHARED_CLIENT
-        .get()
-        .expect("SHARED_CLIENT must be initialised")
-        .clone())
+    get_runtime().block_on(shared_client_async())
 }
 
 #[derive(Debug)]
 pub struct Error(kube::Error);
+
+impl Error {
+    /// Consumes the wrapper and returns the underlying [`kube::Error`].
+    pub fn into_inner(self) -> kube::Error {
+        self.0
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.0)
+    }
+}
 
 impl From<Error> for PyErr {
     fn from(err: Error) -> Self {

@@ -21,24 +21,36 @@ The test is skipped when ``KUBECONFIG`` is not set (i.e. during the plain
 which points at a real cluster.
 """
 import os
+import sys
 
-# Match production: magnum-conductor is an eventlet app and invokes
-# ``RustMonitor`` through ``eventlet.tpool`` (see magnum_cluster_api/monitor.py).
-# The kube::Client construction / drop leak only manifests when each
-# invocation happens on a distinct native thread, which is exactly what
-# ``tpool.Proxy`` arranges.
-import eventlet  # noqa: E402 - must be imported before magnum_cluster_api
 import pytest
 
-eventlet.monkey_patch()
-from eventlet import tpool  # noqa: E402
+# ``eventlet.tpool`` is imported here (rather than at module scope via
+# ``import eventlet`` + ``eventlet.monkey_patch()``) on purpose: monkey-patching
+# is a global, process-wide change to the standard library and can silently
+# alter the behaviour of every other test that happens to share the same
+# interpreter. The tpool runs work on native OS threads and does *not* require
+# monkey-patching to function — all we need is for each Monitor call to be
+# executed on a distinct native thread (matching the production call path in
+# ``magnum_cluster_api/monitor.py``), which ``tpool.Proxy`` provides on its own.
+from eventlet import tpool
 
-from magnum_cluster_api.magnum_cluster_api import Monitor as RustMonitor  # noqa: E402
+from magnum_cluster_api.magnum_cluster_api import Monitor as RustMonitor
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("KUBECONFIG"),
-    reason="KUBECONFIG must be set to a real Kubernetes API server",
-)
+pytestmark = [
+    pytest.mark.skipif(
+        sys.platform != "linux",
+        reason="socket-fd inspection relies on Linux /proc/self/fd",
+    ),
+    pytest.mark.skipif(
+        not os.path.isdir("/proc/self/fd"),
+        reason="/proc/self/fd is not available in this environment",
+    ),
+    pytest.mark.skipif(
+        not os.environ.get("KUBECONFIG"),
+        reason="KUBECONFIG must be set to a real Kubernetes API server",
+    ),
+]
 
 
 class _FakeClusterTemplate:
@@ -113,7 +125,7 @@ def test_monitor_does_not_leak_kube_client_sockets() -> None:
     baseline = _count_open_sockets()
 
     peak = baseline
-    for i in range(iterations):
+    for _ in range(iterations):
         _poll_once("leak-test")
         # Sample after every iteration so we catch the peak even if the
         # tokio connection pool later reclaims some sockets.
