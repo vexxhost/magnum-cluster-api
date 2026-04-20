@@ -22,20 +22,18 @@ which points at a real cluster.
 """
 import os
 
-import pytest
-
 # Match production: magnum-conductor is an eventlet app and invokes
 # ``RustMonitor`` through ``eventlet.tpool`` (see magnum_cluster_api/monitor.py).
 # The kube::Client construction / drop leak only manifests when each
 # invocation happens on a distinct native thread, which is exactly what
 # ``tpool.Proxy`` arranges.
 import eventlet  # noqa: E402 - must be imported before magnum_cluster_api
+import pytest
 
 eventlet.monkey_patch()
 from eventlet import tpool  # noqa: E402
 
 from magnum_cluster_api.magnum_cluster_api import Monitor as RustMonitor  # noqa: E402
-
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("KUBECONFIG"),
