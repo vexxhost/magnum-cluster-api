@@ -72,6 +72,16 @@ _SUBPROCESS_SCRIPT = textwrap.dedent('''
     # 2. Bring oslo.log online with the same PipeMutex workaround that
     #    magnum-conductor uses in production. Set the root level to DEBUG
     #    so Rust log records from kube/hyper/rustls actually propagate.
+    #
+    #    ``log_file`` is set on purpose: oslo.log only swaps logging-handler
+    #    locks for ``PipeMutex`` when a file-based handler is attached, and
+    #    it is precisely ``PipeMutex.acquire() -> os.read()`` that triggers
+    #    the eventlet hub creation on each new thread. Without a log_file
+    #    the pre-fix code does *not* leak, and the regression this test
+    #    guards against would go undetected.
+    import tempfile
+    log_file = os.path.join(tempfile.gettempdir(), "mcapi-eventpoll-probe.log")
+
     from oslo_config import cfg
     from oslo_log import log as logging
 
@@ -79,6 +89,7 @@ _SUBPROCESS_SCRIPT = textwrap.dedent('''
     logging.register_options(CONF)
     CONF([], project="magnum", default_config_files=[])
     CONF.set_override("debug", True)
+    CONF.set_override("log_file", log_file)
     CONF.set_override(
         "default_log_levels",
         [
