@@ -101,7 +101,7 @@ jobs:
         with:
           egress-policy: audit
 
-       - uses: actions/create-github-app-token@v2
+       - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
          if: github.event_name == 'pull_request' && github.event.pull_request.user.id == 29139614
          id: app-token
          with:
