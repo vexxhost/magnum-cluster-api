@@ -47,7 +47,7 @@ from magnum_cluster_api import (
 from magnum_cluster_api.integrations import cinder, manila
 
 CONF = cfg.CONF
-CALICO_TAG = "v3.31.3"
+CALICO_TAG = "v3.31.5"
 
 CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT = "300s"  # seconds
 
