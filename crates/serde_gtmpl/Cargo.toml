@@ -1,6 +1,6 @@
 [package]
 name = "serde_gtmpl"
-version = "0.36.5"
+version = "0.36.6"
 edition = "2021"
 
 [dependencies]
