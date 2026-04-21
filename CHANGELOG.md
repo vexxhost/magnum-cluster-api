@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.36.6](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.5...v0.36.6) (2026-04-21)
+
+
+### Bug Fixes
+
+* preserve disableAPIServerFloatingIP on upgraded clusters ([#983](https://github.com/vexxhost/magnum-cluster-api/issues/983)) ([a269eac](https://github.com/vexxhost/magnum-cluster-api/commit/a269eac152941e1bedceea99eea414d0ff25a67f))
+* share a single kube::Client across Rust entry points ([#822](https://github.com/vexxhost/magnum-cluster-api/issues/822)) ([#985](https://github.com/vexxhost/magnum-cluster-api/issues/985)) ([213e032](https://github.com/vexxhost/magnum-cluster-api/commit/213e0322b3bdfb6884c90450ab31b4543aef8a90))
+
 ## [0.36.5](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.4...v0.36.5) (2026-04-12)
 
 
