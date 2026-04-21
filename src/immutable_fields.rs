@@ -48,6 +48,19 @@ struct FieldMapping {
     resource_path: &'static str,
     variable_path: &'static str,
     label: &'static str,
+    /// Optional companion variable that is set to `true` whenever
+    /// `resource_path` is present on the existing resource.
+    ///
+    /// This is required for fields whose ClusterClass patch is gated by an
+    /// `enabledIf` guard: simply propagating the existing value into
+    /// `variable_path` is not enough, because the patch will not fire when
+    /// the guard evaluates to falsy, leaving the generated spec without
+    /// the field. The CAPO webhook then blocks the update because it treats
+    /// a nil → <value> (or <value> → nil) transition as an immutability
+    /// violation (see
+    /// `pkg/webhooks/openstackcluster_webhook.go::ValidateUpdate` which
+    /// falls back to `reflect.DeepEqual`).
+    presence_variable_path: Option<&'static str>,
 }
 
 impl FieldMapping {
@@ -57,7 +70,20 @@ impl FieldMapping {
         labels: &HashMap<String, String>,
         mut variables: Value,
     ) -> Result<Value, Error> {
-        let value = if let Ok(v) = existing.resolve(parse_pointer(self.resource_path)?) {
+        let existing_value = existing.resolve(parse_pointer(self.resource_path)?).ok();
+
+        if let Some(presence_path) = self.presence_variable_path {
+            if existing_value.is_some() {
+                variables
+                    .assign(parse_pointer(presence_path)?, Value::Bool(true))
+                    .map_err(|e| Error::Assign {
+                        pointer: presence_path,
+                        source: e,
+                    })?;
+            }
+        }
+
+        let value = if let Some(v) = existing_value {
             v.clone()
         } else if let Some(label_val) = labels.get(self.label) {
             Value::String(label_val.clone())
@@ -137,16 +163,33 @@ pub const OPENSTACK_CLUSTER_FIELDS: ResourceFieldMappings<OpenStackCluster> =
                 resource_path: "/spec/apiServerLoadBalancer/provider",
                 variable_path: "/apiServerLoadBalancer/provider",
                 label: "octavia_provider",
+                presence_variable_path: None,
             },
             FieldMapping {
                 resource_path: "/spec/apiServerLoadBalancer/flavor",
                 variable_path: "/apiServerLoadBalancer/flavor",
                 label: "api_server_lb_flavor",
+                presence_variable_path: None,
             },
             FieldMapping {
                 resource_path: "/spec/apiServerLoadBalancer/availabilityZone",
                 variable_path: "/apiServerLoadBalancer/availabilityZone",
                 label: "api_server_lb_availability_zone",
+                presence_variable_path: None,
+            },
+            // Preserve `disableAPIServerFloatingIP` so that upgrades from old
+            // magnum-cluster-api versions (pre-v0.25.x) which unconditionally
+            // patched this field do not hit CAPO's immutability webhook.
+            //
+            // `presence_variable_path` forces the ClusterClass patch to fire
+            // whenever the existing OpenStackCluster already has this field
+            // set, even if the user's label-derived intent would otherwise
+            // skip the patch.
+            FieldMapping {
+                resource_path: "/spec/disableAPIServerFloatingIP",
+                variable_path: "/disableAPIServerFloatingIP",
+                label: "",
+                presence_variable_path: Some("/disableAPIServerFloatingIPManaged"),
             },
         ],
         _resource: PhantomData,
@@ -183,6 +226,7 @@ mod tests {
             resource_path: "/spec/apiServerLoadBalancer/provider",
             variable_path: "/apiServerLoadBalancer/provider",
             label: "octavia_provider",
+            presence_variable_path: None,
         };
 
         #[test]
@@ -440,6 +484,121 @@ mod tests {
                         "flavor": "lb-tiny",
                         "availabilityZone": "az2"
                     }
+                })
+            );
+        }
+    }
+
+    mod disable_api_server_floating_ip_preservation {
+        //! Regression tests for upgrades from pre-v0.25.x clusters which
+        //! always patched `disableAPIServerFloatingIP` on the OpenStackCluster.
+        //!
+        //! The CAPO webhook treats a change of `disableAPIServerFloatingIP`
+        //! (including nil ↔ value) as an immutability violation. When the
+        //! existing spec has the field set, we must ensure the ClusterClass
+        //! patch fires (via the `disableAPIServerFloatingIPManaged` companion
+        //! variable) and carries the pre-existing value through, so the
+        //! generated spec is identical to the stored spec.
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn preserves_false_value_and_sets_managed_flag() {
+            let existing = json!({"spec": {"disableAPIServerFloatingIP": false}});
+
+            let result = OPENSTACK_CLUSTER_FIELDS
+                .apply(&existing, &HashMap::new(), json!({}))
+                .expect("apply failed");
+
+            assert_eq!(
+                result,
+                json!({
+                    "disableAPIServerFloatingIP": false,
+                    "disableAPIServerFloatingIPManaged": true,
+                })
+            );
+        }
+
+        #[test]
+        fn preserves_true_value_and_sets_managed_flag() {
+            let existing = json!({"spec": {"disableAPIServerFloatingIP": true}});
+
+            let result = OPENSTACK_CLUSTER_FIELDS
+                .apply(&existing, &HashMap::new(), json!({}))
+                .expect("apply failed");
+
+            assert_eq!(
+                result,
+                json!({
+                    "disableAPIServerFloatingIP": true,
+                    "disableAPIServerFloatingIPManaged": true,
+                })
+            );
+        }
+
+        #[test]
+        fn missing_field_leaves_managed_flag_unset() {
+            // Fresh-install clusters (post-v0.25.x with the default label)
+            // have no `disableAPIServerFloatingIP` on the OpenStackCluster
+            // spec. We must not flip the managed flag, otherwise the patch
+            // would fire and add the field — which CAPO would reject as an
+            // immutability violation on subsequent reconciliations.
+            let existing = json!({"spec": {}});
+
+            let result = OPENSTACK_CLUSTER_FIELDS
+                .apply(&existing, &HashMap::new(), json!({}))
+                .expect("apply failed");
+
+            assert_eq!(result, json!({}));
+        }
+
+        #[test]
+        fn overrides_caller_supplied_variable_when_field_present() {
+            // The caller seeds the variables with the label-derived intent
+            // (`disableAPIServerFloatingIP = true`). The existing spec says
+            // otherwise — existing value must win to keep the spec immutable.
+            let existing = json!({"spec": {"disableAPIServerFloatingIP": false}});
+
+            let result = OPENSTACK_CLUSTER_FIELDS
+                .apply(
+                    &existing,
+                    &HashMap::new(),
+                    json!({"disableAPIServerFloatingIP": true}),
+                )
+                .expect("apply failed");
+
+            assert_eq!(
+                result,
+                json!({
+                    "disableAPIServerFloatingIP": false,
+                    "disableAPIServerFloatingIPManaged": true,
+                })
+            );
+        }
+
+        #[test]
+        fn preserves_caller_supplied_managed_flag_when_field_absent() {
+            // Fresh clusters where the user has asked to disable the floating
+            // IP: the caller seeds `disableAPIServerFloatingIPManaged = true`
+            // so the patch fires on create. Preservation must not clobber it.
+            let existing = json!({"spec": {}});
+
+            let result = OPENSTACK_CLUSTER_FIELDS
+                .apply(
+                    &existing,
+                    &HashMap::new(),
+                    json!({
+                        "disableAPIServerFloatingIP": true,
+                        "disableAPIServerFloatingIPManaged": true,
+                    }),
+                )
+                .expect("apply failed");
+
+            assert_eq!(
+                result,
+                json!({
+                    "disableAPIServerFloatingIP": true,
+                    "disableAPIServerFloatingIPManaged": true,
                 })
             );
         }

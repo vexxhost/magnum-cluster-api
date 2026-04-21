@@ -196,20 +196,20 @@ from magnum_cluster_api.tests.unit.go_template import render
         ),
         # disable_api_server_floating_ip
         pytest.param(
-            "{{ if .disableAPIServerFloatingIP }}true{{end}}",
+            "{{ if .disableAPIServerFloatingIPManaged }}true{{end}}",
             {},
             "",
             id="disable_api_floating_ip_missing",
         ),
         pytest.param(
-            "{{ if .disableAPIServerFloatingIP }}true{{end}}",
-            {"disableAPIServerFloatingIP": False},
+            "{{ if .disableAPIServerFloatingIPManaged }}true{{end}}",
+            {"disableAPIServerFloatingIPManaged": False},
             "",
             id="disable_api_floating_ip_false",
         ),
         pytest.param(
-            "{{ if .disableAPIServerFloatingIP }}true{{end}}",
-            {"disableAPIServerFloatingIP": True},
+            "{{ if .disableAPIServerFloatingIPManaged }}true{{end}}",
+            {"disableAPIServerFloatingIPManaged": True},
             "true",
             id="disable_api_floating_ip_true",
         ),

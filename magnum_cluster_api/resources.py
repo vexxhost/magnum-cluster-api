@@ -1151,8 +1151,33 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "disableAPIServerFloatingIP",
-                            "value": utils.get_cluster_floating_ip_disabled(
-                                self.cluster
+                            "value": variables.get(
+                                "disableAPIServerFloatingIP",
+                                utils.get_cluster_floating_ip_disabled(self.cluster),
+                            ),
+                        },
+                        {
+                            # Companion flag for `disableAPIServerFloatingIP`
+                            # that gates whether the ClusterClass patch fires.
+                            #
+                            # For fresh clusters we mirror the user's intent
+                            # (derived from the `master_lb_floating_ip_enabled`
+                            # label) so the patch only fires when the field is
+                            # actually supposed to be set.
+                            #
+                            # On upgrades of clusters created by pre-v0.25.x
+                            # versions of magnum-cluster-api, the Rust
+                            # `resolve_immutable_fields` driver flips this to
+                            # True whenever the existing OpenStackCluster
+                            # spec already has `disableAPIServerFloatingIP`
+                            # set — so CAPI keeps emitting the field and CAPO's
+                            # immutability webhook does not reject the update.
+                            # We therefore always prefer the resolved value
+                            # over the label-derived default.
+                            "name": "disableAPIServerFloatingIPManaged",
+                            "value": variables.get(
+                                "disableAPIServerFloatingIPManaged",
+                                utils.get_cluster_floating_ip_disabled(self.cluster),
                             ),
                         },
                         {
