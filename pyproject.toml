@@ -55,7 +55,7 @@ dev = [
   "lark>=1.3.0",
   "oslotest>=5.0.0",
   "pytest-mock>=3.6.1",
-  "pytest<9",
+  "pytest<10",
   "responses>=0.25.0",
   "stestr",
   "types-PyYAML",
