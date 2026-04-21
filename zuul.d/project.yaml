@@ -1,17 +1,17 @@
 - project:
     check:
       jobs:
-        - magnum-cluster-api-hydrophone-v1.33.10-calico
-        - magnum-cluster-api-hydrophone-v1.33.10-cilium
-        - magnum-cluster-api-hydrophone-v1.34.6-calico
-        - magnum-cluster-api-hydrophone-v1.34.6-cilium
-        - magnum-cluster-api-hydrophone-v1.35.3-calico
-        - magnum-cluster-api-hydrophone-v1.35.3-cilium
+        - magnum-cluster-api-hydrophone-v1.33.11-calico
+        - magnum-cluster-api-hydrophone-v1.33.11-cilium
+        - magnum-cluster-api-hydrophone-v1.34.7-calico
+        - magnum-cluster-api-hydrophone-v1.34.7-cilium
+        - magnum-cluster-api-hydrophone-v1.35.4-calico
+        - magnum-cluster-api-hydrophone-v1.35.4-cilium
     gate:
       jobs:
-        - magnum-cluster-api-hydrophone-v1.33.10-calico
-        - magnum-cluster-api-hydrophone-v1.33.10-cilium
-        - magnum-cluster-api-hydrophone-v1.34.6-calico
-        - magnum-cluster-api-hydrophone-v1.34.6-cilium
-        - magnum-cluster-api-hydrophone-v1.35.3-calico
-        - magnum-cluster-api-hydrophone-v1.35.3-cilium
+        - magnum-cluster-api-hydrophone-v1.33.11-calico
+        - magnum-cluster-api-hydrophone-v1.33.11-cilium
+        - magnum-cluster-api-hydrophone-v1.34.7-calico
+        - magnum-cluster-api-hydrophone-v1.34.7-cilium
+        - magnum-cluster-api-hydrophone-v1.35.4-calico
+        - magnum-cluster-api-hydrophone-v1.35.4-cilium
