@@ -101,12 +101,12 @@ jobs:
         with:
           egress-policy: audit
 
-       - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
-         if: github.event_name == 'pull_request' && github.event.pull_request.user.id == 29139614
-         id: app-token
-         with:
-           app-id: ${{ vars.VEXXHOST_CI_APP_ID }}
-           private-key: ${{ secrets.VEXXHOST_CI_APP_PRIVATE_KEY }}
+      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        if: github.event_name == 'pull_request' && github.event.pull_request.user.id == 29139614
+        id: app-token
+        with:
+          app-id: ${{ vars.VEXXHOST_CI_APP_ID }}
+          private-key: ${{ secrets.VEXXHOST_CI_APP_PRIVATE_KEY }}
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.head_ref }}
