@@ -71,3 +71,11 @@ class MachineDeploymentNotFound(exception.ObjectNotFound):
 
 class InvalidOctaviaLoadBalancerAlgorithm(exception.Invalid):
     message = _("Invalid value for octavia_lb_algorithm: %(octavia_lb_algorithm)s.")
+
+
+class MissingClusterLabel(exception.Invalid):
+    message = _(
+        "Cluster label %(label)s is required and must match the Kubernetes "
+        "version of the cluster image. Set it on the cluster template or the "
+        "cluster (e.g. --labels %(label)s=v1.30.5)."
+    )
