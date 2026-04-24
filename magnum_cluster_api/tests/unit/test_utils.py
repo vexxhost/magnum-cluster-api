@@ -368,3 +368,36 @@ class TestUtils(base.BaseTestCase):
             context,
             fixed_network,
         )
+
+
+class TestGetKubeTag:
+    def test_returns_label_when_set(self, context):
+        cluster = magnum_test_utils.get_test_cluster(
+            context, labels={"kube_tag": "v1.30.5"}
+        )
+        assert utils.get_kube_tag(cluster) == "v1.30.5"
+
+    def test_raises_when_missing(self, context):
+        cluster = magnum_test_utils.get_test_cluster(context, labels={})
+        with pytest.raises(exceptions.MissingClusterLabel):
+            utils.get_kube_tag(cluster)
+
+    def test_raises_when_empty(self, context):
+        cluster = magnum_test_utils.get_test_cluster(
+            context, labels={"kube_tag": ""}
+        )
+        with pytest.raises(exceptions.MissingClusterLabel):
+            utils.get_kube_tag(cluster)
+
+
+class TestValidateClusterRequiresKubeTag:
+    def test_validate_cluster_raises_when_kube_tag_missing(self, context):
+        cluster = magnum_test_utils.get_test_cluster(
+            context, labels={}, master_count=1, fixed_network=None, fixed_subnet=None
+        )
+        cluster.cluster_template = magnum_test_utils.get_test_cluster_template(
+            context, network_driver="calico"
+        )
+        with pytest.raises(exceptions.MissingClusterLabel):
+            utils.validate_cluster(mock.Mock(), cluster)
+

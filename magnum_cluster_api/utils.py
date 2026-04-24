@@ -188,7 +188,10 @@ def generate_manila_csi_cloud_config(
 
 
 def get_kube_tag(cluster: magnum_objects.Cluster) -> str:
-    return cluster.labels.get("kube_tag", "v1.25.3")
+    tag = cluster.labels.get("kube_tag")
+    if not tag:
+        raise mcapi_exceptions.MissingClusterLabel(label="kube_tag")
+    return tag
 
 
 def get_auto_scaling_enabled(cluster: magnum_objects.Cluster) -> bool:
@@ -378,6 +381,12 @@ def lookup_image(cli: clients.OpenStackClients, image_ref: str) -> dict:
 
 
 def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluster):
+    # The kube_tag label drives kubelet/kubeadm bootstrap and *must* match the
+    # Kubernetes version baked into the cluster image. We refuse to fall back to
+    # a hard-coded default because no default can be correct for an arbitrary
+    # image (see issue #821).
+    get_kube_tag(cluster)
+
     # Check network driver
     if cluster.cluster_template.network_driver not in ["cilium", "calico"]:
         raise mcapi_exceptions.UnsupportedCNI
