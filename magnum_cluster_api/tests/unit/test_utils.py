@@ -383,9 +383,7 @@ class TestGetKubeTag:
             utils.get_kube_tag(cluster)
 
     def test_raises_when_empty(self, context):
-        cluster = magnum_test_utils.get_test_cluster(
-            context, labels={"kube_tag": ""}
-        )
+        cluster = magnum_test_utils.get_test_cluster(context, labels={"kube_tag": ""})
         with pytest.raises(exceptions.MissingClusterLabel):
             utils.get_kube_tag(cluster)
 
@@ -400,4 +398,3 @@ class TestValidateClusterRequiresKubeTag:
         )
         with pytest.raises(exceptions.MissingClusterLabel):
             utils.validate_cluster(mock.Mock(), cluster)
-
