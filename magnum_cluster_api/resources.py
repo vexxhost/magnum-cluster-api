@@ -18,9 +18,9 @@ import math
 import os
 import types
 import typing
+from importlib import resources as importlib_resources
 
 import certifi
-import pkg_resources
 import pykube  # type: ignore
 import yaml
 from magnum import objects as magnum_objects  # type: ignore
@@ -72,7 +72,7 @@ class ClusterAutoscalerHelmRelease:
             namespace="magnum-system",
             release_name=self.cluster.stack_id,
             chart_ref=os.path.join(
-                pkg_resources.resource_filename("magnum_cluster_api", "charts"),
+                str(importlib_resources.files("magnum_cluster_api") / "charts"),
                 "cluster-autoscaler/",
             ),
             values={
@@ -401,8 +401,8 @@ class LegacyClusterResourcesSecret(ClusterBase):
 
     def get_object(self) -> dict:
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
-        manifests_path = pkg_resources.resource_filename(
-            "magnum_cluster_api", "manifests"
+        manifests_path = str(
+            importlib_resources.files("magnum_cluster_api") / "manifests"
         )
 
         data = magnum_cluster_api.Driver.get_legacy_cluster_resource_secret_data(
@@ -474,8 +474,9 @@ class LegacyClusterResourcesSecret(ClusterBase):
                         namespace="kube-system",
                         release_name="k8s-keystone-auth",
                         chart_ref=os.path.join(
-                            pkg_resources.resource_filename(
-                                "magnum_cluster_api", "charts"
+                            str(
+                                importlib_resources.files("magnum_cluster_api")
+                                / "charts"
                             ),
                             "k8s-keystone-auth/",
                         ),
