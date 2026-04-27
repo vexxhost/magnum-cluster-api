@@ -92,6 +92,42 @@ jobs:
       - run: |
           uv venv
           uv pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} ./*.whl
+      - name: Smoke-test driver import and entry-point loading
+        run: |
+          uv pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} \
+            magnum keystonemiddleware
+          .venv/bin/python - <<'PY'
+          import sys
+          import magnum_cluster_api.driver  # must not raise
+          from magnum.drivers.common import driver
+
+          # Magnum entry points must load
+          eps = list(driver.Driver.load_entry_points())
+          ep_names = sorted(ep.name for ep, _ in eps)
+          assert any("cluster_api" in n for n in ep_names), ep_names
+
+          # Driver.definition_map must be populated — this is what
+          # instantiates each driver class and fails in production when
+          # pkg_resources cannot resolve a PEP 625 oslo_cache-*.dist-info.
+          definition_map = driver.Driver.get_drivers()
+          assert definition_map, "Driver.get_drivers() returned empty definition_map"
+          assert ("vm", "ubuntu", "kubernetes") in definition_map, (
+              "expected (vm, ubuntu, kubernetes) cluster_api driver in "
+              "definition_map, got: %s" % sorted(definition_map)
+          )
+
+          # Regression guard: pkg_resources must never be imported. It
+          # does not apply PEP 503 name normalization across .|_|-, which
+          # is what breaks against PEP 625-named wheels (oslo_cache-*).
+          assert "pkg_resources" not in sys.modules, (
+              "pkg_resources must not be loaded — it breaks on PEP 625 "
+              "wheels (e.g. oslo_cache-*.dist-info)"
+          )
+
+          print("OK entry_points=%d definitions=%d" % (len(eps), len(definition_map)))
+          print("  entry_points:", ep_names)
+          print("  definitions :", sorted(definition_map))
+          PY
 
   pre-commit:
     runs-on: ubuntu-latest
