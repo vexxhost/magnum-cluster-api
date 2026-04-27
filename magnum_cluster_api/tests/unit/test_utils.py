@@ -109,7 +109,7 @@ class TestGenerateCloudControllerManagerConfig:
             tls-insecure=false
 
             [LoadBalancer]
-            lb-provider=amphora
+            lb-provider=amphorav2
             lb-method=ROUND_ROBIN
             create-monitor=True
             """
