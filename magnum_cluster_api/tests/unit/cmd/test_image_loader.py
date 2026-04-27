@@ -12,9 +12,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import importlib.resources
 import itertools
 import os
+from importlib import resources as importlib_resources
 
 import yaml
 
@@ -52,9 +52,7 @@ def test__get_calico_images():
     default_version = first_image.split(":")[1]  # e.g., "v3.24.2"
 
     # Get manifest path
-    manifests_path = str(
-        importlib.resources.files("magnum_cluster_api").joinpath("manifests")
-    )
+    manifests_path = str(importlib_resources.files("magnum_cluster_api") / "manifests")
     calico_path = os.path.join(manifests_path, "calico")
     manifest_file = os.path.join(calico_path, f"{default_version}.yaml")
 
@@ -72,9 +70,7 @@ def test__get_calico_images():
 
 
 def test__get_infra_images():
-    manifests_path = str(
-        importlib.resources.files("magnum_cluster_api").joinpath("manifests")
-    )
+    manifests_path = str(importlib_resources.files("magnum_cluster_api") / "manifests")
 
     for csi in ["nfs"]:
         folder = os.path.join(manifests_path, f"{csi}-csi")
