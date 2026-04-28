@@ -1,0 +1,108 @@
+# Cilium Upgrade Values
+#
+# This values file is designed for upgrading Cilium in a Magnum-provisioned
+# Kubernetes cluster. It preserves the configuration choices made by the
+# Magnum Cluster API driver while keeping only the values that need to be
+# explicitly set. The Helm chart provides correct defaults for all other
+# settings (envoy, certgen, nodeinit images, etc.).
+#
+# INSTRUCTIONS:
+#   1. Update the image tags below to your target Cilium version.
+#   2. Verify the pod CIDR matches your cluster (default: 10.100.0.0/16).
+#   3. If using a private registry, update the image.repository fields.
+#   4. Apply with one of:
+#
+#       Option A (Helm release):
+#         helm upgrade --install cilium cilium/cilium \
+#           --namespace kube-system \
+#           --version <TARGET_CHART_VERSION> \
+#           --values cilium-upgrade-values.yaml
+#
+#       Option B (template + apply):
+#         helm template cilium cilium/cilium \
+#           --namespace kube-system \
+#           --version <TARGET_CHART_VERSION> \
+#           --values cilium-upgrade-values.yaml > cilium-manifests.yaml
+#         kubectl apply --server-side --force-conflicts -f cilium-manifests.yaml
+#
+# Current Magnum default Cilium version: v1.15.3
+# Upstream Helm repo: https://helm.cilium.io/
+#
+# Tested upgrade path (one minor at a time):
+#   v1.15.3 -> v1.16.19 -> v1.17.14 -> v1.18.8 -> v1.19.2
+
+# -- Cilium agent image
+image:
+  repository: quay.io/cilium/cilium
+  tag: "v1.16.19"  # <-- SET THIS to your target version
+  pullPolicy: IfNotPresent
+
+# -- Operator configuration
+operator:
+  image:
+    # NOTE: Use "quay.io/cilium/operator" (not "operator-generic").
+    # The Helm chart automatically appends the platform suffix (e.g. "-generic").
+    repository: quay.io/cilium/operator
+    tag: "v1.16.19"  # <-- MUST match the agent tag above
+    pullPolicy: IfNotPresent
+
+# -- IPAM configuration
+# The pod CIDR MUST match your cluster's pod CIDR label.
+# Default Magnum pod CIDR: 10.100.0.0/16
+ipam:
+  operator:
+    clusterPoolIPv4PodCIDRList:
+      - "10.100.0.0/16"  # <-- MUST match your cluster's pod CIDR
+
+# -- Socket-based load balancing
+# Magnum configures Cilium with host-namespace-only socket LB.
+socketLB:
+  hostNamespaceOnly: true
+
+# -- CNI configuration
+# exclusive: false allows other CNI plugins to coexist.
+cni:
+  exclusive: false
+
+# -- Envoy proxy
+# Disabled by default in Magnum deployments to reduce resource usage.
+envoy:
+  enabled: false
+
+# -- Hubble (network observability)
+# Enable relay/UI if your cluster uses Hubble (cilium_hubble_ui_enabled=true).
+hubble:
+  enabled: true
+  relay:
+    enabled: false  # <-- Set to true if you use Hubble relay
+  ui:
+    enabled: false  # <-- Set to true if you use Hubble UI
+
+# -- Upgrade strategy
+# The default rolling update strategy is safe for most deployments.
+# updateStrategy:
+#   type: RollingUpdate
+#   rollingUpdate:
+#     maxUnavailable: 2
+
+# -- Compatibility flag (optional)
+# Set this to your CURRENT version (before upgrade) to ensure config
+# compatibility during the rolling update.
+# upgradeCompatibility: "1.15"
+
+# ==========================================================================
+# PRIVATE REGISTRY CONFIGURATION
+# ==========================================================================
+# If your Magnum cluster uses a private registry (container_infra_prefix),
+# update the image.repository fields above.
+#
+# Magnum remaps Cilium images as follows:
+#   quay.io/cilium/cilium        -> <registry>/cilium-cilium
+#   quay.io/cilium/operator      -> <registry>/cilium-operator
+#   quay.io/cilium/hubble-relay  -> <registry>/cilium-hubble-relay
+#   etc.
+#
+# Example with a private registry:
+#   image:
+#     repository: myregistry.example.com/cilium-cilium
+#     tag: "v1.16.19"
