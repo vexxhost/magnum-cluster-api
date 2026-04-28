@@ -55,6 +55,7 @@ AUTOSCALE_ANNOTATION_MIN = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-m
 AUTOSCALE_ANNOTATION_MAX = "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size"
 
 DEFAULT_POD_CIDR = "10.100.0.0/16"
+DEFAULT_NODE_CIDR = "10.0.0.0/24"
 
 
 class ClusterAutoscalerHelmRelease:
@@ -1236,7 +1237,7 @@ class Cluster(ClusterBase):
                             "name": "nodeCidr",
                             "value": self.cluster.labels.get(
                                 "fixed_subnet_cidr",
-                                "10.0.0.0/24",
+                                DEFAULT_NODE_CIDR,
                             ),
                         },
                         {
