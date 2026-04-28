@@ -700,7 +700,7 @@ class CloudConfigSecret(ClusterBase):
 
 def mutate_machine_deployment(
     context: context.RequestContext,
-    cluster: objects.Cluster,
+    cluster: magnum_objects.Cluster,
     node_group: magnum_objects.NodeGroup,
     machine_deployment: dict = None,
 ):
@@ -906,7 +906,7 @@ def migrate_cluster_failure_domain(
 
 
 def generate_machine_deployments_for_cluster(
-    context: context.RequestContext, cluster: objects.Cluster
+    context: context.RequestContext, cluster: magnum_objects.Cluster
 ) -> list:
     machine_deployments = []
     for ng in cluster.nodegroups:
