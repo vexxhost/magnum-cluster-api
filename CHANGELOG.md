@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.7](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.6...v0.36.7) (2026-04-29)
+
+
+### Bug Fixes
+
+* **#790:** enable kube http-proxy feature for Rust driver ([#998](https://github.com/vexxhost/magnum-cluster-api/issues/998)) ([171e1ae](https://github.com/vexxhost/magnum-cluster-api/commit/171e1aeeb260c1758a1aab42d7c328ac3dfb1475)), closes [#790](https://github.com/vexxhost/magnum-cluster-api/issues/790)
+
 ## [0.36.6](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.5...v0.36.6) (2026-04-21)
 
 
