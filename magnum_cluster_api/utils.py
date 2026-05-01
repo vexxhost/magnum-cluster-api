@@ -318,6 +318,47 @@ def get_cluster_label_as_bool(
     return strutils.bool_from_string(value, strict=True)
 
 
+def get_kubelet_extra_args(cluster: magnum_objects.Cluster) -> str:
+    """Render the user-supplied ``kubelet_extra_args`` cluster label.
+
+    Returns a YAML snippet (with leading newline) that gets spliced into the
+    rendered ``kubeletExtraArgs`` map by the matching ClusterClass patch.
+    Returns an empty string when the label is unset, so the patch only emits
+    the defaults owned by the feature (``cloud-provider`` and
+    ``tls-cipher-suites``).
+
+    The label value is a semicolon-separated list of ``key=value`` pairs, e.g.::
+
+        kubelet_extra_args=max-pods=150;system-reserved=cpu=100m,memory=128Mi
+
+    Semicolon is used as the pair separator (rather than comma) so that
+    values which themselves contain commas — such as kubelet's
+    ``--system-reserved`` flag — pass through unchanged.  Whitespace around
+    pairs is stripped, an empty key is rejected, and entries without ``=``
+    are ignored.  Each pair becomes a line in the rendered YAML snippet,
+    with the value emitted as a double-quoted YAML scalar.
+    """
+    raw = cluster.labels.get("kubelet_extra_args", "")
+    if not raw:
+        return ""
+
+    lines = []
+    for pair in raw.split(";"):
+        pair = pair.strip()
+        if not pair or "=" not in pair:
+            continue
+        key, _, value = pair.partition("=")
+        key = key.strip()
+        if not key:
+            continue
+        encoded = yaml.safe_dump(value.strip(), default_style='"').strip()
+        lines.append(f"{key}: {encoded}")
+
+    if not lines:
+        return ""
+    return "\n" + "\n".join(lines)
+
+
 def delete_loadbalancers(ctx, cluster):
     # NOTE(mnaser): This code is duplicated from magnum.common.octavia
     #               since the original code is very Heat-specific.

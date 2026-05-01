@@ -299,6 +299,51 @@ class TestGenerateAptProxyConfig:
         assert config == ""
 
 
+class TestGetKubeletExtraArgs:
+    def _cluster(self, context, label_value):
+        labels = {"kubelet_extra_args": label_value} if label_value is not None else {}
+        return magnum_test_utils.get_test_cluster(context, labels=labels)
+
+    def test_unset(self, context):
+        cluster = magnum_test_utils.get_test_cluster(context, labels={})
+
+        assert utils.get_kubelet_extra_args(cluster) == ""
+
+    def test_empty_string(self, context):
+        cluster = self._cluster(context, "")
+
+        assert utils.get_kubelet_extra_args(cluster) == ""
+
+    def test_single_pair(self, context):
+        cluster = self._cluster(context, "max-pods=150")
+
+        assert utils.get_kubelet_extra_args(cluster) == '\nmax-pods: "150"'
+
+    def test_multiple_pairs(self, context):
+        cluster = self._cluster(
+            context,
+            "max-pods=150;system-reserved=cpu=100m,memory=128Mi",
+        )
+
+        assert utils.get_kubelet_extra_args(cluster) == (
+            '\nmax-pods: "150"' '\nsystem-reserved: "cpu=100m,memory=128Mi"'
+        )
+
+    def test_strips_whitespace(self, context):
+        cluster = self._cluster(
+            context, "  max-pods = 150 ;  eviction-hard=memory.available<100Mi  "
+        )
+
+        assert utils.get_kubelet_extra_args(cluster) == (
+            '\nmax-pods: "150"' '\neviction-hard: "memory.available<100Mi"'
+        )
+
+    def test_skips_invalid_entries(self, context):
+        cluster = self._cluster(context, ";=value;valid=ok;no-equals;")
+
+        assert utils.get_kubelet_extra_args(cluster) == '\nvalid: "ok"'
+
+
 class TestUtils(base.BaseTestCase):
     """Test case for utils."""
 

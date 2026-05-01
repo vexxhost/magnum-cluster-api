@@ -1229,6 +1229,10 @@ class Cluster(ClusterBase):
                             ),
                         },
                         {
+                            "name": "kubeletExtraArgs",
+                            "value": utils.get_kubelet_extra_args(self.cluster),
+                        },
+                        {
                             "name": "apiServerSANs",
                             "value": utils.generate_api_cert_san_list(self.cluster),
                         },
