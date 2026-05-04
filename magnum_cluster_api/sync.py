@@ -21,7 +21,20 @@ class ClusterLock(sherlock.KubernetesLock):
     across all of the conductor nodes.
     """
 
-    DEFAULT_EXPIRE: int = 60
+    # NOTE(rlin): The default TTL was 60s, which is too short for several
+    #             cluster operations whose Server-Side Apply against the
+    #             Cluster resource (and the surrounding logic) can easily
+    #             exceed a minute on busy management clusters. When the
+    #             lease expires mid-operation, sherlock loses its
+    #             exclusivity guarantee and concurrent conductors can
+    #             interleave reads/writes on the same Cluster object,
+    #             producing stale-read races on the topology
+    #             (e.g. parallel delete_nodegroup losing one of the
+    #             topology removals). Bump the default to 5 minutes; the
+    #             value remains overridable per-call via the `expire`
+    #             kwarg for callers that know they need a tighter or
+    #             looser bound.
+    DEFAULT_EXPIRE: int = 300
 
     def __init__(self, cluster_id: str, expire: int = DEFAULT_EXPIRE):
         sherlock.configure(
