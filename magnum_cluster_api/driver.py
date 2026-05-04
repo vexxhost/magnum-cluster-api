@@ -533,6 +533,33 @@ class BaseDriver(driver.Driver):
                 node_group.save()
                 continue
 
+            # NOTE(rlin): If the node group is in `DELETE_IN_PROGRESS` state but
+            #             the `MachineDeployment` is still present, the previous
+            #             delete_nodegroup attempt's Server-Side Apply was lost
+            #             (e.g. a concurrent SSA on the same Cluster resource
+            #             with the same fieldManager silently overwrote the
+            #             topology change). Re-issue the topology removal so
+            #             the delete eventually converges instead of wedging
+            #             forever.
+            if (
+                node_group.status == fields.ClusterStatus.DELETE_IN_PROGRESS
+                and md is not None
+            ):
+                try:
+                    md_index = cluster_resource.get_machine_deployment_index(
+                        node_group.name
+                    )
+                except exceptions.MachineDeploymentNotFound:
+                    # Topology already removed; just wait for CAPI to delete
+                    # the MachineDeployment.
+                    continue
+                else:
+                    del cluster_resource.obj["spec"]["topology"]["workers"][
+                        "machineDeployments"
+                    ][md_index]
+                    utils.kube_apply_patch(cluster_resource)
+                    continue
+
             md_is_running = (
                 md is not None and md.obj.get("status", {}).get("phase") == "Running"
             )
