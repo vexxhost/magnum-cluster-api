@@ -829,6 +829,12 @@ def mutate_machine_deployment(
                         "name": "hardwareDiskBus",
                         "value": image.get("hw_disk_bus", ""),
                     },
+                    {
+                        "name": "kubeletExtraArgs",
+                        "value": utils.get_node_group_kubelet_extra_args(
+                            cluster, node_group
+                        ),
+                    },
                     # NOTE(oleks): Override using MachineDeployment-level variables for node groups
                     {
                         "name": "serverGroupId",

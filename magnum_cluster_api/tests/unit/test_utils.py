@@ -344,6 +344,38 @@ class TestGetKubeletExtraArgs:
         assert utils.get_kubelet_extra_args(cluster) == '\nvalid: "ok"'
 
 
+class TestGetNodeGroupKubeletExtraArgs:
+    def test_merges_cluster_and_node_group_labels(self, context):
+        cluster = magnum_test_utils.get_test_cluster(
+            context,
+            labels={"kubelet_extra_args": "max-pods=150;system-reserved=cpu=100m"},
+        )
+        node_group = magnum_test_utils.get_test_nodegroup(
+            context,
+            labels={"kubelet_extra_args": "eviction-hard=memory.available<100Mi"},
+        )
+
+        assert utils.get_node_group_kubelet_extra_args(cluster, node_group) == (
+            '\nmax-pods: "150"'
+            '\nsystem-reserved: "cpu=100m"'
+            '\neviction-hard: "memory.available<100Mi"'
+        )
+
+    def test_node_group_overrides_matching_cluster_keys(self, context):
+        cluster = magnum_test_utils.get_test_cluster(
+            context,
+            labels={"kubelet_extra_args": "max-pods=150;serialize-image-pulls=true"},
+        )
+        node_group = magnum_test_utils.get_test_nodegroup(
+            context,
+            labels={"kubelet_extra_args": "max-pods=200"},
+        )
+
+        assert utils.get_node_group_kubelet_extra_args(cluster, node_group) == (
+            '\nmax-pods: "200"' '\nserialize-image-pulls: "true"'
+        )
+
+
 class TestUtils(base.BaseTestCase):
     """Test case for utils."""
 

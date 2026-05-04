@@ -318,6 +318,36 @@ def get_cluster_label_as_bool(
     return strutils.bool_from_string(value, strict=True)
 
 
+def _parse_kubelet_extra_args(raw: str) -> dict[str, str]:
+    extra_args = {}
+    if not raw:
+        return extra_args
+
+    for pair in raw.split(";"):
+        pair = pair.strip()
+        if not pair or "=" not in pair:
+            continue
+        key, _, value = pair.partition("=")
+        key = key.strip()
+        if not key:
+            continue
+        extra_args[key] = value.strip()
+
+    return extra_args
+
+
+def _render_kubelet_extra_args(extra_args: dict[str, str]) -> str:
+    if not extra_args:
+        return ""
+
+    lines = []
+    for key, value in extra_args.items():
+        encoded = yaml.safe_dump(value, default_style='"').strip()
+        lines.append(f"{key}: {encoded}")
+
+    return "\n" + "\n".join(lines)
+
+
 def get_kubelet_extra_args(cluster: magnum_objects.Cluster) -> str:
     """Render the user-supplied ``kubelet_extra_args`` cluster label.
 
@@ -338,25 +368,25 @@ def get_kubelet_extra_args(cluster: magnum_objects.Cluster) -> str:
     are ignored.  Each pair becomes a line in the rendered YAML snippet,
     with the value emitted as a double-quoted YAML scalar.
     """
-    raw = cluster.labels.get("kubelet_extra_args", "")
-    if not raw:
-        return ""
+    return _render_kubelet_extra_args(
+        _parse_kubelet_extra_args(cluster.labels.get("kubelet_extra_args", ""))
+    )
 
-    lines = []
-    for pair in raw.split(";"):
-        pair = pair.strip()
-        if not pair or "=" not in pair:
-            continue
-        key, _, value = pair.partition("=")
-        key = key.strip()
-        if not key:
-            continue
-        encoded = yaml.safe_dump(value.strip(), default_style='"').strip()
-        lines.append(f"{key}: {encoded}")
 
-    if not lines:
-        return ""
-    return "\n" + "\n".join(lines)
+def get_node_group_kubelet_extra_args(
+    cluster: magnum_objects.Cluster, node_group: magnum_objects.NodeGroup
+) -> str:
+    """Render merged cluster and node group ``kubelet_extra_args`` labels.
+
+    Node group arguments are layered on top of the cluster-level label so a
+    worker pool can add new flags or override individual keys without dropping
+    the template-provided defaults for the rest of the cluster.
+    """
+    extra_args = _parse_kubelet_extra_args(cluster.labels.get("kubelet_extra_args", ""))
+    extra_args.update(
+        _parse_kubelet_extra_args(node_group.labels.get("kubelet_extra_args", ""))
+    )
+    return _render_kubelet_extra_args(extra_args)
 
 
 def delete_loadbalancers(ctx, cluster):
