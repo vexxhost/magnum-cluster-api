@@ -558,9 +558,18 @@ class BaseDriver(driver.Driver):
                 },
             )
 
+            # NOTE(rlin): Look up the MachineDeployment spec from the Cluster
+            #             topology. If it's missing (e.g. another concurrent
+            #             operation just removed it from the topology), skip
+            #             the spec-equality checks for this reconcile pass
+            #             rather than crashing the entire periodic loop.
+            try:
+                md_spec = cluster_resource.get_machine_deployment_spec(node_group.name)
+            except exceptions.MachineDeploymentNotFound:
+                continue
+
             # Ensure that the image ID from the spec matches all of the OpenStackMachine objects
             # for this node group
-            md_spec = cluster_resource.get_machine_deployment_spec(node_group.name)
             md_variables = {
                 i["name"]: i["value"] for i in md_spec["variables"]["overrides"]
             }
@@ -587,9 +596,7 @@ class BaseDriver(driver.Driver):
             if (
                 node_group.status == fields.ClusterStatus.UPDATE_IN_PROGRESS
                 and md_is_running
-                and md.equals_spec(
-                    cluster_resource.get_machine_deployment_spec(node_group.name)
-                )
+                and md.equals_spec(md_spec)
                 and image_id_match
                 and flavor_match
             ):
