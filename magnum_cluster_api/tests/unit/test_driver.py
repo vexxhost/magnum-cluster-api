@@ -569,3 +569,76 @@ class TestDriver:
                     self.node_group.destroy.assert_called_once()
                 else:
                     self.node_group.destroy.assert_not_called()
+
+    def test_update_nodegroups_status_recovers_stuck_delete_in_progress(
+        self, context, ubuntu_driver, requests_mock
+    ):
+        """A NodeGroup wedged in DELETE_IN_PROGRESS while its MachineDeployment
+        is still present is the failure mode produced by two concurrent
+        delete_nodegroup SSAs racing on the Cluster topology: the later
+        Apply silently restored the entry that the earlier one removed,
+        leaving the DB row pinned at DELETE_IN_PROGRESS forever.
+
+        update_nodegroups_status must detect this state (DELETE_IN_PROGRESS
+        with md is not None) and re-issue the topology removal. Once CAPI
+        tears the MD down, the next reconcile pass walks the existing
+        DELETE_IN_PROGRESS && md is None branch and finalises the row.
+        """
+        self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        self.node_group.status = fields.ClusterStatus.DELETE_IN_PROGRESS
+        self.node_group.is_default = False
+        self.node_group.destroy = mock.MagicMock()
+
+        md_spec = {
+            "name": self.node_group.name,
+            "replicas": 1,
+            "metadata": {"labels": {}},
+            "variables": {
+                "overrides": [
+                    {"name": "flavor", "value": "test-flavor"},
+                    {"name": "imageUUID", "value": "test-image-id"},
+                ]
+            },
+        }
+        unrelated_md_spec = {
+            "name": "unrelated-md",
+            "replicas": 1,
+            "metadata": {"labels": {}},
+            "variables": {
+                "overrides": [
+                    {"name": "flavor", "value": "test-flavor"},
+                    {"name": "imageUUID", "value": "test-image-id"},
+                ]
+            },
+        }
+
+        with mock.patch(
+            "magnum.objects.NodeGroup.list", return_value=[self.node_group]
+        ):
+            with requests_mock as rsps:
+                # GET Cluster: topology still has the wedged node_group's MD
+                rsps.add(
+                    self._response_for_cluster_with_machine_deployments(
+                        unrelated_md_spec,
+                        md_spec,
+                    )
+                )
+                # GET MachineDeployment: still present (this is the "race
+                # silently restored the entry" condition).
+                rsps.add(self._response_for_machine_deployment_spec(md_spec))
+                # PATCH Cluster: must omit the wedged node_group's entry
+                # so CAPI tears the MD down on the next pass.
+                rsps.add(
+                    self._response_for_cluster_with_machine_deployments(
+                        unrelated_md_spec,
+                        method=responses.PATCH,
+                    )
+                )
+
+                ubuntu_driver.update_nodegroups_status(context, self.cluster)
+
+        # The recovery branch only re-issues the topology removal; it must
+        # not flip status to DELETE_COMPLETE or destroy the row in the same
+        # pass — that happens on a subsequent reconcile when md is None.
+        assert self.node_group.status == fields.ClusterStatus.DELETE_IN_PROGRESS
+        self.node_group.destroy.assert_not_called()
