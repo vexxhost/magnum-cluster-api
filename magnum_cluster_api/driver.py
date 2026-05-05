@@ -734,6 +734,7 @@ class UbuntuDriver(BaseDriver):
     def provides(self):
         return [
             {"server_type": "vm", "os": "ubuntu", "coe": "kubernetes"},
+            {"server_type": "bm", "os": "ubuntu", "coe": "kubernetes"},
         ]
 
 
@@ -742,6 +743,7 @@ class UbuntuFocalDriver(UbuntuDriver):
     def provides(self):
         return [
             {"server_type": "vm", "os": "ubuntu-focal", "coe": "kubernetes"},
+            {"server_type": "bm", "os": "ubuntu-focal", "coe": "kubernetes"},
         ]
 
 
@@ -758,6 +760,7 @@ class FlatcarDriver(BaseDriver):
     def provides(self):
         return [
             {"server_type": "vm", "os": "flatcar", "coe": "kubernetes"},
+            {"server_type": "bm", "os": "flatcar", "coe": "kubernetes"},
         ]
 
 
@@ -766,4 +769,5 @@ class RockyLinuxDriver(BaseDriver):
     def provides(self):
         return [
             {"server_type": "vm", "os": "rockylinux", "coe": "kubernetes"},
+            {"server_type": "bm", "os": "rockylinux", "coe": "kubernetes"},
         ]
