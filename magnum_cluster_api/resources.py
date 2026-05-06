@@ -741,7 +741,9 @@ def mutate_machine_deployment(
         boot_volume_size = utils.get_node_group_label_as_int(
             node_group,
             "boot_volume_size",
-            CONF.cinder.default_boot_volume_size,
+            utils.get_default_boot_volume_size(
+                cluster, CONF.cinder.default_boot_volume_size
+            ),
         )
         if boot_volume_size == 0:
             boot_volume_size = flavor.disk
@@ -802,7 +804,10 @@ def mutate_machine_deployment(
                             "size": utils.get_node_group_label_as_int(
                                 node_group,
                                 "boot_volume_size",
-                                CONF.cinder.default_boot_volume_size,
+                                utils.get_default_boot_volume_size(
+                                    cluster,
+                                    CONF.cinder.default_boot_volume_size,
+                                ),
                             ),
                             "type": node_group.labels.get(
                                 "boot_volume_type",
@@ -1106,7 +1111,10 @@ class Cluster(ClusterBase):
                                 "size": utils.get_cluster_label_as_int(
                                     self.cluster,
                                     "boot_volume_size",
-                                    CONF.cinder.default_boot_volume_size,
+                                    utils.get_default_boot_volume_size(
+                                        self.cluster,
+                                        CONF.cinder.default_boot_volume_size,
+                                    ),
                                 ),
                                 "type": self.cluster.labels.get(
                                     "boot_volume_type",
