@@ -2,8 +2,47 @@ use glob::glob;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use std::{env, error::Error, fs, path::Path};
-use syn::{parse_file, Ident, Item, Type};
+use syn::{parse_file, GenericArgument, Ident, Item, PathArguments, Type, TypePath};
 use vergen_gix::{Emitter, GixBuilder};
+
+/// If `type_path` is `Vec<T>` where `T` is a single-segment, non-generic,
+/// non-primitive identifier (i.e. a user-defined struct in the same
+/// `src/features/<module>.rs` file), return tokens for `T`.  Otherwise
+/// return `None`.
+fn extract_vec_inner(type_path: &TypePath) -> Option<TokenStream> {
+    let last = type_path.path.segments.last()?;
+    if last.ident != "Vec" {
+        return None;
+    }
+    let PathArguments::AngleBracketed(args) = &last.arguments else {
+        return None;
+    };
+    if args.args.len() != 1 {
+        return None;
+    }
+    let GenericArgument::Type(Type::Path(inner_path)) = args.args.first()? else {
+        return None;
+    };
+    // Bail if the inner type is itself generic or multi-segment — keep
+    // qualification narrow and obvious.
+    if inner_path.path.segments.len() != 1 {
+        return None;
+    }
+    let inner_seg = inner_path.path.segments.first()?;
+    if !matches!(inner_seg.arguments, PathArguments::None) {
+        return None;
+    }
+    let ident = &inner_seg.ident;
+    let ident_str = ident.to_string();
+    // Don't qualify primitives that happen to live in std/core.
+    if matches!(
+        ident_str.as_str(),
+        "String" | "bool" | "i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f32" | "f64"
+    ) {
+        return None;
+    }
+    Some(quote! { #ident })
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
     let gix = GixBuilder::default()
@@ -62,6 +101,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                                         || type_name == "Vec < String >"
                                     {
                                         quote! { #ty }
+                                    } else if let Some(inner) =
+                                        extract_vec_inner(type_path)
+                                    {
+                                        // Vec<T> where T is module-local: qualify only T.
+                                        quote! { Vec<crate::features::#mod_ident::#inner> }
                                     } else {
                                         println!(
                                             "cargo-warning: {} is not a primitive type",

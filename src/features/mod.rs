@@ -59,6 +59,7 @@ pub mod containerd_config;
 pub mod control_plane_availability_zones;
 pub mod disable_api_server_floating_ip;
 pub mod external_network;
+pub mod extra_cloud_init;
 pub mod flavors;
 pub mod image_repository;
 pub mod images;
@@ -341,6 +342,8 @@ pub static KUBEADM_CONFIG_TEMPLATE: LazyLock<KubeadmConfigTemplate> =
                         ),
                         ..Default::default()
                     }),
+                    pre_kubeadm_commands: Some(vec![]),
+                    post_kubeadm_commands: Some(vec![]),
                     ..Default::default()
                 }),
                 ..Default::default()

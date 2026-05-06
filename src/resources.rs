@@ -273,6 +273,9 @@ pub mod fixtures {
             .etcd_volume_type("".into())
             .availability_zone("az1".into())
             .admission_control_list("NodeRestriction".into())
+            .extra_files(Vec::<crate::features::extra_cloud_init::ExtraFile>::new())
+            .extra_pre_kubeadm_commands(Vec::<String>::new())
+            .extra_post_kubeadm_commands(Vec::<String>::new())
             .build()
     }
 }
@@ -310,7 +313,7 @@ mod tests {
         let values = default_values();
         let variables: Vec<ClusterTopologyVariables> = values.into();
 
-        assert_eq!(variables.len(), 39);
+        assert_eq!(variables.len(), 42);
 
         for var in &variables {
             match var.name.as_str() {
@@ -445,6 +448,21 @@ mod tests {
                 }
                 "admissionControlList" => {
                     assert_eq!(var.value, json!(default_values().admission_control_list));
+                }
+                "extraFiles" => {
+                    assert_eq!(var.value, json!(default_values().extra_files));
+                }
+                "extraPreKubeadmCommands" => {
+                    assert_eq!(
+                        var.value,
+                        json!(default_values().extra_pre_kubeadm_commands)
+                    );
+                }
+                "extraPostKubeadmCommands" => {
+                    assert_eq!(
+                        var.value,
+                        json!(default_values().extra_post_kubeadm_commands)
+                    );
                 }
                 other => panic!("Unexpected field name: {}", other),
             }

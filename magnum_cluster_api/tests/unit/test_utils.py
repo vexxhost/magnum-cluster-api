@@ -368,3 +368,129 @@ class TestUtils(base.BaseTestCase):
             context,
             fixed_network,
         )
+
+
+def _b64yaml(payload):
+    import base64 as _b64
+
+    import yaml as _yaml
+
+    return _b64.b64encode(_yaml.safe_dump(payload).encode()).decode()
+
+
+class TestExtraCloudInit:
+    def _make_cluster(self, labels):
+        cluster = mock.Mock()
+        cluster.labels = labels
+        return cluster
+
+    def _make_node_group(self, labels):
+        ng = mock.Mock()
+        ng.labels = labels
+        return ng
+
+    def test_get_extra_files_empty(self):
+        cluster = self._make_cluster({})
+        assert utils.get_extra_files(cluster) == []
+
+    def test_get_extra_files_encodes_plain_content(self):
+        payload = [{"path": "/etc/netplan/99.yaml", "content": "hello"}]
+        cluster = self._make_cluster({"extra_files": _b64yaml(payload)})
+        result = utils.get_extra_files(cluster)
+        assert result == [
+            {
+                "path": "/etc/netplan/99.yaml",
+                "owner": "root:root",
+                "permissions": "0644",
+                "content": "aGVsbG8=",
+            }
+        ]
+
+    def test_get_extra_files_passes_through_base64(self):
+        payload = [
+            {
+                "path": "/etc/foo",
+                "content": "aGVsbG8=",
+                "encoding": "base64",
+                "permissions": "0600",
+                "owner": "ubuntu:ubuntu",
+            }
+        ]
+        cluster = self._make_cluster({"extra_files": _b64yaml(payload)})
+        result = utils.get_extra_files(cluster)
+        assert result[0]["content"] == "aGVsbG8="
+        assert result[0]["permissions"] == "0600"
+        assert result[0]["owner"] == "ubuntu:ubuntu"
+
+    def test_get_extra_files_merges_node_group_after_cluster(self):
+        cluster = self._make_cluster(
+            {"extra_files": _b64yaml([{"path": "/a", "content": "x"}])}
+        )
+        ng = self._make_node_group(
+            {"extra_files": _b64yaml([{"path": "/b", "content": "y"}])}
+        )
+        result = utils.get_extra_files(cluster, node_group=ng)
+        assert [e["path"] for e in result] == ["/a", "/b"]
+
+    def test_get_extra_files_rejects_relative_path(self):
+        cluster = self._make_cluster(
+            {"extra_files": _b64yaml([{"path": "etc/foo", "content": "x"}])}
+        )
+        with pytest.raises(exception.InvalidParameterValue):
+            utils.get_extra_files(cluster)
+
+    def test_get_extra_files_rejects_non_list(self):
+        import base64 as _b64
+
+        bad = _b64.b64encode(b"not_a_list").decode()
+        cluster = self._make_cluster({"extra_files": bad})
+        with pytest.raises(exception.InvalidParameterValue):
+            utils.get_extra_files(cluster)
+
+    def test_get_extra_files_rejects_invalid_base64(self):
+        cluster = self._make_cluster({"extra_files": "!!!not base64!!!"})
+        with pytest.raises(exception.InvalidParameterValue):
+            utils.get_extra_files(cluster)
+
+    def test_get_extra_files_enforces_cap(self):
+        payload = [
+            {"path": f"/f{i}", "content": "x"}
+            for i in range(utils.EXTRA_CLOUD_INIT_MAX_FILES + 1)
+        ]
+        cluster = self._make_cluster({"extra_files": _b64yaml(payload)})
+        with pytest.raises(exception.InvalidParameterValue):
+            utils.get_extra_files(cluster)
+
+    def test_get_extra_pre_kubeadm_commands_split(self):
+        cluster = self._make_cluster(
+            {"extra_pre_kubeadm_commands": "netplan generate;;netplan apply"}
+        )
+        assert utils.get_extra_pre_kubeadm_commands(cluster) == [
+            "netplan generate",
+            "netplan apply",
+        ]
+
+    def test_get_extra_pre_kubeadm_commands_merges_node_group(self):
+        cluster = self._make_cluster({"extra_pre_kubeadm_commands": "a"})
+        ng = self._make_node_group({"extra_pre_kubeadm_commands": "b;;c"})
+        assert utils.get_extra_pre_kubeadm_commands(cluster, ng) == [
+            "a",
+            "b",
+            "c",
+        ]
+
+    def test_get_extra_pre_kubeadm_commands_drops_empty_segments(self):
+        cluster = self._make_cluster({"extra_pre_kubeadm_commands": "a;;;;b;;"})
+        assert utils.get_extra_pre_kubeadm_commands(cluster) == ["a", "b"]
+
+    def test_get_extra_post_kubeadm_commands_default_empty(self):
+        cluster = self._make_cluster({})
+        assert utils.get_extra_post_kubeadm_commands(cluster) == []
+
+    def test_get_extra_pre_kubeadm_commands_enforces_cap(self):
+        cmds = ";;".join(
+            [f"echo {i}" for i in range(utils.EXTRA_CLOUD_INIT_MAX_PRE_COMMANDS + 1)]
+        )
+        cluster = self._make_cluster({"extra_pre_kubeadm_commands": cmds})
+        with pytest.raises(exception.InvalidParameterValue):
+            utils.get_extra_pre_kubeadm_commands(cluster)

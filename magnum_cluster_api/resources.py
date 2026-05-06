@@ -842,6 +842,22 @@ def mutate_machine_deployment(
                             node_group=node_group, cluster=cluster
                         ),
                     },
+                    {
+                        "name": "extraFiles",
+                        "value": utils.get_extra_files(cluster, node_group=node_group),
+                    },
+                    {
+                        "name": "extraPreKubeadmCommands",
+                        "value": utils.get_extra_pre_kubeadm_commands(
+                            cluster, node_group=node_group
+                        ),
+                    },
+                    {
+                        "name": "extraPostKubeadmCommands",
+                        "value": utils.get_extra_post_kubeadm_commands(
+                            cluster, node_group=node_group
+                        ),
+                    },
                 ],
             },
         }
@@ -1325,6 +1341,20 @@ class Cluster(ClusterBase):
                         {
                             "name": "admissionControlList",
                             "value": self._get_admission_control_list(),
+                        },
+                        {
+                            "name": "extraFiles",
+                            "value": utils.get_extra_files(self.cluster),
+                        },
+                        {
+                            "name": "extraPreKubeadmCommands",
+                            "value": utils.get_extra_pre_kubeadm_commands(self.cluster),
+                        },
+                        {
+                            "name": "extraPostKubeadmCommands",
+                            "value": utils.get_extra_post_kubeadm_commands(
+                                self.cluster
+                            ),
                         },
                     ],
                 },

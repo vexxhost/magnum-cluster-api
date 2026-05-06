@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import base64 as stdlib_base64
 import json
 import re
 import string
@@ -655,3 +656,202 @@ def get_fixed_network_id(context, network):
         )
     else:
         return network
+
+
+# ---------------------------------------------------------------------------
+# extra_cloud_init feature: extra_files, extra_pre/post_kubeadm_commands
+# ---------------------------------------------------------------------------
+
+# Hard caps mirror the Rust-side `MAX_EXTRA_FILES`,
+# `MAX_PRE_KUBEADM_COMMANDS`, and `MAX_POST_KUBEADM_COMMANDS` constants in
+# `src/features/extra_cloud_init.rs`.  The ClusterClass renders a fixed
+# number of patch slots; entries beyond the cap would be silently dropped
+# by CAPI, so we reject them here with a clear error.
+EXTRA_CLOUD_INIT_MAX_FILES = 10
+EXTRA_CLOUD_INIT_MAX_PRE_COMMANDS = 16
+EXTRA_CLOUD_INIT_MAX_POST_COMMANDS = 16
+
+_DEFAULT_FILE_OWNER = "root:root"
+_DEFAULT_FILE_PERMISSIONS = "0644"
+
+
+def _decode_extra_files_label(value: str) -> typing.List[dict]:
+    """Decode the base64-wrapped YAML/JSON payload of an `extra_files` label.
+
+    Operators must base64-encode the YAML/JSON list to keep it safe for
+    transport through Magnum's comma-separated label parser.  An empty or
+    missing value yields an empty list.
+    """
+    if not value:
+        return []
+    try:
+        decoded = stdlib_base64.b64decode(value, validate=True).decode("utf-8")
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise exception.InvalidParameterValue(
+            err=f"extra_files label is not valid base64: {exc}"
+        )
+    try:
+        parsed = yaml.safe_load(decoded)
+    except yaml.YAMLError as exc:
+        raise exception.InvalidParameterValue(
+            err=f"extra_files label is not valid YAML/JSON: {exc}"
+        )
+    if parsed is None:
+        return []
+    if not isinstance(parsed, list):
+        raise exception.InvalidParameterValue(
+            err="extra_files label must decode to a YAML/JSON list"
+        )
+    return parsed
+
+
+def _normalize_extra_file(entry: dict) -> dict:
+    """Validate one entry and re-emit it in the wire shape."""
+    if not isinstance(entry, dict):
+        raise exception.InvalidParameterValue(
+            err="extra_files entries must be mappings"
+        )
+    path = entry.get("path")
+    if not path or not isinstance(path, str):
+        raise exception.InvalidParameterValue(
+            err="extra_files entries must include a non-empty 'path' string"
+        )
+    if not path.startswith("/"):
+        raise exception.InvalidParameterValue(
+            err=f"extra_files path must be absolute: {path!r}"
+        )
+
+    raw_content = entry.get("content", "")
+    if not isinstance(raw_content, str):
+        raise exception.InvalidParameterValue(
+            err=f"extra_files content for {path!r} must be a string"
+        )
+    encoding = entry.get("encoding")
+    if encoding is None:
+        wire_content = stdlib_base64.b64encode(raw_content.encode("utf-8")).decode(
+            "ascii"
+        )
+    elif encoding == "base64":
+        # Operator pre-encoded the content; round-trip it through the
+        # validator so we reject obvious corruption early.
+        try:
+            stdlib_base64.b64decode(raw_content, validate=True)
+        except ValueError as exc:
+            raise exception.InvalidParameterValue(
+                err=(
+                    f"extra_files content for {path!r} is declared base64 but "
+                    f"is not valid base64: {exc}"
+                )
+            )
+        wire_content = raw_content
+    else:
+        raise exception.InvalidParameterValue(
+            err=(
+                f"extra_files entry {path!r} has unsupported encoding "
+                f"{encoding!r} (expected omit or 'base64')"
+            )
+        )
+
+    owner = entry.get("owner", _DEFAULT_FILE_OWNER)
+    if not isinstance(owner, str) or not owner:
+        raise exception.InvalidParameterValue(
+            err=f"extra_files owner for {path!r} must be a non-empty string"
+        )
+    permissions = entry.get("permissions", _DEFAULT_FILE_PERMISSIONS)
+    if isinstance(permissions, int):
+        permissions = format(permissions, "04o")
+    if not isinstance(permissions, str) or not permissions:
+        raise exception.InvalidParameterValue(
+            err=(
+                f"extra_files permissions for {path!r} must be a non-empty "
+                f"string (e.g. '0600')"
+            )
+        )
+
+    return {
+        "path": path,
+        "owner": owner,
+        "permissions": permissions,
+        "content": wire_content,
+    }
+
+
+def get_extra_files(
+    cluster: magnum_objects.Cluster,
+    node_group: typing.Optional[magnum_objects.NodeGroup] = None,
+) -> typing.List[dict]:
+    """Build the `extraFiles` topology variable for one cluster + node group.
+
+    Cluster-level entries appear first, followed by node-group entries.
+    Both are rendered in the order they were declared by the operator.
+    Capped at :data:`EXTRA_CLOUD_INIT_MAX_FILES`; raises
+    :class:`magnum.common.exception.InvalidParameterValue` if exceeded.
+    """
+    cluster_entries = _decode_extra_files_label(cluster.labels.get("extra_files", ""))
+    ng_entries: typing.List[dict] = []
+    if node_group is not None:
+        ng_entries = _decode_extra_files_label(node_group.labels.get("extra_files", ""))
+
+    combined = [_normalize_extra_file(e) for e in (cluster_entries + ng_entries)]
+    if len(combined) > EXTRA_CLOUD_INIT_MAX_FILES:
+        raise exception.InvalidParameterValue(
+            err=(
+                f"extra_files exceeds the maximum of "
+                f"{EXTRA_CLOUD_INIT_MAX_FILES} entries (got {len(combined)})"
+            )
+        )
+    return combined
+
+
+def _split_kubeadm_commands(value: str) -> typing.List[str]:
+    """Split a `;;`-delimited command string, dropping empty segments."""
+    if not value:
+        return []
+    return [segment.strip() for segment in value.split(";;") if segment.strip()]
+
+
+def _get_extra_kubeadm_commands(
+    cluster: magnum_objects.Cluster,
+    node_group: typing.Optional[magnum_objects.NodeGroup],
+    label: str,
+    cap: int,
+) -> typing.List[str]:
+    cluster_cmds = _split_kubeadm_commands(cluster.labels.get(label, ""))
+    ng_cmds: typing.List[str] = []
+    if node_group is not None:
+        ng_cmds = _split_kubeadm_commands(node_group.labels.get(label, ""))
+    combined = cluster_cmds + ng_cmds
+    if len(combined) > cap:
+        raise exception.InvalidParameterValue(
+            err=(
+                f"{label} exceeds the maximum of {cap} entries "
+                f"(got {len(combined)})"
+            )
+        )
+    return combined
+
+
+def get_extra_pre_kubeadm_commands(
+    cluster: magnum_objects.Cluster,
+    node_group: typing.Optional[magnum_objects.NodeGroup] = None,
+) -> typing.List[str]:
+    """`;;`-separated `extra_pre_kubeadm_commands` label, cluster + NG merged."""
+    return _get_extra_kubeadm_commands(
+        cluster,
+        node_group,
+        "extra_pre_kubeadm_commands",
+        EXTRA_CLOUD_INIT_MAX_PRE_COMMANDS,
+    )
+
+
+def get_extra_post_kubeadm_commands(
+    cluster: magnum_objects.Cluster,
+    node_group: typing.Optional[magnum_objects.NodeGroup] = None,
+) -> typing.List[str]:
+    """`;;`-separated `extra_post_kubeadm_commands` label, cluster + NG merged."""
+    return _get_extra_kubeadm_commands(
+        cluster,
+        node_group,
+        "extra_post_kubeadm_commands",
+        EXTRA_CLOUD_INIT_MAX_POST_COMMANDS,
+    )

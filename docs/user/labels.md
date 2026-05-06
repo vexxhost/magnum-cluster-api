@@ -315,6 +315,61 @@ is often accomplished by deploying a driver on each node.
 
    Default value: `soft-anti-affinity`
 
+## Cloud-init passthrough
+
+Three labels let operators inject extra files and shell commands into the
+cloud-init bootstrap of every node (or just one node group).  Use cases
+include applying a custom `netplan` configuration or dropping a CA bundle
+before `kubeadm init`/`join` runs.
+
+All three labels work at both the cluster level and the node-group level;
+node-group entries are appended after cluster-level entries.
+
+* `extra_files`
+
+   Base64-encoded YAML/JSON list of files to drop on the node.  Each entry
+   must include `path` (absolute) and `content`; `owner` (default
+   `root:root`), `permissions` (default `0644`), and `encoding` (omit, or
+   `base64` if `content` is already base64) are optional.
+
+   Capped at 10 entries (cluster + node-group combined).
+
+   Default value: empty list.
+
+   Netplan example:
+
+   ```bash
+   PAYLOAD=$(cat <<'EOF' | base64 -w0
+   - path: /etc/netplan/99-mcapi.yaml
+     permissions: "0600"
+     content: |
+       network:
+         version: 2
+         ethernets:
+           enp4s0:
+             dhcp4: true
+             mtu: 1450
+   EOF
+   )
+   openstack coe cluster create ... --labels \
+     extra_files=${PAYLOAD},\
+   extra_pre_kubeadm_commands="netplan generate;;netplan apply;;sleep 3"
+   ```
+
+* `extra_pre_kubeadm_commands`
+
+   `;;`-separated list of shell commands to run **before** `kubeadm
+   init`/`join`.  Capped at 16 entries.
+
+   Default value: empty list.
+
+* `extra_post_kubeadm_commands`
+
+   `;;`-separated list of shell commands to run **after** `kubeadm
+   init`/`join`.  Capped at 16 entries.
+
+   Default value: empty list.
+
 ## TODO
 
 availability_zone
