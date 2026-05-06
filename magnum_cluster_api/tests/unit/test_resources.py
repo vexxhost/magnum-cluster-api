@@ -96,6 +96,14 @@ class TestExistingMutateMachineDeployment:
     @pytest.fixture(autouse=True)
     def setup(self, auto_scaling_enabled, auto_healing_enabled, context, mocker):
         self.cluster = utils.get_test_cluster(context, labels={})
+        # mutate_machine_deployment now consults cluster.cluster_template.server_type
+        # (via utils.get_default_boot_volume_size) which lazy-loads from the DB
+        # in this test context. Stub the helper so existing assertions are
+        # unaffected.
+        mocker.patch(
+            "magnum_cluster_api.utils.get_default_boot_volume_size",
+            side_effect=lambda cluster, default: default,
+        )
         if auto_scaling_enabled is not None:
             self.cluster.labels["auto_scaling_enabled"] = str(auto_scaling_enabled)
 
@@ -161,3 +169,68 @@ class TestExistingMutateMachineDeployment:
         else:
             assert md["replicas"] == self.node_group.node_count
             assert md["metadata"]["annotations"] == {}
+
+
+def test_mutate_machine_deployment_bm_omits_ephemeral_disk_annotation(context, mocker):
+    """For server_type=bm flavors with disk=0 the autoscaler annotation
+    should be omitted rather than emitted as "0", which would make the
+    autoscaler reject pods that request ephemeral-storage."""
+    cluster = utils.get_test_cluster(context, labels={})
+    mocker.patch(
+        "magnum_cluster_api.utils.get_default_boot_volume_size",
+        return_value=0,
+    )
+    cluster.labels["auto_scaling_enabled"] = "true"
+    node_group = utils.get_test_nodegroup(context, labels={})
+    node_group.min_node_count = 1
+    node_group.max_node_count = 3
+
+    mocker.patch("magnum_cluster_api.utils.lookup_image", return_value={"id": "foo"})
+    mocker.patch(
+        "magnum_cluster_api.utils.lookup_flavor",
+        return_value=flavors.Flavor(
+            None,
+            {"name": "bm-flavor", "disk": 0, "ram": 4096, "vcpus": 4},
+        ),
+    )
+
+    md = resources.mutate_machine_deployment(
+        context, cluster, node_group, {"name": node_group.name}
+    )
+
+    annotations = md["metadata"]["annotations"]
+    assert "capacity.cluster-autoscaler.kubernetes.io/ephemeral-disk" not in annotations
+    # The other autoscaler hints must still be set so the autoscaler can
+    # schedule on cpu/memory.
+    assert annotations["capacity.cluster-autoscaler.kubernetes.io/cpu"] == "4"
+    assert annotations["capacity.cluster-autoscaler.kubernetes.io/memory"] == "4G"
+
+
+def test_mutate_machine_deployment_vm_keeps_ephemeral_disk_annotation(context, mocker):
+    cluster = utils.get_test_cluster(context, labels={})
+    mocker.patch(
+        "magnum_cluster_api.utils.get_default_boot_volume_size",
+        side_effect=lambda cluster, default: default,
+    )
+    cluster.labels["auto_scaling_enabled"] = "true"
+    node_group = utils.get_test_nodegroup(context, labels={})
+    node_group.min_node_count = 1
+    node_group.max_node_count = 3
+
+    mocker.patch("magnum_cluster_api.utils.lookup_image", return_value={"id": "foo"})
+    mocker.patch(
+        "magnum_cluster_api.utils.lookup_flavor",
+        return_value=flavors.Flavor(
+            None,
+            {"name": "vm-flavor", "disk": 20, "ram": 1024, "vcpus": 1},
+        ),
+    )
+
+    md = resources.mutate_machine_deployment(
+        context, cluster, node_group, {"name": node_group.name}
+    )
+
+    annotations = md["metadata"]["annotations"]
+    assert (
+        annotations["capacity.cluster-autoscaler.kubernetes.io/ephemeral-disk"] == "20"
+    )

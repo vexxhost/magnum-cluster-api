@@ -749,21 +749,30 @@ def mutate_machine_deployment(
             boot_volume_size = flavor.disk
 
         machine_deployment["replicas"] = None
-        machine_deployment["metadata"]["annotations"] = {
+        annotations = {
             AUTOSCALE_ANNOTATION_MIN: str(node_group.min_node_count),
             AUTOSCALE_ANNOTATION_MAX: str(
                 utils.get_node_group_max_node_count(node_group)
             ),
             "capacity.cluster-autoscaler.kubernetes.io/memory": f"{math.ceil(flavor.ram / 1024)}G",
             "capacity.cluster-autoscaler.kubernetes.io/cpu": str(flavor.vcpus),
-            "capacity.cluster-autoscaler.kubernetes.io/ephemeral-disk": str(
-                boot_volume_size
-            ),
             "capacity.cluster-autoscaler.kubernetes.io/labels": (
                 f"node-role.kubernetes.io/{node_group.role}=,"
                 f"node.cluster.x-k8s.io/nodegroup={node_group.name}"
             ),
         }
+        # Only emit the ephemeral-disk capacity hint when we can resolve a
+        # non-zero value. For server_type=bm the flavor.disk is typically
+        # 0 (root_gb lives on the Ironic node, not the Nova flavor) and
+        # the Cinder root volume default is also 0; advertising "0" here
+        # would mislead the autoscaler into rejecting pods that request
+        # ephemeral-storage. Omitting the annotation lets the autoscaler
+        # fall back to scheduling on cpu/memory only.
+        if boot_volume_size > 0:
+            annotations["capacity.cluster-autoscaler.kubernetes.io/ephemeral-disk"] = (
+                str(boot_volume_size)
+            )
+        machine_deployment["metadata"]["annotations"] = annotations
     else:
         machine_deployment["replicas"] = node_group.node_count
         machine_deployment["metadata"]["annotations"] = {}
