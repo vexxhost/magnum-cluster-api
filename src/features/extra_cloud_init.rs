@@ -89,11 +89,10 @@ fn file_template_for_index(idx: usize) -> String {
     let stub = KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles {
         path: format!("{{{{ (index .extraFiles {}).path }}}}", idx),
         owner: Some(format!("{{{{ (index .extraFiles {}).owner }}}}", idx)),
-        permissions: Some(format!(
-            "{{{{ (index .extraFiles {}).permissions }}}}",
-            idx
-        )),
-        encoding: Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64),
+        permissions: Some(format!("{{{{ (index .extraFiles {}).permissions }}}}", idx)),
+        encoding: Some(
+            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64,
+        ),
         content: Some(format!("{{{{ (index .extraFiles {}).content }}}}", idx)),
         ..Default::default()
     };
@@ -104,10 +103,7 @@ fn worker_file_template_for_index(idx: usize) -> String {
     let stub = KubeadmConfigTemplateTemplateSpecFiles {
         path: format!("{{{{ (index .extraFiles {}).path }}}}", idx),
         owner: Some(format!("{{{{ (index .extraFiles {}).owner }}}}", idx)),
-        permissions: Some(format!(
-            "{{{{ (index .extraFiles {}).permissions }}}}",
-            idx
-        )),
+        permissions: Some(format!("{{{{ (index .extraFiles {}).permissions }}}}", idx)),
         encoding: Some(KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64),
         content: Some(format!("{{{{ (index .extraFiles {}).content }}}}", idx)),
         ..Default::default()
@@ -300,12 +296,7 @@ mod tests {
         let kcp_extra_count = kcp_spec
             .files
             .as_ref()
-            .map(|files| {
-                files
-                    .iter()
-                    .filter(|f| f.path == "/etc/extra")
-                    .count()
-            })
+            .map(|files| files.iter().filter(|f| f.path == "/etc/extra").count())
             .unwrap_or(0);
         assert_eq!(kcp_extra_count, 0);
     }
@@ -347,8 +338,7 @@ mod tests {
         let extras: Vec<_> = kcp_files
             .iter()
             .filter(|f| {
-                f.path == "/etc/netplan/99-mcapi.yaml"
-                    || f.path == "/etc/sysctl.d/99-mcapi.conf"
+                f.path == "/etc/netplan/99-mcapi.yaml" || f.path == "/etc/sysctl.d/99-mcapi.conf"
             })
             .collect();
         assert_eq!(extras.len(), 2);
@@ -374,8 +364,7 @@ mod tests {
         let kct_extras: Vec<_> = kct_files
             .iter()
             .filter(|f| {
-                f.path == "/etc/netplan/99-mcapi.yaml"
-                    || f.path == "/etc/sysctl.d/99-mcapi.conf"
+                f.path == "/etc/netplan/99-mcapi.yaml" || f.path == "/etc/sysctl.d/99-mcapi.conf"
             })
             .collect();
         assert_eq!(kct_extras.len(), 2);

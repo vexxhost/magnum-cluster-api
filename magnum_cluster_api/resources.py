@@ -1344,16 +1344,29 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "extraFiles",
-                            "value": utils.get_extra_files(self.cluster),
+                            "value": utils.get_extra_files(
+                                self.cluster,
+                                node_group=getattr(
+                                    self.cluster, "default_ng_master", None
+                                ),
+                            ),
                         },
                         {
                             "name": "extraPreKubeadmCommands",
-                            "value": utils.get_extra_pre_kubeadm_commands(self.cluster),
+                            "value": utils.get_extra_pre_kubeadm_commands(
+                                self.cluster,
+                                node_group=getattr(
+                                    self.cluster, "default_ng_master", None
+                                ),
+                            ),
                         },
                         {
                             "name": "extraPostKubeadmCommands",
                             "value": utils.get_extra_post_kubeadm_commands(
-                                self.cluster
+                                self.cluster,
+                                node_group=getattr(
+                                    self.cluster, "default_ng_master", None
+                                ),
                             ),
                         },
                     ],

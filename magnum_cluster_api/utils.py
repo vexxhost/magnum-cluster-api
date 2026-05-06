@@ -782,25 +782,31 @@ def get_extra_files(
 ) -> typing.List[dict]:
     """Build the `extraFiles` topology variable for one cluster + node group.
 
-    Cluster-level entries appear first, followed by node-group entries.
-    Both are rendered in the order they were declared by the operator.
+    Per-node-group override semantics: when ``node_group`` is provided **and**
+    its labels include a non-empty ``extra_files`` entry, the node group's
+    list fully replaces the cluster-level list for machines in that node
+    group.  When the node group does not declare its own ``extra_files``, the
+    machines inherit the cluster-level list.  The two are never merged — this
+    matches CAPI's ClusterClass variable-override contract (overrides replace
+    parent values) and lets operators ship distinct files to control plane,
+    worker-A, worker-B node groups, etc.
+
     Capped at :data:`EXTRA_CLOUD_INIT_MAX_FILES`; raises
     :class:`magnum.common.exception.InvalidParameterValue` if exceeded.
     """
-    cluster_entries = _decode_extra_files_label(cluster.labels.get("extra_files", ""))
-    ng_entries: typing.List[dict] = []
-    if node_group is not None:
-        ng_entries = _decode_extra_files_label(node_group.labels.get("extra_files", ""))
-
-    combined = [_normalize_extra_file(e) for e in (cluster_entries + ng_entries)]
-    if len(combined) > EXTRA_CLOUD_INIT_MAX_FILES:
+    if node_group is not None and node_group.labels.get("extra_files"):
+        raw = node_group.labels.get("extra_files", "")
+    else:
+        raw = cluster.labels.get("extra_files", "")
+    entries = [_normalize_extra_file(e) for e in _decode_extra_files_label(raw)]
+    if len(entries) > EXTRA_CLOUD_INIT_MAX_FILES:
         raise exception.InvalidParameterValue(
             err=(
                 f"extra_files exceeds the maximum of "
-                f"{EXTRA_CLOUD_INIT_MAX_FILES} entries (got {len(combined)})"
+                f"{EXTRA_CLOUD_INIT_MAX_FILES} entries (got {len(entries)})"
             )
         )
-    return combined
+    return entries
 
 
 def _split_kubeadm_commands(value: str) -> typing.List[str]:
@@ -816,26 +822,33 @@ def _get_extra_kubeadm_commands(
     label: str,
     cap: int,
 ) -> typing.List[str]:
-    cluster_cmds = _split_kubeadm_commands(cluster.labels.get(label, ""))
-    ng_cmds: typing.List[str] = []
-    if node_group is not None:
-        ng_cmds = _split_kubeadm_commands(node_group.labels.get(label, ""))
-    combined = cluster_cmds + ng_cmds
-    if len(combined) > cap:
+    if node_group is not None and node_group.labels.get(label):
+        raw = node_group.labels.get(label, "")
+    else:
+        raw = cluster.labels.get(label, "")
+    cmds = _split_kubeadm_commands(raw)
+    if len(cmds) > cap:
         raise exception.InvalidParameterValue(
             err=(
                 f"{label} exceeds the maximum of {cap} entries "
-                f"(got {len(combined)})"
+                f"(got {len(cmds)})"
             )
         )
-    return combined
+    return cmds
 
 
 def get_extra_pre_kubeadm_commands(
     cluster: magnum_objects.Cluster,
     node_group: typing.Optional[magnum_objects.NodeGroup] = None,
 ) -> typing.List[str]:
-    """`;;`-separated `extra_pre_kubeadm_commands` label, cluster + NG merged."""
+    """`;;`-separated `extra_pre_kubeadm_commands` label.
+
+    Per-node-group override semantics: when ``node_group`` declares its own
+    ``extra_pre_kubeadm_commands`` label, the node group's list fully
+    replaces the cluster-level list for machines in that node group;
+    otherwise the cluster-level list is used.  See :func:`get_extra_files`
+    for the rationale.
+    """
     return _get_extra_kubeadm_commands(
         cluster,
         node_group,
@@ -848,7 +861,10 @@ def get_extra_post_kubeadm_commands(
     cluster: magnum_objects.Cluster,
     node_group: typing.Optional[magnum_objects.NodeGroup] = None,
 ) -> typing.List[str]:
-    """`;;`-separated `extra_post_kubeadm_commands` label, cluster + NG merged."""
+    """`;;`-separated `extra_post_kubeadm_commands` label.
+
+    Per-node-group override semantics — see :func:`get_extra_files`.
+    """
     return _get_extra_kubeadm_commands(
         cluster,
         node_group,

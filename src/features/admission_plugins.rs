@@ -67,7 +67,6 @@ mod tests {
     use crate::{features::test::TestClusterResources, resources::fixtures::default_values};
     use pretty_assertions::assert_eq;
 
-
     #[test]
     fn test_admission_plugins_patch() {
         let feature = Feature {};

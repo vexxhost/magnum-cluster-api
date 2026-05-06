@@ -419,11 +419,7 @@ mod tests {
             );
         }
 
-        let kct_spec = resources
-            .kubeadm_config_template
-            .spec
-            .template
-            .spec;
+        let kct_spec = resources.kubeadm_config_template.spec.template.spec;
 
         if let Some(spec) = kct_spec {
             if let Some(files) = spec.files {

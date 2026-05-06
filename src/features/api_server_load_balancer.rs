@@ -34,7 +34,11 @@ pub struct APIServerLoadBalancerConfig {
     #[builder(default)]
     pub flavor: String,
 
-    #[serde(default, skip_serializing_if = "str::is_empty", rename = "availabilityZone")]
+    #[serde(
+        default,
+        skip_serializing_if = "str::is_empty",
+        rename = "availabilityZone"
+    )]
     #[builder(default)]
     pub availability_zone: String,
 }
@@ -177,9 +181,8 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.api_server_load_balancer = APIServerLoadBalancerConfig::builder()
-            .enabled(true)
-            .build();
+        values.api_server_load_balancer =
+            APIServerLoadBalancerConfig::builder().enabled(true).build();
 
         let patches = feature.patches();
 

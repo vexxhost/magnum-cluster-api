@@ -44,9 +44,7 @@ impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
             name: "disableAPIServerFloatingIP".into(),
-            enabled_if: Some(
-                "{{ if .disableAPIServerFloatingIPManaged }}true{{end}}".into(),
-            ),
+            enabled_if: Some("{{ if .disableAPIServerFloatingIPManaged }}true{{end}}".into()),
             definitions: Some(vec![ClusterClassPatchesDefinitions {
                 selector: ClusterClassPatchesDefinitionsSelector {
                     api_version: OpenStackClusterTemplate::api_resource().api_version,

@@ -422,7 +422,8 @@ class TestExtraCloudInit:
         assert result[0]["permissions"] == "0600"
         assert result[0]["owner"] == "ubuntu:ubuntu"
 
-    def test_get_extra_files_merges_node_group_after_cluster(self):
+    def test_get_extra_files_node_group_overrides_cluster(self):
+        """When the NG declares extra_files, it fully replaces the cluster list."""
         cluster = self._make_cluster(
             {"extra_files": _b64yaml([{"path": "/a", "content": "x"}])}
         )
@@ -430,7 +431,16 @@ class TestExtraCloudInit:
             {"extra_files": _b64yaml([{"path": "/b", "content": "y"}])}
         )
         result = utils.get_extra_files(cluster, node_group=ng)
-        assert [e["path"] for e in result] == ["/a", "/b"]
+        assert [e["path"] for e in result] == ["/b"]
+
+    def test_get_extra_files_node_group_inherits_when_unset(self):
+        """An NG without its own label inherits the cluster-level list."""
+        cluster = self._make_cluster(
+            {"extra_files": _b64yaml([{"path": "/a", "content": "x"}])}
+        )
+        ng = self._make_node_group({})
+        result = utils.get_extra_files(cluster, node_group=ng)
+        assert [e["path"] for e in result] == ["/a"]
 
     def test_get_extra_files_rejects_relative_path(self):
         cluster = self._make_cluster(
@@ -470,14 +480,17 @@ class TestExtraCloudInit:
             "netplan apply",
         ]
 
-    def test_get_extra_pre_kubeadm_commands_merges_node_group(self):
+    def test_get_extra_pre_kubeadm_commands_node_group_overrides(self):
+        """NG label fully replaces cluster-level for that NG."""
         cluster = self._make_cluster({"extra_pre_kubeadm_commands": "a"})
         ng = self._make_node_group({"extra_pre_kubeadm_commands": "b;;c"})
-        assert utils.get_extra_pre_kubeadm_commands(cluster, ng) == [
-            "a",
-            "b",
-            "c",
-        ]
+        assert utils.get_extra_pre_kubeadm_commands(cluster, ng) == ["b", "c"]
+
+    def test_get_extra_pre_kubeadm_commands_node_group_inherits(self):
+        """NG without its own label inherits the cluster-level commands."""
+        cluster = self._make_cluster({"extra_pre_kubeadm_commands": "a;;b"})
+        ng = self._make_node_group({})
+        assert utils.get_extra_pre_kubeadm_commands(cluster, ng) == ["a", "b"]
 
     def test_get_extra_pre_kubeadm_commands_drops_empty_segments(self):
         cluster = self._make_cluster({"extra_pre_kubeadm_commands": "a;;;;b;;"})

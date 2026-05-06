@@ -99,7 +99,8 @@ mod tests {
             OpenStackMachineTemplateTemplateSpecRootVolume,
             OpenStackMachineTemplateTemplateSpecRootVolumeAvailabilityZone,
         },
-        features::test::TestClusterResources, resources::fixtures::default_values,
+        features::test::TestClusterResources,
+        resources::fixtures::default_values,
     };
     use pretty_assertions::assert_eq;
 
@@ -129,10 +130,12 @@ mod tests {
             Some(OpenStackMachineTemplateTemplateSpecRootVolume {
                 r#type: Some(values.clone().boot_volume.r#type),
                 size_gi_b: values.clone().boot_volume.size,
-                availability_zone: Some(OpenStackMachineTemplateTemplateSpecRootVolumeAvailabilityZone {
-                    name: Some(values.clone().boot_volume_availability_zone),
-                    ..Default::default()
-                }),
+                availability_zone: Some(
+                    OpenStackMachineTemplateTemplateSpecRootVolumeAvailabilityZone {
+                        name: Some(values.clone().boot_volume_availability_zone),
+                        ..Default::default()
+                    }
+                ),
             })
         );
 
@@ -146,10 +149,12 @@ mod tests {
             Some(OpenStackMachineTemplateTemplateSpecRootVolume {
                 r#type: Some(values.clone().boot_volume.r#type),
                 size_gi_b: values.clone().boot_volume.size,
-                availability_zone: Some(OpenStackMachineTemplateTemplateSpecRootVolumeAvailabilityZone {
-                    name: Some(values.clone().boot_volume_availability_zone),
-                    ..Default::default()
-                }),
+                availability_zone: Some(
+                    OpenStackMachineTemplateTemplateSpecRootVolumeAvailabilityZone {
+                        name: Some(values.clone().boot_volume_availability_zone),
+                        ..Default::default()
+                    }
+                ),
             })
         );
     }
