@@ -368,3 +368,27 @@ class TestUtils(base.BaseTestCase):
             context,
             fixed_network,
         )
+
+
+class TestGetDefaultBootVolumeSize(base.BaseTestCase):
+    def _cluster(self, server_type):
+        cluster = mock.Mock()
+        cluster.cluster_template = mock.Mock(server_type=server_type)
+        return cluster
+
+    def test_vm_returns_passed_default(self):
+        cluster = self._cluster("vm")
+        self.assertEqual(20, utils.get_default_boot_volume_size(cluster, 20))
+
+    def test_bm_returns_zero(self):
+        cluster = self._cluster("bm")
+        self.assertEqual(0, utils.get_default_boot_volume_size(cluster, 20))
+
+    def test_bm_ignores_nonzero_default(self):
+        cluster = self._cluster("bm")
+        self.assertEqual(0, utils.get_default_boot_volume_size(cluster, 100))
+
+    def test_missing_server_type_attr_falls_back_to_vm(self):
+        cluster = mock.Mock()
+        cluster.cluster_template = object()  # no server_type attr
+        self.assertEqual(20, utils.get_default_boot_volume_size(cluster, 20))

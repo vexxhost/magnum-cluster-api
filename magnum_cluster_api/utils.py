@@ -311,6 +311,26 @@ def get_cluster_label_as_int(
     return strutils.validate_integer(value, key)
 
 
+def get_default_boot_volume_size(
+    cluster: magnum_objects.Cluster, default: int
+) -> int:
+    """Return the boot_volume_size default appropriate for the cluster.
+
+    Baremetal nodes (server_type=bm) boot from the local disk via Ironic
+    and cannot use a Cinder root volume; defaulting to a non-zero size
+    causes the OpenStackMachineTemplate to request a Cinder volume that
+    Ironic refuses to attach. Default to 0 in that case so the chart
+    omits ``rootVolume`` and the machine boots from local disk.
+
+    Operators can still override explicitly by setting
+    ``boot_volume_size`` on the cluster_template/cluster/node_group.
+    """
+    server_type = getattr(cluster.cluster_template, "server_type", "vm")
+    if server_type == "bm":
+        return 0
+    return default
+
+
 def get_cluster_label_as_bool(
     cluster: magnum_objects.Cluster, key: str, default: bool
 ) -> bool:
