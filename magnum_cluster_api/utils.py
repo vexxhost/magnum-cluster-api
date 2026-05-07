@@ -829,10 +829,7 @@ def _get_extra_kubeadm_commands(
     cmds = _split_kubeadm_commands(raw)
     if len(cmds) > cap:
         raise exception.InvalidParameterValue(
-            err=(
-                f"{label} exceeds the maximum of {cap} entries "
-                f"(got {len(cmds)})"
-            )
+            err=(f"{label} exceeds the maximum of {cap} entries " f"(got {len(cmds)})")
         )
     return cmds
 

@@ -525,11 +525,15 @@ class TestExtraCloudInit:
         dispatch_script = (
             "#!/bin/bash\n"
             "META=$(curl -fs http://169.254.169.254/openstack/latest/meta_data.json)\n"
-            "ROLE=$(echo \"$META\" | jq -r '.meta.node_role // \"worker\"')\n"
-            "[ \"$ROLE\" = gpu ] && echo blacklist nouveau >/etc/modprobe.d/nv.conf\n"
+            'ROLE=$(echo "$META" | jq -r \'.meta.node_role // "worker"\')\n'
+            '[ "$ROLE" = gpu ] && echo blacklist nouveau >/etc/modprobe.d/nv.conf\n'
         )
         cluster_payload = [
-            {"path": "/etc/per-node-init.sh", "permissions": "0755", "content": dispatch_script}
+            {
+                "path": "/etc/per-node-init.sh",
+                "permissions": "0755",
+                "content": dispatch_script,
+            }
         ]
         cluster = self._make_cluster(
             {
