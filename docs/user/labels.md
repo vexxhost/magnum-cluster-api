@@ -322,8 +322,51 @@ cloud-init bootstrap of every node (or just one node group).  Use cases
 include applying a custom `netplan` configuration or dropping a CA bundle
 before `kubeadm init`/`join` runs.
 
-All three labels work at both the cluster level and the node-group level;
-node-group entries are appended after cluster-level entries.
+All three labels work at both the cluster level and the node-group level.
+**Per-node-group label fully replaces the cluster-level value** for that
+node group's machines (CAPI override semantics — never merged).  A node
+group without its own label inherits the cluster-level list.
+
+### Per-node configuration via runtime dispatch
+
+CAPI does not have a per-Machine variable scope, so per-node cloud-init is
+not directly supported.  The recommended pattern is to ship **one**
+`extra_files` script to every machine and let it branch on per-VM identity
+read from the OpenStack metadata service at first boot:
+
+```bash
+EF=$(cat <<'EOF' | base64 -w0
+- path: /etc/per-node-init.sh
+  permissions: "0755"
+  content: |
+    #!/bin/bash
+    set -euxo pipefail
+    META=$(curl -fs http://169.254.169.254/openstack/latest/meta_data.json)
+    HOSTNAME=$(hostname)
+    AZ=$(echo "$META" | jq -r .availability_zone)
+    ROLE=$(echo "$META" | jq -r '.meta.node_role // "worker"')
+
+    [ "$AZ" = "zone-b" ]              && ip link set dev ens4 mtu 9000
+    [ "$ROLE" = "gpu" ]               && echo "blacklist nouveau" \
+                                            > /etc/modprobe.d/nouveau.conf
+    [[ "$HOSTNAME" == *-storage-* ]]  && mkfs.xfs -f /dev/vdb \
+                                            && mount /dev/vdb /var/lib/containerd
+EOF
+)
+
+openstack coe cluster create k8s \
+  --labels kube_tag=v1.34.3,extra_files=$EF,\
+extra_pre_kubeadm_commands="bash /etc/per-node-init.sh"
+```
+
+Per-VM identity available at first boot:
+* `hostname` — CABPK names each Machine `<cluster>-<md>-<random>`.
+* `availability_zone` — set per node group via `availability_zone`.
+* `meta.*` — arbitrary key/value injected through Nova server metadata.
+
+For workloads that require genuinely distinct *content* per machine (e.g.
+unique TLS material burnt at boot), model each host as its own size-1 node
+group instead.
 
 * `extra_files`
 

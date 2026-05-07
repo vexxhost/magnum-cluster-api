@@ -507,3 +507,55 @@ class TestExtraCloudInit:
         cluster = self._make_cluster({"extra_pre_kubeadm_commands": cmds})
         with pytest.raises(exception.InvalidParameterValue):
             utils.get_extra_pre_kubeadm_commands(cluster)
+
+    def test_runtime_dispatch_pattern_per_node_via_metadata_service(self):
+        """Recommended per-node pattern: one identical dispatch script ships to
+        every machine; per-VM behaviour is decided at first boot from the
+        OpenStack metadata service (hostname / AZ / server metadata).
+
+        The contract this test locks in:
+          * cluster-level ``extra_files`` is delivered identically to control
+            plane and to every worker NG that does not declare its own
+            ``extra_files`` label;
+          * cluster-level ``extra_pre_kubeadm_commands`` likewise inherits;
+          * a worker NG that opts out (its own ``extra_files``) cleanly
+            replaces the dispatch script with NG-specific content and does
+            **not** see the cluster script anymore.
+        """
+        dispatch_script = (
+            "#!/bin/bash\n"
+            "META=$(curl -fs http://169.254.169.254/openstack/latest/meta_data.json)\n"
+            "ROLE=$(echo \"$META\" | jq -r '.meta.node_role // \"worker\"')\n"
+            "[ \"$ROLE\" = gpu ] && echo blacklist nouveau >/etc/modprobe.d/nv.conf\n"
+        )
+        cluster_payload = [
+            {"path": "/etc/per-node-init.sh", "permissions": "0755", "content": dispatch_script}
+        ]
+        cluster = self._make_cluster(
+            {
+                "extra_files": _b64yaml(cluster_payload),
+                "extra_pre_kubeadm_commands": "bash /etc/per-node-init.sh",
+            }
+        )
+        master_ng = self._make_node_group({})
+        default_worker = self._make_node_group({})
+        opted_out_ng = self._make_node_group(
+            {"extra_files": _b64yaml([{"path": "/etc/db.cnf", "content": "x"}])}
+        )
+
+        cluster_files = utils.get_extra_files(cluster)
+        master_files = utils.get_extra_files(cluster, node_group=master_ng)
+        default_worker_files = utils.get_extra_files(cluster, node_group=default_worker)
+        opted_out_files = utils.get_extra_files(cluster, node_group=opted_out_ng)
+
+        # Identical dispatch script reaches CP + every inheriting NG.
+        assert cluster_files == master_files == default_worker_files
+        assert cluster_files[0]["path"] == "/etc/per-node-init.sh"
+        assert (
+            utils.get_extra_pre_kubeadm_commands(cluster, node_group=master_ng)
+            == utils.get_extra_pre_kubeadm_commands(cluster, node_group=default_worker)
+            == ["bash /etc/per-node-init.sh"]
+        )
+
+        # The opted-out NG fully replaces — no leakage of the dispatch script.
+        assert [f["path"] for f in opted_out_files] == ["/etc/db.cnf"]
