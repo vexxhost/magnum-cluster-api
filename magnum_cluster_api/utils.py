@@ -674,35 +674,73 @@ EXTRA_CLOUD_INIT_MAX_POST_COMMANDS = 16
 _DEFAULT_FILE_OWNER = "root:root"
 _DEFAULT_FILE_PERMISSIONS = "0644"
 
+_BASE64_RE = re.compile(r"^[A-Za-z0-9+/]+={0,2}$")
+
+
+def _looks_like_base64_text(value: str) -> bool:
+    """Heuristic: detect content that is almost certainly already base64.
+
+    Used to surface a clear error when an operator pre-encodes ``content`` but
+    forgets to set ``encoding: base64`` (which would otherwise silently double
+    encode the payload).  The heuristic is deliberately conservative — it only
+    matches strings that look exactly like canonical base64 (no whitespace, no
+    punctuation), are long enough to be intentional, and round-trip through
+    ``b64decode`` to valid UTF-8.  Any plausible script or config file with
+    spaces, newlines, or special characters will fail the check.
+    """
+    if not value or len(value) < 16 or len(value) % 4 != 0:
+        return False
+    if not _BASE64_RE.match(value):
+        return False
+    try:
+        decoded = stdlib_base64.b64decode(value, validate=True)
+        decoded.decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return False
+    return True
+
 
 def _decode_extra_files_label(value: str) -> typing.List[dict]:
-    """Decode the base64-wrapped YAML/JSON payload of an `extra_files` label.
+    """Decode the YAML/JSON payload of an `extra_files` label.
 
-    Operators must base64-encode the YAML/JSON list to keep it safe for
-    transport through Magnum's comma-separated label parser.  An empty or
-    missing value yields an empty list.
+    The label value may be supplied either as a base64-wrapped YAML/JSON list
+    (recommended for transport-safety through Magnum's comma-separated label
+    parser) or as a plain YAML/JSON list when the operator pipeline already
+    handles encoding (e.g. Heat parameters, Terraform, kubectl YAML manifests).
+    An empty or missing value yields an empty list.
     """
     if not value:
         return []
+
+    # Try base64-wrapped form first (the recommended/documented path).
+    decoded: typing.Optional[str] = None
     try:
         decoded = stdlib_base64.b64decode(value, validate=True).decode("utf-8")
-    except (ValueError, UnicodeDecodeError) as exc:
-        raise exception.InvalidParameterValue(
-            err=f"extra_files label is not valid base64: {exc}"
+    except (ValueError, UnicodeDecodeError):
+        decoded = None
+
+    candidates = [decoded, value] if decoded is not None else [value]
+    last_error: typing.Optional[Exception] = None
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        try:
+            parsed = yaml.safe_load(candidate)
+        except yaml.YAMLError as exc:
+            last_error = exc
+            continue
+        if parsed is None:
+            return []
+        if isinstance(parsed, list):
+            return parsed
+        last_error = ValueError("extra_files label must decode to a YAML/JSON list")
+
+    raise exception.InvalidParameterValue(
+        err=(
+            "extra_files label must be a base64-wrapped YAML/JSON list or a "
+            f"plain YAML/JSON list: {last_error}"
         )
-    try:
-        parsed = yaml.safe_load(decoded)
-    except yaml.YAMLError as exc:
-        raise exception.InvalidParameterValue(
-            err=f"extra_files label is not valid YAML/JSON: {exc}"
-        )
-    if parsed is None:
-        return []
-    if not isinstance(parsed, list):
-        raise exception.InvalidParameterValue(
-            err="extra_files label must decode to a YAML/JSON list"
-        )
-    return parsed
+    )
 
 
 def _normalize_extra_file(entry: dict) -> dict:
@@ -728,6 +766,15 @@ def _normalize_extra_file(entry: dict) -> dict:
         )
     encoding = entry.get("encoding")
     if encoding is None:
+        if _looks_like_base64_text(raw_content):
+            raise exception.InvalidParameterValue(
+                err=(
+                    f"extra_files content for {path!r} appears to already be "
+                    "base64-encoded but no 'encoding' field was set; either "
+                    "remove the pre-encoding or add `encoding: base64` to the "
+                    "entry to avoid double-encoding"
+                )
+            )
         wire_content = stdlib_base64.b64encode(raw_content.encode("utf-8")).decode(
             "ascii"
         )

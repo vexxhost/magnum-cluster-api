@@ -462,6 +462,67 @@ class TestExtraCloudInit:
         with pytest.raises(exception.InvalidParameterValue):
             utils.get_extra_files(cluster)
 
+    def test_get_extra_files_accepts_plain_yaml(self):
+        """F1: operator may pass a raw YAML/JSON list (no base64 wrap)."""
+        import yaml as _yaml
+
+        plain = _yaml.safe_dump(
+            [{"path": "/etc/foo", "content": "hi"}], default_flow_style=False
+        )
+        cluster = self._make_cluster({"extra_files": plain})
+        result = utils.get_extra_files(cluster)
+        assert result == [
+            {
+                "path": "/etc/foo",
+                "owner": "root:root",
+                "permissions": "0644",
+                "content": "aGk=",
+            }
+        ]
+
+    def test_get_extra_files_accepts_plain_json(self):
+        """F1: operator may pass JSON directly (it's a YAML subset)."""
+        cluster = self._make_cluster(
+            {"extra_files": '[{"path": "/etc/foo", "content": "hi"}]'}
+        )
+        result = utils.get_extra_files(cluster)
+        assert len(result) == 1 and result[0]["path"] == "/etc/foo"
+
+    def test_get_extra_files_rejects_double_encoded_plain(self):
+        """F2: pre-encoded ``content`` without ``encoding: base64`` is rejected.
+
+        This used to silently double-encode and write a base64 string to disk.
+        """
+        import base64 as _b64
+
+        pre_encoded = _b64.b64encode(b"#!/bin/bash\necho hi\n").decode()
+        cluster = self._make_cluster(
+            {"extra_files": _b64yaml([{"path": "/etc/foo", "content": pre_encoded}])}
+        )
+        with pytest.raises(exception.InvalidParameterValue) as exc:
+            utils.get_extra_files(cluster)
+        assert "encoding" in str(exc.value)
+
+    def test_get_extra_files_short_plain_content_not_flagged(self):
+        """F2: short plain content (e.g. 'hello') must not trigger the guard."""
+        cluster = self._make_cluster(
+            {"extra_files": _b64yaml([{"path": "/x", "content": "hello"}])}
+        )
+        result = utils.get_extra_files(cluster)
+        assert result[0]["content"] == "aGVsbG8="
+
+    def test_get_extra_files_script_with_special_chars_not_flagged(self):
+        """F2: real scripts have spaces/newlines and must pass through plain."""
+        script = "#!/bin/bash\nset -e\necho 'hello world' > /tmp/x\n"
+        cluster = self._make_cluster(
+            {"extra_files": _b64yaml([{"path": "/x.sh", "content": script}])}
+        )
+        result = utils.get_extra_files(cluster)
+        # Round-trip the wire content back to the original script.
+        import base64 as _b64
+
+        assert _b64.b64decode(result[0]["content"]).decode() == script
+
     def test_get_extra_files_enforces_cap(self):
         payload = [
             {"path": f"/f{i}", "content": "x"}
