@@ -311,9 +311,7 @@ def get_cluster_label_as_int(
     return strutils.validate_integer(value, key)
 
 
-def get_default_boot_volume_size(
-    cluster: magnum_objects.Cluster, default: int
-) -> int:
+def get_default_boot_volume_size(cluster: magnum_objects.Cluster, default: int) -> int:
     """Return the boot_volume_size default appropriate for the cluster.
 
     Baremetal nodes (server_type=bm) boot from the local disk via Ironic
