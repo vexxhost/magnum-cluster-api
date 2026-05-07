@@ -368,6 +368,71 @@ For workloads that require genuinely distinct *content* per machine (e.g.
 unique TLS material burnt at boot), model each host as its own size-1 node
 group instead.
 
+### Accelerator host tuning per node group
+
+GPU/RDMA-bound node groups typically need a small set of host-level tuning
+in place before workloads schedule: GPU persistence mode, Mellanox NIC
+profile, hugepages, sysctl knobs.  These are one-shot, idempotent commands
+that fit naturally into `extra_pre_kubeadm_commands` for setup that must
+precede the kubelet, and `extra_post_kubeadm_commands` for tuning that
+needs the kubelet already up.
+
+The pattern: ship one `extra_files` script to every node, dispatch on
+Nova-supplied per-node-group metadata so non-accelerator pools no-op, and
+let the per-node-group `extra_post_kubeadm_commands` override the
+cluster-level value for pools that need different post-init tuning.
+
+```bash
+EF=$(cat <<'EOF' | base64 -w0
+- path: /etc/accelerator-init.sh
+  permissions: "0755"
+  content: |
+    #!/bin/bash
+    set -euxo pipefail
+    META=$(curl -fs http://169.254.169.254/openstack/latest/meta_data.json)
+    ROLE=$(echo "$META" | jq -r '.meta.node_role // "worker"')
+    [ "$ROLE" != "accelerator" ] && exit 0
+
+    # Host tuning — idempotent, safe on every boot.
+    command -v nvidia-smi >/dev/null && nvidia-smi -pm 1 || true
+    command -v mlnx_tune  >/dev/null && mlnx_tune -p HIGH_THROUGHPUT || true
+    echo "vm.nr_hugepages = 1024" > /etc/sysctl.d/99-hugepages.conf
+    sysctl -p /etc/sysctl.d/99-hugepages.conf
+EOF
+)
+
+# Cluster-wide: every node ships the script; non-accelerator nodes no-op.
+openstack coe cluster create k8s \
+  --labels kube_tag=v1.34.3,\
+extra_files=${EF},\
+extra_pre_kubeadm_commands="bash /etc/accelerator-init.sh"
+
+# Accelerator node-group: a post-kubeadm one-shot for tuning that needs
+# the kubelet already running (GPU compute mode, device-plugin liveness).
+openstack coe nodegroup create k8s gpu-pool \
+  --node-count 4 --flavor=g4-a100 \
+  --labels extra_post_kubeadm_commands="nvidia-smi -c EXCLUSIVE_PROCESS"
+```
+
+The `gpu-pool` node group must also boot with Nova server metadata
+`node_role=accelerator` so the dispatch script's gate passes — wire it
+through the flavor's `extra_specs` or the Nova boot template, the same
+plumbing the runtime-dispatch example above uses for `availability_zone`
+and `meta.*`.
+
+What this exercises:
+
+* `extra_files` shipped cluster-wide, gated by per-node metadata so it's
+  safe on mixed-pool clusters.
+* `extra_pre_kubeadm_commands` for tuning that must precede the kubelet
+  (sysctl, modprobe blacklists, hugepages).
+* Per-node-group `extra_post_kubeadm_commands` for tuning that needs the
+  kubelet already up (GPU compute mode, device-plugin liveness checks).
+* Per-node-group override semantics: the cluster-level
+  `extra_pre_kubeadm_commands` still applies because the `gpu-pool` did
+  not override it; the `gpu-pool`'s `extra_post_kubeadm_commands`
+  *replaces* the (empty) cluster-level value with its own.
+
 * `extra_files`
 
    Base64-encoded YAML/JSON list of files to drop on the node.  Each entry
