@@ -23,6 +23,13 @@ pub struct CloudControllerManagerValues {
     extra_volume_mounts: Vec<VolumeMount>,
 
     cluster: CloudControllerManagerClusterValues,
+
+    /// List of OCCM controllers to enable (overrides chart default).
+    /// When `octavia_enabled=false`, the `service` controller is omitted
+    /// so OCCM does not crash-loop trying to reach a non-existent Octavia
+    /// during its load-balancer cache warm-up.
+    #[serde(rename = "enabledControllers")]
+    enabled_controllers: Vec<String>,
 }
 
 impl ClusterAddonValues for CloudControllerManagerValues {
@@ -127,6 +134,17 @@ impl TryFrom<magnum::Cluster> for CloudControllerManagerValues {
                     .name(cluster.uuid)
                     .build(),
             )
+            .enabled_controllers({
+                let mut controllers = vec![
+                    "cloud-node".to_string(),
+                    "cloud-node-lifecycle".to_string(),
+                    "route".to_string(),
+                ];
+                if cluster.labels.is_octavia_enabled() {
+                    controllers.push("service".to_string());
+                }
+                controllers
+            })
             .build();
 
         Ok(values)
@@ -289,6 +307,44 @@ mod tests {
             ]
         );
         assert_eq!(values.cluster.name, cluster.uuid,);
+        // Default: octavia_enabled=true → all 4 controllers present.
+        assert_eq!(
+            values.enabled_controllers,
+            vec![
+                "cloud-node".to_string(),
+                "cloud-node-lifecycle".to_string(),
+                "route".to_string(),
+                "service".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_occm_values_octavia_disabled_omits_service_controller() {
+        let cluster = magnum::Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: magnum::ClusterLabels::builder()
+                .octavia_enabled("false".to_string())
+                .build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let values: CloudControllerManagerValues =
+            cluster.clone().try_into().expect("failed to create values");
+
+        assert_eq!(
+            values.enabled_controllers,
+            vec![
+                "cloud-node".to_string(),
+                "cloud-node-lifecycle".to_string(),
+                "route".to_string(),
+            ]
+        );
+        assert!(!values.enabled_controllers.contains(&"service".to_string()));
     }
 
     #[test]
