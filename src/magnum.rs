@@ -57,6 +57,15 @@ pub struct ClusterLabels {
     #[pyo3(default = true)]
     pub manila_csi_enabled: bool,
 
+    /// Enable the OCCM `service` controller (for Octavia LoadBalancer Services).
+    /// When false, the controller is dropped from the OCCM `--controllers` arg
+    /// so OCCM does not crash-loop on Octavia warm-up in clouds without
+    /// LBaaS (typical bare-metal / edge / "no-Octavia" deployments).
+    /// Note: OpenStack labels are always strings, so this accepts "true"/"false".
+    #[builder(default="true".to_owned())]
+    #[pyo3(default="true".to_owned())]
+    pub octavia_enabled: String,
+
     /// The tag of the Manila CSI container image to use for the cluster.
     #[builder(default="v1.32.0".to_owned())]
     #[pyo3(default="v1.32.0".to_owned())]
@@ -117,6 +126,15 @@ impl ClusterLabels {
     /// Parses the string label value "true"/"false" to a boolean.
     pub fn is_cilium_hubble_ui_enabled(&self) -> bool {
         self.cilium_hubble_ui_enabled.eq_ignore_ascii_case("true")
+    }
+
+    /// Returns true if Octavia LBaaS integration is enabled (default true).
+    /// Controls whether the OCCM `service` controller is included in the
+    /// `--controllers` arg.  Bare-metal / no-Octavia deployments should
+    /// set this to "false" via the `octavia_enabled` label to avoid the
+    /// OCCM crash-loop on Octavia warm-up.
+    pub fn is_octavia_enabled(&self) -> bool {
+        self.octavia_enabled.eq_ignore_ascii_case("true")
     }
 
     pub fn get_cloud_provider_tag(&self) -> String {
