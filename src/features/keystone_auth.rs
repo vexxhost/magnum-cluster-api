@@ -92,9 +92,24 @@ impl ClusterFeaturePatches for Feature {
                                                 path: PointerBuf::parse("/spec/containers/0/command/-").unwrap(),
                                                 value: "--authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml".into(),
                                             }),
+                                            // Append --authorization-mode with Node,RBAC,Webhook
+                                            // (NOT just Webhook).  kube-apiserver flag parsing is
+                                            // last-occurrence-wins, so this overrides the
+                                            // kubeadm default (--authorization-mode=Node,RBAC) but
+                                            // keeps Node and RBAC as fallback authorizers.  This
+                                            // matters when the keystone-auth webhook backend Pod is
+                                            // not yet Running (e.g. during cluster bring-up before
+                                            // the management-cluster Helm release is reconciled):
+                                            // with plain "Webhook", every API call — including the
+                                            // ones the webhook backend itself needs to come up —
+                                            // is rejected with "webhook unavailable: 5xx" and the
+                                            // cluster locks itself out for several minutes.  With
+                                            // Node,RBAC,Webhook, kubelet/system requests still
+                                            // authorize via Node + RBAC and the webhook only
+                                            // affects Keystone-token-bearing requests.
                                             PatchOperation::Add(AddOperation {
                                                 path: PointerBuf::parse("/spec/containers/0/command/-").unwrap(),
-                                                value: "--authorization-mode=Webhook".into(),
+                                                value: "--authorization-mode=Node,RBAC,Webhook".into(),
                                             }),
                                         ]).unwrap(),
                                     },
@@ -119,7 +134,25 @@ impl ClusterFeaturePatches for Feature {
                     ClusterClassPatchesDefinitionsJsonPatches {
                         op: "add".into(),
                         path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
-                        value: Some("kubectl kustomize /etc/kubernetes/keystone-kustomization -o /etc/kubernetes/manifests/kube-apiserver.yaml".into()),
+                        // NOTE: filter out the kubeadm-default `--authorization-mode=Node,RBAC`
+                        // line so the kustomized manifest only carries the appended
+                        // `--authorization-mode=Node,RBAC,Webhook`. pflag StringSliceVar
+                        // *appends* repeated flags, so a duplicate would yield
+                        // `Node,RBAC,Node,RBAC,Webhook` and apiserver bails with
+                        // "authorization-mode ... has mode specified more than once".
+                        value: Some("kubectl kustomize /etc/kubernetes/keystone-kustomization | sed '/^[[:space:]]*- --authorization-mode=Node,RBAC$/d' > /etc/kubernetes/manifests/kube-apiserver.yaml".into()),
+                        ..Default::default()
+                    },
+                    // Wait for kube-apiserver to come back up after the static-pod manifest
+                    // rewrite above.  kubelet detects the manifest change and restarts the
+                    // apiserver with the new flags (~5s); subsequent postKubeadmCommands often
+                    // query the apiserver and would fail without this barrier.  Bounded loop
+                    // with `|| true` so a permanently-broken webhook does not block bootstrap —
+                    // with Node,RBAC,Webhook fallback the cluster is still usable.
+                    ClusterClassPatchesDefinitionsJsonPatches {
+                        op: "add".into(),
+                        path: "/spec/template/spec/kubeadmConfigSpec/postKubeadmCommands/-".into(),
+                        value: Some("for i in $(seq 1 60); do curl -ksf https://127.0.0.1:6443/healthz >/dev/null && break; sleep 5; done || true".into()),
                         ..Default::default()
                     },
                 ],
@@ -223,7 +256,7 @@ mod tests {
             &"--authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml"
                 .to_string()
         ));
-        assert!(args.contains(&"--authorization-mode=Webhook".to_string()));
+        assert!(args.contains(&"--authorization-mode=Node,RBAC,Webhook".to_string()));
 
         let pre_cmds = resources
             .kubeadm_control_plane_template
@@ -244,6 +277,7 @@ mod tests {
             .post_kubeadm_commands
             .expect("post commands should be set");
         assert!(post_cmds.contains(&"test -f /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml || cp /etc/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/keystone-kustomization/kube-apiserver.yaml".to_string()));
-        assert!(post_cmds.contains(&"kubectl kustomize /etc/kubernetes/keystone-kustomization -o /etc/kubernetes/manifests/kube-apiserver.yaml".to_string()));
+        assert!(post_cmds.contains(&"kubectl kustomize /etc/kubernetes/keystone-kustomization | sed '/^[[:space:]]*- --authorization-mode=Node,RBAC$/d' > /etc/kubernetes/manifests/kube-apiserver.yaml".to_string()));
+        assert!(post_cmds.iter().any(|c| c.contains("https://127.0.0.1:6443/healthz")));
     }
 }
