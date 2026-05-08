@@ -191,6 +191,30 @@ def get_kube_tag(cluster: magnum_objects.Cluster) -> str:
     return cluster.labels.get("kube_tag", "v1.25.3")
 
 
+def fill_missing_labels_from_template(cluster: magnum_objects.Cluster) -> None:
+    """Merge cluster_template labels into ``cluster.labels`` for missing keys.
+
+    Magnum's ``cluster create --labels`` REPLACES the cluster_template labels
+    rather than merging, so a freshly-created cluster row can be missing keys
+    that downstream code (especially the Rust ClusterLabels deserialiser)
+    expects to be present (e.g. ``kube_tag``).  This helper fills in any
+    template-only keys without overriding values the operator explicitly set.
+
+    Mutates ``cluster.labels`` in place.  Safe to call multiple times — keys
+    already present on the cluster are left untouched.
+    """
+    template = getattr(cluster, "cluster_template", None)
+    if template is None:
+        return
+    template_labels = getattr(template, "labels", None) or {}
+    if not template_labels:
+        return
+    if cluster.labels is None:
+        cluster.labels = {}
+    for key, value in template_labels.items():
+        cluster.labels.setdefault(key, value)
+
+
 def get_auto_scaling_enabled(cluster: magnum_objects.Cluster) -> bool:
     return get_cluster_label_as_bool(cluster, "auto_scaling_enabled", False)
 
