@@ -621,9 +621,7 @@ class TestMachineConditionsAggregation:
         mocker.patch.object(
             objects.Machine,
             "objects",
-            return_value=mock.MagicMock(
-                filter=mock.MagicMock(return_value=machines)
-            ),
+            return_value=mock.MagicMock(filter=mock.MagicMock(return_value=machines)),
         )
         assert ubuntu_driver._get_machine_conditions_reason(cluster) == ""
 
@@ -657,9 +655,7 @@ class TestMachineConditionsAggregation:
         mocker.patch.object(
             objects.Machine,
             "objects",
-            return_value=mock.MagicMock(
-                filter=mock.MagicMock(return_value=machines)
-            ),
+            return_value=mock.MagicMock(filter=mock.MagicMock(return_value=machines)),
         )
         out = ubuntu_driver._get_machine_conditions_reason(cluster)
         assert "m1/APIServerIngressReady: FloatingIPErrorReason" in out
