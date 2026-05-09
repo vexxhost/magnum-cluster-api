@@ -469,12 +469,25 @@ What this exercises:
    `;;`-separated list of shell commands to run **before** `kubeadm
    init`/`join`.  Capped at 16 entries.
 
+   The delimiter is the **double** semicolon `;;` — not a single `;`.
+   Each `;;`-separated segment becomes its own cloud-init `runcmd` entry
+   and is executed in its own `/bin/sh -c <segment>` subshell, so
+   per-segment status is observable in `/var/log/cloud-init-output.log`
+   and shell options (`set -e`, `trap`, exported variables) installed in
+   one segment do not propagate to the next.  A single `;` is part of
+   one shell command and is forwarded verbatim to that subshell, e.g.
+   `"a; b"` is one runcmd entry where `b` runs after `a` regardless of
+   `a`'s exit code, while `"a;;b"` is two independent runcmd entries.
+
    Default value: empty list.
 
 * `extra_post_kubeadm_commands`
 
    `;;`-separated list of shell commands to run **after** `kubeadm
    init`/`join`.  Capped at 16 entries.
+
+   The delimiter is the **double** semicolon `;;` with the same
+   semantics as `extra_pre_kubeadm_commands` above.
 
    Default value: empty list.
 

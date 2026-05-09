@@ -857,7 +857,25 @@ def get_extra_files(
 
 
 def _split_kubeadm_commands(value: str) -> typing.List[str]:
-    """Split a `;;`-delimited command string, dropping empty segments."""
+    """Split a ``;;``-delimited command string, dropping empty segments.
+
+    The delimiter is the *double* semicolon ``;;`` (not a single ``;``):
+    each segment becomes its own ``runcmd`` entry in the rendered cloud-init
+    user-data, and cloud-init executes each entry in its own
+    ``/bin/sh -c <entry>`` subshell.  A single ``;`` is therefore part of
+    one shell command and is forwarded verbatim to that subshell, e.g.
+
+    * ``"a; b"``  → one runcmd entry: ``a; b``
+      (single ``sh -c`` invocation, ``b`` runs after ``a`` regardless of
+      ``a``'s exit code)
+    * ``"a;;b"`` → two runcmd entries: ``a`` and ``b``
+      (separate ``sh -c`` invocations; cloud-init records per-entry status)
+
+    Use ``;;`` whenever you want each command to be observable as its own
+    runcmd entry (e.g. for failure attribution) and to avoid the
+    cloud-init quirk that shell options (``set -e``, ``trap``, exported
+    variables) installed in one entry do not propagate to the next.
+    """
     if not value:
         return []
     return [segment.strip() for segment in value.split(";;") if segment.strip()]
@@ -885,7 +903,12 @@ def get_extra_pre_kubeadm_commands(
     cluster: magnum_objects.Cluster,
     node_group: typing.Optional[magnum_objects.NodeGroup] = None,
 ) -> typing.List[str]:
-    """`;;`-separated `extra_pre_kubeadm_commands` label.
+    """``;;``-separated ``extra_pre_kubeadm_commands`` label.
+
+    Each ``;;``-separated segment becomes its own cloud-init ``runcmd``
+    entry; a single ``;`` is forwarded verbatim as part of one shell
+    command.  See :func:`_split_kubeadm_commands` for the full delimiter
+    semantics and rationale.
 
     Per-node-group override semantics: when ``node_group`` declares its own
     ``extra_pre_kubeadm_commands`` label, the node group's list fully
@@ -905,7 +928,12 @@ def get_extra_post_kubeadm_commands(
     cluster: magnum_objects.Cluster,
     node_group: typing.Optional[magnum_objects.NodeGroup] = None,
 ) -> typing.List[str]:
-    """`;;`-separated `extra_post_kubeadm_commands` label.
+    """``;;``-separated ``extra_post_kubeadm_commands`` label.
+
+    Each ``;;``-separated segment becomes its own cloud-init ``runcmd``
+    entry; a single ``;`` is forwarded verbatim as part of one shell
+    command.  See :func:`_split_kubeadm_commands` for the full delimiter
+    semantics and rationale.
 
     Per-node-group override semantics — see :func:`get_extra_files`.
     """

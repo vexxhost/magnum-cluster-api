@@ -557,6 +557,26 @@ class TestExtraCloudInit:
         cluster = self._make_cluster({"extra_pre_kubeadm_commands": "a;;;;b;;"})
         assert utils.get_extra_pre_kubeadm_commands(cluster) == ["a", "b"]
 
+    def test_get_extra_pre_kubeadm_commands_single_semicolon_preserved(self):
+        """Single ``;`` is part of one shell command, not a delimiter.
+
+        This is the documented behaviour for both
+        ``extra_pre_kubeadm_commands`` and ``extra_post_kubeadm_commands``:
+        only the *double* semicolon ``;;`` separates entries; a single
+        ``;`` is forwarded verbatim so the resulting runcmd entry is still
+        executed by a single ``/bin/sh -c`` subshell.
+        """
+        cluster = self._make_cluster(
+            {"extra_pre_kubeadm_commands": "echo first; echo second"}
+        )
+        assert utils.get_extra_pre_kubeadm_commands(cluster) == [
+            "echo first; echo second",
+        ]
+
+    def test_get_extra_post_kubeadm_commands_single_semicolon_preserved(self):
+        cluster = self._make_cluster({"extra_post_kubeadm_commands": "a; b;;c"})
+        assert utils.get_extra_post_kubeadm_commands(cluster) == ["a; b", "c"]
+
     def test_get_extra_post_kubeadm_commands_default_empty(self):
         cluster = self._make_cluster({})
         assert utils.get_extra_post_kubeadm_commands(cluster) == []
