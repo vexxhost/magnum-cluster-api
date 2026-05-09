@@ -342,12 +342,15 @@ pub static KUBEADM_CONFIG_TEMPLATE: LazyLock<KubeadmConfigTemplate> =
                         ),
                         ..Default::default()
                     }),
-                    // Empty pre/post arrays so feature patches can append
-                    // via JSON-Patch `/-` without first having to materialise
-                    // the array. Existing whole-array `add` patches (e.g.
+                    // Seed pre/post arrays with a placeholder entry so feature
+                    // patches can `op: add` at `/-` or `/0` without failing
+                    // with "doc is missing path" — Kubernetes strips empty
+                    // arrays from server-side state, so the patch target
+                    // must already exist with at least one element.
+                    // Existing whole-array `add` patches (e.g.
                     // operating_system Flatcar path) correctly replace.
-                    pre_kubeadm_commands: Some(vec![]),
-                    post_kubeadm_commands: Some(vec![]),
+                    pre_kubeadm_commands: Some(vec!["echo PLACEHOLDER".to_string()]),
+                    post_kubeadm_commands: Some(vec!["echo PLACEHOLDER".to_string()]),
                     ..Default::default()
                 }),
                 ..Default::default()
