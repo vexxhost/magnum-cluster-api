@@ -572,7 +572,7 @@ class TestDriver:
 
 
 class TestMachineConditionsAggregation:
-    """Item 14-L2 — driver should surface CAPI Machine.Status.Conditions."""
+    """Driver should surface CAPI Machine.Status.Conditions in cluster status_reason."""
 
     @pytest.fixture(autouse=True)
     def _mock_kube(self, requests_mock, mock_rust_driver):  # patch pykube + Rust driver
