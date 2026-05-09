@@ -1,4 +1,4 @@
-//! Item 10 — explicit bootstrap-success sentinel + error-log capture.
+//! Explicit cloud-init bootstrap-success sentinel + error-log capture.
 //!
 //! ## Background
 //!
@@ -68,8 +68,8 @@
 //!   cluster IS technically usable). The feature's value is making
 //!   `extra_post_kubeadm_commands` failures **observable**: the
 //!   error-log file is surfaced by CAPI as a `BootstrapReady=False,
-//!   Reason=BootstrapFailed` condition, which item 14-L2's
-//!   driver-side aggregator surfaces in
+//!   Reason=BootstrapFailed` condition, which the driver-side
+//!   Machine.Status.Conditions aggregator surfaces in
 //!   `openstack coe cluster show -c status_reason`. Without this
 //!   feature, post-kubeadm failures are completely silent unless an
 //!   operator SSHes into the node.
@@ -80,7 +80,8 @@
 //!
 //! ## References
 //!
-//! - bm-public-net.fullworkflow.md §13.10 (item 10).
+//! - CAPI bootstrap protocol contract for
+//!   `/run/cluster-api/bootstrap-{success.complete,error.log}`.
 
 use crate::{
     cluster_api::{
