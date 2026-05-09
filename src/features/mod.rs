@@ -53,6 +53,7 @@ pub mod api_server_floating_ip;
 pub mod api_server_load_balancer;
 pub mod audit_log;
 pub mod boot_volume;
+pub mod bootstrap_status;
 pub mod cloud_provider;
 pub mod cluster_identity;
 pub mod containerd_config;
@@ -341,6 +342,12 @@ pub static KUBEADM_CONFIG_TEMPLATE: LazyLock<KubeadmConfigTemplate> =
                         ),
                         ..Default::default()
                     }),
+                    // Empty pre/post arrays so feature patches can append
+                    // via JSON-Patch `/-` without first having to materialise
+                    // the array. Existing whole-array `add` patches (e.g.
+                    // operating_system Flatcar path) correctly replace.
+                    pre_kubeadm_commands: Some(vec![]),
+                    post_kubeadm_commands: Some(vec![]),
                     ..Default::default()
                 }),
                 ..Default::default()
