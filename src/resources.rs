@@ -204,6 +204,7 @@ pub mod fixtures {
             )
             .boot_volume(boot_volume::BootVolumeConfig::builder().r#type("nvme".into()).size(0).build())
             .boot_volume_availability_zone("".into())
+            .bootstrap_status_enabled(true)
             .cluster_identity_ref_name("identity-ref-name".into())
             .containerd_config(
                 BASE64_STANDARD.encode(indoc! {r#"
@@ -310,7 +311,7 @@ mod tests {
         let values = default_values();
         let variables: Vec<ClusterTopologyVariables> = values.into();
 
-        assert_eq!(variables.len(), 39);
+        assert_eq!(variables.len(), 40);
 
         for var in &variables {
             match var.name.as_str() {
@@ -328,6 +329,12 @@ mod tests {
                 }
                 "bootVolumeAvailabilityZone" => {
                     assert_eq!(var.value, json!(default_values().boot_volume_availability_zone));
+                }
+                "bootstrapStatusEnabled" => {
+                    assert_eq!(
+                        var.value,
+                        json!(default_values().bootstrap_status_enabled)
+                    );
                 }
                 "clusterIdentityRefName" => {
                     assert_eq!(var.value, json!(default_values().cluster_identity_ref_name));
