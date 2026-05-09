@@ -386,6 +386,74 @@ def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
     raise exception.FlavorNotFound(flavor=flavor)
 
 
+def _is_baremetal_flavor(flavor: flavors.Flavor) -> bool:
+    """Return True if ``flavor`` is backed by an Ironic resource class.
+
+    A flavor is considered baremetal-backed when it advertises a custom
+    Placement resource class through its extra-specs, i.e. a key of the
+    form ``resources:CUSTOM_<NAME>`` set to ``"1"``.  Nova's Ironic
+    driver requires this convention so the scheduler routes the request
+    to the Ironic compute service rather than to a libvirt/KVM
+    hypervisor.  Standard virtual flavors (``m1.small``, etc.) typically
+    have empty extra-specs and will return False.
+    """
+    try:
+        extra_specs = flavor.get_keys()
+    except Exception:
+        # Fall back to the cached attribute when the flavor object was
+        # built from a list response that did not eagerly resolve keys.
+        extra_specs = getattr(flavor, "extra_specs", {}) or {}
+    for key, value in extra_specs.items():
+        if key.startswith("resources:CUSTOM_") and str(value) == "1":
+            return True
+    return False
+
+
+def validate_baremetal_flavors(
+    cli: clients.OpenStackClients,
+    cluster: magnum_objects.Cluster,
+) -> None:
+    """Reject ``server_type=bm`` clusters whose flavors are not Ironic-backed.
+
+    When the cluster_template advertises ``server_type=bm`` (PR #1014), the
+    operator's intent is to provision both the master and worker nodes on
+    Ironic.  However, Magnum does not enforce that ``master_flavor_id`` /
+    ``flavor_id`` actually resolve to an Ironic-backed Nova flavor, so a
+    user that forgets ``--master-flavor`` (or overrides it with a virtual
+    flavor) silently gets a Nova KVM master.  The cluster reaches
+    ``CREATE_COMPLETE`` and looks healthy, but the ``server_type=bm``
+    code paths (boot_volume_size auto-zero, network-interface=flat, etc.)
+    are bypassed and operators believe they are testing the BM control
+    plane when they are not.
+
+    This validator looks up both flavors and raises
+    ``InvalidParameterValue`` when either one is missing the
+    ``resources:CUSTOM_*=1`` extra-spec that Nova's Ironic driver
+    requires.  It is a no-op for ``server_type=vm`` templates.
+    """
+    server_type = getattr(cluster.cluster_template, "server_type", "vm")
+    if server_type != "bm":
+        return
+
+    for role, flavor_ref in (
+        ("master_flavor_id", cluster.master_flavor_id),
+        ("flavor_id", cluster.flavor_id),
+    ):
+        if not flavor_ref:
+            continue
+        flavor = lookup_flavor(cli, flavor_ref)
+        if flavor is None or not _is_baremetal_flavor(flavor):
+            raise exception.InvalidParameterValue(
+                err=(
+                    f"server_type=bm requires {role}={flavor_ref!r} to be "
+                    "backed by Ironic (Nova flavor extra-specs must contain "
+                    "a resources:CUSTOM_<RESOURCE_CLASS>=1 entry); the "
+                    "resolved flavor advertises no custom resource class, "
+                    "which would route the server to a virtual hypervisor."
+                )
+            )
+
+
 def lookup_image(cli: clients.OpenStackClients, image_ref: str) -> dict:
     """
     Get image object from image ref
@@ -403,6 +471,9 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
     # Check master count
     if (cluster.master_count % 2) == 0:
         raise mcapi_exceptions.ClusterMasterCountEven
+
+    # Reject server_type=bm clusters whose flavors are not Ironic-backed.
+    validate_baremetal_flavors(clients.get_openstack_api(ctx), cluster)
 
     # Check if fixed_network exists
     if cluster.fixed_network:
