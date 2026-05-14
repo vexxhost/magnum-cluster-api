@@ -15,8 +15,8 @@ debugging "I set this label, why didn't it take effect?".
 │   Applies defaults, normalisation, validation.             │
 │   May derive *additional* booleans from a single label     │
 │   (e.g. `master_lb_floating_ip_enabled` →                  │
-│   `disableAPIServerFloatingIP` + `disableAPIServerFloating-│
-│   IPManaged`).                                             │
+│   `disableAPIServerFloatingIP` +                           │
+│   `disableAPIServerFloatingIPManaged`).                    │
 └──────────────────────┬─────────────────────────────────────┘
                        │ injected as ClusterTopology variables
                        ▼
@@ -78,6 +78,10 @@ debugging "I set this label, why didn't it take effect?".
 * **Adding a label with no warning on typo.**  Magnum silently ignores
   labels it does not understand; if a label has no effect, double-check
   the spelling against `magnum_cluster_api/utils.py`.
+
+* **Rust variable count test.**  If you add a new ClusterClass variable,
+  `src/resources.rs` has `test_convert_values_to_cluster_topology_variables`
+  which asserts the total number of variables; bump the expected count.
 
 ## Where each existing label lives
 
