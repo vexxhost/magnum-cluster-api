@@ -79,9 +79,9 @@ impl TryFrom<magnum::Cluster> for CloudControllerManagerValues {
     type Error = ClusterAddonValuesError;
 
     fn try_from(cluster: magnum::Cluster) -> Result<Self, ClusterAddonValuesError> {
-        let values = Self::defaults()?;
+        let default_values = Self::defaults()?;
 
-        let image = DockerImage::parse(&values.image.repository)?;
+        let image = DockerImage::parse(&default_values.image.repository)?;
         let values = Self::builder()
             .image(
                 CloudControllerManagerImageValues::builder()
@@ -135,13 +135,9 @@ impl TryFrom<magnum::Cluster> for CloudControllerManagerValues {
                     .build(),
             )
             .enabled_controllers({
-                let mut controllers = vec![
-                    "cloud-node".to_string(),
-                    "cloud-node-lifecycle".to_string(),
-                    "route".to_string(),
-                ];
-                if cluster.labels.is_octavia_enabled() {
-                    controllers.push("service".to_string());
+                let mut controllers = default_values.enabled_controllers.clone();
+                if !cluster.labels.is_octavia_enabled() {
+                    controllers.retain(|controller| controller != "service");
                 }
                 controllers
             })
@@ -308,14 +304,10 @@ mod tests {
         );
         assert_eq!(values.cluster.name, cluster.uuid,);
         // Default: octavia_enabled=true → all 4 controllers present.
+        let default_values = CloudControllerManagerValues::defaults().expect("failed to load defaults");
         assert_eq!(
             values.enabled_controllers,
-            vec![
-                "cloud-node".to_string(),
-                "cloud-node-lifecycle".to_string(),
-                "route".to_string(),
-                "service".to_string(),
-            ]
+            default_values.enabled_controllers
         );
     }
 
@@ -336,13 +328,14 @@ mod tests {
         let values: CloudControllerManagerValues =
             cluster.clone().try_into().expect("failed to create values");
 
+        let mut expected_controllers = CloudControllerManagerValues::defaults()
+            .expect("failed to load defaults")
+            .enabled_controllers;
+        expected_controllers.retain(|controller| controller != "service");
+
         assert_eq!(
             values.enabled_controllers,
-            vec![
-                "cloud-node".to_string(),
-                "cloud-node-lifecycle".to_string(),
-                "route".to_string(),
-            ]
+            expected_controllers
         );
         assert!(!values.enabled_controllers.contains(&"service".to_string()));
     }
