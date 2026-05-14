@@ -148,21 +148,21 @@ class BaseDriver(driver.Driver):
                     "cluster.x-k8s.io/cluster-name": cluster.stack_id,
                 },
             )
+
+            messages = []
+            for machine in machines:
+                conditions = (machine.obj.get("status") or {}).get("conditions") or []
+                for cond in conditions:
+                    if cond.get("status") == "False" and cond.get("reason"):
+                        name = machine.obj.get("metadata", {}).get("name", "<unknown>")
+                        msg = cond.get("message") or ""
+                        messages.append(
+                            f"{name}/{cond.get('type')}: {cond.get('reason')}"
+                            + (f" ({msg})" if msg else "")
+                        )
+            return "; ".join(messages)
         except Exception:  # noqa: BLE001 — defensive: missing CRD, RBAC, etc.
             return ""
-
-        messages = []
-        for machine in machines:
-            conditions = (machine.obj.get("status") or {}).get("conditions") or []
-            for cond in conditions:
-                if cond.get("status") == "False" and cond.get("reason"):
-                    name = machine.obj.get("metadata", {}).get("name", "<unknown>")
-                    msg = cond.get("message") or ""
-                    messages.append(
-                        f"{name}/{cond.get('type')}: {cond.get('reason')}"
-                        + (f" ({msg})" if msg else "")
-                    )
-        return "; ".join(messages)
 
     def _get_cluster_status_reason(self, capi_cluster, cluster=None):
         capi_cluster_status_reason = ""
