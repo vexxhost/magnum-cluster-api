@@ -659,3 +659,18 @@ class TestMachineConditionsAggregation:
             side_effect=RuntimeError("CRD missing"),
         )
         assert ubuntu_driver._get_machine_conditions_reason(cluster) == ""
+
+    def test_swallows_iteration_errors(self, ubuntu_driver, mocker):
+        class ExplodingIterable:
+            def __iter__(self):
+                raise RuntimeError("RBAC denied")
+
+        cluster = mock.MagicMock(stack_id="abc")
+        mocker.patch.object(
+            objects.Machine,
+            "objects",
+            return_value=mock.MagicMock(
+                filter=mock.MagicMock(return_value=ExplodingIterable())
+            ),
+        )
+        assert ubuntu_driver._get_machine_conditions_reason(cluster) == ""
