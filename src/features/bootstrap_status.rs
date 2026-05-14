@@ -180,7 +180,10 @@ impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
             name: "bootstrapStatus".into(),
-            enabled_if: Some("{{ if .bootstrapStatusEnabled }}true{{end}}".into()),
+            enabled_if: Some(
+                r#"{{ if and .bootstrapStatusEnabled (ne .operatingSystem "flatcar") }}true{{end}}"#
+                    .into(),
+            ),
             definitions: Some(vec![
                 // Control-plane bootstrap.
                 ClusterClassPatchesDefinitions {
@@ -450,6 +453,52 @@ mod tests {
             .unwrap_or_default();
         assert_eq!(
             cp_pre.iter().filter(|c| *c == ENABLE_UNIT).count(),
+            0
+        );
+    }
+
+    #[test]
+    fn test_no_patches_on_flatcar() {
+        let feature = Feature {};
+
+        let mut values = default_values();
+        values.bootstrap_status_enabled = true;
+        values.operating_system = crate::features::operating_system::OperatingSystem::Flatcar;
+
+        let patches = feature.patches();
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
+
+        let cp_files = resources
+            .kubeadm_control_plane_template
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .files
+            .clone()
+            .unwrap_or_default();
+        assert_eq!(
+            cp_files
+                .iter()
+                .filter(|f| f.path == STATUS_SCRIPT_PATH || f.path == STATUS_UNIT_PATH)
+                .count(),
+            0
+        );
+
+        let worker_spec = resources
+            .kubeadm_config_template
+            .spec
+            .template
+            .spec
+            .as_ref()
+            .expect("worker spec should be set");
+        let worker_files = worker_spec.files.clone().unwrap_or_default();
+        assert_eq!(
+            worker_files
+                .iter()
+                .filter(|f| f.path == STATUS_SCRIPT_PATH || f.path == STATUS_UNIT_PATH)
+                .count(),
             0
         );
     }
