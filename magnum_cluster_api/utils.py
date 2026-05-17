@@ -318,6 +318,22 @@ def get_cluster_label_as_bool(
     return strutils.bool_from_string(value, strict=True)
 
 
+def get_node_group_boot_volume_size(node_group: magnum_objects.NodeGroup) -> int:
+    return get_node_group_label_as_int(
+        node_group,
+        "boot_volume_size",
+        CONF.cinder.default_boot_volume_size,
+    )
+
+
+def get_cluster_boot_volume_size(cluster: magnum_objects.Cluster) -> int:
+    return get_cluster_label_as_int(
+        cluster,
+        "boot_volume_size",
+        CONF.cinder.default_boot_volume_size,
+    )
+
+
 def delete_loadbalancers(ctx, cluster):
     # NOTE(mnaser): This code is duplicated from magnum.common.octavia
     #               since the original code is very Heat-specific.
@@ -368,6 +384,36 @@ def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
     raise exception.FlavorNotFound(flavor=flavor)
 
 
+def validate_flavor(
+    cli: clients.OpenStackClients, flavor: str, root_vol_required: bool = False
+):
+    """
+    Validate flavor
+
+    - Check if a flavor with this specified name exists
+    - Check if a flavor disk is zero when root_vol_required is True
+    """
+
+    if flavor is None:
+        return
+    flavor_list = cli.nova().flavors.list()
+
+    # check flavor name
+    flavor_obj = None
+    for f in flavor_list:
+        if f.name == flavor:
+            flavor_obj = f
+            break
+        if f.id == flavor:
+            raise mcapi_exceptions.OpenstackFlavorInvalidName(flavor=flavor)
+    if flavor_obj is None:
+        raise exception.FlavorNotFound(flavor=flavor)
+
+    # check disk
+    if flavor_obj.disk == 0 and root_vol_required:
+        raise mcapi_exceptions.OpenstackFlavorZeroRootVolume(flavor=flavor)
+
+
 def lookup_image(cli: clients.OpenStackClients, image_ref: str) -> dict:
     """
     Get image object from image ref
@@ -385,6 +431,12 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
     # Check master count
     if (cluster.master_count % 2) == 0:
         raise mcapi_exceptions.ClusterMasterCountEven
+
+    # Validate flavors
+    flavor_root_vol_required = get_cluster_boot_volume_size(cluster) == 0
+    osc = clients.get_openstack_api(ctx)
+    validate_flavor(osc, cluster.master_flavor_id, flavor_root_vol_required)
+    validate_flavor(osc, cluster.flavor_id, flavor_root_vol_required)
 
     # Check if fixed_network exists
     if cluster.fixed_network:
@@ -420,8 +472,14 @@ def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
         raise mcapi_exceptions.MachineInvalidName(name=nodegroup.name)
 
 
-def validate_nodegroup(nodegroup: magnum_objects.NodeGroup):
+def validate_nodegroup(
+    ctx: context.RequestContext, nodegroup: magnum_objects.NodeGroup
+):
     validate_nodegroup_name(nodegroup)
+    # Validate flavors
+    osc = clients.get_openstack_api(ctx)
+    flavor_root_vol_required = get_node_group_boot_volume_size(nodegroup) == 0
+    validate_flavor(osc, nodegroup.flavor_id, flavor_root_vol_required)
 
 
 def get_operating_system(cluster: magnum_objects.Cluster):
