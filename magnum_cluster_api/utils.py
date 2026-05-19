@@ -18,17 +18,16 @@ import json
 import re
 import string
 import textwrap
+import time
 import typing
 
 import pykube  # type: ignore
 import shortuuid
 import yaml
 from magnum import objects as magnum_objects  # type: ignore
-from magnum.api import attr_validator  # type: ignore
-from magnum.common import context, exception, neutron, octavia  # type: ignore
+from magnum.common import context, exception, neutron  # type: ignore
 from magnum.common import utils as magnum_utils
-from novaclient import exceptions as nova_exception  # type: ignore
-from novaclient.v2 import flavors  # type: ignore
+from openstack import exceptions as sdk_exceptions  # type: ignore
 from oslo_config import cfg  # type: ignore
 from oslo_serialization import base64  # type: ignore
 from oslo_utils import strutils, uuidutils  # type: ignore
@@ -136,7 +135,7 @@ def generate_cloud_controller_manager_config(
     return textwrap.dedent(
         f"""\
         [Global]
-        auth-url={osc.url_for(service_type="identity", interface="public")}
+        auth-url={osc.endpoint_for(service_type="identity", interface="public")}
         region={cloud_config["clouds"]["default"]["region_name"]}
         application-credential-id={cloud_config["clouds"]["default"]["auth"]["application_credential_id"]}
         application-credential-secret={cloud_config["clouds"]["default"]["auth"]["application_credential_secret"]}
@@ -166,7 +165,7 @@ def generate_manila_csi_cloud_config(
     cloud_config = yaml.safe_load(clouds_yaml)
 
     config = {
-        "os-authURL": osc.url_for(service_type="identity", interface="public"),
+        "os-authURL": osc.endpoint_for(service_type="identity", interface="public"),
         "os-region": cloud_config["clouds"]["default"]["region_name"],
         "os-applicationCredentialID": cloud_config["clouds"]["default"]["auth"][
             "application_credential_id"
@@ -330,23 +329,73 @@ def delete_loadbalancers(ctx, cluster):
     candidates = set()
 
     try:
-        octavia_admin_client = admin_clients.octavia()
-        octavia_client = user_clients.octavia()
+        octavia_admin_client = admin_clients.load_balancer
+        octavia_client = user_clients.load_balancer
 
         # Get load balancers created for service/ingress
-        lbs = octavia_client.load_balancer_list().get("loadbalancers", [])
-        lbs = [lb for lb in lbs if re.match(pattern, lb["description"])]
-        deleted = octavia._delete_loadbalancers(
-            ctx, lbs, cluster, octavia_admin_client, remove_fip=True
+        lbs = [
+            lb
+            for lb in octavia_client.load_balancers()
+            if re.match(pattern, lb.description)
+        ]
+        deleted = _delete_loadbalancers(
+            ctx,
+            lbs,
+            cluster,
+            octavia_admin_client,
+            remove_fip=True,
         )
         candidates.update(deleted)
 
         if not candidates:
             return
 
-        octavia.wait_for_lb_deleted(octavia_client, candidates)
+        _wait_for_loadbalancers_deleted(octavia_client, candidates)
     except Exception as e:
         raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
+
+
+def _delete_loadbalancers(
+    ctx,
+    lbs,
+    cluster,
+    octavia_client,
+    remove_fip=False,
+    cascade=True,
+):
+    candidates = set()
+
+    for lb in lbs:
+        if lb.provisioning_status not in ["PENDING_DELETE", "DELETED"]:
+            octavia_client.delete_load_balancer(lb.id, cascade=cascade)
+            candidates.add(lb.id)
+
+            if remove_fip:
+                neutron.delete_floatingip(ctx, lb.vip_port_id, cluster)
+
+    return candidates
+
+
+def _wait_for_loadbalancers_deleted(octavia_client, deleted_lbs):
+    timeout = CONF.cluster.pre_delete_lb_timeout
+    start_time = time.time()
+
+    while True:
+        lb_ids = {
+            lb.id
+            for lb in octavia_client.load_balancers()
+            if lb.provisioning_status != "DELETED"
+        }
+        if not (deleted_lbs & lb_ids):
+            break
+
+        if (time.time() - timeout) > start_time:
+            raise Exception(
+                "Timeout waiting for the load balancers "
+                "%s to be deleted." % deleted_lbs
+            )
+
+        time.sleep(1)
 
 
 def format_event_message(event: pykube.Event):
@@ -356,25 +405,40 @@ def format_event_message(event: pykube.Event):
     )
 
 
-def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
+def lookup_flavor(cli, flavor: str):
     """Lookup a flavor either by name or id."""
 
     if flavor is None:
         return
-    flavor_list = cli.nova().flavors.list()
+    flavor_list = list(cli.compute.flavors())
     for f in flavor_list:
         if f.name == flavor or f.id == flavor:
             return f
     raise exception.FlavorNotFound(flavor=flavor)
 
 
-def lookup_image(cli: clients.OpenStackClients, image_ref: str) -> dict:
+def lookup_image(cli, image_ref: str) -> dict:
     """
     Get image object from image ref
 
     :param image_ref: Image id or name
     """
-    return attr_validator.validate_image(cli, image_ref)
+    try:
+        image = cli.image.find_image(image_ref, ignore_missing=False)
+    except (sdk_exceptions.NotFoundException, exception.ResourceNotFound):
+        raise exception.ImageNotFound(image_id=image_ref)
+    except sdk_exceptions.DuplicateResource:
+        raise exception.Conflict(
+            "Multiple images exist with same name '%s'. "
+            "Please use the image ID instead." % image_ref
+        )
+    except sdk_exceptions.ForbiddenException:
+        raise exception.ImageNotAuthorized(image_id=image_ref)
+
+    if not image.os_distro:
+        raise exception.OSDistroFieldNotFound(image_id=image_ref)
+
+    return image
 
 
 def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluster):
@@ -507,7 +571,7 @@ def get_server_group_id(
 
     # Check if the server group exists already
     osc = clients.get_openstack_api(ctx)
-    server_groups = osc.nova().server_groups.list(all_projects=ctx.is_admin)
+    server_groups = osc.compute.server_groups(all_projects=ctx.is_admin)
     server_group_id_list = []
     for sg in server_groups:
         if sg.name == name:
@@ -627,7 +691,7 @@ def _ensure_server_group(
         policies = DEFAULT_SERVER_GROUP_POLICIES
 
     # NOTE(oleks): Requires API microversion 2.15 or later for soft-affinity and soft-anti-affinity policy rules.
-    server_group = osc.nova().server_groups.create(name=name, policies=policies)
+    server_group = osc.compute.create_server_group(name=name, policies=policies)
     g_server_group_cache.set(project_id, name, server_group.id)
     return server_group.id
 
@@ -643,8 +707,8 @@ def _delete_server_group(
 
     osc = clients.get_openstack_api(ctx)
     try:
-        osc.nova().server_groups.delete(server_group_id)
-    except nova_exception.NotFound:
+        osc.compute.delete_server_group(server_group_id, ignore_missing=True)
+    except (sdk_exceptions.NotFoundException, sdk_exceptions.ResourceNotFound):
         return
 
 

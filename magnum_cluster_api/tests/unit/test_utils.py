@@ -58,7 +58,7 @@ class TestGenerateCloudControllerManagerConfig:
         mock_get_openstack_api = mocker.patch(
             "magnum_cluster_api.clients.get_openstack_api"
         ).return_value
-        mock_get_openstack_api.url_for.return_value = "http://localhost/v3"
+        mock_get_openstack_api.endpoint_for.return_value = "http://localhost/v3"
 
     def _response_for_cloud_config_secret(self):
         return responses.Response(

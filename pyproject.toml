@@ -38,6 +38,7 @@ dependencies = [
   "oslo.log>=4.7.0",
   "oslo.privsep>=2.7.0",
   "oslo.service>=2.8.0",
+  "openstacksdk",
   "platformdirs>=2.4.0",
   "pykube-ng",
   "pyroute2>=0.3.4",

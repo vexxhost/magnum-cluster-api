@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import keystoneauth1  # type: ignore
 from eventlet import tpool  # type: ignore
 from heatclient import exc  # type: ignore
 from magnum import objects as magnum_objects  # type: ignore
@@ -23,6 +22,7 @@ from magnum.common import exception as magnum_exception  # type: ignore
 from magnum.conductor import scale_manager  # type: ignore
 from magnum.drivers.common import driver  # type: ignore
 from magnum.objects import fields  # type: ignore
+from openstack import exceptions as sdk_exceptions  # type: ignore
 
 from magnum_cluster_api import (
     clients,
@@ -84,9 +84,9 @@ class BaseDriver(driver.Driver):
     ):
         osc = clients.get_openstack_api(context)
 
-        credential = osc.keystone().client.application_credentials.create(
-            user=cluster.user_id,
-            name=cluster.uuid,
+        credential = osc.identity.create_application_credential(
+            cluster.user_id,
+            cluster.uuid,
             description=f"Magnum cluster ({cluster.uuid})",
         )
 
@@ -94,7 +94,7 @@ class BaseDriver(driver.Driver):
             context,
             self.kube_client,
             cluster,
-            osc.cinder_region_name(),
+            clients.get_cinder_region_name(context),
             credential,
         ).apply()
 
@@ -277,13 +277,22 @@ class BaseDriver(driver.Driver):
             # NOTE(maximmonin): Keystone policy may forbid extraction of project
             #                   application credentials with admin rights.
             try:
-                osc.keystone().client.application_credentials.find(
-                    name=cluster.uuid,
-                    user=cluster.user_id,
-                ).delete()
-            except keystoneauth1.exceptions.http.NotFound:
-                pass
-            except keystoneauth1.exceptions.http.Forbidden:
+                credential = osc.identity.find_application_credential(
+                    cluster.user_id,
+                    cluster.uuid,
+                    ignore_missing=True,
+                )
+                if credential is not None:
+                    osc.identity.delete_application_credential(
+                        cluster.user_id,
+                        credential,
+                        ignore_missing=True,
+                    )
+            except (
+                sdk_exceptions.NotFoundException,
+                sdk_exceptions.ResourceNotFound,
+                sdk_exceptions.ForbiddenException,
+            ):
                 pass
 
             resources.CloudConfigSecret(context, self.kube_client, cluster).delete()

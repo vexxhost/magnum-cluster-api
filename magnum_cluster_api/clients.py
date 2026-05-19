@@ -12,43 +12,56 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import magnum.conf  # type: ignore
 import pykube  # type: ignore
-from magnum.common import clients, exception  # type: ignore
-from manilaclient.v2 import client as manilaclient  # type: ignore
+from magnum.common import keystone as magnum_keystone  # type: ignore
+from openstack import connection as sdk_connection  # type: ignore
+
+CONF = magnum.conf.CONF
 
 
-class OpenStackClients(clients.OpenStackClients):
-    """Convenience class to create and cache client instances."""
+SERVICE_CLIENTS = {
+    "image": "glance",
+    "compute": "nova",
+    "network": "neutron",
+    "load_balancer": "octavia",
+    "block_storage": "cinder",
+    "shared_file_system": "manila",
+}
 
-    def __init__(self, context):
-        super(OpenStackClients, self).__init__(context)
-        self._manila = None
 
-    @exception.wrap_keystone_exception
-    def manila(self):
-        if self._manila:
-            return self._manila
-        endpoint_type = self._get_client_option("manila", "endpoint_type")
-        region_name = self._get_client_option("manila", "region_name")
-        manilaclient_version = self._get_client_option("manila", "api_version")
-        endpoint = self.url_for(
-            service_type="sharev2", interface=endpoint_type, region_name=region_name
-        )
-        args = {
-            "cacert": self._get_client_option("manila", "ca_file"),
-            "insecure": self._get_client_option("manila", "insecure"),
-        }
+def _client_option(client, option):
+    client_group = getattr(CONF, f"{client}_client", None)
+    if client_group is None:
+        return None
+    return getattr(client_group, option, None)
 
-        session = self.keystone().session
-        self._manila = manilaclient.Client(
-            manilaclient_version, session=session, service_catalog_url=endpoint, **args
-        )
-        return self._manila
+
+def _connection_options():
+    options = {}
+    for service_type, client in SERVICE_CLIENTS.items():
+        endpoint_type = _client_option(client, "endpoint_type")
+        region_name = _client_option(client, "region_name")
+        if endpoint_type:
+            options[f"{service_type}_interface"] = endpoint_type
+        if region_name:
+            options[f"{service_type}_region_name"] = region_name
+    return options
 
 
 def get_pykube_api() -> pykube.HTTPClient:
     return pykube.HTTPClient(pykube.KubeConfig.from_env())
 
 
-def get_openstack_api(context) -> OpenStackClients:
-    return OpenStackClients(context)
+def get_openstack_api(context) -> sdk_connection.Connection:
+    keystone = magnum_keystone.KeystoneClientV3(context)
+    return sdk_connection.Connection(
+        session=keystone.session,
+        **_connection_options(),
+    )
+
+
+def get_cinder_region_name(context) -> str:
+    keystone = magnum_keystone.KeystoneClientV3(context)
+    region_name = _client_option("cinder", "region_name")
+    return keystone.get_validate_region_name(region_name)
