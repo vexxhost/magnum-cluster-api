@@ -107,14 +107,11 @@ impl ClusterFeaturePatches for Feature {
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
-                                path: "/spec/template/spec/kubeadmConfigSpec/diskSetup/filesystems".into(),
-                                value: Some(Vec::<String>::new().into()),
-                                ..Default::default()
-                            },
-                            ClusterClassPatchesDefinitionsJsonPatches {
-                                op: "add".into(),
-                                path: "/spec/template/spec/kubeadmConfigSpec/diskSetup/partitions".into(),
-                                value: Some(Vec::<String>::new().into()),
+                                path: "/spec/template/spec/kubeadmConfigSpec/diskSetup".into(),
+                                value: Some(json!({
+                                    "filesystems": [],
+                                    "partitions": [],
+                                })),
                                 ..Default::default()
                             }
                         ],
@@ -139,14 +136,11 @@ impl ClusterFeaturePatches for Feature {
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
-                                path: "/spec/template/spec/diskSetup/filesystems".into(),
-                                value: Some(Vec::<String>::new().into()),
-                                ..Default::default()
-                            },
-                            ClusterClassPatchesDefinitionsJsonPatches {
-                                op: "add".into(),
-                                path: "/spec/template/spec/diskSetup/partitions".into(),
-                                value: Some(Vec::<String>::new().into()),
+                                path: "/spec/template/spec/diskSetup".into(),
+                                value: Some(json!({
+                                    "filesystems": [],
+                                    "partitions": [],
+                                })),
                                 ..Default::default()
                             }
                         ],
@@ -795,6 +789,83 @@ mod tests {
                 "LABEL=docker_disk".to_string(),
                 "/var/lib/containerd".to_string()
             ]]
+        );
+    }
+
+    #[test]
+    fn test_patches_with_docker_volumes_only_without_preexisting_disk_setup() {
+        let feature = Feature {};
+
+        let mut values = default_values();
+        values.enable_docker_volume = true;
+        values.docker_volume_size = 160;
+        values.docker_volume_type = "ssd".into();
+
+        let patches = feature.patches();
+        let mut resources = TestClusterResources::new();
+        resources
+            .kubeadm_control_plane_template
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .disk_setup = None;
+        resources
+            .kubeadm_config_template
+            .spec
+            .template
+            .spec
+            .as_mut()
+            .expect("kubeadm config spec should be set")
+            .disk_setup = None;
+
+        resources.apply_patches(&patches, &values);
+
+        let control_plane_disk_setup = resources
+            .kubeadm_control_plane_template
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .disk_setup
+            .expect("disk setup should be set");
+
+        assert_eq!(
+            control_plane_disk_setup
+                .partitions
+                .expect("partitions should be set")
+                .len(),
+            1
+        );
+        assert_eq!(
+            control_plane_disk_setup
+                .filesystems
+                .expect("filesystems should be set")
+                .len(),
+            1
+        );
+
+        let kct_spec = resources
+            .kubeadm_config_template
+            .spec
+            .template
+            .spec
+            .expect("kubeadm config spec should be set");
+        let worker_disk_setup = kct_spec.disk_setup.expect("disk setup should be set");
+
+        assert_eq!(
+            worker_disk_setup
+                .partitions
+                .expect("partitions should be set")
+                .len(),
+            1
+        );
+        assert_eq!(
+            worker_disk_setup
+                .filesystems
+                .expect("filesystems should be set")
+                .len(),
+            1
         );
     }
 
