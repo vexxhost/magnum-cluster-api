@@ -70,9 +70,9 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
-        self.rust_driver.create_cluster(cluster)
-
         utils.validate_cluster(context, cluster)
+
+        self.rust_driver.create_cluster(cluster)
 
         return self._create_cluster(context, cluster)
 
@@ -445,7 +445,11 @@ class BaseDriver(driver.Driver):
         #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/pull/990
         utils.delete_loadbalancers(context, cluster)
 
-        self.rust_driver.delete_cluster(cluster)
+        # NOTE(okozachenko): If kube_tag is missing, the cluster never passed
+        #                     validation during create, so the Rust-managed
+        #                     ClusterResourceSets were never created.
+        if cluster.labels.get("kube_tag"):
+            self.rust_driver.delete_cluster(cluster)
         resources.Cluster(
             context,
             self.kube_client,
