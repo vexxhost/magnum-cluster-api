@@ -470,9 +470,28 @@ def _delete_loadbalancers(
             candidates.add(lb.id)
 
             if remove_fip:
-                neutron.delete_floatingip(ctx, lb.vip_port_id, cluster)
+                _delete_floatingip(ctx, lb.vip_port_id, cluster)
 
     return candidates
+
+
+def _delete_floatingip(ctx, port_id, cluster):
+    """Delete Kubernetes-created floating IPs associated with a load balancer."""
+    pattern = r"Floating IP for Kubernetes .+ from cluster %s$" % cluster.uuid
+    osc = clients.get_openstack_api(ctx)
+
+    try:
+        floating_ips = list(osc.network.ips(port_id=port_id))
+        if len(floating_ips) == 0:
+            return
+
+        description = _sdk_resource_value(floating_ips[0], "description", "")
+        floating_ip_id = _sdk_resource_value(floating_ips[0], "id")
+
+        if re.match(pattern, description):
+            osc.network.delete_ip(floating_ip_id, ignore_missing=True)
+    except Exception as e:
+        raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
 
 
 def _wait_for_loadbalancers_deleted(octavia_client, deleted_lbs):

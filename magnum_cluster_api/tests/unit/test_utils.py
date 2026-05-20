@@ -378,3 +378,37 @@ class TestUtils(base.BaseTestCase):
             context,
             fixed_network,
         )
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_delete_floatingip_deletes_cluster_fip(self, mock_get_openstack_api):
+        context = mock.Mock()
+        cluster = mock.Mock()
+        cluster.uuid = uuidutils.generate_uuid()
+        floating_ip = mock.Mock()
+        floating_ip.id = uuidutils.generate_uuid()
+        floating_ip.description = (
+            "Floating IP for Kubernetes service from cluster %s" % cluster.uuid
+        )
+        mock_get_openstack_api.return_value.network.ips.return_value = [floating_ip]
+
+        utils._delete_floatingip(context, "fake-port-id", cluster)
+
+        mock_get_openstack_api.return_value.network.ips.assert_called_once_with(
+            port_id="fake-port-id"
+        )
+        mock_get_openstack_api.return_value.network.delete_ip.assert_called_once_with(
+            floating_ip.id, ignore_missing=True
+        )
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_delete_floatingip_ignores_non_cluster_fip(self, mock_get_openstack_api):
+        context = mock.Mock()
+        cluster = mock.Mock()
+        cluster.uuid = uuidutils.generate_uuid()
+        floating_ip = mock.Mock()
+        floating_ip.description = "created by another system"
+        mock_get_openstack_api.return_value.network.ips.return_value = [floating_ip]
+
+        utils._delete_floatingip(context, "fake-port-id", cluster)
+
+        mock_get_openstack_api.return_value.network.delete_ip.assert_not_called()
