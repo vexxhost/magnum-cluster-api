@@ -430,3 +430,95 @@ class TestUtils(base.BaseTestCase):
             context,
             fixed_subnet,
         )
+
+    @mock.patch("magnum_cluster_api.utils.time.sleep")
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    @mock.patch("magnum_cluster_api.integrations.openstack.delete_floating_ip")
+    @mock.patch("magnum_cluster_api.integrations.openstack.list_floating_ips")
+    @mock.patch("magnum_cluster_api.integrations.openstack.delete_load_balancer")
+    @mock.patch("magnum_cluster_api.integrations.openstack.list_load_balancers")
+    def test_delete_loadbalancers_uses_openstacksdk(
+        self,
+        mock_list_load_balancers,
+        mock_delete_load_balancer,
+        mock_list_floating_ips,
+        mock_delete_floating_ip,
+        mock_get_openstack_api,
+        mock_sleep,
+    ):
+        context = mock.Mock()
+        cluster = magnum_test_utils.get_test_cluster(context)
+        cluster.uuid = "ec1ce9bb-dd7c-4e9d-9a64-c9e7835026f4"
+        osc = mock_get_openstack_api.return_value
+        load_balancer = {
+            "id": "fake-lb-id",
+            "vip_port_id": "fake-vip-port-id",
+            "description": (
+                "Kubernetes external service default/test from cluster "
+                "ec1ce9bb-dd7c-4e9d-9a64-c9e7835026f4"
+            ),
+            "provisioning_status": "ACTIVE",
+        }
+        ignored_load_balancer = {
+            "id": "other-lb-id",
+            "description": "Kubernetes external service default/test from cluster other",
+            "provisioning_status": "ACTIVE",
+        }
+        matching_fip = {
+            "id": "fake-fip-id",
+            "description": (
+                "Floating IP for Kubernetes default/test from cluster "
+                "ec1ce9bb-dd7c-4e9d-9a64-c9e7835026f4"
+            ),
+        }
+        ignored_fip = {
+            "id": "other-fip-id",
+            "description": "Floating IP for Kubernetes default/test from cluster other",
+        }
+        mock_list_load_balancers.side_effect = [
+            [load_balancer, ignored_load_balancer],
+            [],
+        ]
+        mock_list_floating_ips.return_value = [matching_fip, ignored_fip]
+
+        utils.delete_loadbalancers(context, cluster)
+
+        mock_get_openstack_api.assert_called_once_with(context)
+        mock_delete_load_balancer.assert_called_once_with(
+            osc, load_balancer, cascade=True
+        )
+        mock_list_floating_ips.assert_called_once_with(
+            osc, port_id="fake-vip-port-id"
+        )
+        mock_delete_floating_ip.assert_called_once_with(osc, matching_fip)
+        mock_sleep.assert_not_called()
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    @mock.patch("magnum_cluster_api.integrations.openstack.delete_load_balancer")
+    @mock.patch("magnum_cluster_api.integrations.openstack.list_load_balancers")
+    def test_delete_loadbalancers_wraps_sdk_errors(
+        self,
+        mock_list_load_balancers,
+        mock_delete_load_balancer,
+        mock_get_openstack_api,
+    ):
+        context = mock.Mock()
+        cluster = magnum_test_utils.get_test_cluster(context)
+        cluster.uuid = "ec1ce9bb-dd7c-4e9d-9a64-c9e7835026f4"
+        load_balancer = {
+            "id": "fake-lb-id",
+            "description": (
+                "Kubernetes external service default/test from cluster "
+                "ec1ce9bb-dd7c-4e9d-9a64-c9e7835026f4"
+            ),
+            "provisioning_status": "ACTIVE",
+        }
+        mock_list_load_balancers.return_value = [load_balancer]
+        mock_delete_load_balancer.side_effect = RuntimeError("sdk failed")
+
+        self.assertRaises(
+            exception.PreDeletionFailed,
+            utils.delete_loadbalancers,
+            context,
+            cluster,
+        )

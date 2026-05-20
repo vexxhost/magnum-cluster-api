@@ -85,6 +85,22 @@ def list_load_balancers(osc) -> list[typing.Any]:
     return list(osc.octavia().load_balancers())
 
 
+def delete_load_balancer(osc, load_balancer: typing.Any, cascade: bool = True) -> None:
+    osc.octavia().delete_load_balancer(
+        load_balancer,
+        ignore_missing=True,
+        cascade=cascade,
+    )
+
+
+def list_floating_ips(osc, **query) -> list[typing.Any]:
+    return list(osc.neutron().ips(**query))
+
+
+def delete_floating_ip(osc, floating_ip: typing.Any) -> None:
+    osc.neutron().delete_ip(floating_ip, ignore_missing=True)
+
+
 def find_network(osc, name_or_id: str, external: bool):
     network = osc.neutron().find_network(name_or_id, ignore_missing=True)
     if network is None:

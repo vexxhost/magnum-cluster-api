@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 import string
+import time
 import textwrap
 import typing
 
@@ -25,7 +26,7 @@ import shortuuid
 import yaml
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.api import attr_validator  # type: ignore
-from magnum.common import context, exception, octavia  # type: ignore
+from magnum.common import context, exception  # type: ignore
 from magnum.common import utils as magnum_utils
 from openstack import exceptions as sdk_exceptions
 from oslo_config import cfg  # type: ignore
@@ -322,17 +323,13 @@ def delete_loadbalancers(ctx, cluster):
     # NOTE(mnaser): This code is duplicated from magnum.common.octavia
     #               since the original code is very Heat-specific.
     pattern = r"Kubernetes .+ from cluster %s" % cluster.uuid
+    fip_pattern = r"Floating IP for Kubernetes .+ from cluster %s$" % cluster.uuid
 
-    admin_ctx = context.get_admin_context()
-    admin_clients = clients.get_openstack_api(admin_ctx)
     user_clients = clients.get_openstack_api(ctx)
 
     candidates = set()
 
     try:
-        octavia_admin_client = admin_clients.octavia()
-        octavia_client = user_clients.octavia()
-
         lbs = [
             lb
             for lb in openstack.list_load_balancers(user_clients)
@@ -341,15 +338,49 @@ def delete_loadbalancers(ctx, cluster):
                 openstack.get_resource_value(lb, "description", ""),
             )
         ]
-        deleted = octavia._delete_loadbalancers(
-            ctx, lbs, cluster, octavia_admin_client, remove_fip=True
-        )
-        candidates.update(deleted)
+        for lb in lbs:
+            status = openstack.get_resource_value(lb, "provisioning_status")
+            if status in ("PENDING_DELETE", "DELETED"):
+                continue
+
+            lb_id = openstack.get_resource_value(lb, "id")
+            vip_port_id = openstack.get_resource_value(lb, "vip_port_id")
+
+            openstack.delete_load_balancer(user_clients, lb, cascade=True)
+            candidates.add(lb_id)
+
+            if vip_port_id:
+                for fip in openstack.list_floating_ips(
+                    user_clients, port_id=vip_port_id
+                ):
+                    desc = openstack.get_resource_value(fip, "description", "")
+                    if re.match(fip_pattern, desc):
+                        openstack.delete_floating_ip(user_clients, fip)
 
         if not candidates:
             return
 
-        octavia.wait_for_lb_deleted(octavia_client, candidates)
+        timeout = CONF.cluster.pre_delete_lb_timeout
+        start_time = time.time()
+
+        while True:
+            lbs = openstack.list_load_balancers(user_clients)
+            existing = {
+                openstack.get_resource_value(lb, "id")
+                for lb in lbs
+                if openstack.get_resource_value(lb, "provisioning_status")
+                != "DELETED"
+            }
+            if not (candidates & existing):
+                break
+
+            if (time.time() - timeout) > start_time:
+                raise Exception(
+                    "Timeout waiting for the load balancers "
+                    "%s to be deleted." % candidates
+                )
+
+            time.sleep(1)
     except Exception as e:
         raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
 
