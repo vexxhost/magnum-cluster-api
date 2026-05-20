@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+* migrate OpenStack resource lookups to openstacksdk proxies, including
+  fixed network, fixed subnet, image metadata, volume type, Manila share type,
+  Octavia load balancer, flavor, and server group paths
+* use Magnum's native HTTPNotFound exception for missing node groups instead
+  of importing heatclient
+
 ## [0.36.6](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.5...v0.36.6) (2026-04-21)
 
 
