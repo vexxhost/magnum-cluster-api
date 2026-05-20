@@ -19,7 +19,7 @@ import openstack
 import pykube
 import pytest
 import responses
-from heatclient import exc  # type: ignore
+from magnum.common import exception as magnum_exception  # type: ignore
 from magnum.objects import fields  # type: ignore
 from magnum.tests.unit.objects import utils  # type: ignore
 from novaclient.v2 import flavors  # type: ignore
@@ -516,7 +516,7 @@ class TestDriver:
                 ],
             )
 
-            with pytest.raises(exc.HTTPNotFound):
+            with pytest.raises(magnum_exception.HTTPNotFound):
                 ubuntu_driver.delete_nodegroup(context, self.cluster, self.node_group)
 
     def test_update_nodegroups_status_delete_complete(
