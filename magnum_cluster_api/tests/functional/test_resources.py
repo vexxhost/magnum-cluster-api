@@ -56,7 +56,7 @@ class ResourceBaseTestCase(base.BaseTestCase):
         self.mock_cinder = self.useFixture(
             fixtures.MockPatch("magnum_cluster_api.clients.OpenStackClients.cinder")
         ).mock
-        self.mock_cinder.return_value.volume_types.default.return_value.name = (
+        self.mock_cinder.return_value.get_type.return_value.name = (
             "fake-boot-volume-type"
         )
 

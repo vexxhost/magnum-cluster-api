@@ -14,7 +14,7 @@
 
 import pykube  # type: ignore
 from magnum.common import clients, exception  # type: ignore
-from manilaclient.v2 import client as manilaclient  # type: ignore
+from openstack.shared_file_system.v2 import _proxy as shared_file_system_proxy
 
 
 class OpenStackClients(clients.OpenStackClients):
@@ -22,28 +22,27 @@ class OpenStackClients(clients.OpenStackClients):
 
     def __init__(self, context):
         super(OpenStackClients, self).__init__(context)
-        self._manila = None
+        self._shared_file_system = None
 
     @exception.wrap_keystone_exception
-    def manila(self):
-        if self._manila:
-            return self._manila
+    def shared_file_system(self):
+        if self._shared_file_system:
+            return self._shared_file_system
         endpoint_type = self._get_client_option("manila", "endpoint_type")
         region_name = self._get_client_option("manila", "region_name")
-        manilaclient_version = self._get_client_option("manila", "api_version")
         endpoint = self.url_for(
             service_type="sharev2", interface=endpoint_type, region_name=region_name
         )
-        args = {
-            "cacert": self._get_client_option("manila", "ca_file"),
-            "insecure": self._get_client_option("manila", "insecure"),
-        }
 
         session = self.keystone().session
-        self._manila = manilaclient.Client(
-            manilaclient_version, session=session, service_catalog_url=endpoint, **args
+        self._shared_file_system = shared_file_system_proxy.Proxy(
+            session,
+            service_type="sharev2",
+            interface=endpoint_type,
+            region_name=region_name,
+            endpoint_override=endpoint,
         )
-        return self._manila
+        return self._shared_file_system
 
 
 def get_pykube_api() -> pykube.HTTPClient:

@@ -25,10 +25,9 @@ import shortuuid
 import yaml
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.api import attr_validator  # type: ignore
-from magnum.common import context, exception, neutron, octavia  # type: ignore
+from magnum.common import context, exception, octavia  # type: ignore
 from magnum.common import utils as magnum_utils
-from novaclient import exceptions as nova_exception  # type: ignore
-from novaclient.v2 import flavors  # type: ignore
+from openstack import exceptions as sdk_exceptions
 from oslo_config import cfg  # type: ignore
 from oslo_serialization import base64  # type: ignore
 from oslo_utils import strutils, uuidutils  # type: ignore
@@ -38,6 +37,7 @@ from magnum_cluster_api import clients
 from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import image_utils, images, objects
 from magnum_cluster_api.cache import ServerGroupCache
+from magnum_cluster_api.integrations import openstack
 
 AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "flatcar", "rockylinux"]
 DEFAULT_SERVER_GROUP_POLICIES = ["soft-anti-affinity"]
@@ -333,9 +333,14 @@ def delete_loadbalancers(ctx, cluster):
         octavia_admin_client = admin_clients.octavia()
         octavia_client = user_clients.octavia()
 
-        # Get load balancers created for service/ingress
-        lbs = octavia_client.load_balancer_list().get("loadbalancers", [])
-        lbs = [lb for lb in lbs if re.match(pattern, lb["description"])]
+        lbs = [
+            lb
+            for lb in openstack.list_load_balancers(user_clients)
+            if re.match(
+                pattern,
+                openstack.get_resource_value(lb, "description", ""),
+            )
+        ]
         deleted = octavia._delete_loadbalancers(
             ctx, lbs, cluster, octavia_admin_client, remove_fip=True
         )
@@ -356,13 +361,12 @@ def format_event_message(event: pykube.Event):
     )
 
 
-def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
+def lookup_flavor(cli: clients.OpenStackClients, flavor: str):
     """Lookup a flavor either by name or id."""
 
     if flavor is None:
         return
-    flavor_list = cli.nova().flavors.list()
-    for f in flavor_list:
+    for f in openstack.list_flavors(cli):
         if f.name == flavor or f.id == flavor:
             return f
     raise exception.FlavorNotFound(flavor=flavor)
@@ -388,29 +392,31 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
 
     # Check if fixed_network exists
     if cluster.fixed_network:
+        osc = clients.get_openstack_api(ctx)
         if uuidutils.is_uuid_like(cluster.fixed_network):
-            neutron.get_network(
-                ctx,
+            openstack.get_network_value(
+                osc,
                 cluster.fixed_network,
-                source="id",
-                target="name",
-                external=False,
+                "name",
+                False,
+                exception.FixedNetworkNotFound,
             )
         else:
-            neutron.get_network(
-                ctx,
+            openstack.get_network_value(
+                osc,
                 cluster.fixed_network,
-                source="name",
-                target="id",
-                external=False,
+                "id",
+                False,
+                exception.FixedNetworkNotFound,
             )
 
     # Check if fixed_subnet exists
     if cluster.fixed_subnet:
+        osc = clients.get_openstack_api(ctx)
         if uuidutils.is_uuid_like(cluster.fixed_subnet):
-            neutron.get_subnet(ctx, cluster.fixed_subnet, source="id", target="name")
+            openstack.get_subnet_value(osc, cluster.fixed_subnet, "name")
         else:
-            neutron.get_subnet(ctx, cluster.fixed_subnet, source="name", target="id")
+            openstack.get_subnet_value(osc, cluster.fixed_subnet, "id")
 
 
 def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
@@ -507,9 +513,8 @@ def get_server_group_id(
 
     # Check if the server group exists already
     osc = clients.get_openstack_api(ctx)
-    server_groups = osc.nova().server_groups.list(all_projects=ctx.is_admin)
     server_group_id_list = []
-    for sg in server_groups:
+    for sg in openstack.list_server_groups(osc, all_projects=ctx.is_admin):
         if sg.name == name:
             server_group_id_list.append(sg.id)
 
@@ -626,8 +631,9 @@ def _ensure_server_group(
     if not policies:
         policies = DEFAULT_SERVER_GROUP_POLICIES
 
-    # NOTE(oleks): Requires API microversion 2.15 or later for soft-affinity and soft-anti-affinity policy rules.
-    server_group = osc.nova().server_groups.create(name=name, policies=policies)
+    # NOTE(oleks): Requires API microversion 2.15 or later for soft-affinity
+    # and soft-anti-affinity policy rules.
+    server_group = openstack.create_server_group(osc, name=name, policies=policies)
     g_server_group_cache.set(project_id, name, server_group.id)
     return server_group.id
 
@@ -643,15 +649,28 @@ def _delete_server_group(
 
     osc = clients.get_openstack_api(ctx)
     try:
-        osc.nova().server_groups.delete(server_group_id)
-    except nova_exception.NotFound:
+        openstack.delete_server_group(osc, server_group_id)
+    except sdk_exceptions.ResourceNotFound:
         return
 
 
 def get_fixed_network_id(context, network):
     if network and not uuidutils.is_uuid_like(network):
-        return neutron.get_network(
-            context, network, source="name", target="id", external=False
+        osc = clients.get_openstack_api(context)
+        return openstack.get_network_value(
+            osc,
+            network,
+            "id",
+            False,
+            exception.FixedNetworkNotFound,
         )
     else:
         return network
+
+
+def get_fixed_subnet_id(context, subnet):
+    if subnet and not uuidutils.is_uuid_like(subnet):
+        osc = clients.get_openstack_api(context)
+        return openstack.get_subnet_value(osc, subnet, "id")
+    else:
+        return subnet

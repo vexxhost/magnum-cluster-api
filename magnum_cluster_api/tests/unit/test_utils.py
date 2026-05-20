@@ -109,7 +109,7 @@ class TestGenerateCloudControllerManagerConfig:
             tls-insecure=false
 
             [LoadBalancer]
-            lb-provider=amphora
+            lb-provider=amphorav2
             lb-method=ROUND_ROBIN
             create-monitor=True
             """
@@ -302,46 +302,53 @@ class TestGenerateAptProxyConfig:
 class TestUtils(base.BaseTestCase):
     """Test case for utils."""
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_uuid(self, mock_get_network):
+    @mock.patch("magnum_cluster_api.integrations.openstack.get_network_value")
+    def test_get_fixed_network_id_with_uuid(self, mock_get_network_value):
         context = mock.Mock()
         fixed_network = uuidutils.generate_uuid()
 
         network = utils.get_fixed_network_id(context, fixed_network)
 
-        mock_get_network.assert_not_called()
+        mock_get_network_value.assert_not_called()
         self.assertEqual(fixed_network, network)
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_name(self, mock_get_network):
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    @mock.patch("magnum_cluster_api.integrations.openstack.get_network_value")
+    def test_get_fixed_network_id_with_name(
+        self, mock_get_network_value, mock_get_openstack_api
+    ):
         context = mock.Mock()
         fixed_network = "fake-network"
 
         network_id = uuidutils.generate_uuid()
-        mock_get_network.return_value = network_id
+        mock_get_network_value.return_value = network_id
 
         network = utils.get_fixed_network_id(context, fixed_network)
 
-        mock_get_network.assert_called_once_with(
-            context, fixed_network, source="name", target="id", external=False
+        mock_get_network_value.assert_called_once_with(
+            mock_get_openstack_api.return_value,
+            fixed_network,
+            "id",
+            False,
+            exception.FixedNetworkNotFound,
         )
         self.assertEqual(network_id, network)
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_no_fixed_network(self, mock_get_network):
+    @mock.patch("magnum_cluster_api.integrations.openstack.get_network_value")
+    def test_get_fixed_network_id_with_no_fixed_network(self, mock_get_network_value):
         context = mock.Mock()
 
         network = utils.get_fixed_network_id(context, None)
 
-        mock_get_network.assert_not_called()
+        mock_get_network_value.assert_not_called()
         self.assertEqual(None, network)
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_missing_network(self, mock_get_network):
+    @mock.patch("magnum_cluster_api.integrations.openstack.get_network_value")
+    def test_get_fixed_network_id_with_missing_network(self, mock_get_network_value):
         context = mock.Mock()
         fixed_network = "fake-network"
 
-        mock_get_network.side_effect = exception.FixedNetworkNotFound(
+        mock_get_network_value.side_effect = exception.FixedNetworkNotFound(
             network=fixed_network
         )
 
@@ -352,12 +359,12 @@ class TestUtils(base.BaseTestCase):
             fixed_network,
         )
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_multiple_networks(self, mock_get_network):
+    @mock.patch("magnum_cluster_api.integrations.openstack.get_network_value")
+    def test_get_fixed_network_id_with_multiple_networks(self, mock_get_network_value):
         context = mock.Mock()
         fixed_network = "fake-network"
 
-        mock_get_network.side_effect = exception.Conflict(
+        mock_get_network_value.side_effect = exception.Conflict(
             "Multiple networks exist with same name '%s'. Please use the "
             "network ID instead." % fixed_network
         )
@@ -367,4 +374,59 @@ class TestUtils(base.BaseTestCase):
             utils.get_fixed_network_id,
             context,
             fixed_network,
+        )
+
+    @mock.patch("magnum_cluster_api.integrations.openstack.get_subnet_value")
+    def test_get_fixed_subnet_id_with_uuid(self, mock_get_subnet_value):
+        context = mock.Mock()
+        fixed_subnet = uuidutils.generate_uuid()
+
+        subnet = utils.get_fixed_subnet_id(context, fixed_subnet)
+
+        mock_get_subnet_value.assert_not_called()
+        self.assertEqual(fixed_subnet, subnet)
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    @mock.patch("magnum_cluster_api.integrations.openstack.get_subnet_value")
+    def test_get_fixed_subnet_id_with_name(
+        self, mock_get_subnet_value, mock_get_openstack_api
+    ):
+        context = mock.Mock()
+        fixed_subnet = "fake-subnet"
+
+        subnet_id = uuidutils.generate_uuid()
+        mock_get_subnet_value.return_value = subnet_id
+
+        subnet = utils.get_fixed_subnet_id(context, fixed_subnet)
+
+        mock_get_subnet_value.assert_called_once_with(
+            mock_get_openstack_api.return_value,
+            fixed_subnet,
+            "id",
+        )
+        self.assertEqual(subnet_id, subnet)
+
+    @mock.patch("magnum_cluster_api.integrations.openstack.get_subnet_value")
+    def test_get_fixed_subnet_id_with_no_fixed_subnet(self, mock_get_subnet_value):
+        context = mock.Mock()
+
+        subnet = utils.get_fixed_subnet_id(context, None)
+
+        mock_get_subnet_value.assert_not_called()
+        self.assertEqual(None, subnet)
+
+    @mock.patch("magnum_cluster_api.integrations.openstack.get_subnet_value")
+    def test_get_fixed_subnet_id_with_missing_subnet(self, mock_get_subnet_value):
+        context = mock.Mock()
+        fixed_subnet = "fake-subnet"
+
+        mock_get_subnet_value.side_effect = exception.FixedSubnetNotFound(
+            subnet=fixed_subnet
+        )
+
+        self.assertRaises(
+            exception.FixedSubnetNotFound,
+            utils.get_fixed_subnet_id,
+            context,
+            fixed_subnet,
         )

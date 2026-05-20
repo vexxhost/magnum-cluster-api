@@ -99,9 +99,15 @@ def mock_osc(session_mocker, image):
     mock_glance_client = mock_clients.glance.return_value
     mock_glance_client.images.get.return_value = image
 
+    # Neutron
+    mock_network = mock.Mock()
+    mock_network.id = uuidutils.generate_uuid()
+    mock_network.is_router_external = True
+    mock_clients.neutron.return_value.find_network.return_value = mock_network
+
     # Cinder
     mock_cinder_client = mock_clients.cinder.return_value
-    mock_cinder_client.volume_types.default.return_value.name = "__DEFAULT__"
+    mock_cinder_client.get_type.return_value.name = "__DEFAULT__"
     mock_clients.cinder_region_name.return_value = "RegionOne"
 
     # Others

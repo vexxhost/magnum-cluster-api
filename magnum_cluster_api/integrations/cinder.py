@@ -18,6 +18,7 @@ from oslo_config import cfg
 
 from magnum_cluster_api import clients
 from magnum_cluster_api.integrations import common
+from magnum_cluster_api.integrations import openstack
 
 CONF = cfg.CONF
 
@@ -42,7 +43,7 @@ def get_default_boot_volume_type(context):
         return CONF.cinder.default_boot_volume_type
 
     osc = clients.get_openstack_api(context)
-    default_volume_type = osc.cinder().volume_types.default()
+    default_volume_type = openstack.get_default_volume_type(osc)
 
     if default_volume_type is None:
         raise exception.VolumeTypeNotFound()
