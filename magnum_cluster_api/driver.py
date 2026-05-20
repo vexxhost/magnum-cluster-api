@@ -70,9 +70,9 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
-        self.rust_driver.create_cluster(cluster)
+        utils.validate_cluster(context, cluster, self.k8s_api)
 
-        utils.validate_cluster(context, cluster)
+        self.rust_driver.create_cluster(cluster)
 
         return self._create_cluster(context, cluster)
 
@@ -377,7 +377,8 @@ class BaseDriver(driver.Driver):
         """
         Upgrade a cluster to a new version of Kubernetes.
 
-        The only label that we change during the upgrade is the `kube_tag` label.
+        The only labels that we change during the upgrade are `kube_tag` and
+        kubelet profile selector labels.
 
         Historically, the upgrade cluster has been a "hammer" that was used to sync the
         Kubernetes Cluster API objects with the Magnum objects.  However, by doing this,
@@ -398,8 +399,23 @@ class BaseDriver(driver.Driver):
         #              The Magnum Cluster API does not have this limitation in this case
         #              we ignore the `nodegroup` parameter and upgrade the entire cluster
         #              at once.
+        original_cluster_template_id = cluster.cluster_template_id
+        original_labels = dict(cluster.labels or {})
+
         cluster.cluster_template_id = cluster_template.uuid
         cluster.labels["kube_tag"] = cluster_template.labels["kube_tag"]
+        utils.sync_kubelet_profile_labels_from_template(cluster, cluster_template)
+        utils.validate_cluster(context, cluster, self.k8s_api)
+
+        labels_changed = cluster.labels != original_labels
+        if labels_changed:
+            cluster.labels = dict(cluster.labels)
+
+        if (
+            cluster.cluster_template_id != original_cluster_template_id
+            or labels_changed
+        ):
+            cluster.save()
 
         for ng in cluster.nodegroups:
             ng.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
@@ -484,7 +500,14 @@ class BaseDriver(driver.Driver):
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
         cluster_resource.obj["spec"]["topology"]["workers"][
             "machineDeployments"
-        ].append(resources.mutate_machine_deployment(context, cluster, nodegroup))
+        ].append(
+            resources.mutate_machine_deployment(
+                context,
+                cluster,
+                nodegroup,
+                pykube_api=self.k8s_api,
+            )
+        )
 
         utils.kube_apply_patch(cluster_resource)
 
@@ -659,6 +682,7 @@ class BaseDriver(driver.Driver):
                 cluster,
                 nodegroup,
                 cluster_resource.get_machine_deployment_spec(nodegroup.name),
+                pykube_api=self.k8s_api,
             )
 
             if current_md_spec == target_md_spec:

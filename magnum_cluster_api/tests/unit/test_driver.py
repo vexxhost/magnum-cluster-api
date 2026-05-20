@@ -331,6 +331,44 @@ class TestDriver:
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
 
+    def test_upgrade_cluster_persists_kubelet_selector_labels(
+        self,
+        context,
+        requests_mock,
+        ubuntu_driver,
+        cluster_template,
+        mock_validate_cluster,
+        mock_rust_driver,
+        mocker,
+    ):
+        ubuntu_driver._kube_client = mock.MagicMock()
+        mocker.patch("magnum_cluster_api.resources.apply_cluster_from_magnum_cluster")
+        mocker.patch(
+            "magnum_cluster_api.resources.Cluster"
+        ).return_value.get_object.return_value = {}
+
+        self.cluster.cluster_template_id = "old-template"
+        self.cluster.labels = {
+            "kube_tag": "v1.34.3",
+            "kubelet_config_profile": "profile-standard",
+            "kubelet_nodegroup_config_profile_set": "old-layout",
+        }
+        cluster_template.uuid = "new-template"
+        cluster_template.labels = {
+            "kube_tag": "v1.34.3",
+            "kubelet_config_profile": "profile-upgrade",
+        }
+
+        ubuntu_driver.upgrade_cluster(
+            context, self.cluster, cluster_template, None, None
+        )
+
+        assert self.cluster.cluster_template_id == "new-template"
+        assert self.cluster.labels["kubelet_config_profile"] == "profile-upgrade"
+        assert "kubelet_nodegroup_config_profile_set" not in self.cluster.labels
+        assert "labels" in self.cluster.obj_what_changed()
+        self.cluster.save.assert_called_once()
+
     def setup_node_group_tests(self, rsps, before, after=None):
         rsps.add(
             self._response_for_cluster_with_machine_deployments(*before),

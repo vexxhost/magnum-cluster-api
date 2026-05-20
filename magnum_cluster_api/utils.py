@@ -47,6 +47,24 @@ AVAILABLE_SERVER_GROUP_POLICIES = [
     "soft-affinity",
     "soft-anti-affinity",
 ]
+KUBELET_CPU_MANAGER_POLICIES = ["none", "static"]
+KUBELET_TOPOLOGY_MANAGER_POLICIES = [
+    "none",
+    "best-effort",
+    "restricted",
+    "single-numa-node",
+]
+KUBELET_CONFIG_PROFILE_FIELDS = {
+    "cpuManagerPolicy",
+    "topologyManagerPolicy",
+    "reservedSystemCPUs",
+    "maxPods",
+}
+KUBELET_PROFILE_SELECTOR_LABELS = {
+    "kubelet_config_profile",
+    "kubelet_nodegroup_config_profile_set",
+}
+KUBELET_CONFIG_PROFILES_CONFIGMAP = "mcapi-kubelet-config-profiles"
 CONF = cfg.CONF
 
 
@@ -318,6 +336,363 @@ def get_cluster_label_as_bool(
     return strutils.bool_from_string(value, strict=True)
 
 
+def validate_cluster_label_in_list(
+    cluster: magnum_objects.Cluster,
+    key: str,
+    allowed_values: list[str],
+) -> None:
+    value = cluster.labels.get(key)
+    if not value:
+        return
+    if value not in allowed_values:
+        raise exception.Invalid(
+            "Invalid value for %(key)s: %(value)s. Allowed values: %(allowed)s."
+            % {
+                "key": key,
+                "value": value,
+                "allowed": ", ".join(allowed_values),
+            }
+        )
+
+
+def sync_kubelet_profile_labels_from_template(
+    cluster: magnum_objects.Cluster,
+    cluster_template: magnum_objects.ClusterTemplate,
+) -> None:
+    """Copy kubelet profile selector labels from a target template.
+
+    Magnum's cluster upgrade path is the durable user-facing API for changing
+    kubelet profiles after create.  Keep only selector labels in the cluster
+    row, and remove stale selector values when the target template omits them.
+    """
+    if cluster.labels is None:
+        cluster.labels = {}
+    template_labels = getattr(cluster_template, "labels", None) or {}
+    for label in KUBELET_PROFILE_SELECTOR_LABELS:
+        if label in template_labels:
+            cluster.labels[label] = template_labels[label]
+        else:
+            cluster.labels.pop(label, None)
+
+
+def validate_kubelet_config_labels(
+    cluster: magnum_objects.Cluster,
+    api: pykube.HTTPClient | None = None,
+    namespace: str = "magnum-system",
+) -> None:
+    get_kubelet_config_profile_defaults(
+        cluster.labels.get("kubelet_config_profile", ""),
+        api,
+        namespace,
+    )
+    get_kubelet_nodegroup_config_profile_set(
+        cluster.labels.get("kubelet_nodegroup_config_profile_set", ""),
+        api,
+        namespace,
+    )
+
+
+def validate_kubelet_config_profile(
+    profile: str,
+    fields: typing.Any,
+) -> typing.Dict[str, typing.Any]:
+    if not isinstance(fields, dict):
+        raise exception.Invalid(
+            "Invalid kubelet config profile %(profile)s. Expected a YAML object."
+            % {"profile": profile}
+        )
+
+    config: typing.Dict[str, typing.Any] = {}
+    for key, value in fields.items():
+        if key not in KUBELET_CONFIG_PROFILE_FIELDS:
+            raise exception.Invalid(
+                "Unsupported kubelet config profile field %(field)s in "
+                "%(profile)s. Supported fields: %(supported)s."
+                % {
+                    "field": key,
+                    "profile": profile,
+                    "supported": ", ".join(sorted(KUBELET_CONFIG_PROFILE_FIELDS)),
+                }
+            )
+        config[key] = value
+
+    if "cpuManagerPolicy" in config and config["cpuManagerPolicy"] not in (
+        KUBELET_CPU_MANAGER_POLICIES
+    ):
+        raise exception.Invalid(
+            "Invalid cpuManagerPolicy in kubelet config profile %(profile)s: "
+            "%(value)s." % {"profile": profile, "value": config["cpuManagerPolicy"]}
+        )
+    if (
+        "topologyManagerPolicy" in config
+        and config["topologyManagerPolicy"] not in KUBELET_TOPOLOGY_MANAGER_POLICIES
+    ):
+        raise exception.Invalid(
+            "Invalid topologyManagerPolicy in kubelet config profile "
+            "%(profile)s: %(value)s."
+            % {"profile": profile, "value": config["topologyManagerPolicy"]}
+        )
+    if "maxPods" in config:
+        try:
+            max_pods = strutils.validate_integer(config["maxPods"], "maxPods")
+        except ValueError as exc:
+            raise exception.Invalid(str(exc))
+        if max_pods <= 0:
+            raise exception.Invalid(
+                "maxPods in kubelet config profile %(profile)s must be a "
+                "positive integer." % {"profile": profile}
+            )
+        config["maxPods"] = max_pods
+
+    return config
+
+
+def get_kubelet_config_profile_data(
+    api: pykube.HTTPClient,
+    namespace: str = "magnum-system",
+) -> typing.Dict[str, typing.Any]:
+    config_map = pykube.ConfigMap.objects(api, namespace=namespace).get_or_none(
+        name=KUBELET_CONFIG_PROFILES_CONFIGMAP
+    )
+    if config_map is None:
+        return {}
+
+    profiles: typing.Dict[str, typing.Any] = {}
+    for name, raw_profile in config_map.obj.get("data", {}).items():
+        try:
+            fields = yaml.safe_load(raw_profile) or {}
+        except yaml.YAMLError as exc:
+            raise exception.Invalid(
+                "Invalid YAML in kubelet config profile %(profile)s: %(error)s."
+                % {"profile": name, "error": exc}
+            )
+        profiles[name] = fields
+    return profiles
+
+
+def get_kubelet_config_profiles(
+    api: pykube.HTTPClient,
+    namespace: str = "magnum-system",
+) -> typing.Dict[str, typing.Dict[str, typing.Any]]:
+    profiles: typing.Dict[str, typing.Dict[str, typing.Any]] = {}
+    for name, fields in get_kubelet_config_profile_data(api, namespace).items():
+        if isinstance(fields, dict) and "nodegroups" in fields:
+            continue
+        profiles[name] = validate_kubelet_config_profile(name, fields)
+    return profiles
+
+
+def get_kubelet_config_profile_defaults(
+    profile: str,
+    api: pykube.HTTPClient | None,
+    namespace: str = "magnum-system",
+) -> typing.Dict[str, typing.Any]:
+    if not profile:
+        return {}
+    if api is None:
+        raise exception.Invalid(
+            "kubelet_config_profile requires access to the management Kubernetes "
+            "cluster."
+        )
+    profiles = get_kubelet_config_profiles(api, namespace)
+    if profile not in profiles:
+        if not profiles:
+            raise exception.Invalid(
+                "Invalid value for kubelet_config_profile: %(value)s. No profiles "
+                "are registered in ConfigMap %(configmap)s in namespace "
+                "%(namespace)s."
+                % {
+                    "value": profile,
+                    "configmap": KUBELET_CONFIG_PROFILES_CONFIGMAP,
+                    "namespace": namespace,
+                }
+            )
+        raise exception.Invalid(
+            "Invalid value for kubelet_config_profile: %(value)s. "
+            "Allowed values: %(allowed)s."
+            % {
+                "value": profile,
+                "allowed": ", ".join(sorted(profiles)),
+            }
+        )
+    return profiles[profile]
+
+
+def validate_kubelet_nodegroup_config_profile_set(
+    profile_set: str,
+    fields: typing.Any,
+    profiles: typing.Dict[str, typing.Dict[str, typing.Any]],
+) -> typing.Dict[str, typing.Dict[str, str]]:
+    if not isinstance(fields, dict):
+        raise exception.Invalid(
+            "Invalid kubelet nodegroup config profile set %(profile)s. "
+            "Expected a YAML object." % {"profile": profile_set}
+        )
+
+    unsupported = set(fields) - {"nodegroups"}
+    if unsupported:
+        raise exception.Invalid(
+            "Unsupported kubelet nodegroup config profile set field %(field)s "
+            "in %(profile)s. Supported fields: nodegroups."
+            % {"field": sorted(unsupported)[0], "profile": profile_set}
+        )
+
+    nodegroups = fields.get("nodegroups", {})
+    if not isinstance(nodegroups, dict):
+        raise exception.Invalid(
+            "Invalid nodegroups in kubelet nodegroup config profile set "
+            "%(profile)s. Expected a YAML object." % {"profile": profile_set}
+        )
+
+    config: typing.Dict[str, typing.Dict[str, str]] = {}
+    for nodegroup_name, nodegroup_config in nodegroups.items():
+        if not isinstance(nodegroup_config, dict):
+            raise exception.Invalid(
+                "Invalid nodegroup %(nodegroup)s in kubelet nodegroup config "
+                "profile set %(profile)s. Expected a YAML object."
+                % {"nodegroup": nodegroup_name, "profile": profile_set}
+            )
+
+        unsupported = set(nodegroup_config) - {"kubeletConfigProfile"}
+        if unsupported:
+            raise exception.Invalid(
+                "Unsupported field %(field)s for nodegroup %(nodegroup)s in "
+                "kubelet nodegroup config profile set %(profile)s. Supported "
+                "fields: kubeletConfigProfile."
+                % {
+                    "field": sorted(unsupported)[0],
+                    "nodegroup": nodegroup_name,
+                    "profile": profile_set,
+                }
+            )
+
+        kubelet_config_profile = nodegroup_config.get("kubeletConfigProfile")
+        if not kubelet_config_profile:
+            raise exception.Invalid(
+                "Nodegroup %(nodegroup)s in kubelet nodegroup config profile "
+                "set %(profile)s must set kubeletConfigProfile."
+                % {"nodegroup": nodegroup_name, "profile": profile_set}
+            )
+        if kubelet_config_profile not in profiles:
+            raise exception.Invalid(
+                "Invalid kubeletConfigProfile %(value)s for nodegroup "
+                "%(nodegroup)s in kubelet nodegroup config profile set "
+                "%(profile)s. Allowed values: %(allowed)s."
+                % {
+                    "value": kubelet_config_profile,
+                    "nodegroup": nodegroup_name,
+                    "profile": profile_set,
+                    "allowed": ", ".join(sorted(profiles)),
+                }
+            )
+
+        config[nodegroup_name] = {"kubeletConfigProfile": kubelet_config_profile}
+
+    return config
+
+
+def get_kubelet_nodegroup_config_profile_set(
+    profile_set: str,
+    api: pykube.HTTPClient | None,
+    namespace: str = "magnum-system",
+) -> typing.Dict[str, typing.Dict[str, str]]:
+    if not profile_set:
+        return {}
+    if api is None:
+        raise exception.Invalid(
+            "kubelet_nodegroup_config_profile_set requires access to the "
+            "management Kubernetes cluster."
+        )
+
+    profile_data = get_kubelet_config_profile_data(api, namespace)
+    if profile_set not in profile_data:
+        if not profile_data:
+            raise exception.Invalid(
+                "Invalid value for kubelet_nodegroup_config_profile_set: "
+                "%(value)s. No profiles are registered in ConfigMap "
+                "%(configmap)s in namespace %(namespace)s."
+                % {
+                    "value": profile_set,
+                    "configmap": KUBELET_CONFIG_PROFILES_CONFIGMAP,
+                    "namespace": namespace,
+                }
+            )
+        raise exception.Invalid(
+            "Invalid value for kubelet_nodegroup_config_profile_set: %(value)s. "
+            "Allowed values: %(allowed)s."
+            % {"value": profile_set, "allowed": ", ".join(sorted(profile_data))}
+        )
+
+    profiles = get_kubelet_config_profiles(api, namespace)
+    return validate_kubelet_nodegroup_config_profile_set(
+        profile_set,
+        profile_data[profile_set],
+        profiles,
+    )
+
+
+def kubelet_config_from_profile_defaults(
+    profile_defaults: typing.Dict[str, typing.Any],
+) -> typing.Dict[str, typing.Union[str, bool, int]]:
+    cpu_manager_policy = profile_defaults.get("cpuManagerPolicy", "")
+    topology_manager_policy = profile_defaults.get("topologyManagerPolicy", "")
+    reserved_system_cpus = profile_defaults.get("reservedSystemCPUs", "")
+    max_pods = int(profile_defaults.get("maxPods", 0))
+
+    return {
+        "enabled": any(
+            [
+                cpu_manager_policy,
+                topology_manager_policy,
+                reserved_system_cpus,
+                max_pods,
+            ]
+        ),
+        "cpuManagerPolicy": cpu_manager_policy,
+        "topologyManagerPolicy": topology_manager_policy,
+        "reservedSystemCPUs": reserved_system_cpus,
+        "maxPods": max_pods,
+    }
+
+
+def get_kubelet_config(
+    cluster: magnum_objects.Cluster,
+    api: pykube.HTTPClient | None = None,
+    namespace: str = "magnum-system",
+) -> typing.Dict[str, typing.Union[str, bool, int]]:
+    kubelet_config_profile = cluster.labels.get("kubelet_config_profile", "")
+    profile_defaults = get_kubelet_config_profile_defaults(
+        kubelet_config_profile,
+        api,
+        namespace,
+    )
+    return kubelet_config_from_profile_defaults(profile_defaults)
+
+
+def get_nodegroup_kubelet_config(
+    cluster: magnum_objects.Cluster,
+    nodegroup: magnum_objects.NodeGroup,
+    api: pykube.HTTPClient | None = None,
+    namespace: str = "magnum-system",
+) -> typing.Dict[str, typing.Union[str, bool, int]] | None:
+    profile_set = get_kubelet_nodegroup_config_profile_set(
+        cluster.labels.get("kubelet_nodegroup_config_profile_set", ""),
+        api,
+        namespace,
+    )
+    nodegroup_config = profile_set.get(nodegroup.name)
+    if nodegroup_config is None:
+        return None
+
+    return kubelet_config_from_profile_defaults(
+        get_kubelet_config_profile_defaults(
+            nodegroup_config["kubeletConfigProfile"],
+            api,
+            namespace,
+        )
+    )
+
+
 def delete_loadbalancers(ctx, cluster):
     # NOTE(mnaser): This code is duplicated from magnum.common.octavia
     #               since the original code is very Heat-specific.
@@ -377,10 +752,16 @@ def lookup_image(cli: clients.OpenStackClients, image_ref: str) -> dict:
     return attr_validator.validate_image(cli, image_ref)
 
 
-def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluster):
+def validate_cluster(
+    ctx: context.RequestContext,
+    cluster: magnum_objects.Cluster,
+    api: pykube.HTTPClient | None = None,
+):
     # Check network driver
     if cluster.cluster_template.network_driver not in ["cilium", "calico"]:
         raise mcapi_exceptions.UnsupportedCNI
+
+    validate_kubelet_config_labels(cluster, api)
 
     # Check master count
     if (cluster.master_count % 2) == 0:

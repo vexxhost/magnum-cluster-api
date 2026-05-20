@@ -231,6 +231,40 @@ is often accomplished by deploying a driver on each node.
 
    Default value: `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305`
 
+* `kubelet_config_profile`
+
+   Select an operator-defined kubelet configuration profile rendered through a
+   kubeadm `KubeletConfiguration` patch.  Supported values depend on the
+   `mcapi-kubelet-config-profiles` ConfigMap in the management cluster.
+   Users cannot create new profiles through cluster labels.  Unknown profile
+   names are rejected during cluster validation.  Magnum's cluster update API
+   does not currently allow changing `labels`, so change this value after
+   creation by upgrading to a cluster template that selects a different profile.
+
+   Default value: unset
+
+* `kubelet_nodegroup_config_profile_set`
+
+   Select an operator-defined nodegroup layout profile from the same
+   `mcapi-kubelet-config-profiles` ConfigMap.  The layout maps nodegroup names
+   to kubelet profiles and renders MachineDeployment-level `kubeletConfig`
+   overrides.  Unknown layout profiles or layouts that reference unknown kubelet
+   profiles are rejected during cluster validation.
+
+   Default value: unset
+
+   Example:
+
+   ```bash
+   openstack coe cluster create bm-gpu \
+     --cluster-template k8s-bm \
+     --labels kubelet_config_profile=profile-standard \
+     --labels kubelet_nodegroup_config_profile_set=profile-bm-gpu-layout
+   ```
+
+   See [Use Cases](use-cases.md#gpu-and-numa-aware-kubelet-tuning) for a
+   complete GPU and NUMA-aware cluster example.
+
 * `kube_tag`
 
    The version of Kubernetes to use.
