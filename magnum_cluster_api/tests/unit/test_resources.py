@@ -153,11 +153,11 @@ def test_cluster_object_normalizes_null_hardware_disk_bus(
         return_value="fake-boot-volume-type",
     )
     mocker.patch(
-        "magnum_cluster_api.resources.neutron.get_external_network_id",
+        "magnum_cluster_api.utils.get_external_network_id",
         return_value="fake-external-network",
     )
     mocker.patch(
-        "magnum_cluster_api.resources.neutron.get_fixed_subnet_id",
+        "magnum_cluster_api.utils.get_fixed_subnet_id",
         return_value="fake-fixed-subnet",
     )
     mocker.patch(

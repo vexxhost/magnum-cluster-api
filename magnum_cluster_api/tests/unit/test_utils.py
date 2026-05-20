@@ -302,48 +302,52 @@ class TestGenerateAptProxyConfig:
 class TestUtils(base.BaseTestCase):
     """Test case for utils."""
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_uuid(self, mock_get_network):
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_fixed_network_id_with_uuid(self, mock_get_openstack_api):
         context = mock.Mock()
         fixed_network = uuidutils.generate_uuid()
 
         network = utils.get_fixed_network_id(context, fixed_network)
 
-        mock_get_network.assert_not_called()
+        mock_get_openstack_api.assert_not_called()
         self.assertEqual(fixed_network, network)
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_name(self, mock_get_network):
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_fixed_network_id_with_name(self, mock_get_openstack_api):
         context = mock.Mock()
         fixed_network = "fake-network"
 
         network_id = uuidutils.generate_uuid()
-        mock_get_network.return_value = network_id
+        network_resource = mock.Mock()
+        network_resource.name = fixed_network
+        network_resource.id = network_id
+        network_resource.is_router_external = False
+        mock_get_openstack_api.return_value.network.networks.return_value = [
+            network_resource
+        ]
 
         network = utils.get_fixed_network_id(context, fixed_network)
 
-        mock_get_network.assert_called_once_with(
-            context, fixed_network, source="name", target="id", external=False
+        mock_get_openstack_api.return_value.network.networks.assert_called_once_with(
+            name=fixed_network
         )
         self.assertEqual(network_id, network)
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_no_fixed_network(self, mock_get_network):
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_fixed_network_id_with_no_fixed_network(self, mock_get_openstack_api):
         context = mock.Mock()
 
         network = utils.get_fixed_network_id(context, None)
 
-        mock_get_network.assert_not_called()
+        mock_get_openstack_api.assert_not_called()
         self.assertEqual(None, network)
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_missing_network(self, mock_get_network):
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_fixed_network_id_with_missing_network(self, mock_get_openstack_api):
         context = mock.Mock()
         fixed_network = "fake-network"
 
-        mock_get_network.side_effect = exception.FixedNetworkNotFound(
-            network=fixed_network
-        )
+        mock_get_openstack_api.return_value.network.networks.return_value = []
 
         self.assertRaises(
             exception.FixedNetworkNotFound,
@@ -352,15 +356,21 @@ class TestUtils(base.BaseTestCase):
             fixed_network,
         )
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_multiple_networks(self, mock_get_network):
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_fixed_network_id_with_multiple_networks(self, mock_get_openstack_api):
         context = mock.Mock()
         fixed_network = "fake-network"
 
-        mock_get_network.side_effect = exception.Conflict(
-            "Multiple networks exist with same name '%s'. Please use the "
-            "network ID instead." % fixed_network
-        )
+        network_1 = mock.Mock()
+        network_1.name = fixed_network
+        network_1.is_router_external = False
+        network_2 = mock.Mock()
+        network_2.name = fixed_network
+        network_2.is_router_external = False
+        mock_get_openstack_api.return_value.network.networks.return_value = [
+            network_1,
+            network_2,
+        ]
 
         self.assertRaises(
             exception.Conflict,

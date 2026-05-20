@@ -24,7 +24,7 @@ import pkg_resources
 import pykube  # type: ignore
 import yaml
 from magnum import objects as magnum_objects  # type: ignore
-from magnum.common import context, neutron  # type: ignore
+from magnum.common import context  # type: ignore
 from magnum.common import utils as magnum_utils  # type: ignore
 from magnum.common.cert_manager import cert_manager  # type: ignore
 from magnum.common.x509 import operations as x509  # type: ignore
@@ -1188,7 +1188,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "externalNetworkId",
-                            "value": neutron.get_external_network_id(
+                            "value": utils.get_external_network_id(
                                 self.context,
                                 self.cluster.cluster_template.external_network_id,
                             ),
@@ -1202,7 +1202,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "fixedSubnetId",
-                            "value": neutron.get_fixed_subnet_id(
+                            "value": utils.get_fixed_subnet_id(
                                 self.context, self.cluster.fixed_subnet
                             )
                             or "",
