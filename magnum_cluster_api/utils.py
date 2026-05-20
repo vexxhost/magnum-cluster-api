@@ -25,7 +25,7 @@ import pykube  # type: ignore
 import shortuuid
 import yaml
 from magnum import objects as magnum_objects  # type: ignore
-from magnum.common import context, exception, neutron  # type: ignore
+from magnum.common import context, exception  # type: ignore
 from magnum.common import utils as magnum_utils
 from openstack import exceptions as sdk_exceptions  # type: ignore
 from oslo_config import cfg  # type: ignore
@@ -50,6 +50,105 @@ CONF = cfg.CONF
 
 
 g_server_group_cache = ServerGroupCache()
+
+
+def _sdk_resource_value(resource, key, default=None):
+    value = getattr(resource, key, None)
+    if value is not None:
+        return value
+
+    if isinstance(resource, dict):
+        return resource.get(key, default)
+
+    try:
+        return resource[key]
+    except (KeyError, TypeError):
+        pass
+
+    properties = getattr(resource, "properties", None)
+    if hasattr(properties, "get"):
+        return properties.get(key, default)
+
+    return default
+
+
+def _network_is_external(network) -> bool:
+    value = _sdk_resource_value(network, "is_router_external", None)
+    if value is None:
+        value = _sdk_resource_value(network, "router:external", False)
+    return bool(value)
+
+
+def _network_matches_external(network, external: bool) -> bool:
+    return _network_is_external(network) is external
+
+
+def _raise_network_not_found(network, external):
+    if external:
+        raise exception.ExternalNetworkNotFound(network=network)
+    raise exception.FixedNetworkNotFound(network=network)
+
+
+def _get_network_value(ctx, network, source, target, external):
+    osc = clients.get_openstack_api(ctx)
+
+    if source == "id":
+        try:
+            sdk_network = osc.network.get_network(network)
+        except (sdk_exceptions.NotFoundException, sdk_exceptions.ResourceNotFound):
+            _raise_network_not_found(network, external)
+
+        if not _network_matches_external(sdk_network, external):
+            _raise_network_not_found(network, external)
+
+        return _sdk_resource_value(sdk_network, target)
+
+    networks = [
+        sdk_network
+        for sdk_network in osc.network.networks(name=network)
+        if _sdk_resource_value(sdk_network, source) == network
+        and _network_matches_external(sdk_network, external)
+    ]
+
+    if len(networks) == 0:
+        _raise_network_not_found(network, external)
+
+    if len(networks) > 1:
+        raise exception.Conflict(
+            "Multiple networks exist with same name '%s'. Please use the "
+            "network ID instead." % network
+        )
+
+    return _sdk_resource_value(networks[0], target)
+
+
+def _get_subnet_value(ctx, subnet, source, target):
+    osc = clients.get_openstack_api(ctx)
+
+    if source == "id":
+        try:
+            sdk_subnet = osc.network.get_subnet(subnet)
+        except (sdk_exceptions.NotFoundException, sdk_exceptions.ResourceNotFound):
+            raise exception.FixedSubnetNotFound(subnet=subnet)
+
+        return _sdk_resource_value(sdk_subnet, target)
+
+    subnets = [
+        sdk_subnet
+        for sdk_subnet in osc.network.subnets(name=subnet)
+        if _sdk_resource_value(sdk_subnet, source) == subnet
+    ]
+
+    if len(subnets) == 0:
+        raise exception.FixedSubnetNotFound(subnet=subnet)
+
+    if len(subnets) > 1:
+        raise exception.Conflict(
+            "Multiple subnets exist with same name '%s'. Please use the "
+            "subnet ID instead." % subnet
+        )
+
+    return _sdk_resource_value(subnets[0], target)
 
 
 def get_cluster_api_cloud_config_secret_name(cluster: magnum_objects.Cluster) -> str:
@@ -371,9 +470,25 @@ def _delete_loadbalancers(
             candidates.add(lb.id)
 
             if remove_fip:
-                neutron.delete_floatingip(ctx, lb.vip_port_id, cluster)
+                _delete_floatingip(ctx, lb.vip_port_id, cluster)
 
     return candidates
+
+
+def _delete_floatingip(ctx, port_id, cluster):
+    """Delete Kubernetes-created floating IPs associated with a load balancer."""
+    pattern = r"Floating IP for Kubernetes .+ from cluster %s$" % cluster.uuid
+    osc = clients.get_openstack_api(ctx)
+
+    try:
+        for floating_ip in osc.network.ips(port_id=port_id):
+            description = _sdk_resource_value(floating_ip, "description", "")
+            floating_ip_id = _sdk_resource_value(floating_ip, "id")
+
+            if re.match(pattern, description):
+                osc.network.delete_ip(floating_ip_id, ignore_missing=True)
+    except Exception as e:
+        raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
 
 
 def _wait_for_loadbalancers_deleted(octavia_client, deleted_lbs):
@@ -453,7 +568,7 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
     # Check if fixed_network exists
     if cluster.fixed_network:
         if uuidutils.is_uuid_like(cluster.fixed_network):
-            neutron.get_network(
+            _get_network_value(
                 ctx,
                 cluster.fixed_network,
                 source="id",
@@ -461,7 +576,7 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
                 external=False,
             )
         else:
-            neutron.get_network(
+            _get_network_value(
                 ctx,
                 cluster.fixed_network,
                 source="name",
@@ -472,9 +587,9 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
     # Check if fixed_subnet exists
     if cluster.fixed_subnet:
         if uuidutils.is_uuid_like(cluster.fixed_subnet):
-            neutron.get_subnet(ctx, cluster.fixed_subnet, source="id", target="name")
+            _get_subnet_value(ctx, cluster.fixed_subnet, source="id", target="name")
         else:
-            neutron.get_subnet(ctx, cluster.fixed_subnet, source="name", target="id")
+            _get_subnet_value(ctx, cluster.fixed_subnet, source="name", target="id")
 
 
 def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
@@ -714,8 +829,24 @@ def _delete_server_group(
 
 def get_fixed_network_id(context, network):
     if network and not uuidutils.is_uuid_like(network):
-        return neutron.get_network(
+        return _get_network_value(
             context, network, source="name", target="id", external=False
         )
     else:
         return network
+
+
+def get_external_network_id(context, network):
+    if network and uuidutils.is_uuid_like(network):
+        return network
+
+    return _get_network_value(
+        context, network, source="name", target="id", external=True
+    )
+
+
+def get_fixed_subnet_id(context, subnet):
+    if subnet and not uuidutils.is_uuid_like(subnet):
+        return _get_subnet_value(context, subnet, source="name", target="id")
+
+    return subnet

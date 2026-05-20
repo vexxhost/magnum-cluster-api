@@ -109,7 +109,7 @@ class TestGenerateCloudControllerManagerConfig:
             tls-insecure=false
 
             [LoadBalancer]
-            lb-provider=amphora
+            lb-provider=amphorav2
             lb-method=ROUND_ROBIN
             create-monitor=True
             """
@@ -302,48 +302,73 @@ class TestGenerateAptProxyConfig:
 class TestUtils(base.BaseTestCase):
     """Test case for utils."""
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_uuid(self, mock_get_network):
+    def _cluster(self, fixed_network=None, fixed_subnet=None):
+        cluster = mock.Mock()
+        cluster.cluster_template = mock.Mock(network_driver="cilium")
+        cluster.master_count = 1
+        cluster.fixed_network = fixed_network
+        cluster.fixed_subnet = fixed_subnet
+        return cluster
+
+    def _network_resource(self, name, network_id=None, external=False):
+        network = mock.Mock()
+        network.id = network_id or uuidutils.generate_uuid()
+        network.name = name
+        network.is_router_external = external
+        return network
+
+    def _subnet_resource(self, name, subnet_id=None):
+        subnet = mock.Mock()
+        subnet.id = subnet_id or uuidutils.generate_uuid()
+        subnet.name = name
+        return subnet
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_fixed_network_id_with_uuid(self, mock_get_openstack_api):
         context = mock.Mock()
         fixed_network = uuidutils.generate_uuid()
 
         network = utils.get_fixed_network_id(context, fixed_network)
 
-        mock_get_network.assert_not_called()
+        mock_get_openstack_api.assert_not_called()
         self.assertEqual(fixed_network, network)
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_name(self, mock_get_network):
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_fixed_network_id_with_name(self, mock_get_openstack_api):
         context = mock.Mock()
         fixed_network = "fake-network"
 
         network_id = uuidutils.generate_uuid()
-        mock_get_network.return_value = network_id
+        network_resource = mock.Mock()
+        network_resource.name = fixed_network
+        network_resource.id = network_id
+        network_resource.is_router_external = False
+        mock_get_openstack_api.return_value.network.networks.return_value = [
+            network_resource
+        ]
 
         network = utils.get_fixed_network_id(context, fixed_network)
 
-        mock_get_network.assert_called_once_with(
-            context, fixed_network, source="name", target="id", external=False
+        mock_get_openstack_api.return_value.network.networks.assert_called_once_with(
+            name=fixed_network
         )
         self.assertEqual(network_id, network)
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_no_fixed_network(self, mock_get_network):
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_fixed_network_id_with_no_fixed_network(self, mock_get_openstack_api):
         context = mock.Mock()
 
         network = utils.get_fixed_network_id(context, None)
 
-        mock_get_network.assert_not_called()
+        mock_get_openstack_api.assert_not_called()
         self.assertEqual(None, network)
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_missing_network(self, mock_get_network):
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_fixed_network_id_with_missing_network(self, mock_get_openstack_api):
         context = mock.Mock()
         fixed_network = "fake-network"
 
-        mock_get_network.side_effect = exception.FixedNetworkNotFound(
-            network=fixed_network
-        )
+        mock_get_openstack_api.return_value.network.networks.return_value = []
 
         self.assertRaises(
             exception.FixedNetworkNotFound,
@@ -352,15 +377,21 @@ class TestUtils(base.BaseTestCase):
             fixed_network,
         )
 
-    @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_with_multiple_networks(self, mock_get_network):
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_fixed_network_id_with_multiple_networks(self, mock_get_openstack_api):
         context = mock.Mock()
         fixed_network = "fake-network"
 
-        mock_get_network.side_effect = exception.Conflict(
-            "Multiple networks exist with same name '%s'. Please use the "
-            "network ID instead." % fixed_network
-        )
+        network_1 = mock.Mock()
+        network_1.name = fixed_network
+        network_1.is_router_external = False
+        network_2 = mock.Mock()
+        network_2.name = fixed_network
+        network_2.is_router_external = False
+        mock_get_openstack_api.return_value.network.networks.return_value = [
+            network_1,
+            network_2,
+        ]
 
         self.assertRaises(
             exception.Conflict,
@@ -368,3 +399,206 @@ class TestUtils(base.BaseTestCase):
             context,
             fixed_network,
         )
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_external_network_id_with_uuid(self, mock_get_openstack_api):
+        context = mock.Mock()
+        external_network = uuidutils.generate_uuid()
+
+        network = utils.get_external_network_id(context, external_network)
+
+        mock_get_openstack_api.assert_not_called()
+        self.assertEqual(external_network, network)
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_external_network_id_with_name(self, mock_get_openstack_api):
+        context = mock.Mock()
+        external_network = "public"
+
+        network_resource = self._network_resource(external_network, external=True)
+        mock_get_openstack_api.return_value.network.networks.return_value = [
+            network_resource
+        ]
+
+        network = utils.get_external_network_id(context, external_network)
+
+        mock_get_openstack_api.return_value.network.networks.assert_called_once_with(
+            name=external_network
+        )
+        self.assertEqual(network_resource.id, network)
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_external_network_id_with_missing_network(self, mock_get_openstack_api):
+        context = mock.Mock()
+        external_network = "public"
+
+        mock_get_openstack_api.return_value.network.networks.return_value = []
+
+        self.assertRaises(
+            exception.ExternalNetworkNotFound,
+            utils.get_external_network_id,
+            context,
+            external_network,
+        )
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_external_network_id_ignores_internal_network(
+        self, mock_get_openstack_api
+    ):
+        context = mock.Mock()
+        external_network = "public"
+
+        network_resource = self._network_resource(external_network, external=False)
+        mock_get_openstack_api.return_value.network.networks.return_value = [
+            network_resource
+        ]
+
+        self.assertRaises(
+            exception.ExternalNetworkNotFound,
+            utils.get_external_network_id,
+            context,
+            external_network,
+        )
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_fixed_subnet_id_with_uuid(self, mock_get_openstack_api):
+        context = mock.Mock()
+        fixed_subnet = uuidutils.generate_uuid()
+
+        subnet = utils.get_fixed_subnet_id(context, fixed_subnet)
+
+        mock_get_openstack_api.assert_not_called()
+        self.assertEqual(fixed_subnet, subnet)
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_fixed_subnet_id_with_name(self, mock_get_openstack_api):
+        context = mock.Mock()
+        fixed_subnet = "private-subnet"
+
+        subnet_resource = self._subnet_resource(fixed_subnet)
+        mock_get_openstack_api.return_value.network.subnets.return_value = [
+            subnet_resource
+        ]
+
+        subnet = utils.get_fixed_subnet_id(context, fixed_subnet)
+
+        mock_get_openstack_api.return_value.network.subnets.assert_called_once_with(
+            name=fixed_subnet
+        )
+        self.assertEqual(subnet_resource.id, subnet)
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_fixed_subnet_id_with_missing_subnet(self, mock_get_openstack_api):
+        context = mock.Mock()
+        fixed_subnet = "private-subnet"
+
+        mock_get_openstack_api.return_value.network.subnets.return_value = []
+
+        self.assertRaises(
+            exception.FixedSubnetNotFound,
+            utils.get_fixed_subnet_id,
+            context,
+            fixed_subnet,
+        )
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_get_fixed_subnet_id_with_multiple_subnets(self, mock_get_openstack_api):
+        context = mock.Mock()
+        fixed_subnet = "private-subnet"
+
+        mock_get_openstack_api.return_value.network.subnets.return_value = [
+            self._subnet_resource(fixed_subnet),
+            self._subnet_resource(fixed_subnet),
+        ]
+
+        self.assertRaises(
+            exception.Conflict,
+            utils.get_fixed_subnet_id,
+            context,
+            fixed_subnet,
+        )
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_validate_cluster_with_fixed_network_uuid(self, mock_get_openstack_api):
+        context = mock.Mock()
+        fixed_network = uuidutils.generate_uuid()
+        cluster = self._cluster(fixed_network=fixed_network)
+        network_resource = self._network_resource("private", fixed_network)
+        mock_get_openstack_api.return_value.network.get_network.return_value = (
+            network_resource
+        )
+
+        utils.validate_cluster(context, cluster)
+
+        mock_get_openstack_api.return_value.network.get_network.assert_called_once_with(
+            fixed_network
+        )
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_validate_cluster_with_fixed_subnet_uuid(self, mock_get_openstack_api):
+        context = mock.Mock()
+        fixed_subnet = uuidutils.generate_uuid()
+        cluster = self._cluster(fixed_subnet=fixed_subnet)
+        subnet_resource = self._subnet_resource("private-subnet", fixed_subnet)
+        mock_get_openstack_api.return_value.network.get_subnet.return_value = (
+            subnet_resource
+        )
+
+        utils.validate_cluster(context, cluster)
+
+        mock_get_openstack_api.return_value.network.get_subnet.assert_called_once_with(
+            fixed_subnet
+        )
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_delete_floatingip_deletes_cluster_fip(self, mock_get_openstack_api):
+        context = mock.Mock()
+        cluster = mock.Mock()
+        cluster.uuid = uuidutils.generate_uuid()
+        floating_ip_1 = mock.Mock()
+        floating_ip_1.id = uuidutils.generate_uuid()
+        floating_ip_1.description = (
+            "Floating IP for Kubernetes service from cluster %s" % cluster.uuid
+        )
+        floating_ip_2 = mock.Mock()
+        floating_ip_2.id = uuidutils.generate_uuid()
+        floating_ip_2.description = (
+            "Floating IP for Kubernetes other-service from cluster %s" % cluster.uuid
+        )
+        ignored_floating_ip = mock.Mock()
+        ignored_floating_ip.id = uuidutils.generate_uuid()
+        ignored_floating_ip.description = "created by another system"
+        mock_get_openstack_api.return_value.network.ips.return_value = [
+            floating_ip_1,
+            ignored_floating_ip,
+            floating_ip_2,
+        ]
+
+        utils._delete_floatingip(context, "fake-port-id", cluster)
+
+        mock_get_openstack_api.return_value.network.ips.assert_called_once_with(
+            port_id="fake-port-id"
+        )
+        mock_get_openstack_api.return_value.network.delete_ip.assert_has_calls(
+            [
+                mock.call(floating_ip_1.id, ignore_missing=True),
+                mock.call(floating_ip_2.id, ignore_missing=True),
+            ]
+        )
+        self.assertEqual(
+            2,
+            mock_get_openstack_api.return_value.network.delete_ip.call_count,
+        )
+
+    @mock.patch("magnum_cluster_api.clients.get_openstack_api")
+    def test_delete_floatingip_ignores_non_cluster_fip(self, mock_get_openstack_api):
+        context = mock.Mock()
+        cluster = mock.Mock()
+        cluster.uuid = uuidutils.generate_uuid()
+        floating_ip = mock.Mock()
+        floating_ip.description = "created by another system"
+        mock_get_openstack_api.return_value.network.ips.return_value = [floating_ip]
+
+        utils._delete_floatingip(context, "fake-port-id", cluster)
+
+        mock_get_openstack_api.return_value.network.delete_ip.assert_not_called()
