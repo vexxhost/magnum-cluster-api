@@ -481,15 +481,12 @@ def _delete_floatingip(ctx, port_id, cluster):
     osc = clients.get_openstack_api(ctx)
 
     try:
-        floating_ips = list(osc.network.ips(port_id=port_id))
-        if len(floating_ips) == 0:
-            return
+        for floating_ip in osc.network.ips(port_id=port_id):
+            description = _sdk_resource_value(floating_ip, "description", "")
+            floating_ip_id = _sdk_resource_value(floating_ip, "id")
 
-        description = _sdk_resource_value(floating_ips[0], "description", "")
-        floating_ip_id = _sdk_resource_value(floating_ips[0], "id")
-
-        if re.match(pattern, description):
-            osc.network.delete_ip(floating_ip_id, ignore_missing=True)
+            if re.match(pattern, description):
+                osc.network.delete_ip(floating_ip_id, ignore_missing=True)
     except Exception as e:
         raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
 

@@ -68,7 +68,7 @@ manila_client_opts = [
     cfg.StrOpt(
         "api_version",
         default="3",
-        help=_("Version of Manila API to use in manilaclient."),
+        help=_("Deprecated compatibility option for older Manila client wiring."),
     ),
 ]
 
