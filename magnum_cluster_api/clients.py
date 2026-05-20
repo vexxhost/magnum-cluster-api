@@ -14,11 +14,7 @@
 
 import pykube  # type: ignore
 from magnum.common import clients, exception  # type: ignore
-from openstack.block_storage.v3 import _proxy as block_storage_proxy
-from openstack.compute.v2 import _proxy as compute_proxy
-from openstack.load_balancer.v2 import _proxy as load_balancer_proxy
-from openstack.network.v2 import _proxy as network_proxy
-from openstack.shared_file_system.v2 import _proxy as shared_file_system_proxy
+from openstack import connection
 
 
 class OpenStackClients(clients.OpenStackClients):
@@ -26,35 +22,26 @@ class OpenStackClients(clients.OpenStackClients):
 
     def __init__(self, context):
         super(OpenStackClients, self).__init__(context)
+        self._sdk_connection = None
         self._shared_file_system = None
 
-    def _sdk_proxy(self, proxy, client, service_type):
-        endpoint_type = self._get_client_option(client, "endpoint_type")
-        region_name = self._get_client_option(client, "region_name")
-        endpoint = self.url_for(
-            service_type=service_type,
-            interface=endpoint_type,
-            region_name=region_name,
-        )
+    def _get_sdk_connection(self):
+        if self._sdk_connection:
+            return self._sdk_connection
 
-        return proxy.Proxy(
-            self.keystone().session,
-            service_type=service_type,
-            interface=endpoint_type,
-            region_name=region_name,
-            endpoint_override=endpoint,
+        self._sdk_connection = connection.Connection(
+            session=self.keystone().session,
+            region_name=self._get_client_option("keystone", "region_name"),
+            interface=self._get_client_option("keystone", "endpoint_type"),
         )
+        return self._sdk_connection
 
     @exception.wrap_keystone_exception
     def cinder(self):
         if self._cinder:
             return self._cinder
 
-        self._cinder = self._sdk_proxy(
-            block_storage_proxy,
-            "cinder",
-            "block-storage",
-        )
+        self._cinder = self._get_sdk_connection().block_storage
         return self._cinder
 
     @exception.wrap_keystone_exception
@@ -62,11 +49,7 @@ class OpenStackClients(clients.OpenStackClients):
         if self._neutron:
             return self._neutron
 
-        self._neutron = self._sdk_proxy(
-            network_proxy,
-            "neutron",
-            "network",
-        )
+        self._neutron = self._get_sdk_connection().network
         return self._neutron
 
     @exception.wrap_keystone_exception
@@ -74,11 +57,7 @@ class OpenStackClients(clients.OpenStackClients):
         if self._nova:
             return self._nova
 
-        self._nova = self._sdk_proxy(
-            compute_proxy,
-            "nova",
-            "compute",
-        )
+        self._nova = self._get_sdk_connection().compute
         return self._nova
 
     @exception.wrap_keystone_exception
@@ -86,22 +65,14 @@ class OpenStackClients(clients.OpenStackClients):
         if self._octavia:
             return self._octavia
 
-        self._octavia = self._sdk_proxy(
-            load_balancer_proxy,
-            "octavia",
-            "load-balancer",
-        )
+        self._octavia = self._get_sdk_connection().load_balancer
         return self._octavia
 
     @exception.wrap_keystone_exception
     def shared_file_system(self):
         if self._shared_file_system:
             return self._shared_file_system
-        self._shared_file_system = self._sdk_proxy(
-            shared_file_system_proxy,
-            "manila",
-            "sharev2",
-        )
+        self._shared_file_system = self._get_sdk_connection().shared_file_system
         return self._shared_file_system
 
 

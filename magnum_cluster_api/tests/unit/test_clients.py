@@ -20,54 +20,47 @@ from magnum_cluster_api import clients
 
 
 @pytest.mark.parametrize(
-    ("method", "client", "service_type"),
+    ("method", "proxy"),
     (
-        ("cinder", "cinder", "block-storage"),
-        ("neutron", "neutron", "network"),
-        ("nova", "nova", "compute"),
-        ("octavia", "octavia", "load-balancer"),
-        ("shared_file_system", "manila", "sharev2"),
+        ("cinder", "block_storage"),
+        ("neutron", "network"),
+        ("nova", "compute"),
+        ("octavia", "load_balancer"),
+        ("shared_file_system", "shared_file_system"),
     ),
 )
-def test_openstack_clients_use_sdk_proxies(method, client, service_type):
+def test_openstack_clients_use_sdk_proxies(method, proxy):
     osc = clients.OpenStackClients(mock.Mock())
-    sdk_proxy = mock.Mock()
-    osc._sdk_proxy = mock.Mock(return_value=sdk_proxy)
+    sdk_connection = mock.Mock()
+    osc._get_sdk_connection = mock.Mock(return_value=sdk_connection)
 
     first = getattr(osc, method)()
     second = getattr(osc, method)()
 
-    assert first == sdk_proxy
-    assert second == sdk_proxy
-    osc._sdk_proxy.assert_called_once()
-    assert osc._sdk_proxy.call_args.args[1:] == (client, service_type)
+    assert first == getattr(sdk_connection, proxy)
+    assert second == getattr(sdk_connection, proxy)
+    osc._get_sdk_connection.assert_called_once()
 
 
-def test_sdk_proxy_uses_service_endpoint(mocker):
+def test_get_sdk_connection_uses_keystone_session(mocker):
+    mock_connection = mocker.patch("magnum_cluster_api.clients.connection.Connection")
     osc = clients.OpenStackClients(mock.Mock())
     osc._get_client_option = mock.Mock(
         side_effect=lambda client, option: {
-            ("neutron", "endpoint_type"): "internal",
-            ("neutron", "region_name"): "RegionOne",
+            ("keystone", "endpoint_type"): "internal",
+            ("keystone", "region_name"): "RegionOne",
         }[(client, option)]
     )
-    osc.url_for = mock.Mock(return_value="http://neutron.example/v2.0")
     osc.keystone = mock.Mock()
     osc.keystone.return_value.session = mock.Mock()
-    proxy = mock.Mock()
 
-    sdk_proxy = osc._sdk_proxy(proxy, "neutron", "network")
+    sdk_connection = osc._get_sdk_connection()
+    cached_connection = osc._get_sdk_connection()
 
-    assert sdk_proxy == proxy.Proxy.return_value
-    osc.url_for.assert_called_once_with(
-        service_type="network",
-        interface="internal",
+    assert sdk_connection == mock_connection.return_value
+    assert cached_connection == mock_connection.return_value
+    mock_connection.assert_called_once_with(
+        session=osc.keystone.return_value.session,
         region_name="RegionOne",
-    )
-    proxy.Proxy.assert_called_once_with(
-        osc.keystone.return_value.session,
-        service_type="network",
         interface="internal",
-        region_name="RegionOne",
-        endpoint_override="http://neutron.example/v2.0",
     )
