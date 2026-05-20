@@ -166,6 +166,26 @@ class TestDriver:
             json=json,
         )
 
+    def _response_for_machine_sets(self):
+        return responses.Response(
+            responses.GET,
+            "http://localhost/apis/%s/namespaces/%s/%s"
+            % (
+                objects.MachineSet.version,
+                "magnum-system",
+                objects.MachineSet.endpoint,
+            ),
+            match=[
+                matchers.query_param_matcher(
+                    {
+                        "labelSelector": "cluster.x-k8s.io/cluster-name=%s,topology.cluster.x-k8s.io/deployment-name=%s"
+                        % (self.cluster.stack_id, self.node_group.name)
+                    }
+                ),
+            ],
+            json={"items": []},
+        )
+
     def _response_for_openstack_machines(self, deployment_name, machine_specs=None):
         """Helper method to create a mock response for OpenStackMachine API calls."""
         json = {"items": []}
@@ -331,10 +351,14 @@ class TestDriver:
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
 
-    def setup_node_group_tests(self, rsps, before, after=None):
+    def setup_node_group_tests(
+        self, rsps, before, after=None, include_machine_sets=False
+    ):
         rsps.add(
             self._response_for_cluster_with_machine_deployments(*before),
         )
+        if include_machine_sets:
+            rsps.add(self._response_for_machine_sets())
         if after:
             rsps.add(
                 self._response_for_cluster_with_machine_deployments(
@@ -381,6 +405,7 @@ class TestDriver:
                         },
                     ),
                 ],
+                include_machine_sets=True,
             )
 
             ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
@@ -426,6 +451,7 @@ class TestDriver:
                         },
                     ),
                 ],
+                include_machine_sets=True,
             )
 
             ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
