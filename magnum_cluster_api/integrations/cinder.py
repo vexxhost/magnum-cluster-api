@@ -17,8 +17,7 @@ from magnum.common import exception
 from oslo_config import cfg
 
 from magnum_cluster_api import clients
-from magnum_cluster_api.integrations import common
-from magnum_cluster_api.integrations import openstack
+from magnum_cluster_api.integrations import common, openstack
 
 CONF = cfg.CONF
 

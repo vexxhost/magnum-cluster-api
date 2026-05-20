@@ -487,9 +487,7 @@ class TestUtils(base.BaseTestCase):
         mock_delete_load_balancer.assert_called_once_with(
             osc, load_balancer, cascade=True
         )
-        mock_list_floating_ips.assert_called_once_with(
-            osc, port_id="fake-vip-port-id"
-        )
+        mock_list_floating_ips.assert_called_once_with(osc, port_id="fake-vip-port-id")
         mock_delete_floating_ip.assert_called_once_with(osc, matching_fip)
         mock_sleep.assert_not_called()
 

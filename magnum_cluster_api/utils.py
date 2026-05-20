@@ -17,8 +17,8 @@ from __future__ import annotations
 import json
 import re
 import string
-import time
 import textwrap
+import time
 import typing
 
 import pykube  # type: ignore
@@ -368,8 +368,7 @@ def delete_loadbalancers(ctx, cluster):
             existing = {
                 openstack.get_resource_value(lb, "id")
                 for lb in lbs
-                if openstack.get_resource_value(lb, "provisioning_status")
-                != "DELETED"
+                if openstack.get_resource_value(lb, "provisioning_status") != "DELETED"
             }
             if not (candidates & existing):
                 break

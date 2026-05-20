@@ -15,9 +15,9 @@
 from types import SimpleNamespace
 from unittest import mock
 
+from magnum.common import exception
 from openstack import exceptions as sdk_exceptions
 
-from magnum.common import exception
 from magnum_cluster_api.integrations import openstack
 
 

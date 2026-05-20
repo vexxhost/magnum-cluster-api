@@ -44,8 +44,7 @@ from magnum_cluster_api import (
     objects,
     utils,
 )
-from magnum_cluster_api.integrations import cinder, manila
-from magnum_cluster_api.integrations import openstack
+from magnum_cluster_api.integrations import cinder, manila, openstack
 
 CONF = cfg.CONF
 CALICO_TAG = "v3.31.5"
@@ -832,9 +831,7 @@ def mutate_machine_deployment(
                     },
                     {
                         "name": "hardwareDiskBus",
-                        "value": openstack.get_image_property(
-                            image, "hw_disk_bus", ""
-                        ),
+                        "value": openstack.get_image_property(image, "hw_disk_bus", ""),
                     },
                     # NOTE(oleks): Override using MachineDeployment-level variables for node groups
                     {
