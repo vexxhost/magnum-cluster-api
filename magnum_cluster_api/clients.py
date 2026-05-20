@@ -31,8 +31,8 @@ class OpenStackClients(clients.OpenStackClients):
 
         self._sdk_connection = connection.Connection(
             session=self.keystone().session,
-            region_name=self._get_client_option("keystone", "region_name"),
-            interface=self._get_client_option("keystone", "endpoint_type"),
+            region_name=self._get_client_option("neutron", "region_name"),
+            interface=self._get_client_option("neutron", "endpoint_type"),
         )
         return self._sdk_connection
 

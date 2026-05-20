@@ -47,8 +47,8 @@ def test_get_sdk_connection_uses_keystone_session(mocker):
     osc = clients.OpenStackClients(mock.Mock())
     osc._get_client_option = mock.Mock(
         side_effect=lambda client, option: {
-            ("keystone", "endpoint_type"): "internal",
-            ("keystone", "region_name"): "RegionOne",
+            ("neutron", "endpoint_type"): "internal",
+            ("neutron", "region_name"): "RegionOne",
         }[(client, option)]
     )
     osc.keystone = mock.Mock()
