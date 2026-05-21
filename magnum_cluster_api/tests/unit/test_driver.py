@@ -86,6 +86,14 @@ class TestDriver:
             "magnum_cluster_api.utils.lookup_image",
             return_value={"id": uuidutils.generate_uuid()},
         )
+        mocker.patch(
+            "magnum_cluster_api.utils.ensure_controlplane_server_group",
+            return_value=uuidutils.generate_uuid(),
+        )
+        mocker.patch(
+            "magnum_cluster_api.utils.ensure_worker_server_group",
+            return_value=uuidutils.generate_uuid(),
+        )
 
     def _assert_node_group_status(self, expected_status):
         assert self.node_group.status == expected_status
@@ -124,6 +132,26 @@ class TestDriver:
             ),
             json=obj,
             match=match,
+        )
+
+    def _response_for_machine_sets(self, node_group_name):
+        return responses.Response(
+            responses.GET,
+            "http://localhost/apis/%s/namespaces/%s/%s"
+            % (
+                objects.MachineSet.version,
+                "magnum-system",
+                objects.MachineSet.endpoint,
+            ),
+            match=[
+                matchers.query_param_matcher(
+                    {
+                        "labelSelector": "cluster.x-k8s.io/cluster-name=%s,topology.cluster.x-k8s.io/deployment-name=%s"
+                        % (self.cluster.stack_id, node_group_name)
+                    }
+                ),
+            ],
+            json={"items": []},
         )
 
     def _response_for_machine_deployment_spec(
@@ -342,10 +370,12 @@ class TestDriver:
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
 
-    def setup_node_group_tests(self, rsps, before, after=None):
+    def setup_node_group_tests(self, rsps, before, after=None, machine_sets=False):
         rsps.add(
             self._response_for_cluster_with_machine_deployments(*before),
         )
+        if machine_sets:
+            rsps.add(self._response_for_machine_sets(self.node_group.name))
         if after:
             rsps.add(
                 self._response_for_cluster_with_machine_deployments(
@@ -392,6 +422,7 @@ class TestDriver:
                         },
                     ),
                 ],
+                machine_sets=True,
             )
 
             ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
@@ -437,6 +468,7 @@ class TestDriver:
                         },
                     ),
                 ],
+                machine_sets=True,
             )
 
             ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
