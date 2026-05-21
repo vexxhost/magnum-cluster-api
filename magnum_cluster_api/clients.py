@@ -39,9 +39,23 @@ def _client_option(client, option):
 
 def _connection_options():
     options = {}
+    shared_endpoint_type = _client_option("openstack", "endpoint_type")
+    shared_region_name = _client_option("openstack", "region_name")
+
+    if shared_endpoint_type:
+        options["interface"] = shared_endpoint_type
+    if shared_region_name:
+        options["region_name"] = shared_region_name
+
     for service_type, client in SERVICE_CLIENTS.items():
-        endpoint_type = _client_option(client, "endpoint_type")
-        region_name = _client_option(client, "region_name")
+        endpoint_type = None
+        region_name = None
+
+        if not shared_endpoint_type:
+            endpoint_type = _client_option(client, "endpoint_type")
+        if not shared_region_name:
+            region_name = _client_option(client, "region_name")
+
         if endpoint_type:
             options[f"{service_type}_interface"] = endpoint_type
         if region_name:

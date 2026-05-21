@@ -25,6 +25,10 @@ manila_client_group = cfg.OptGroup(
     name="manila_client", title="Options for the Manila client"
 )
 
+openstack_client_group = cfg.OptGroup(
+    name="openstack_client", title="Options for the shared OpenStack SDK client"
+)
+
 proxy_group = cfg.OptGroup(name="proxy", title="Options for Cluster API proxy")
 
 
@@ -73,6 +77,26 @@ manila_client_opts = [
 ]
 
 
+openstack_client_opts = [
+    cfg.StrOpt(
+        "region_name",
+        help=_(
+            "Region in Identity service catalog to use for the shared "
+            "OpenStack SDK connection. If unset, legacy service client "
+            "region options are used for compatibility."
+        ),
+    ),
+    cfg.StrOpt(
+        "endpoint_type",
+        help=_(
+            "Type of endpoint in Identity service catalog to use for the "
+            "shared OpenStack SDK connection. If unset, legacy service "
+            "client endpoint options are used for compatibility."
+        ),
+    ),
+]
+
+
 proxy_opts = [
     cfg.StrOpt(
         "haproxy_pid_path",
@@ -100,6 +124,7 @@ ALL_GROUPS = [
     auto_scaling_group,
     capi_client_group,
     manila_client_group,
+    openstack_client_group,
     proxy_group,
 ]
 
@@ -109,6 +134,7 @@ ALL_OPTS = [
     (capi_client_group, common_security_opts),
     (manila_client_group, manila_client_opts),
     (manila_client_group, common_security_opts),
+    (openstack_client_group, openstack_client_opts),
     (proxy_group, proxy_opts),
 ]
 

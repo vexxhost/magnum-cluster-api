@@ -89,6 +89,20 @@ Options under this group are used for configuring Manila client.
     **Type**: `boolean`
     **Default value**: `False`
 
+## openstack_client
+Options under this group are used for configuring the shared OpenStack SDK
+connection used by the Magnum Cluster API driver.
+
+`region_name`
+
+:   Region in Identity service catalog to use for the shared OpenStack SDK connection. If unset, legacy service client region options are used for compatibility.
+    **Type**: `string`
+
+`endpoint_type`
+
+:   Type of endpoint in Identity service catalog to use for the shared OpenStack SDK connection. If unset, legacy service client endpoint options are used for compatibility.
+    **Type**: `string`
+
 ## capi_client
 Options under this group are used for configuring Openstack authentication for CAPO.
 

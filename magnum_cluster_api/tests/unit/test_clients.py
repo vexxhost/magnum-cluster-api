@@ -31,6 +31,11 @@ def _keystone(mocker):
         group.region_name = "RegionOne"
         mocker.patch.object(clients.CONF, f"{client}_client", group)
 
+    openstack_group = mocker.Mock()
+    openstack_group.endpoint_type = None
+    openstack_group.region_name = None
+    mocker.patch.object(clients.CONF, "openstack_client", openstack_group)
+
     return keystone, connection
 
 
@@ -82,6 +87,53 @@ def test_get_openstack_api_skips_missing_service_config(mocker):
 
     assert "shared_file_system_interface" not in connection.call_args.kwargs
     assert "shared_file_system_region_name" not in connection.call_args.kwargs
+
+
+def test_get_openstack_api_uses_shared_sdk_options(mocker):
+    _, connection = _keystone(mocker)
+
+    clients.CONF.openstack_client.endpoint_type = "internal"
+    clients.CONF.openstack_client.region_name = "RegionTwo"
+
+    connection.reset_mock()
+
+    clients.get_openstack_api(context="context")
+
+    connection.assert_called_once_with(
+        session="session",
+        interface="internal",
+        region_name="RegionTwo",
+    )
+
+
+def test_get_openstack_api_mixes_shared_and_legacy_options(mocker):
+    _, connection = _keystone(mocker)
+
+    clients.CONF.openstack_client.endpoint_type = "internal"
+
+    connection.reset_mock()
+
+    clients.get_openstack_api(context="context")
+
+    assert connection.call_args.kwargs["interface"] == "internal"
+    assert "image_interface" not in connection.call_args.kwargs
+    assert connection.call_args.kwargs["image_region_name"] == "RegionOne"
+    assert connection.call_args.kwargs["compute_region_name"] == "RegionOne"
+    assert connection.call_args.kwargs["network_region_name"] == "RegionOne"
+
+
+def test_get_openstack_api_skips_unset_shared_sdk_options(mocker):
+    _, connection = _keystone(mocker)
+
+    clients.CONF.openstack_client.endpoint_type = None
+    clients.CONF.openstack_client.region_name = None
+
+    connection.reset_mock()
+
+    clients.get_openstack_api(context="context")
+
+    assert "interface" not in connection.call_args.kwargs
+    assert "region_name" not in connection.call_args.kwargs
 
 
 def test_get_cinder_region_name_uses_magnum_config(mocker):

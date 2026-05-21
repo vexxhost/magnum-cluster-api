@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+* add explicit shared OpenStack SDK connection configuration, with existing
+  service client options retained as compatibility fallback
+
 ## [0.36.6](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.5...v0.36.6) (2026-04-21)
 
 
