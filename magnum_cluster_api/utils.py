@@ -18,6 +18,7 @@ import json
 import re
 import string
 import textwrap
+import types
 import typing
 
 import pykube  # type: ignore
@@ -29,6 +30,7 @@ from magnum.common import context, exception, neutron, octavia  # type: ignore
 from magnum.common import utils as magnum_utils
 from novaclient import exceptions as nova_exception  # type: ignore
 from novaclient.v2 import flavors  # type: ignore
+from openstack import exceptions as sdk_exceptions  # type: ignore
 from oslo_config import cfg  # type: ignore
 from oslo_serialization import base64  # type: ignore
 from oslo_utils import strutils, uuidutils  # type: ignore
@@ -318,6 +320,28 @@ def get_cluster_label_as_bool(
     return strutils.bool_from_string(value, strict=True)
 
 
+def list_volume_types(cinder_client):
+    if hasattr(cinder_client, "volume_types"):
+        return cinder_client.volume_types.list()
+    return cinder_client.types()
+
+
+def get_default_volume_type(cinder_client):
+    if hasattr(cinder_client, "volume_types"):
+        return cinder_client.volume_types.default()
+
+    response = cinder_client.get("/types/default")
+    if response.status_code < 400:
+        volume_type = response.json().get("volume_type")
+        if volume_type is not None:
+            return types.SimpleNamespace(**volume_type)
+
+    if response.status_code not in (404, 406):
+        response.raise_for_status()
+
+    return next(cinder_client.types(), None)
+
+
 def delete_loadbalancers(ctx, cluster):
     # NOTE(mnaser): This code is duplicated from magnum.common.octavia
     #               since the original code is very Heat-specific.
@@ -361,7 +385,11 @@ def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
 
     if flavor is None:
         return
-    flavor_list = cli.nova().flavors.list()
+    nova = cli.nova()
+    if hasattr(nova.flavors, "list"):
+        flavor_list = nova.flavors.list()
+    else:
+        flavor_list = nova.flavors()
     for f in flavor_list:
         if f.name == flavor or f.id == flavor:
             return f
@@ -507,7 +535,11 @@ def get_server_group_id(
 
     # Check if the server group exists already
     osc = clients.get_openstack_api(ctx)
-    server_groups = osc.nova().server_groups.list(all_projects=ctx.is_admin)
+    nova = osc.nova()
+    if hasattr(nova.server_groups, "list"):
+        server_groups = nova.server_groups.list(all_projects=ctx.is_admin)
+    else:
+        server_groups = nova.server_groups(all_projects=ctx.is_admin)
     server_group_id_list = []
     for sg in server_groups:
         if sg.name == name:
@@ -627,7 +659,11 @@ def _ensure_server_group(
         policies = DEFAULT_SERVER_GROUP_POLICIES
 
     # NOTE(oleks): Requires API microversion 2.15 or later for soft-affinity and soft-anti-affinity policy rules.
-    server_group = osc.nova().server_groups.create(name=name, policies=policies)
+    nova = osc.nova()
+    if hasattr(nova.server_groups, "create"):
+        server_group = nova.server_groups.create(name=name, policies=policies)
+    else:
+        server_group = nova.create_server_group(name=name, policies=policies)
     g_server_group_cache.set(project_id, name, server_group.id)
     return server_group.id
 
@@ -642,9 +678,15 @@ def _delete_server_group(
         return
 
     osc = clients.get_openstack_api(ctx)
+    nova = osc.nova()
     try:
-        osc.nova().server_groups.delete(server_group_id)
+        if hasattr(nova.server_groups, "delete"):
+            nova.server_groups.delete(server_group_id)
+        else:
+            nova.delete_server_group(server_group_id, ignore_missing=True)
     except nova_exception.NotFound:
+        return
+    except sdk_exceptions.ResourceNotFound:
         return
 
 
