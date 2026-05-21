@@ -12,6 +12,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import types
+
 import pytest
 from magnum.objects import fields
 from magnum.tests.unit.objects import utils
@@ -80,6 +82,53 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     )
 
     assert len(mds) == 2
+
+
+def test_cloud_provider_secret_uses_cinder_volume_type_helpers(context, mocker):
+    cluster = utils.get_test_cluster(context, labels={})
+    cluster.cluster_template = utils.get_test_cluster_template(context)
+    volume_type = types.SimpleNamespace(name="rbd-fast")
+    default_volume_type = types.SimpleNamespace(name="rbd-fast")
+    cinder_client = mocker.Mock()
+    osc = mocker.patch("magnum_cluster_api.resources.clients.get_openstack_api")
+    osc.return_value.cinder.return_value = cinder_client
+    mocker.patch("magnum_cluster_api.resources.cinder.is_enabled", return_value=True)
+    mocker.patch("magnum_cluster_api.resources.manila.is_enabled", return_value=False)
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.generate_cloud_controller_manager_config",
+        return_value="cloud-config",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.magnum_utils.get_openstack_ca",
+        return_value="",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.magnum_cluster_api.Driver.get_cloud_provider_cluster_resource_secret_data",
+        return_value={},
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.magnum_cluster_api.Driver.get_cinder_csi_cluster_resource_secret_data",
+        return_value={},
+    )
+    list_volume_types = mocker.patch(
+        "magnum_cluster_api.resources.utils.list_volume_types",
+        return_value=[volume_type],
+    )
+    get_default_volume_type = mocker.patch(
+        "magnum_cluster_api.resources.utils.get_default_volume_type",
+        return_value=default_volume_type,
+    )
+
+    secret = resources.CloudProviderClusterResourcesSecret(
+        context,
+        mocker.Mock(),
+        mocker.Mock(),
+        cluster,
+    ).get_object()
+
+    list_volume_types.assert_called_once_with(cinder_client)
+    get_default_volume_type.assert_called_once_with(cinder_client)
+    assert "storageclass-block-rbd-fast.yaml" in secret["stringData"]
 
 
 @pytest.mark.parametrize(
