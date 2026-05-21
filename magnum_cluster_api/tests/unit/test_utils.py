@@ -21,6 +21,7 @@ import pytest
 import responses
 from magnum.common import exception
 from magnum.tests.unit.objects import utils as magnum_test_utils  # type: ignore
+from openstack.load_balancer.v2 import load_balancer as sdk_load_balancer
 from oslo_serialization import base64, jsonutils
 from oslo_utils import uuidutils
 from oslotest import base
@@ -175,6 +176,103 @@ def test_volume_type_helpers_support_legacy_cinder_client(mocker):
 
     assert utils.list_volume_types(cinder_client) == volume_types
     assert utils.get_default_volume_type(cinder_client) is default_volume_type
+
+
+def test_delete_loadbalancers_supports_sdk_load_balancer_proxy(context, mocker):
+    cluster = magnum_test_utils.get_test_cluster(context)
+    cluster.uuid = "00000000-1111-2222-3333-444444444444"
+    lb = types.SimpleNamespace(
+        id="lb-id",
+        description="Kubernetes service from cluster 00000000-1111-2222-3333-444444444444",
+        provisioning_status="ACTIVE",
+        vip_port_id="vip-port-id",
+    )
+    octavia_proxy = types.SimpleNamespace(
+        load_balancers=mocker.Mock(side_effect=[[lb], []]),
+        delete_load_balancer=mocker.Mock(),
+    )
+    openstack_api = mocker.patch("magnum_cluster_api.clients.get_openstack_api")
+    openstack_api.return_value.octavia.return_value = octavia_proxy
+    delete_floatingip = mocker.patch(
+        "magnum_cluster_api.utils.neutron.delete_floatingip"
+    )
+
+    utils.delete_loadbalancers(context, cluster)
+
+    octavia_proxy.delete_load_balancer.assert_called_once_with(
+        lb,
+        ignore_missing=True,
+        cascade=True,
+    )
+    delete_floatingip.assert_called_once_with(context, "vip-port-id", cluster)
+
+
+def test_delete_loadbalancers_supports_generic_sdk_proxy(context, mocker):
+    cluster = magnum_test_utils.get_test_cluster(context)
+    cluster.uuid = "00000000-1111-2222-3333-444444444444"
+    lb = types.SimpleNamespace(
+        id="lb-id",
+        description="Kubernetes service from cluster 00000000-1111-2222-3333-444444444444",
+        provisioning_status="ACTIVE",
+        vip_port_id="vip-port-id",
+    )
+    octavia_proxy = types.SimpleNamespace(
+        _list=mocker.Mock(side_effect=[[lb], []]),
+        _delete=mocker.Mock(),
+    )
+    openstack_api = mocker.patch("magnum_cluster_api.clients.get_openstack_api")
+    openstack_api.return_value.octavia.return_value = octavia_proxy
+    delete_floatingip = mocker.patch(
+        "magnum_cluster_api.utils.neutron.delete_floatingip"
+    )
+
+    utils.delete_loadbalancers(context, cluster)
+
+    octavia_proxy._list.assert_has_calls(
+        [
+            mocker.call(sdk_load_balancer.LoadBalancer),
+            mocker.call(sdk_load_balancer.LoadBalancer),
+        ]
+    )
+    octavia_proxy._delete.assert_called_once_with(
+        sdk_load_balancer.LoadBalancer,
+        lb,
+        ignore_missing=True,
+    )
+    assert lb.cascade is True
+    delete_floatingip.assert_called_once_with(context, "vip-port-id", cluster)
+
+
+def test_delete_loadbalancers_supports_legacy_octavia_client(context, mocker):
+    cluster = magnum_test_utils.get_test_cluster(context)
+    cluster.uuid = "00000000-1111-2222-3333-444444444444"
+    lb = {
+        "id": "lb-id",
+        "description": "Kubernetes service from cluster 00000000-1111-2222-3333-444444444444",
+        "provisioning_status": "ACTIVE",
+        "vip_port_id": "vip-port-id",
+    }
+    octavia_client = types.SimpleNamespace(
+        load_balancer_list=mocker.Mock(return_value={"loadbalancers": [lb]}),
+    )
+    openstack_api = mocker.patch("magnum_cluster_api.clients.get_openstack_api")
+    openstack_api.return_value.octavia.return_value = octavia_client
+    delete = mocker.patch(
+        "magnum_cluster_api.utils.octavia._delete_loadbalancers",
+        return_value={"lb-id"},
+    )
+    wait = mocker.patch("magnum_cluster_api.utils.octavia.wait_for_lb_deleted")
+
+    utils.delete_loadbalancers(context, cluster)
+
+    delete.assert_called_once_with(
+        context,
+        [lb],
+        cluster,
+        octavia_client,
+        remove_fip=True,
+    )
+    wait.assert_called_once_with(octavia_client, {"lb-id"})
 
 
 def test_lookup_flavor_supports_sdk_compute_proxy(mocker):

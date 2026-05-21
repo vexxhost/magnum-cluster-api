@@ -18,6 +18,7 @@ import json
 import re
 import string
 import textwrap
+import time
 import types
 import typing
 
@@ -31,6 +32,9 @@ from magnum.common import utils as magnum_utils
 from novaclient import exceptions as nova_exception  # type: ignore
 from novaclient.v2 import flavors  # type: ignore
 from openstack import exceptions as sdk_exceptions  # type: ignore
+from openstack.load_balancer.v2 import (
+    load_balancer as sdk_load_balancer,  # type: ignore
+)
 from oslo_config import cfg  # type: ignore
 from oslo_serialization import base64  # type: ignore
 from oslo_utils import strutils, uuidutils  # type: ignore
@@ -342,6 +346,71 @@ def get_default_volume_type(cinder_client):
     return next(cinder_client.types(), None)
 
 
+def _load_balancer_attr(lb, name):
+    if isinstance(lb, dict):
+        return lb.get(name)
+    return getattr(lb, name, None)
+
+
+def _delete_sdk_loadbalancers(ctx, lbs, cluster, octavia_client):
+    candidates = set()
+
+    for lb in lbs:
+        status = _load_balancer_attr(lb, "provisioning_status")
+        if status in ["PENDING_DELETE", "DELETED"]:
+            continue
+
+        lb_id = _load_balancer_attr(lb, "id")
+        if hasattr(octavia_client, "delete_load_balancer"):
+            octavia_client.delete_load_balancer(
+                lb,
+                ignore_missing=True,
+                cascade=True,
+            )
+        else:
+            lb.cascade = True
+            octavia_client._delete(
+                sdk_load_balancer.LoadBalancer,
+                lb,
+                ignore_missing=True,
+            )
+        candidates.add(lb_id)
+
+        vip_port_id = _load_balancer_attr(lb, "vip_port_id")
+        if vip_port_id:
+            neutron.delete_floatingip(ctx, vip_port_id, cluster)
+
+    return candidates
+
+
+def _sdk_loadbalancers(octavia_client):
+    if hasattr(octavia_client, "load_balancers"):
+        return octavia_client.load_balancers()
+
+    return octavia_client._list(sdk_load_balancer.LoadBalancer)
+
+
+def _wait_for_sdk_loadbalancers_deleted(octavia_client, deleted_lbs):
+    timeout = CONF.cluster.pre_delete_lb_timeout
+    start_time = time.time()
+
+    while True:
+        lb_ids = {
+            _load_balancer_attr(lb, "id")
+            for lb in _sdk_loadbalancers(octavia_client)
+            if _load_balancer_attr(lb, "provisioning_status") != "DELETED"
+        }
+        if not (deleted_lbs & lb_ids):
+            break
+
+        if time.time() - start_time > timeout:
+            raise Exception(
+                "Timeout waiting for the load balancers %s to be deleted." % deleted_lbs
+            )
+
+        time.sleep(1)
+
+
 def delete_loadbalancers(ctx, cluster):
     # NOTE(mnaser): This code is duplicated from magnum.common.octavia
     #               since the original code is very Heat-specific.
@@ -358,17 +427,29 @@ def delete_loadbalancers(ctx, cluster):
         octavia_client = user_clients.octavia()
 
         # Get load balancers created for service/ingress
-        lbs = octavia_client.load_balancer_list().get("loadbalancers", [])
-        lbs = [lb for lb in lbs if re.match(pattern, lb["description"])]
-        deleted = octavia._delete_loadbalancers(
-            ctx, lbs, cluster, octavia_admin_client, remove_fip=True
-        )
+        if hasattr(octavia_client, "load_balancer_list"):
+            lbs = octavia_client.load_balancer_list().get("loadbalancers", [])
+            lbs = [lb for lb in lbs if re.match(pattern, lb["description"])]
+            deleted = octavia._delete_loadbalancers(
+                ctx, lbs, cluster, octavia_admin_client, remove_fip=True
+            )
+        else:
+            lbs = list(_sdk_loadbalancers(octavia_client))
+            lbs = [
+                lb
+                for lb in lbs
+                if re.match(pattern, _load_balancer_attr(lb, "description") or "")
+            ]
+            deleted = _delete_sdk_loadbalancers(ctx, lbs, cluster, octavia_client)
         candidates.update(deleted)
 
         if not candidates:
             return
 
-        octavia.wait_for_lb_deleted(octavia_client, candidates)
+        if hasattr(octavia_client, "load_balancer_list"):
+            octavia.wait_for_lb_deleted(octavia_client, candidates)
+        else:
+            _wait_for_sdk_loadbalancers_deleted(octavia_client, candidates)
     except Exception as e:
         raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
 
