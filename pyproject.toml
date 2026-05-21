@@ -32,6 +32,7 @@ dependencies = [
   "haproxyadmin>=0.2.4",
   "kubernetes>=24.2.0",
   "magnum>=15.0.0",
+  "openstacksdk",
   "oslo.concurrency>=4.5.0",
   "oslo.config>=8.8.0",
   "oslo.context>=4.1.0",
