@@ -44,6 +44,7 @@ dependencies = [
   "pyroute2>=0.3.4",
   "python-heatclient",
   "python-manilaclient>=3.3.2",
+  "python-novaclient",
   "requests>=2.27.1",
   "semver>=2.0.0",
   "sherlock>=0.4.1",

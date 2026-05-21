@@ -13,6 +13,7 @@
 # under the License.
 
 import textwrap
+import types
 from unittest import mock
 
 import pykube
@@ -25,6 +26,14 @@ from oslo_utils import uuidutils
 from oslotest import base
 
 from magnum_cluster_api import exceptions, utils
+
+
+class SdkServerGroups:
+    def __init__(self, mock):
+        self.mock = mock
+
+    def __call__(self, **kwargs):
+        return self.mock(**kwargs)
 
 
 def test_generate_cluster_api_name(mocker):
@@ -42,6 +51,141 @@ def test_generate_cluster_api_name(mocker):
     )
 
     assert len(potential_node_name) <= 63
+
+
+def test_get_server_group_id_supports_sdk_compute_proxy(context, mocker):
+    mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
+    mock_cache.get.return_value = None
+    server_group = types.SimpleNamespace(name="kube-test", id="server-group-id")
+    server_groups = mocker.Mock(return_value=[server_group])
+    nova = types.SimpleNamespace(server_groups=SdkServerGroups(server_groups))
+    mocker.patch(
+        "magnum_cluster_api.clients.get_openstack_api"
+    ).return_value.nova.return_value = nova
+
+    server_group_id = utils.get_server_group_id(context, "kube-test", "project-id")
+
+    assert server_group_id == "server-group-id"
+    server_groups.assert_called_once_with(all_projects=context.is_admin)
+    mock_cache.set.assert_called_once_with("project-id", "kube-test", "server-group-id")
+
+
+def test_ensure_server_group_supports_sdk_compute_proxy(context, mocker):
+    mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
+    mock_cache.get.return_value = None
+    server_group = types.SimpleNamespace(id="server-group-id")
+    nova = types.SimpleNamespace(
+        server_groups=SdkServerGroups(mocker.Mock(return_value=[])),
+        create_server_group=mocker.Mock(return_value=server_group),
+    )
+    mocker.patch(
+        "magnum_cluster_api.clients.get_openstack_api"
+    ).return_value.nova.return_value = nova
+
+    server_group_id = utils._ensure_server_group(
+        name="kube-test",
+        ctx=context,
+        policies=["soft-anti-affinity"],
+        project_id="project-id",
+    )
+
+    assert server_group_id == "server-group-id"
+    nova.create_server_group.assert_called_once_with(
+        name="kube-test",
+        policies=["soft-anti-affinity"],
+    )
+    mock_cache.set.assert_called_once_with("project-id", "kube-test", "server-group-id")
+
+
+def test_delete_server_group_supports_sdk_compute_proxy(context, mocker):
+    mocker.patch("magnum_cluster_api.utils.get_server_group_id").return_value = (
+        "server-group-id"
+    )
+    nova = types.SimpleNamespace(
+        server_groups=SdkServerGroups(mocker.Mock()),
+        delete_server_group=mocker.Mock(),
+    )
+    mocker.patch(
+        "magnum_cluster_api.clients.get_openstack_api"
+    ).return_value.nova.return_value = nova
+
+    utils._delete_server_group("kube-test", context, "project-id")
+
+    nova.delete_server_group.assert_called_once_with(
+        "server-group-id",
+        ignore_missing=True,
+    )
+
+
+def test_delete_server_group_supports_legacy_nova_client(context, mocker):
+    mocker.patch("magnum_cluster_api.utils.get_server_group_id").return_value = (
+        "server-group-id"
+    )
+    nova = types.SimpleNamespace(
+        server_groups=types.SimpleNamespace(delete=mocker.Mock()),
+    )
+    mocker.patch(
+        "magnum_cluster_api.clients.get_openstack_api"
+    ).return_value.nova.return_value = nova
+
+    utils._delete_server_group("kube-test", context, "project-id")
+
+    nova.server_groups.delete.assert_called_once_with("server-group-id")
+
+
+def test_volume_type_helpers_support_sdk_block_storage_proxy(mocker):
+    volume_type = types.SimpleNamespace(name="rbd1")
+    response = mocker.Mock(status_code=200)
+    response.json.return_value = {"volume_type": {"id": "type-id", "name": "rbd1"}}
+    cinder_client = types.SimpleNamespace(
+        types=mocker.Mock(return_value=[volume_type]),
+        get=mocker.Mock(return_value=response),
+    )
+
+    assert list(utils.list_volume_types(cinder_client)) == [volume_type]
+    default_volume_type = utils.get_default_volume_type(cinder_client)
+
+    cinder_client.types.assert_called_once_with()
+    cinder_client.get.assert_called_once_with("/types/default")
+    assert default_volume_type.id == "type-id"
+    assert default_volume_type.name == "rbd1"
+
+
+def test_default_volume_type_falls_back_for_sdk_block_storage_proxy(mocker):
+    volume_type = types.SimpleNamespace(name="fallback")
+    response = mocker.Mock(status_code=404)
+    cinder_client = types.SimpleNamespace(
+        types=mocker.Mock(return_value=iter([volume_type])),
+        get=mocker.Mock(return_value=response),
+    )
+
+    assert utils.get_default_volume_type(cinder_client) is volume_type
+    response.raise_for_status.assert_not_called()
+
+
+def test_volume_type_helpers_support_legacy_cinder_client(mocker):
+    volume_types = [types.SimpleNamespace(name="rbd1")]
+    default_volume_type = types.SimpleNamespace(name="rbd1")
+    cinder_client = types.SimpleNamespace(
+        volume_types=types.SimpleNamespace(
+            list=mocker.Mock(return_value=volume_types),
+            default=mocker.Mock(return_value=default_volume_type),
+        ),
+    )
+
+    assert utils.list_volume_types(cinder_client) == volume_types
+    assert utils.get_default_volume_type(cinder_client) is default_volume_type
+
+
+def test_lookup_flavor_supports_sdk_compute_proxy(mocker):
+    flavor = types.SimpleNamespace(id="flavor-id", name="m1.large")
+    nova = types.SimpleNamespace(
+        flavors=SdkServerGroups(mocker.Mock(return_value=[flavor]))
+    )
+    cli = types.SimpleNamespace(nova=mocker.Mock(return_value=nova))
+
+    assert utils.lookup_flavor(cli, "m1.large") == flavor
+    assert utils.lookup_flavor(cli, "flavor-id") == flavor
 
 
 class TestGenerateCloudControllerManagerConfig:
@@ -109,7 +253,7 @@ class TestGenerateCloudControllerManagerConfig:
             tls-insecure=false
 
             [LoadBalancer]
-            lb-provider=amphora
+            lb-provider=amphorav2
             lb-method=ROUND_ROBIN
             create-monitor=True
             """
