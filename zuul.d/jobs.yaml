@@ -73,7 +73,7 @@
     name: magnum-cluster-api-hydrophone-v1.33.11
     parent: magnum-cluster-api-hydrophone
     vars:
-      kube_tag: v1.33.11
+      kube_tag: v1.33.12
 
 - job:
     name: magnum-cluster-api-hydrophone-v1.33.11-calico
@@ -91,7 +91,7 @@
     name: magnum-cluster-api-hydrophone-v1.34.7
     parent: magnum-cluster-api-hydrophone
     vars:
-      kube_tag: v1.34.7
+      kube_tag: v1.34.8
 
 - job:
     name: magnum-cluster-api-hydrophone-v1.34.7-calico
@@ -109,7 +109,7 @@
     name: magnum-cluster-api-hydrophone-v1.35.4
     parent: magnum-cluster-api-hydrophone
     vars:
-      kube_tag: v1.35.4
+      kube_tag: v1.35.5
 
 - job:
     name: magnum-cluster-api-hydrophone-v1.35.4-calico
