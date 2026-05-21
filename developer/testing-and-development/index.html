@@ -1,0 +1,518 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../cluster-topology/">
+      
+      
+        <link rel="next" href="../upgrade-in-atmosphere/">
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.15">
+    
+    
+      
+        <title>Testing & Development - Cluster API driver for Magnum</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.26e3688c.min.css">
+      
+      
+
+    
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&"object"==typeof palette.color)for(var key of Object.keys(palette.color))document.body.setAttribute("data-md-color-"+key,palette.color[key])</script>
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#testing-development" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Cluster API driver for Magnum" class="md-header__button md-logo" aria-label="Cluster API driver for Magnum" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Cluster API driver for Magnum
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Testing & Development
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Cluster API driver for Magnum" class="md-nav__button md-logo" aria-label="Cluster API driver for Magnum" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Cluster API driver for Magnum
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+      
+      
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+      
+      
+      
+        <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+          User Guide
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+        <label class="md-nav__title" for="__nav_1">
+          <span class="md-nav__icon md-icon"></span>
+          User Guide
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user/getting-started/" class="md-nav__link">
+        Getting Started
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user/configs/" class="md-nav__link">
+        Configuration Options
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user/images/" class="md-nav__link">
+        Images
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user/labels/" class="md-nav__link">
+        Labels
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+      
+      
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+      
+      
+      
+        <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          Administrator Guide
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <label class="md-nav__title" for="__nav_2">
+          <span class="md-nav__icon md-icon"></span>
+          Administrator Guide
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/intro/" class="md-nav__link">
+        Introduction
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/troubleshooting/" class="md-nav__link">
+        Troubleshooting
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+    
+  
+  
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+      
+      
+      
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+      
+      
+      
+        <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          Developer Guide
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+        <label class="md-nav__title" for="__nav_3">
+          <span class="md-nav__icon md-icon"></span>
+          Developer Guide
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cluster-topology/" class="md-nav__link">
+        Cluster Topology
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        Testing & Development
+      </a>
+      
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upgrade-in-atmosphere/" class="md-nav__link">
+        Upgrading in Atmosphere environment
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+<h1 id="testing-development">Testing &amp; Development</h1>
+<p>In order to be able to test and develop the <code>magnum-cluster-api</code> project, you
+will need to have an existing Magnum deployment.  You can use the following
+steps to be able to test and develop the project.</p>
+<ol>
+<li>Start up a DevStack environment with all Cluster API dependencies</li>
+</ol>
+<div class="highlight"><pre><span></span><code>./hack/stack.sh
+</code></pre></div>
+<ol>
+<li>Upload an image to use with Magnum and create cluster templates</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="nb">pushd</span><span class="w"> </span>/tmp
+<span class="nb">source</span><span class="w"> </span>/opt/stack/openrc
+<span class="nb">export</span><span class="w"> </span><span class="nv">OS_DISTRO</span><span class="o">=</span>ubuntu<span class="w"> </span><span class="c1"># you can change this to &quot;flatcar&quot; if you want to use Flatcar</span>
+<span class="k">for</span><span class="w"> </span>version<span class="w"> </span><span class="k">in</span><span class="w"> </span>v1.24.16<span class="w"> </span>v1.25.12<span class="w"> </span>v1.26.7<span class="w"> </span>v1.27.4<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="se">\</span>
+<span class="w">   </span><span class="o">[[</span><span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">OS_DISTRO</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">&quot;ubuntu&quot;</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">IMAGE_NAME</span><span class="o">=</span><span class="s2">&quot;ubuntu-2204-kube-</span><span class="si">${</span><span class="nv">version</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nv">IMAGE_NAME</span><span class="o">=</span><span class="s2">&quot;flatcar-kube-</span><span class="si">${</span><span class="nv">version</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">   </span>curl<span class="w"> </span>-LO<span class="w"> </span>https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/<span class="si">${</span><span class="nv">IMAGE_NAME</span><span class="si">}</span>.qcow2<span class="p">;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">   </span>openstack<span class="w"> </span>image<span class="w"> </span>create<span class="w"> </span><span class="si">${</span><span class="nv">IMAGE_NAME</span><span class="si">}</span><span class="w"> </span>--disk-format<span class="o">=</span>qcow2<span class="w"> </span>--container-format<span class="o">=</span>bare<span class="w"> </span>--property<span class="w"> </span><span class="nv">os_distro</span><span class="o">=</span><span class="si">${</span><span class="nv">OS_DISTRO</span><span class="si">}</span><span class="w"> </span>--file<span class="o">=</span><span class="si">${</span><span class="nv">IMAGE_NAME</span><span class="si">}</span>.qcow2<span class="p">;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">   </span>openstack<span class="w"> </span>coe<span class="w"> </span>cluster<span class="w"> </span>template<span class="w"> </span>create<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>--image<span class="w"> </span><span class="k">$(</span>openstack<span class="w"> </span>image<span class="w"> </span>show<span class="w"> </span><span class="si">${</span><span class="nv">IMAGE_NAME</span><span class="si">}</span><span class="w"> </span>-c<span class="w"> </span>id<span class="w"> </span>-f<span class="w"> </span>value<span class="k">)</span><span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>--external-network<span class="w"> </span>public<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>--dns-nameserver<span class="w"> </span><span class="m">8</span>.8.8.8<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>--master-lb-enabled<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>--master-flavor<span class="w"> </span>m1.medium<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>--flavor<span class="w"> </span>m1.medium<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>--network-driver<span class="w"> </span>calico<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>--docker-storage-driver<span class="w"> </span>overlay2<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>--coe<span class="w"> </span>kubernetes<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>--label<span class="w"> </span><span class="nv">kube_tag</span><span class="o">=</span><span class="si">${</span><span class="nv">version</span><span class="si">}</span><span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>k8s-<span class="si">${</span><span class="nv">version</span><span class="si">}</span><span class="p">;</span>
+<span class="k">done</span><span class="p">;</span>
+<span class="nb">popd</span>
+</code></pre></div>
+<ol>
+<li>Spin up a new cluster using the Cluster API driver</li>
+</ol>
+<div class="highlight"><pre><span></span><code>openstack<span class="w"> </span>coe<span class="w"> </span>cluster<span class="w"> </span>create<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--cluster-template<span class="w"> </span>k8s-v1.25.12<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--master-count<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--node-count<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>k8s-v1.25.12
+</code></pre></div>
+<ol>
+<li>Once the cluster reaches <code>CREATE_COMPLETE</code> state, you can interact with it:</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="nb">eval</span><span class="w"> </span><span class="k">$(</span>openstack<span class="w"> </span>coe<span class="w"> </span>cluster<span class="w"> </span>config<span class="w"> </span>k8s-v1.25.12<span class="k">)</span>
+</code></pre></div>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var tab,labels=set.querySelector(".tabbed-labels");for(tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Cluster API driver for Magnum is a community effort led by <a href="https://vexxhost.com">VEXXHOST, Inc.</a>
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["content.tabs.link", "navigation.tracking"], "search": "../../assets/javascripts/workers/search.208ed371.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.b4d07000.min.js"></script>
+      
+    
+  </body>
+</html>
