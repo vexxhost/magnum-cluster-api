@@ -21,6 +21,7 @@ import pytest
 import responses
 from magnum.common import exception
 from magnum.tests.unit.objects import utils as magnum_test_utils  # type: ignore
+from openstack import exceptions as sdk_exceptions
 from openstack.load_balancer.v2 import load_balancer as sdk_load_balancer
 from oslo_serialization import base64, jsonutils
 from oslo_utils import uuidutils
@@ -71,6 +72,26 @@ def test_get_server_group_id_supports_sdk_compute_proxy(context, mocker):
     mock_cache.set.assert_called_once_with("project-id", "kube-test", "server-group-id")
 
 
+def test_get_server_group_id_supports_legacy_nova_client(context, mocker):
+    mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
+    mock_cache.get.return_value = None
+    server_group = types.SimpleNamespace(name="kube-test", id="server-group-id")
+    nova = types.SimpleNamespace(
+        server_groups=types.SimpleNamespace(
+            list=mocker.Mock(return_value=[server_group])
+        )
+    )
+    mocker.patch(
+        "magnum_cluster_api.clients.get_openstack_api"
+    ).return_value.nova.return_value = nova
+
+    server_group_id = utils.get_server_group_id(context, "kube-test", "project-id")
+
+    assert server_group_id == "server-group-id"
+    nova.server_groups.list.assert_called_once_with(all_projects=context.is_admin)
+    mock_cache.set.assert_called_once_with("project-id", "kube-test", "server-group-id")
+
+
 def test_ensure_server_group_supports_sdk_compute_proxy(context, mocker):
     mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
     mock_cache.get.return_value = None
@@ -92,6 +113,35 @@ def test_ensure_server_group_supports_sdk_compute_proxy(context, mocker):
 
     assert server_group_id == "server-group-id"
     nova.create_server_group.assert_called_once_with(
+        name="kube-test",
+        policies=["soft-anti-affinity"],
+    )
+    mock_cache.set.assert_called_once_with("project-id", "kube-test", "server-group-id")
+
+
+def test_ensure_server_group_supports_legacy_nova_client(context, mocker):
+    mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
+    mock_cache.get.return_value = None
+    server_group = types.SimpleNamespace(id="server-group-id")
+    nova = types.SimpleNamespace(
+        server_groups=types.SimpleNamespace(
+            list=mocker.Mock(return_value=[]),
+            create=mocker.Mock(return_value=server_group),
+        )
+    )
+    mocker.patch(
+        "magnum_cluster_api.clients.get_openstack_api"
+    ).return_value.nova.return_value = nova
+
+    server_group_id = utils._ensure_server_group(
+        name="kube-test",
+        ctx=context,
+        policies=["soft-anti-affinity"],
+        project_id="project-id",
+    )
+
+    assert server_group_id == "server-group-id"
+    nova.server_groups.create.assert_called_once_with(
         name="kube-test",
         policies=["soft-anti-affinity"],
     )
@@ -134,6 +184,28 @@ def test_delete_server_group_supports_legacy_nova_client(context, mocker):
     nova.server_groups.delete.assert_called_once_with("server-group-id")
 
 
+def test_delete_server_group_ignores_sdk_not_found(context, mocker):
+    mocker.patch("magnum_cluster_api.utils.get_server_group_id").return_value = (
+        "server-group-id"
+    )
+    nova = types.SimpleNamespace(
+        server_groups=SdkServerGroups(mocker.Mock()),
+        delete_server_group=mocker.Mock(
+            side_effect=sdk_exceptions.ResourceNotFound("missing")
+        ),
+    )
+    mocker.patch(
+        "magnum_cluster_api.clients.get_openstack_api"
+    ).return_value.nova.return_value = nova
+
+    utils._delete_server_group("kube-test", context, "project-id")
+
+    nova.delete_server_group.assert_called_once_with(
+        "server-group-id",
+        ignore_missing=True,
+    )
+
+
 def test_volume_type_helpers_support_sdk_block_storage_proxy(mocker):
     volume_type = types.SimpleNamespace(name="rbd1")
     response = mocker.Mock(status_code=200)
@@ -164,6 +236,19 @@ def test_default_volume_type_falls_back_for_sdk_block_storage_proxy(mocker):
     response.raise_for_status.assert_not_called()
 
 
+def test_default_volume_type_raises_unexpected_sdk_response(mocker):
+    response = mocker.Mock(status_code=500)
+    response.raise_for_status.side_effect = RuntimeError("boom")
+    cinder_client = types.SimpleNamespace(
+        types=mocker.Mock(),
+        get=mocker.Mock(return_value=response),
+    )
+
+    with pytest.raises(RuntimeError, match="boom"):
+        utils.get_default_volume_type(cinder_client)
+    response.raise_for_status.assert_called_once_with()
+
+
 def test_volume_type_helpers_support_legacy_cinder_client(mocker):
     volume_types = [types.SimpleNamespace(name="rbd1")]
     default_volume_type = types.SimpleNamespace(name="rbd1")
@@ -176,6 +261,11 @@ def test_volume_type_helpers_support_legacy_cinder_client(mocker):
 
     assert utils.list_volume_types(cinder_client) == volume_types
     assert utils.get_default_volume_type(cinder_client) is default_volume_type
+
+
+def test_load_balancer_attr_supports_dict_values():
+    assert utils._load_balancer_attr({"id": "lb-id"}, "id") == "lb-id"
+    assert utils._load_balancer_attr({"id": "lb-id"}, "missing") is None
 
 
 def test_delete_loadbalancers_supports_sdk_load_balancer_proxy(context, mocker):
@@ -205,6 +295,31 @@ def test_delete_loadbalancers_supports_sdk_load_balancer_proxy(context, mocker):
         cascade=True,
     )
     delete_floatingip.assert_called_once_with(context, "vip-port-id", cluster)
+
+
+def test_delete_loadbalancers_skips_pending_sdk_load_balancers(context, mocker):
+    cluster = magnum_test_utils.get_test_cluster(context)
+    cluster.uuid = "00000000-1111-2222-3333-444444444444"
+    pending_lb = types.SimpleNamespace(
+        id="pending-lb-id",
+        description="Kubernetes service from cluster 00000000-1111-2222-3333-444444444444",
+        provisioning_status="PENDING_DELETE",
+        vip_port_id="vip-port-id",
+    )
+    octavia_proxy = types.SimpleNamespace(
+        load_balancers=mocker.Mock(return_value=[pending_lb]),
+        delete_load_balancer=mocker.Mock(),
+    )
+    openstack_api = mocker.patch("magnum_cluster_api.clients.get_openstack_api")
+    openstack_api.return_value.octavia.return_value = octavia_proxy
+    delete_floatingip = mocker.patch(
+        "magnum_cluster_api.utils.neutron.delete_floatingip"
+    )
+
+    utils.delete_loadbalancers(context, cluster)
+
+    octavia_proxy.delete_load_balancer.assert_not_called()
+    delete_floatingip.assert_not_called()
 
 
 def test_delete_loadbalancers_supports_generic_sdk_proxy(context, mocker):
@@ -275,6 +390,19 @@ def test_delete_loadbalancers_supports_legacy_octavia_client(context, mocker):
     wait.assert_called_once_with(octavia_client, {"lb-id"})
 
 
+def test_wait_for_sdk_loadbalancers_deleted_times_out(mocker):
+    lb = types.SimpleNamespace(id="lb-id", provisioning_status="ACTIVE")
+    octavia_proxy = types.SimpleNamespace(load_balancers=mocker.Mock(return_value=[lb]))
+    mocker.patch("magnum_cluster_api.utils.CONF.cluster.pre_delete_lb_timeout", 1)
+    mocker.patch("magnum_cluster_api.utils.time.time", side_effect=[0, 0, 2])
+    sleep = mocker.patch("magnum_cluster_api.utils.time.sleep")
+
+    with pytest.raises(Exception, match="Timeout waiting for the load balancers"):
+        utils._wait_for_sdk_loadbalancers_deleted(octavia_proxy, {"lb-id"})
+
+    sleep.assert_called_once_with(1)
+
+
 def test_lookup_flavor_supports_sdk_compute_proxy(mocker):
     flavor = types.SimpleNamespace(id="flavor-id", name="m1.large")
     nova = types.SimpleNamespace(
@@ -284,6 +412,17 @@ def test_lookup_flavor_supports_sdk_compute_proxy(mocker):
 
     assert utils.lookup_flavor(cli, "m1.large") == flavor
     assert utils.lookup_flavor(cli, "flavor-id") == flavor
+
+
+def test_lookup_flavor_supports_legacy_nova_client(mocker):
+    flavor = types.SimpleNamespace(id="flavor-id", name="m1.large")
+    nova = types.SimpleNamespace(
+        flavors=types.SimpleNamespace(list=mocker.Mock(return_value=[flavor]))
+    )
+    cli = types.SimpleNamespace(nova=mocker.Mock(return_value=nova))
+
+    assert utils.lookup_flavor(cli, "m1.large") == flavor
+    nova.flavors.list.assert_called_once_with()
 
 
 class TestGenerateCloudControllerManagerConfig:
