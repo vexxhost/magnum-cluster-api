@@ -44,17 +44,26 @@ def test_connection_uses_magnum_keystone_session(mocker, context):
 def test_connection_options_normalize_legacy_endpoint_type(mocker):
     mocker.patch(
         "magnum_cluster_api.clients._get_conf_option",
-        side_effect=[None, None, None, "RegionOne"],
+        side_effect=[None, "internalURL", None, "RegionOne"],
     )
-    mocker.patch(
-        "magnum_cluster_api.clients.get_client_option",
-        return_value="internalURL",
-    )
+    get_client_option = mocker.patch("magnum_cluster_api.clients.get_client_option")
 
     assert clients._get_connection_options() == {
         "interface": "internal",
         "region_name": "RegionOne",
     }
+    get_client_option.assert_not_called()
+
+
+def test_connection_options_do_not_fall_back_to_cinder_client(mocker):
+    mocker.patch(
+        "magnum_cluster_api.clients._get_conf_option",
+        side_effect=[None, None, None, None],
+    )
+    get_client_option = mocker.patch("magnum_cluster_api.clients.get_client_option")
+
+    assert clients._get_connection_options() == {}
+    get_client_option.assert_not_called()
 
 
 def test_connection_options_prefer_keystone_auth_group(mocker):

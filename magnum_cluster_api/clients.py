@@ -62,15 +62,11 @@ def _normalize_interface(endpoint_type):
 
 
 def _get_connection_options():
-    endpoint_type = (
-        _get_conf_option(ksconf.CFG_GROUP, "interface")
-        or _get_conf_option(ksconf.CFG_LEGACY_GROUP, "interface")
-        or get_client_option("cinder", "endpoint_type")
+    endpoint_type = _get_conf_option(ksconf.CFG_GROUP, "interface") or _get_conf_option(
+        ksconf.CFG_LEGACY_GROUP, "interface"
     )
-    region_name = (
-        _get_conf_option(ksconf.CFG_GROUP, "region_name")
-        or _get_conf_option(ksconf.CFG_LEGACY_GROUP, "region_name")
-        or get_client_option("cinder", "region_name")
+    region_name = _get_conf_option(ksconf.CFG_GROUP, "region_name") or _get_conf_option(
+        ksconf.CFG_LEGACY_GROUP, "region_name"
     )
 
     options = {}
