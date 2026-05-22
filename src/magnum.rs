@@ -43,9 +43,10 @@ pub struct ClusterLabels {
     pub cilium_hubble_ui_enabled: String,
 
     /// Enable the use of the Cinder CSI driver for the cluster.
-    #[builder(default = true)]
-    #[pyo3(default = true)]
-    pub cinder_csi_enabled: bool,
+    /// Note: OpenStack labels are always strings, so this accepts "true"/"false".
+    #[builder(default="true".to_owned())]
+    #[pyo3(default="true".to_owned())]
+    pub cinder_csi_enabled: String,
 
     /// The tag of the Cinder CSI container image to use for the cluster.
     #[builder(default="v1.32.0".to_owned())]
@@ -53,9 +54,10 @@ pub struct ClusterLabels {
     pub cinder_csi_plugin_tag: String,
 
     /// Enable the use of the Manila CSI driver for the cluster.
-    #[builder(default = true)]
-    #[pyo3(default = true)]
-    pub manila_csi_enabled: bool,
+    /// Note: OpenStack labels are always strings, so this accepts "true"/"false".
+    #[builder(default="true".to_owned())]
+    #[pyo3(default="true".to_owned())]
+    pub manila_csi_enabled: String,
 
     /// The tag of the Manila CSI container image to use for the cluster.
     #[builder(default="v1.32.0".to_owned())]
@@ -117,6 +119,14 @@ impl ClusterLabels {
     /// Parses the string label value "true"/"false" to a boolean.
     pub fn is_cilium_hubble_ui_enabled(&self) -> bool {
         self.cilium_hubble_ui_enabled.eq_ignore_ascii_case("true")
+    }
+
+    pub fn is_cinder_csi_enabled(&self) -> bool {
+        self.cinder_csi_enabled.eq_ignore_ascii_case("true")
+    }
+
+    pub fn is_manila_csi_enabled(&self) -> bool {
+        self.manila_csi_enabled.eq_ignore_ascii_case("true")
     }
 
     pub fn get_cloud_provider_tag(&self) -> String {
@@ -378,7 +388,7 @@ mod tests {
     use super::*;
     use crate::addons;
     use pretty_assertions::assert_eq;
-    use pyo3::types::PyString;
+    use pyo3::types::{PyDict, PyString};
     use rstest::rstest;
     use serde_yaml::{Mapping, Value};
     use std::path::PathBuf;
@@ -440,6 +450,28 @@ mod tests {
             .build();
 
         assert_eq!(labels.get_cloud_provider_tag(), "v1.29.5");
+    }
+
+    #[test]
+    fn test_cluster_labels_extract_openstack_bool_strings() {
+        Python::initialize();
+        Python::attach(|py| {
+            let labels = PyDict::new(py);
+            labels
+                .set_item("cinder_csi_enabled", "true")
+                .expect("label should be set");
+            labels
+                .set_item("manila_csi_enabled", "false")
+                .expect("label should be set");
+            labels
+                .set_item("kube_tag", "v1.34.3")
+                .expect("label should be set");
+
+            let labels: ClusterLabels = labels.extract().expect("labels should extract");
+
+            assert!(labels.is_cinder_csi_enabled());
+            assert!(!labels.is_manila_csi_enabled());
+        });
     }
 
     #[rstest]
