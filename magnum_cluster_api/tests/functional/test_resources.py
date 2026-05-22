@@ -53,12 +53,16 @@ class ResourceBaseTestCase(base.BaseTestCase):
 
         self.context = magnum_context.RequestContext(is_admin=False)
 
-        self.mock_cinder = self.useFixture(
-            fixtures.MockPatch("magnum_cluster_api.clients.OpenStackClients.cinder")
-        ).mock
-        self.mock_cinder.return_value.volume_types.default.return_value.name = (
-            "fake-boot-volume-type"
-        )
+        self.mock_osc = self.useFixture(
+            fixtures.MockPatch("magnum_cluster_api.clients.get_openstack_api")
+        ).mock.return_value
+        self.mock_osc.block_storage.types.return_value = iter([])
+        volume_type_response = self.mock_osc.block_storage.get.return_value
+        volume_type_response.status_code = 200
+        volume_type_response.json.return_value = {
+            "volume_type": {"id": "fake-volume-type", "name": "fake-boot-volume-type"}
+        }
+        self.mock_osc.endpoint_for.return_value = "http://fake_url"
 
         self.useFixture(NodeGroups(self.context))
 

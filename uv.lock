@@ -65,15 +65,6 @@ wheels = [
 ]
 
 [[package]]
-name = "babel"
-version = "2.17.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7d/6b/d52e42361e1aa00709585ecc30b3f9684b3ab62530771402248b1b1d6240/babel-2.17.0.tar.gz", hash = "sha256:0c54cffb19f690cdcc52a3b50bcbf71e07a808d1c80d549f2459b9d2cf0afb9d", size = 9951852, upload-time = "2025-02-01T15:17:41.026Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/b8/3fe70c75fe32afc4bb507f75563d39bc5642255d1d94f1f23604725780bf/babel-2.17.0-py3-none-any.whl", hash = "sha256:4d0b53093fdfb4b21c92b5213dba5a1b23885afa8383709427046b21c366e5f2", size = 10182537, upload-time = "2025-02-01T15:17:37.39Z" },
-]
-
-[[package]]
 name = "bcrypt"
 version = "4.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -820,6 +811,7 @@ dependencies = [
     { name = "haproxyadmin" },
     { name = "kubernetes" },
     { name = "magnum" },
+    { name = "openstacksdk" },
     { name = "oslo-concurrency" },
     { name = "oslo-config" },
     { name = "oslo-context" },
@@ -829,8 +821,6 @@ dependencies = [
     { name = "platformdirs" },
     { name = "pykube-ng" },
     { name = "pyroute2" },
-    { name = "python-heatclient" },
-    { name = "python-manilaclient" },
     { name = "requests" },
     { name = "semver" },
     { name = "sherlock" },
@@ -858,6 +848,7 @@ requires-dist = [
     { name = "haproxyadmin", specifier = ">=0.2.4" },
     { name = "kubernetes", specifier = ">=24.2.0" },
     { name = "magnum", specifier = ">=15.0.0" },
+    { name = "openstacksdk" },
     { name = "oslo-concurrency", specifier = ">=4.5.0" },
     { name = "oslo-config", specifier = ">=8.8.0" },
     { name = "oslo-context", specifier = ">=4.1.0" },
@@ -867,8 +858,6 @@ requires-dist = [
     { name = "platformdirs", specifier = ">=2.4.0" },
     { name = "pykube-ng" },
     { name = "pyroute2", specifier = ">=0.3.4" },
-    { name = "python-heatclient" },
-    { name = "python-manilaclient", specifier = ">=3.3.2" },
     { name = "requests", specifier = ">=2.27.1" },
     { name = "semver", specifier = ">=2.0.0" },
     { name = "sherlock", specifier = ">=0.4.1" },
@@ -1838,28 +1827,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ea/5e/2d6700c6e36c288ec7e6d24ad49ef400311e8d2b2d926b16906f12c1cb26/python-keystoneclient-5.5.0.tar.gz", hash = "sha256:c2f5934f95576936c98e45bf599ad48bcb0ac451593e5f8344ebf52cb0f411f5", size = 324070, upload-time = "2024-08-27T08:04:00.29Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/06/d0/187c168e0663b4849cb2f2ce288d91e95e4cf63e4e53a32315f9f6f1ea65/python_keystoneclient-5.5.0-py3-none-any.whl", hash = "sha256:52fe7eb35c7345387c2488eb0b95f28a1d73edcad1ac3d8d80cf8ce6a7c9a8ee", size = 397200, upload-time = "2024-08-27T08:03:58.541Z" },
-]
-
-[[package]]
-name = "python-manilaclient"
-version = "5.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "babel" },
-    { name = "debtcollector" },
-    { name = "osc-lib" },
-    { name = "oslo-config" },
-    { name = "oslo-log" },
-    { name = "oslo-serialization" },
-    { name = "oslo-utils" },
-    { name = "pbr" },
-    { name = "prettytable" },
-    { name = "python-keystoneclient" },
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/d6/41/04e45b6795939d46e9391b4b3628c30519088f2a80ab10526869658e91d7/python-manilaclient-5.2.0.tar.gz", hash = "sha256:6e49c3d4c4c3492edee12914a9ffb26a3e7b3dd49fcc60f2dcdbfea624082e58", size = 390755, upload-time = "2025-01-16T13:38:30.66Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/6d/36/c4eb545d72681fb6b879f613095d5db473eab072de68a9e89bedd1ab850e/python_manilaclient-5.2.0-py3-none-any.whl", hash = "sha256:a7412707d507226d8f68cc1f4f512ddb2cf6d1a4e023cb96faeb4d3170dca6b5", size = 517894, upload-time = "2025-01-16T13:38:28.654Z" },
 ]
 
 [[package]]

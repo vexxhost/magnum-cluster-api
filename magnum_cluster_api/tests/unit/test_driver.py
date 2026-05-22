@@ -19,7 +19,7 @@ import openstack
 import pykube
 import pytest
 import responses
-from heatclient import exc  # type: ignore
+from magnum.common import exception as magnum_exception  # type: ignore
 from magnum.objects import fields  # type: ignore
 from magnum.tests.unit.objects import utils  # type: ignore
 from novaclient.v2 import flavors  # type: ignore
@@ -166,6 +166,26 @@ class TestDriver:
             json=json,
         )
 
+    def _response_for_machine_sets(self):
+        return responses.Response(
+            responses.GET,
+            "http://localhost/apis/%s/namespaces/%s/%s"
+            % (
+                objects.MachineSet.version,
+                "magnum-system",
+                objects.MachineSet.endpoint,
+            ),
+            match=[
+                matchers.query_param_matcher(
+                    {
+                        "labelSelector": "cluster.x-k8s.io/cluster-name=%s,topology.cluster.x-k8s.io/deployment-name=%s"
+                        % (self.cluster.stack_id, self.node_group.name)
+                    }
+                ),
+            ],
+            json={"items": []},
+        )
+
     def _response_for_openstack_machines(self, deployment_name, machine_specs=None):
         """Helper method to create a mock response for OpenStackMachine API calls."""
         json = {"items": []}
@@ -216,6 +236,7 @@ class TestDriver:
         mock_rust_driver,
     ):
         ubuntu_driver._kube_client = mock.MagicMock()
+        mock_osc.identity.create_application_credential.reset_mock()
 
         with requests_mock as rsps:
             rsps.add(
@@ -330,11 +351,20 @@ class TestDriver:
 
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
+        mock_osc.identity.create_application_credential.assert_called_once_with(
+            self.cluster.user_id,
+            self.cluster.uuid,
+            description=f"Magnum cluster ({self.cluster.uuid})",
+        )
 
-    def setup_node_group_tests(self, rsps, before, after=None):
+    def setup_node_group_tests(
+        self, rsps, before, after=None, include_machine_sets=False
+    ):
         rsps.add(
             self._response_for_cluster_with_machine_deployments(*before),
         )
+        if include_machine_sets:
+            rsps.add(self._response_for_machine_sets())
         if after:
             rsps.add(
                 self._response_for_cluster_with_machine_deployments(
@@ -381,6 +411,7 @@ class TestDriver:
                         },
                     ),
                 ],
+                include_machine_sets=True,
             )
 
             ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
@@ -426,6 +457,7 @@ class TestDriver:
                         },
                     ),
                 ],
+                include_machine_sets=True,
             )
 
             ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
@@ -490,7 +522,7 @@ class TestDriver:
                 ],
             )
 
-            with pytest.raises(exc.HTTPNotFound):
+            with pytest.raises(magnum_exception.HTTPNotFound):
                 ubuntu_driver.delete_nodegroup(context, self.cluster, self.node_group)
 
     def test_update_nodegroups_status_delete_complete(
