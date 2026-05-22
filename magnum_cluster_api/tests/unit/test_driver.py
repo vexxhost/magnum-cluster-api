@@ -211,11 +211,13 @@ class TestDriver:
         ubuntu_driver,
         mock_validate_cluster,
         mock_osc,
+        mock_openstack_connection,
         mock_certificates,
         mock_get_server_group,
         mock_rust_driver,
     ):
         ubuntu_driver._kube_client = mock.MagicMock()
+        mock_openstack_connection.identity.create_application_credential.reset_mock()
 
         with requests_mock as rsps:
             rsps.add(
@@ -327,6 +329,15 @@ class TestDriver:
 
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
+
+        create_application_credential = (
+            mock_openstack_connection.identity.create_application_credential
+        )
+        create_application_credential.assert_called_once_with(
+            self.cluster.user_id,
+            self.cluster.uuid,
+            description=f"Magnum cluster ({self.cluster.uuid})",
+        )
 
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()

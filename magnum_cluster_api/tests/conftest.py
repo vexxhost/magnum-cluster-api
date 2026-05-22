@@ -14,6 +14,7 @@
 
 import os
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from unittest import mock
 
 import openstack
@@ -74,7 +75,25 @@ def image():
 
 
 @pytest.fixture(scope="session")
-def mock_osc(session_mocker, image):
+def mock_openstack_connection(session_mocker):
+    mock_connection = session_mocker.patch(
+        "magnum_cluster_api.clients.get_openstack_connection"
+    ).return_value
+    mock_connection.identity.create_application_credential.return_value = (
+        openstack.identity.v3.application_credential.ApplicationCredential(
+            id="fake_id", secret="fake_secret"
+        )
+    )
+    mock_connection.identity.regions.return_value = [SimpleNamespace(id="RegionOne")]
+    session_mocker.patch(
+        "magnum_cluster_api.clients.get_client_option",
+        return_value="RegionOne",
+    )
+    return mock_connection
+
+
+@pytest.fixture(scope="session")
+def mock_osc(session_mocker, image, mock_openstack_connection):
     mock_clients = session_mocker.patch(
         "magnum_cluster_api.clients.OpenStackClients"
     ).return_value
@@ -85,14 +104,6 @@ def mock_osc(session_mocker, image):
     session_mocker.patch(
         "magnum.common.clients.OpenStackClients",
         return_value=mock_clients,
-    )
-
-    # Keystone
-    mock_keystone_client = mock_clients.keystone.return_value.client
-    mock_keystone_client.application_credentials.create.return_value = (
-        openstack.identity.v3.application_credential.ApplicationCredential(
-            id="fake_id", secret="fake_secret"
-        )
     )
 
     # Glance
