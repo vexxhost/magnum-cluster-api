@@ -18,6 +18,8 @@ import json
 import re
 import string
 import textwrap
+import time
+import types
 import typing
 
 import pykube  # type: ignore
@@ -29,6 +31,10 @@ from magnum.common import context, exception, neutron, octavia  # type: ignore
 from magnum.common import utils as magnum_utils
 from novaclient import exceptions as nova_exception  # type: ignore
 from novaclient.v2 import flavors  # type: ignore
+from openstack import exceptions as sdk_exceptions  # type: ignore
+from openstack.load_balancer.v2 import (
+    load_balancer as sdk_load_balancer,  # type: ignore
+)
 from oslo_config import cfg  # type: ignore
 from oslo_serialization import base64  # type: ignore
 from oslo_utils import strutils, uuidutils  # type: ignore
@@ -318,6 +324,93 @@ def get_cluster_label_as_bool(
     return strutils.bool_from_string(value, strict=True)
 
 
+def list_volume_types(cinder_client):
+    if hasattr(cinder_client, "volume_types"):
+        return cinder_client.volume_types.list()
+    return cinder_client.types()
+
+
+def get_default_volume_type(cinder_client):
+    if hasattr(cinder_client, "volume_types"):
+        return cinder_client.volume_types.default()
+
+    response = cinder_client.get("/types/default")
+    if response.status_code < 400:
+        volume_type = response.json().get("volume_type")
+        if volume_type is not None:
+            return types.SimpleNamespace(**volume_type)
+
+    if response.status_code not in (404, 406):
+        response.raise_for_status()
+
+    return next(cinder_client.types(), None)
+
+
+def _load_balancer_attr(lb, name):
+    if isinstance(lb, dict):
+        return lb.get(name)
+    return getattr(lb, name, None)
+
+
+def _delete_sdk_loadbalancers(ctx, lbs, cluster, octavia_client):
+    candidates = set()
+
+    for lb in lbs:
+        status = _load_balancer_attr(lb, "provisioning_status")
+        if status in ["PENDING_DELETE", "DELETED"]:
+            continue
+
+        lb_id = _load_balancer_attr(lb, "id")
+        if hasattr(octavia_client, "delete_load_balancer"):
+            octavia_client.delete_load_balancer(
+                lb,
+                ignore_missing=True,
+                cascade=True,
+            )
+        else:
+            lb.cascade = True
+            octavia_client._delete(
+                sdk_load_balancer.LoadBalancer,
+                lb,
+                ignore_missing=True,
+            )
+        candidates.add(lb_id)
+
+        vip_port_id = _load_balancer_attr(lb, "vip_port_id")
+        if vip_port_id:
+            neutron.delete_floatingip(ctx, vip_port_id, cluster)
+
+    return candidates
+
+
+def _sdk_loadbalancers(octavia_client):
+    if hasattr(octavia_client, "load_balancers"):
+        return octavia_client.load_balancers()
+
+    return octavia_client._list(sdk_load_balancer.LoadBalancer)
+
+
+def _wait_for_sdk_loadbalancers_deleted(octavia_client, deleted_lbs):
+    timeout = CONF.cluster.pre_delete_lb_timeout
+    start_time = time.time()
+
+    while True:
+        lb_ids = {
+            _load_balancer_attr(lb, "id")
+            for lb in _sdk_loadbalancers(octavia_client)
+            if _load_balancer_attr(lb, "provisioning_status") != "DELETED"
+        }
+        if not (deleted_lbs & lb_ids):
+            break
+
+        if time.time() - start_time > timeout:
+            raise Exception(
+                "Timeout waiting for the load balancers %s to be deleted." % deleted_lbs
+            )
+
+        time.sleep(1)
+
+
 def delete_loadbalancers(ctx, cluster):
     # NOTE(mnaser): This code is duplicated from magnum.common.octavia
     #               since the original code is very Heat-specific.
@@ -334,17 +427,29 @@ def delete_loadbalancers(ctx, cluster):
         octavia_client = user_clients.octavia()
 
         # Get load balancers created for service/ingress
-        lbs = octavia_client.load_balancer_list().get("loadbalancers", [])
-        lbs = [lb for lb in lbs if re.match(pattern, lb["description"])]
-        deleted = octavia._delete_loadbalancers(
-            ctx, lbs, cluster, octavia_admin_client, remove_fip=True
-        )
+        if hasattr(octavia_client, "load_balancer_list"):
+            lbs = octavia_client.load_balancer_list().get("loadbalancers", [])
+            lbs = [lb for lb in lbs if re.match(pattern, lb["description"])]
+            deleted = octavia._delete_loadbalancers(
+                ctx, lbs, cluster, octavia_admin_client, remove_fip=True
+            )
+        else:
+            lbs = list(_sdk_loadbalancers(octavia_client))
+            lbs = [
+                lb
+                for lb in lbs
+                if re.match(pattern, _load_balancer_attr(lb, "description") or "")
+            ]
+            deleted = _delete_sdk_loadbalancers(ctx, lbs, cluster, octavia_client)
         candidates.update(deleted)
 
         if not candidates:
             return
 
-        octavia.wait_for_lb_deleted(octavia_client, candidates)
+        if hasattr(octavia_client, "load_balancer_list"):
+            octavia.wait_for_lb_deleted(octavia_client, candidates)
+        else:
+            _wait_for_sdk_loadbalancers_deleted(octavia_client, candidates)
     except Exception as e:
         raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
 
@@ -361,7 +466,11 @@ def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
 
     if flavor is None:
         return
-    flavor_list = cli.nova().flavors.list()
+    nova = cli.nova()
+    if hasattr(nova.flavors, "list"):
+        flavor_list = nova.flavors.list()
+    else:
+        flavor_list = nova.flavors()
     for f in flavor_list:
         if f.name == flavor or f.id == flavor:
             return f
@@ -507,7 +616,11 @@ def get_server_group_id(
 
     # Check if the server group exists already
     osc = clients.get_openstack_api(ctx)
-    server_groups = osc.nova().server_groups.list(all_projects=ctx.is_admin)
+    nova = osc.nova()
+    if hasattr(nova.server_groups, "list"):
+        server_groups = nova.server_groups.list(all_projects=ctx.is_admin)
+    else:
+        server_groups = nova.server_groups(all_projects=ctx.is_admin)
     server_group_id_list = []
     for sg in server_groups:
         if sg.name == name:
@@ -627,7 +740,11 @@ def _ensure_server_group(
         policies = DEFAULT_SERVER_GROUP_POLICIES
 
     # NOTE(oleks): Requires API microversion 2.15 or later for soft-affinity and soft-anti-affinity policy rules.
-    server_group = osc.nova().server_groups.create(name=name, policies=policies)
+    nova = osc.nova()
+    if hasattr(nova.server_groups, "create"):
+        server_group = nova.server_groups.create(name=name, policies=policies)
+    else:
+        server_group = nova.create_server_group(name=name, policies=policies)
     g_server_group_cache.set(project_id, name, server_group.id)
     return server_group.id
 
@@ -642,9 +759,15 @@ def _delete_server_group(
         return
 
     osc = clients.get_openstack_api(ctx)
+    nova = osc.nova()
     try:
-        osc.nova().server_groups.delete(server_group_id)
+        if hasattr(nova.server_groups, "delete"):
+            nova.server_groups.delete(server_group_id)
+        else:
+            nova.delete_server_group(server_group_id, ignore_missing=True)
     except nova_exception.NotFound:
+        return
+    except sdk_exceptions.ResourceNotFound:
         return
 
 

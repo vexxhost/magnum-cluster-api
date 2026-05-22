@@ -14,12 +14,8 @@
 
 import magnum.conf  # type: ignore
 import pykube  # type: ignore
-from keystoneauth1 import exceptions as ka_exception  # type: ignore
-from keystoneauth1 import loading as ka_loading  # type: ignore
-from keystoneauth1.access import access as ka_access  # type: ignore
-from keystoneauth1.identity import access as ka_access_plugin  # type: ignore
-from keystoneauth1.identity import v3 as ka_v3  # type: ignore
 from magnum.common import clients, exception  # type: ignore
+from magnum.common import keystone as magnum_keystone  # type: ignore
 from magnum.conf import keystone as ksconf  # type: ignore
 from magnum.i18n import _  # type: ignore
 from manilaclient.v2 import client as manilaclient  # type: ignore
@@ -53,61 +49,39 @@ def get_auth_url():
     return auth_url
 
 
-def _get_legacy_auth():
-    conf = CONF[ksconf.CFG_LEGACY_GROUP]
-    return ka_v3.Password(
-        auth_url=get_auth_url(),
-        username=conf.admin_user,
-        password=conf.admin_password,
-        project_name=conf.admin_tenant_name,
-        project_domain_id="default",
-        user_domain_id="default",
+def get_openstack_session(context):
+    return magnum_keystone.KeystoneClientV3(context).session
+
+
+def _normalize_interface(endpoint_type):
+    return {
+        "publicURL": "public",
+        "internalURL": "internal",
+        "adminURL": "admin",
+    }.get(endpoint_type, endpoint_type)
+
+
+def _get_connection_options():
+    endpoint_type = _get_conf_option(ksconf.CFG_GROUP, "interface") or _get_conf_option(
+        ksconf.CFG_LEGACY_GROUP, "interface"
+    )
+    region_name = _get_conf_option(ksconf.CFG_GROUP, "region_name") or _get_conf_option(
+        ksconf.CFG_LEGACY_GROUP, "region_name"
     )
 
-
-def _get_auth(context):
-    if getattr(context, "auth_token_info", None):
-        access_info = ka_access.create(
-            body=context.auth_token_info,
-            auth_token=getattr(context, "auth_token", None),
-        )
-        return ka_access_plugin.AccessInfoPlugin(
-            auth_ref=access_info,
-            auth_url=get_auth_url(),
-        )
-
-    if getattr(context, "auth_token", None):
-        return ka_v3.Token(auth_url=get_auth_url(), token=context.auth_token)
-
-    if getattr(context, "trust_id", None):
-        return ka_v3.Password(
-            auth_url=get_auth_url(),
-            username=context.user_name,
-            password=context.password,
-            user_domain_id=context.user_domain_id,
-            user_domain_name=context.user_domain_name,
-            trust_id=context.trust_id,
-        )
-
-    if getattr(context, "is_admin", False):
-        try:
-            return ka_loading.load_auth_from_conf_options(CONF, ksconf.CFG_GROUP)
-        except ka_exception.MissingRequiredOptions:
-            return _get_legacy_auth()
-
-    msg = "Keystone API connection failed: no password, trust_id or token found."
-    LOG.error(msg)
-    raise exception.AuthorizationFailure(client="keystone", message="reason %s" % msg)
-
-
-def get_openstack_session(context):
-    session = ka_loading.load_session_from_conf_options(CONF, ksconf.CFG_GROUP)
-    session.auth = _get_auth(context)
-    return session
+    options = {}
+    if endpoint_type:
+        options["interface"] = _normalize_interface(endpoint_type)
+    if region_name:
+        options["region_name"] = region_name
+    return options
 
 
 def get_openstack_connection(context):
-    return sdk_connection.Connection(session=get_openstack_session(context))
+    return sdk_connection.Connection(
+        session=get_openstack_session(context),
+        **_get_connection_options(),
+    )
 
 
 def get_client_option(client, option):

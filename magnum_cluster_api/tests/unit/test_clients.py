@@ -18,81 +18,66 @@ from magnum_cluster_api import clients
 from magnum_cluster_api.integrations import common
 
 
-def test_connection_uses_context_access_info(mocker, context):
-    access_info = mocker.sentinel.access_info
-    auth = mocker.sentinel.auth
+def test_connection_uses_magnum_keystone_session(mocker, context):
     session = mocker.Mock()
     connection = mocker.patch("magnum_cluster_api.clients.sdk_connection.Connection")
-    create_access_info = mocker.patch(
-        "magnum_cluster_api.clients.ka_access.create",
-        return_value=access_info,
+    keystone = mocker.patch(
+        "magnum_cluster_api.clients.magnum_keystone.KeystoneClientV3"
     )
-    access_plugin = mocker.patch(
-        "magnum_cluster_api.clients.ka_access_plugin.AccessInfoPlugin",
-        return_value=auth,
-    )
+    keystone.return_value.session = session
     mocker.patch(
-        "magnum_cluster_api.clients.get_auth_url",
-        return_value="https://keystone.example/v3",
-    )
-    load_session = mocker.patch(
-        "magnum_cluster_api.clients.ka_loading.load_session_from_conf_options",
-        return_value=session,
+        "magnum_cluster_api.clients._get_connection_options",
+        return_value={"interface": "internal", "region_name": "RegionOne"},
     )
 
     conn = clients.get_openstack_connection(context)
 
     assert conn is connection.return_value
-    create_access_info.assert_called_once_with(
-        body=context.auth_token_info,
-        auth_token=context.auth_token,
+    keystone.assert_called_once_with(context)
+    connection.assert_called_once_with(
+        session=session,
+        interface="internal",
+        region_name="RegionOne",
     )
-    access_plugin.assert_called_once_with(
-        auth_ref=access_info,
-        auth_url="https://keystone.example/v3",
-    )
-    load_session.assert_called_once_with(
-        clients.CONF,
-        clients.ksconf.CFG_GROUP,
-    )
-    assert session.auth is auth
-    connection.assert_called_once_with(session=session)
 
 
-def test_connection_uses_context_token(mocker):
-    context = SimpleNamespace(
-        auth_token="fake-token",
-        auth_token_info=None,
-        is_admin=False,
-        trust_id=None,
-    )
-    auth = mocker.sentinel.auth
-    session = mocker.Mock()
-    token_auth = mocker.patch(
-        "magnum_cluster_api.clients.ka_v3.Token",
-        return_value=auth,
-    )
+def test_connection_options_normalize_legacy_endpoint_type(mocker):
     mocker.patch(
-        "magnum_cluster_api.clients.get_auth_url",
-        return_value="https://keystone.example/v3",
+        "magnum_cluster_api.clients._get_conf_option",
+        side_effect=[None, "internalURL", None, "RegionOne"],
     )
-    load_session = mocker.patch(
-        "magnum_cluster_api.clients.ka_loading.load_session_from_conf_options",
-        return_value=session,
-    )
+    get_client_option = mocker.patch("magnum_cluster_api.clients.get_client_option")
 
-    actual_session = clients.get_openstack_session(context)
+    assert clients._get_connection_options() == {
+        "interface": "internal",
+        "region_name": "RegionOne",
+    }
+    get_client_option.assert_not_called()
 
-    assert actual_session is session
-    token_auth.assert_called_once_with(
-        auth_url="https://keystone.example/v3",
-        token="fake-token",
+
+def test_connection_options_do_not_fall_back_to_cinder_client(mocker):
+    mocker.patch(
+        "magnum_cluster_api.clients._get_conf_option",
+        side_effect=[None, None, None, None],
     )
-    load_session.assert_called_once_with(
-        clients.CONF,
-        clients.ksconf.CFG_GROUP,
+    get_client_option = mocker.patch("magnum_cluster_api.clients.get_client_option")
+
+    assert clients._get_connection_options() == {}
+    get_client_option.assert_not_called()
+
+
+def test_connection_options_prefer_keystone_auth_group(mocker):
+    mocker.patch(
+        "magnum_cluster_api.clients._get_conf_option",
+        side_effect=["publicURL", "RegionTwo"],
     )
-    assert session.auth is auth
+    get_client_option = mocker.patch("magnum_cluster_api.clients.get_client_option")
+
+    assert clients._get_connection_options() == {
+        "interface": "public",
+        "region_name": "RegionTwo",
+    }
+    get_client_option.assert_not_called()
 
 
 def test_cinder_region_name_uses_identity_proxy(mocker, context):
@@ -104,7 +89,9 @@ def test_cinder_region_name_uses_identity_proxy(mocker, context):
     )
 
     osc = clients.OpenStackClients(context)
-    mocker.patch("magnum_cluster_api.clients.get_client_option", return_value="RegionOne")
+    mocker.patch(
+        "magnum_cluster_api.clients.get_client_option", return_value="RegionOne"
+    )
 
     assert osc.cinder_region_name() == "RegionOne"
     conn.identity.regions.assert_called_once_with()
