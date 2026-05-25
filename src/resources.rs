@@ -264,6 +264,7 @@ pub mod fixtures {
             .api_server_tls_cipher_suites("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305".into())
             .api_server_sans("".into())
             .kubelet_tls_cipher_suites("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305".into())
+            .kubelet_extra_args("".into())
             .hardware_disk_bus("".into())
             .enable_docker_volume(false)
             .docker_volume_size(0)
@@ -310,7 +311,7 @@ mod tests {
         let values = default_values();
         let variables: Vec<ClusterTopologyVariables> = values.into();
 
-        assert_eq!(variables.len(), 39);
+        assert_eq!(variables.len(), 40);
 
         for var in &variables {
             match var.name.as_str() {
@@ -415,6 +416,9 @@ mod tests {
                 }
                 "kubeletTLSCipherSuites" => {
                     assert_eq!(var.value, json!(default_values().kubelet_tls_cipher_suites));
+                }
+                "kubeletExtraArgs" => {
+                    assert_eq!(var.value, json!(default_values().kubelet_extra_args));
                 }
                 "apiServerSANs" => {
                     assert_eq!(var.value, json!(default_values().api_server_sans));

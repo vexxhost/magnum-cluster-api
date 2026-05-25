@@ -829,6 +829,12 @@ def mutate_machine_deployment(
                         "name": "hardwareDiskBus",
                         "value": image.get("hw_disk_bus", ""),
                     },
+                    {
+                        "name": "kubeletExtraArgs",
+                        "value": utils.get_node_group_kubelet_extra_args(
+                            cluster, node_group
+                        ),
+                    },
                     # NOTE(oleks): Override using MachineDeployment-level variables for node groups
                     {
                         "name": "serverGroupId",
@@ -1227,6 +1233,10 @@ class Cluster(ClusterBase):
                                 "kubelet_tls_cipher_suites",
                                 "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",  # noqa: E501
                             ),
+                        },
+                        {
+                            "name": "kubeletExtraArgs",
+                            "value": utils.get_kubelet_extra_args(self.cluster),
                         },
                         {
                             "name": "apiServerSANs",
