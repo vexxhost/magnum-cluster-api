@@ -53,6 +53,7 @@ pub mod api_server_floating_ip;
 pub mod api_server_load_balancer;
 pub mod audit_log;
 pub mod boot_volume;
+pub mod bootstrap_status;
 pub mod cloud_provider;
 pub mod cluster_identity;
 pub mod containerd_config;
@@ -341,6 +342,15 @@ pub static KUBEADM_CONFIG_TEMPLATE: LazyLock<KubeadmConfigTemplate> =
                         ),
                         ..Default::default()
                     }),
+                    // Seed pre/post arrays with a placeholder entry so feature
+                    // patches can `op: add` at `/-` or `/0` without failing
+                    // with "doc is missing path" — Kubernetes strips empty
+                    // arrays from server-side state, so the patch target
+                    // must already exist with at least one element.
+                    // Existing whole-array `add` patches (e.g.
+                    // operating_system Flatcar path) correctly replace.
+                    pre_kubeadm_commands: Some(vec!["echo PLACEHOLDER".to_string()]),
+                    post_kubeadm_commands: Some(vec!["echo PLACEHOLDER".to_string()]),
                     ..Default::default()
                 }),
                 ..Default::default()
