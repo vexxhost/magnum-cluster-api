@@ -569,3 +569,108 @@ class TestDriver:
                     self.node_group.destroy.assert_called_once()
                 else:
                     self.node_group.destroy.assert_not_called()
+
+
+class TestMachineConditionsAggregation:
+    """Driver should surface CAPI Machine.Status.Conditions in cluster status_reason."""
+
+    @pytest.fixture(autouse=True)
+    def _mock_kube(self, requests_mock, mock_rust_driver):  # patch pykube + Rust driver
+        yield
+
+    def _make_machine(self, name, conditions):
+        m = mock.MagicMock()
+        m.obj = {
+            "metadata": {"name": name},
+            "status": {"conditions": conditions},
+        }
+        return m
+
+    def test_returns_empty_when_no_machines(self, ubuntu_driver, mocker):
+        cluster = mock.MagicMock(stack_id="abc")
+        mocker.patch.object(
+            objects.Machine,
+            "objects",
+            return_value=mock.MagicMock(filter=mock.MagicMock(return_value=[])),
+        )
+        assert ubuntu_driver._get_machine_conditions_reason(cluster) == ""
+
+    def test_returns_empty_when_all_conditions_true(self, ubuntu_driver, mocker):
+        cluster = mock.MagicMock(stack_id="abc")
+        machines = [
+            self._make_machine(
+                "m1",
+                [
+                    {"type": "Ready", "status": "True", "reason": ""},
+                    {"type": "InfrastructureReady", "status": "True"},
+                ],
+            )
+        ]
+        mocker.patch.object(
+            objects.Machine,
+            "objects",
+            return_value=mock.MagicMock(filter=mock.MagicMock(return_value=machines)),
+        )
+        assert ubuntu_driver._get_machine_conditions_reason(cluster) == ""
+
+    def test_aggregates_false_conditions_with_reason(self, ubuntu_driver, mocker):
+        cluster = mock.MagicMock(stack_id="abc")
+        machines = [
+            self._make_machine(
+                "m1",
+                [
+                    {
+                        "type": "APIServerIngressReady",
+                        "status": "False",
+                        "reason": "FloatingIPErrorReason",
+                        "message": "floating ip pool not found",
+                    },
+                ],
+            ),
+            self._make_machine(
+                "m2",
+                [
+                    {
+                        "type": "Ready",
+                        "status": "False",
+                        "reason": "BootstrapFailed",
+                    },
+                    # No-reason rows should be ignored.
+                    {"type": "InfrastructureReady", "status": "False"},
+                ],
+            ),
+        ]
+        mocker.patch.object(
+            objects.Machine,
+            "objects",
+            return_value=mock.MagicMock(filter=mock.MagicMock(return_value=machines)),
+        )
+        out = ubuntu_driver._get_machine_conditions_reason(cluster)
+        assert "m1/APIServerIngressReady: FloatingIPErrorReason" in out
+        assert "floating ip pool not found" in out
+        assert "m2/Ready: BootstrapFailed" in out
+        assert "InfrastructureReady" not in out
+
+    def test_swallows_listing_errors(self, ubuntu_driver, mocker):
+        cluster = mock.MagicMock(stack_id="abc")
+        mocker.patch.object(
+            objects.Machine,
+            "objects",
+            side_effect=RuntimeError("CRD missing"),
+        )
+        assert ubuntu_driver._get_machine_conditions_reason(cluster) == ""
+
+    def test_swallows_iteration_errors(self, ubuntu_driver, mocker):
+        class ExplodingIterable:
+            def __iter__(self):
+                raise RuntimeError("RBAC denied")
+
+        cluster = mock.MagicMock(stack_id="abc")
+        mocker.patch.object(
+            objects.Machine,
+            "objects",
+            return_value=mock.MagicMock(
+                filter=mock.MagicMock(return_value=ExplodingIterable())
+            ),
+        )
+        assert ubuntu_driver._get_machine_conditions_reason(cluster) == ""

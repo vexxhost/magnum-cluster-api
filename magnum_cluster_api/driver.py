@@ -126,7 +126,45 @@ class BaseDriver(driver.Driver):
             rust_driver=self.rust_driver,
         ).apply(),
 
-    def _get_cluster_status_reason(self, capi_cluster):
+    def _get_machine_conditions_reason(self, cluster):
+        """Walk Machine.Status.Conditions for any False condition with a Reason.
+
+        CAPI surfaces per-machine failure modes (e.g. APIServerIngressReady=False
+        with Reason=FloatingIPErrorReason from CAPO when FIP association fails)
+        as conditions on the Machine, *not* via the parent OpenStackCluster
+        Status (which can stay Ready=true).  The default Magnum poller does not
+        walk these so the cluster shows UNHEALTHY with an empty status_reason
+        and operators have to SSH into the management cluster to debug.
+
+        This helper aggregates any False condition that has a Reason into a
+        single human-readable string.  Callers should treat an empty return
+        value as "no surfaceable per-machine failure" and fall back to the
+        existing CAPI Cluster / OpenStackCluster event-based reason.
+        """
+        try:
+            machines = objects.Machine.objects(self.k8s_api).filter(
+                namespace="magnum-system",
+                selector={
+                    "cluster.x-k8s.io/cluster-name": cluster.stack_id,
+                },
+            )
+
+            messages = []
+            for machine in machines:
+                conditions = (machine.obj.get("status") or {}).get("conditions") or []
+                for cond in conditions:
+                    if cond.get("status") == "False" and cond.get("reason"):
+                        name = machine.obj.get("metadata", {}).get("name", "<unknown>")
+                        msg = cond.get("message") or ""
+                        messages.append(
+                            f"{name}/{cond.get('type')}: {cond.get('reason')}"
+                            + (f" ({msg})" if msg else "")
+                        )
+            return "; ".join(messages)
+        except Exception:  # noqa: BLE001 — defensive: missing CRD, RBAC, etc.
+            return ""
+
+    def _get_cluster_status_reason(self, capi_cluster, cluster=None):
         capi_cluster_status_reason = ""
         capi_ops_cluster_status_reason = ""
 
@@ -147,10 +185,18 @@ class BaseDriver(driver.Driver):
                 list(capi_ops_cluster_events)[-1]
             )
 
-        return "CAPI Cluster status: %s. CAPI OpenstackCluster status reason: %s" % (
-            capi_cluster_status_reason,
-            capi_ops_cluster_status_reason,
-        )
+        parts = [
+            "CAPI Cluster status: %s" % capi_cluster_status_reason,
+            "CAPI OpenstackCluster status reason: %s" % capi_ops_cluster_status_reason,
+        ]
+        # Per-machine failure conditions are not surfaced through CAPI Cluster
+        # events; aggregate them here so operators can see e.g. CAPO
+        # FloatingIPErrorReason without SSH'ing into the management cluster.
+        if cluster is not None:
+            machine_reason = self._get_machine_conditions_reason(cluster)
+            if machine_reason:
+                parts.append("Machine conditions: %s" % machine_reason)
+        return ". ".join(parts)
 
     def update_cluster_control_plane_status(
         self,
@@ -226,7 +272,7 @@ class BaseDriver(driver.Driver):
             for condition in ("ControlPlaneReady", "InfrastructureReady", "Ready"):
                 if status_map.get(condition) != "True":
                     cluster.status_reason = self._get_cluster_status_reason(
-                        capi_cluster
+                        capi_cluster, cluster=cluster
                     )
                     cluster.save()
                     return
@@ -268,7 +314,9 @@ class BaseDriver(driver.Driver):
 
         if cluster.status == fields.ClusterStatus.DELETE_IN_PROGRESS:
             if capi_cluster and capi_cluster.exists():
-                cluster.status_reason = self._get_cluster_status_reason(capi_cluster)
+                cluster.status_reason = self._get_cluster_status_reason(
+                    capi_cluster, cluster=cluster
+                )
                 cluster.save()
                 return
 
