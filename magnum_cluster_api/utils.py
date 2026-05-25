@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 import string
@@ -469,8 +470,23 @@ def get_keystone_auth_default_policy(cluster: magnum_objects.Cluster):
 
 
 def kube_apply_patch(resource):
-    if "metadata" in resource.obj:
-        resource.obj["metadata"]["managedFields"] = None
+    # NOTE(rlin): Server-Side Apply must not be tied to a specific
+    #             `resourceVersion`: the whole point of Apply is that the
+    #             server merges declared intent regardless of intervening
+    #             writes by other managers. Including it in the body causes
+    #             the apiserver to fall back to optimistic-concurrency
+    #             checking and raise a 409 ("the object has been modified")
+    #             whenever a CAPI controller updates the resource between
+    #             the GET that built `resource.obj` and this PATCH. Strip
+    #             `resourceVersion` (and the read-only `uid`/`generation`)
+    #             so the request body is a pure declaration of desired
+    #             state. `managedFields` is set to None to preserve the
+    #             pre-existing wire format expected by callers.
+    body = copy.deepcopy(resource.obj)
+    metadata = body.setdefault("metadata", {})
+    metadata["managedFields"] = None
+    for key in ("resourceVersion", "uid", "generation"):
+        metadata.pop(key, None)
 
     resp = resource.api.patch(
         **resource.api_kwargs(
@@ -481,7 +497,7 @@ def kube_apply_patch(resource):
                 "fieldManager": "atmosphere-operator",
                 "force": True,
             },
-            data=json.dumps(resource.obj),
+            data=json.dumps(body),
         )
     )
 
