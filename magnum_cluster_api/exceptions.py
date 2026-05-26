@@ -69,5 +69,13 @@ class MachineDeploymentNotFound(exception.ObjectNotFound):
     message = _("MachineDeployment %(name)s not found.")
 
 
+class ServerGroupMembersQuotaExceeded(exception.Invalid):
+    message = _(
+        "Requested %(requested)s members for server group %(server_group_name)s, "
+        "but the project server_group_members quota is %(limit)s. Reduce the "
+        "cluster node count or ask an administrator to raise the quota."
+    )
+
+
 class InvalidOctaviaLoadBalancerAlgorithm(exception.Invalid):
     message = _("Invalid value for octavia_lb_algorithm: %(octavia_lb_algorithm)s.")

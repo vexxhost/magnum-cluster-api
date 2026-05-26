@@ -70,9 +70,10 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
-        self.rust_driver.create_cluster(cluster)
-
         utils.validate_cluster(context, cluster)
+        utils.validate_cluster_server_group_members_quota(context, cluster)
+
+        self.rust_driver.create_cluster(cluster)
 
         return self._create_cluster(context, cluster)
 
@@ -343,6 +344,16 @@ class BaseDriver(driver.Driver):
         """
         utils.validate_cluster(context, cluster)
 
+        if not nodes_to_remove:
+            if nodegroup.role == "master":
+                utils.validate_controlplane_server_group_members_quota(
+                    context, cluster, requested=node_count
+                )
+            else:
+                utils.validate_nodegroup_server_group_members_quota(
+                    context, cluster, nodegroup
+                )
+
         if nodes_to_remove:
             machines = objects.Machine.objects(self.k8s_api).filter(
                 namespace="magnum-system",
@@ -477,6 +488,7 @@ class BaseDriver(driver.Driver):
         blocking the Magnum API.
         """
         utils.validate_nodegroup(nodegroup)
+        utils.validate_nodegroup_server_group_members_quota(context, cluster, nodegroup)
         utils.ensure_worker_server_group(
             ctx=context, cluster=cluster, node_group=nodegroup
         )

@@ -413,6 +413,92 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
             neutron.get_subnet(ctx, cluster.fixed_subnet, source="name", target="id")
 
 
+def _get_server_group_members_quota_limit(
+    ctx: context.RequestContext,
+    cluster: magnum_objects.Cluster,
+) -> typing.Optional[int]:
+    osc = clients.get_openstack_api(ctx)
+    tenant_id = cluster.project_id if ctx.is_admin else None
+    limits = osc.nova().limits.get(tenant_id=tenant_id)
+    absolute_limits = {limit.name: limit.value for limit in limits.absolute}
+    return absolute_limits.get("maxServerGroupMembers")
+
+
+def _validate_server_group_members_quota(
+    limit: typing.Optional[int],
+    server_group_name: str,
+    requested: int,
+):
+    if limit is None or limit == -1 or requested <= limit:
+        return
+
+    raise mcapi_exceptions.ServerGroupMembersQuotaExceeded(
+        server_group_name=server_group_name,
+        requested=requested,
+        limit=limit,
+    )
+
+
+def _get_node_group_server_group_members(
+    cluster: magnum_objects.Cluster,
+    node_group: magnum_objects.NodeGroup,
+) -> int:
+    if get_auto_scaling_enabled(cluster):
+        return get_node_group_max_node_count(node_group)
+    return node_group.node_count
+
+
+def validate_cluster_server_group_members_quota(
+    ctx: context.RequestContext,
+    cluster: magnum_objects.Cluster,
+):
+    limit = _get_server_group_members_quota_limit(ctx, cluster)
+    _validate_server_group_members_quota(
+        limit=limit,
+        server_group_name=cluster.stack_id,
+        requested=cluster.master_count,
+    )
+
+    for node_group in cluster.nodegroups:
+        if node_group.role == "master":
+            continue
+
+        _validate_server_group_members_quota(
+            limit=limit,
+            server_group_name=f"{cluster.stack_id}-{node_group.name}",
+            requested=_get_node_group_server_group_members(cluster, node_group),
+        )
+
+
+def validate_controlplane_server_group_members_quota(
+    ctx: context.RequestContext,
+    cluster: magnum_objects.Cluster,
+    requested: typing.Optional[int] = None,
+):
+    if requested is None:
+        requested = cluster.master_count
+
+    limit = _get_server_group_members_quota_limit(ctx, cluster)
+    _validate_server_group_members_quota(
+        limit=limit,
+        server_group_name=cluster.stack_id,
+        requested=requested,
+    )
+
+
+def validate_nodegroup_server_group_members_quota(
+    ctx: context.RequestContext,
+    cluster: magnum_objects.Cluster,
+    node_group: magnum_objects.NodeGroup,
+):
+    limit = _get_server_group_members_quota_limit(ctx, cluster)
+    _validate_server_group_members_quota(
+        limit=limit,
+        server_group_name=f"{cluster.stack_id}-{node_group.name}",
+        requested=_get_node_group_server_group_members(cluster, node_group),
+    )
+
+
 def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
     # Machine requires a lowercase RFC 1123 subdomain name.
     rgx = "[a-z0-9]([-a-z0-9]*[a-z0-9])?(.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*"
