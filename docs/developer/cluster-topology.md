@@ -65,7 +65,10 @@ Users select the cluster default profile with the `config_profile` cluster
 template label.  Users select nodegroup-specific layout with the
 `nodegroup_config_profile_set` cluster template label.  Unknown profile names,
 invalid layout profiles, and layout profiles that reference unknown profiles
-must be rejected during cluster validation and rendering.
+must be rejected during cluster validation and rendering.  Cluster-create label
+overrides for these selector labels are rejected because profile content is
+bootstrap-time configuration; changing the cluster row labels alone would not
+rerun cloud-init or kubeadm on existing nodes.
 
 The cluster default profile renders as the `configProfile` Cluster topology
 variable.  Layout profile entries render as MachineDeployment-level

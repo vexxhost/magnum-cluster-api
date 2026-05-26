@@ -67,7 +67,9 @@ Configuration profiles are defined by the cloud operator in the management
 cluster.  Magnum users select a supported profile with the `config_profile`
 cluster template label; they do not create new profiles through Magnum labels.
 If the ConfigMap is missing or an unknown profile name is passed, cluster
-validation fails.
+validation fails.  Magnum rejects cluster-create label overrides for profile
+selector labels so existing nodes do not appear to accept mutable bootstrap
+configuration that would not be rerun in place.
 
 To change kubelet configuration after cluster creation, use Magnum cluster
 upgrade to a cluster template that selects a different profile:

@@ -125,27 +125,12 @@ fn profile_command_patch(
     kubeadm_path_segment: &str,
     patch_name_prefix: &str,
 ) -> ClusterClassPatches {
-    let template = if idx == 0 {
-        format!("- {{{{ index .configProfile.{} {} }}}}", variable_name, idx)
-    } else {
-        format!("{{{{ index .configProfile.{} {} }}}}", variable_name, idx)
-    };
-    let control_plane_path = if idx == 0 {
-        format!(
-            "/spec/template/spec/kubeadmConfigSpec/{}",
-            kubeadm_path_segment
-        )
-    } else {
-        format!(
-            "/spec/template/spec/kubeadmConfigSpec/{}/-",
-            kubeadm_path_segment
-        )
-    };
-    let worker_path = if idx == 0 {
-        format!("/spec/template/spec/{}", kubeadm_path_segment)
-    } else {
-        format!("/spec/template/spec/{}/-", kubeadm_path_segment)
-    };
+    let template = format!("{{{{ index .configProfile.{} {} }}}}", variable_name, idx);
+    let control_plane_path = format!(
+        "/spec/template/spec/kubeadmConfigSpec/{}/-",
+        kubeadm_path_segment
+    );
+    let worker_path = format!("/spec/template/spec/{}/-", kubeadm_path_segment);
     ClusterClassPatches {
         name: format!("{}{}", patch_name_prefix, idx),
         enabled_if: Some(format!(
@@ -423,14 +408,17 @@ mod tests {
         assert!(control_plane_files
             .iter()
             .any(|f| f.path == "/etc/gpu-init.sh"));
-        assert!(kubeadm_config_spec
+        let pre_commands = kubeadm_config_spec
             .pre_kubeadm_commands
-            .expect("pre commands should be set")
-            .contains(&"bash /etc/gpu-init.sh".to_string()));
-        assert!(kubeadm_config_spec
+            .expect("pre commands should be set");
+        assert!(pre_commands.contains(&"rm /var/lib/etcd/lost+found -rf".to_string()));
+        assert!(pre_commands.contains(&"bash /run/kubeadm/configure-kube-proxy.sh".to_string()));
+        assert!(pre_commands.contains(&"bash /etc/gpu-init.sh".to_string()));
+        let post_commands = kubeadm_config_spec
             .post_kubeadm_commands
-            .expect("post commands should be set")
-            .contains(&"echo done > /etc/gpu-init.done".to_string()));
+            .expect("post commands should be set");
+        assert!(post_commands.contains(&"echo PLACEHOLDER".to_string()));
+        assert!(post_commands.contains(&"echo done > /etc/gpu-init.done".to_string()));
         assert_eq!(
             kubeadm_config_spec
                 .init_configuration

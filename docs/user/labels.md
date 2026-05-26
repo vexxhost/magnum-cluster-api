@@ -243,6 +243,8 @@ is often accomplished by deploying a driver on each node.
    names are rejected during cluster validation.  Magnum's cluster update API
    does not currently allow changing `labels`, so change this value after
    creation by upgrading to a cluster template that selects a different profile.
+   Passing this label directly to `openstack coe cluster create --labels`
+   is rejected unless the value matches the selected cluster template.
 
    Default value: unset
 
@@ -252,7 +254,9 @@ is often accomplished by deploying a driver on each node.
    `mcapi-config-profiles` ConfigMap.  The layout maps nodegroup names to
    profiles and renders MachineDeployment-level `configProfile` overrides.
    Unknown layout profiles or layouts that reference unknown profiles are
-   rejected during cluster validation.
+   rejected during cluster validation.  Passing this label directly to
+   `openstack coe cluster create --labels` is rejected unless the value matches
+   the selected cluster template.
 
    Default value: unset
 
