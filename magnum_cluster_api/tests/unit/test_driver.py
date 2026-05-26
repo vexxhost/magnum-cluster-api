@@ -350,13 +350,13 @@ class TestDriver:
         self.cluster.cluster_template_id = "old-template"
         self.cluster.labels = {
             "kube_tag": "v1.34.3",
-            "kubelet_config_profile": "profile-standard",
-            "kubelet_nodegroup_config_profile_set": "old-layout",
+            "config_profile": "profile-standard",
+            "nodegroup_config_profile_set": "old-layout",
         }
         cluster_template.uuid = "new-template"
         cluster_template.labels = {
             "kube_tag": "v1.34.3",
-            "kubelet_config_profile": "profile-upgrade",
+            "config_profile": "profile-upgrade",
         }
 
         ubuntu_driver.upgrade_cluster(
@@ -364,8 +364,8 @@ class TestDriver:
         )
 
         assert self.cluster.cluster_template_id == "new-template"
-        assert self.cluster.labels["kubelet_config_profile"] == "profile-upgrade"
-        assert "kubelet_nodegroup_config_profile_set" not in self.cluster.labels
+        assert self.cluster.labels["config_profile"] == "profile-upgrade"
+        assert "nodegroup_config_profile_set" not in self.cluster.labels
         assert "labels" in self.cluster.obj_what_changed()
         self.cluster.save.assert_called_once()
 

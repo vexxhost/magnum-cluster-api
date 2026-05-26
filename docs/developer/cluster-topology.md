@@ -18,8 +18,7 @@ let users select reviewed node bootstrap changes without exposing arbitrary
 cloud-init or kubeadm configuration in Magnum labels.
 
 Profiles are defined in the `mcapi-config-profiles` ConfigMap in the management
-cluster namespace, normally `magnum-system`.  The legacy
-`mcapi-kubelet-config-profiles` ConfigMap name is still accepted as a fallback:
+cluster namespace, normally `magnum-system`:
 
 ```yaml
 apiVersion: v1
@@ -57,18 +56,15 @@ Each profile value is a YAML object.  `kubeletConfig` contains a kubeadm
 `KubeletConfiguration` fragment; Magnum renders `apiVersion` and `kind`, so the
 fragment must not set those fields.  `files`, `preKubeadmCommands`, and
 `postKubeadmCommands` are rendered into CAPI kubeadm config fields for the
-control plane and workers.  Legacy kubelet-only profile values without a
-`kubeletConfig` wrapper are still accepted.
+control plane and workers.
 
 Layout profiles use a `nodegroups` object that maps nodegroup names to `profile`
-references.  The legacy `kubeletConfigProfile` key is still accepted.
+references.
 
 Users select the cluster default profile with the `config_profile` label.  Users
-select nodegroup-specific layout with `nodegroup_config_profile_set`.  The
-legacy `kubelet_config_profile` and `kubelet_nodegroup_config_profile_set`
-labels remain aliases.  Unknown profile names, invalid layout profiles, and
-layout profiles that reference unknown profiles must be rejected during cluster
-validation and rendering.
+select nodegroup-specific layout with `nodegroup_config_profile_set`.  Unknown
+profile names, invalid layout profiles, and layout profiles that reference
+unknown profiles must be rejected during cluster validation and rendering.
 
 The cluster default profile renders as the `configProfile` Cluster topology
 variable.  Layout profile entries render as MachineDeployment-level
