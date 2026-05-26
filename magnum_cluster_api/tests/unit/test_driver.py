@@ -20,6 +20,7 @@ import pykube
 import pytest
 import responses
 from heatclient import exc  # type: ignore
+from magnum.common import exception  # type: ignore
 from magnum.objects import fields  # type: ignore
 from magnum.tests.unit.objects import utils  # type: ignore
 from novaclient.v2 import flavors  # type: ignore
@@ -124,6 +125,15 @@ class TestDriver:
             ),
             json=obj,
             match=match,
+        )
+
+    def _response_for_machine_sets(self, *machine_sets):
+        return responses.Response(
+            responses.GET,
+            re.compile(
+                f"http://localhost/apis/{objects.MachineSet.version}/namespaces/magnum-system/{objects.MachineSet.endpoint}.*"  # noqa
+            ),
+            json={"items": list(machine_sets)},
         )
 
     def _response_for_machine_deployment_spec(
@@ -331,6 +341,84 @@ class TestDriver:
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
 
+    def test_create_cluster_rejects_config_profile_label_override(
+        self,
+        context,
+        ubuntu_driver,
+        cluster_template,
+        mocker,
+    ):
+        cluster_template.labels = {
+            "kube_tag": "v1.34.3",
+            "config_profile": "profile-template",
+        }
+        self.cluster.labels = {
+            "kube_tag": "v1.34.3",
+            "config_profile": "profile-user",
+        }
+        mocker.patch(
+            "magnum_cluster_api.utils.generate_cluster_api_name",
+            return_value="kube-test",
+        )
+
+        with pytest.raises(exception.Invalid):
+            ubuntu_driver.create_cluster(context, self.cluster, 60)
+
+    def test_create_cluster_persists_template_config_profile_labels(
+        self,
+        context,
+        ubuntu_driver,
+        cluster_template,
+        mock_validate_cluster,
+        mocker,
+    ):
+        cluster_template.labels = {
+            "kube_tag": "v1.34.3",
+            "config_profile": "profile-template",
+            "nodegroup_config_profile_set": "layout-template",
+        }
+        self.cluster.labels = {
+            "kube_tag": "v1.34.3",
+        }
+        mocker.patch.object(ubuntu_driver, "_create_cluster")
+        mocker.patch(
+            "magnum_cluster_api.utils.generate_cluster_api_name",
+            return_value="kube-test",
+        )
+        ubuntu_driver.rust_driver = mock.Mock()
+
+        ubuntu_driver.create_cluster(context, self.cluster, 60)
+
+        assert self.cluster.labels["config_profile"] == "profile-template"
+        assert self.cluster.labels["nodegroup_config_profile_set"] == "layout-template"
+        assert self.cluster.save.call_count == 2
+
+    def test_resize_cluster_validates_profiles_with_kubernetes_api(
+        self,
+        context,
+        ubuntu_driver,
+        mocker,
+    ):
+        validate_cluster = mocker.patch("magnum_cluster_api.utils.validate_cluster")
+        update_nodegroup = mocker.patch.object(ubuntu_driver, "_update_nodegroup")
+        resize_manager = mock.Mock()
+
+        ubuntu_driver.resize_cluster(
+            context,
+            self.cluster,
+            resize_manager,
+            self.node_group.node_count,
+            [],
+            self.node_group,
+        )
+
+        validate_cluster.assert_called_once_with(
+            context,
+            self.cluster,
+            ubuntu_driver.k8s_api,
+        )
+        update_nodegroup.assert_called_once_with(context, self.cluster, self.node_group)
+
     def test_upgrade_cluster_persists_kubelet_selector_labels(
         self,
         context,
@@ -369,10 +457,12 @@ class TestDriver:
         assert "labels" in self.cluster.obj_what_changed()
         self.cluster.save.assert_called_once()
 
-    def setup_node_group_tests(self, rsps, before, after=None):
+    def setup_node_group_tests(self, rsps, before, after=None, machine_sets=None):
         rsps.add(
             self._response_for_cluster_with_machine_deployments(*before),
         )
+        if machine_sets is not None:
+            rsps.add(self._response_for_machine_sets(*machine_sets))
         if after:
             rsps.add(
                 self._response_for_cluster_with_machine_deployments(
@@ -419,6 +509,7 @@ class TestDriver:
                         },
                     ),
                 ],
+                machine_sets=[],
             )
 
             ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
@@ -464,6 +555,7 @@ class TestDriver:
                         },
                     ),
                 ],
+                machine_sets=[],
             )
 
             ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)

@@ -369,8 +369,60 @@ class TestUtils(base.BaseTestCase):
             fixed_network,
         )
 
+class TestConfigProfileSelectorLabels:
+    def _cluster(self, labels, template_labels):
+        cluster = mock.Mock()
+        cluster.labels = dict(labels)
+        cluster.cluster_template = mock.Mock()
+        cluster.cluster_template.labels = dict(template_labels)
+        return cluster
 
-class TestKubeletConfigLabels:
+    def test_rejects_cluster_create_config_profile_override(self):
+        cluster = self._cluster(
+            {"config_profile": "profile-user"},
+            {"config_profile": "profile-template"},
+        )
+
+        with pytest.raises(exception.Invalid):
+            utils.reject_config_profile_label_overrides(cluster)
+
+    def test_rejects_cluster_create_config_profile_without_template_label(self):
+        cluster = self._cluster({"config_profile": "profile-user"}, {})
+
+        with pytest.raises(exception.Invalid):
+            utils.reject_config_profile_label_overrides(cluster)
+
+    def test_allows_matching_config_profile_template_label(self):
+        cluster = self._cluster(
+            {"config_profile": "profile-template"},
+            {"config_profile": "profile-template"},
+        )
+
+        utils.reject_config_profile_label_overrides(cluster)
+
+    def test_sync_config_profile_labels_from_template(self):
+        cluster = self._cluster(
+            {
+                "config_profile": "profile-current",
+                "nodegroup_config_profile_set": "layout-current",
+                "kube_tag": "v1.34.3",
+            },
+            {},
+        )
+        template = mock.Mock(
+            labels={
+                "config_profile": "profile-gpu",
+            }
+        )
+
+        utils.sync_config_profile_labels_from_template(cluster, template)
+
+        assert cluster.labels["config_profile"] == "profile-gpu"
+        assert "nodegroup_config_profile_set" not in cluster.labels
+        assert cluster.labels["kube_tag"] == "v1.34.3"
+
+
+class TestConfigProfiles:
     @pytest.fixture(autouse=True)
     def setup_profiles(self, mocker):
         self.api = mock.Mock()
@@ -378,29 +430,30 @@ class TestKubeletConfigLabels:
             obj={
                 "data": {
                     "profile-gpu": (
-                        "cpuManagerPolicy: static\n"
-                        "cpuManagerPolicyOptions:\n"
-                        '  full-pcpus-only: "true"\n'
-                        "cpuManagerReconcilePeriod: 5s\n"
-                        "memoryManagerPolicy: Static\n"
-                        "topologyManagerPolicy: single-numa-node\n"
-                        "topologyManagerScope: pod\n"
-                        "topologyManagerPolicyOptions:\n"
-                        '  max-allowable-numa-nodes: "2"\n'
-                        "qosReserved:\n"
-                        '  memory: "50%"\n'
-                        "systemReserved:\n"
-                        "  memory: 1Gi\n"
-                        "kubeReserved:\n"
-                        "  cpu: 200m\n"
-                        "enforceNodeAllocatable:\n"
-                        "  - pods\n"
-                        "reservedMemory:\n"
-                        "  - numaNode: 0\n"
-                        "    limits:\n"
-                        "      memory: 1Gi\n"
-                        "reservedSystemCPUs: 0-1\n"
-                        "maxPods: 250\n"
+                        "kubeletConfig:\n"
+                        "  cpuManagerPolicy: static\n"
+                        "  cpuManagerPolicyOptions:\n"
+                        '    full-pcpus-only: "true"\n'
+                        "  cpuManagerReconcilePeriod: 5s\n"
+                        "  memoryManagerPolicy: Static\n"
+                        "  topologyManagerPolicy: single-numa-node\n"
+                        "  topologyManagerScope: pod\n"
+                        "  topologyManagerPolicyOptions:\n"
+                        '    max-allowable-numa-nodes: "2"\n'
+                        "  qosReserved:\n"
+                        '    memory: "50%"\n'
+                        "  systemReserved:\n"
+                        "    memory: 1Gi\n"
+                        "  kubeReserved:\n"
+                        "    cpu: 200m\n"
+                        "  enforceNodeAllocatable:\n"
+                        "    - pods\n"
+                        "  reservedMemory:\n"
+                        "    - numaNode: 0\n"
+                        "      limits:\n"
+                        "        memory: 1Gi\n"
+                        "  reservedSystemCPUs: 0-1\n"
+                        "  maxPods: 250\n"
                     ),
                     "profile-layout": (
                         "nodegroups:\n"
@@ -576,7 +629,7 @@ class TestKubeletConfigLabels:
             )
         ]
 
-    def test_validate_kubelet_config_labels(self):
+    def test_validate_config_profile_labels(self):
         cluster = self._cluster(
             {
                 "config_profile": "profile-gpu",
@@ -584,13 +637,13 @@ class TestKubeletConfigLabels:
             }
         )
 
-        utils.validate_kubelet_config_labels(cluster, self.api)
+        utils.validate_config_profile_labels(cluster, self.api)
 
-    def test_validate_kubelet_config_labels_rejects_invalid_profile(self):
+    def test_validate_config_profile_labels_rejects_invalid_profile(self):
         cluster = self._cluster({"config_profile": "exclusive"})
 
         with pytest.raises(exception.Invalid):
-            utils.validate_kubelet_config_labels(cluster, self.api)
+            utils.validate_config_profile_labels(cluster, self.api)
 
     def test_get_kubelet_config_rejects_invalid_profile(self):
         cluster = self._cluster({"config_profile": "missing"})
@@ -615,7 +668,11 @@ class TestKubeletConfigLabels:
 
     def test_get_config_profile_configures_max_pods(self):
         self.config_map.obj["data"] = {
-            "profile-large": "maxPods: 500\nreservedSystemCPUs: 0-1\n"
+            "profile-large": (
+                "kubeletConfig:\n"
+                "  maxPods: 500\n"
+                "  reservedSystemCPUs: 0-1\n"
+            )
         }
 
         assert utils.get_kubelet_config(
@@ -647,10 +704,11 @@ class TestKubeletConfigLabels:
     def test_get_config_profile_allows_dynamic_kubelet_fields(self):
         self.config_map.obj["data"] = {
             "profile-dynamic": (
-                "shutdownGracePeriod: 30s\n"
-                "featureGates:\n"
-                "  TopologyManagerPolicyOptions: true\n"
-                "topologyManagerScope: pod\n"
+                "kubeletConfig:\n"
+                "  shutdownGracePeriod: 30s\n"
+                "  featureGates:\n"
+                "    TopologyManagerPolicyOptions: true\n"
+                "  topologyManagerScope: pod\n"
             )
         }
 
@@ -667,8 +725,21 @@ class TestKubeletConfigLabels:
             ),
         }
 
+    def test_get_config_profile_rejects_unwrapped_kubelet_fields(self):
+        self.config_map.obj["data"] = {
+            "profile-bad": "maxPods: 250\nreservedSystemCPUs: 0-1\n"
+        }
+
+        with pytest.raises(exception.Invalid):
+            utils.get_kubelet_config(
+                self._cluster({"config_profile": "profile-bad"}),
+                self.api,
+            )
+
     def test_get_config_profile_rejects_reserved_field(self):
-        self.config_map.obj["data"] = {"profile-bad": "apiVersion: v1\n"}
+        self.config_map.obj["data"] = {
+            "profile-bad": "kubeletConfig:\n  apiVersion: v1\n"
+        }
 
         with pytest.raises(exception.Invalid):
             utils.get_kubelet_config(
@@ -796,26 +867,6 @@ class TestKubeletConfigLabels:
 
         with pytest.raises(exception.Invalid):
             utils.get_nodegroup_kubelet_config(cluster, nodegroup, self.api)
-
-    def test_sync_kubelet_profile_labels_from_template(self):
-        cluster = self._cluster(
-            {
-                "config_profile": "profile-current",
-                "nodegroup_config_profile_set": "layout-current",
-                "kube_tag": "v1.34.3",
-            }
-        )
-        template = mock.Mock(
-            labels={
-                "config_profile": "profile-gpu",
-            }
-        )
-
-        utils.sync_kubelet_profile_labels_from_template(cluster, template)
-
-        assert cluster.labels["config_profile"] == "profile-gpu"
-        assert "nodegroup_config_profile_set" not in cluster.labels
-        assert cluster.labels["kube_tag"] == "v1.34.3"
 
     def test_get_kubelet_config_fetches_profile_configmap(self):
         utils.get_kubelet_config(

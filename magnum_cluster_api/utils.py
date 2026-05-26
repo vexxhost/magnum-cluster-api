@@ -53,10 +53,10 @@ CONFIG_PROFILE_RESERVED_FIELDS = {
     "kind",
     "nodegroups",
 }
-CONFIG_PROFILE_SELECTOR_LABELS = {
+CONFIG_PROFILE_SELECTOR_LABELS = (
     "config_profile",
     "nodegroup_config_profile_set",
-}
+)
 CONFIG_PROFILES_CONFIGMAP = "mcapi-config-profiles"
 CONFIG_PROFILE_FIELDS = {
     "kubeletConfig",
@@ -211,6 +211,44 @@ def get_kube_tag(cluster: magnum_objects.Cluster) -> str:
     return cluster.labels.get("kube_tag", "v1.25.3")
 
 
+def reject_config_profile_label_overrides(
+    cluster: magnum_objects.Cluster,
+) -> None:
+    """Reject create-time profile selector overrides outside templates."""
+    template = getattr(cluster, "cluster_template", None)
+    template_labels = getattr(template, "labels", None) or {}
+    cluster_labels = cluster.labels or {}
+    for label in CONFIG_PROFILE_SELECTOR_LABELS:
+        if label not in cluster_labels:
+            continue
+        if cluster_labels[label] == template_labels.get(label):
+            continue
+        raise exception.Invalid(
+            "Invalid value for %(label)s: %(value)s. This label must be set "
+            "on the cluster template and cannot be overridden during cluster "
+            "creation."
+            % {
+                "label": label,
+                "value": cluster_labels[label],
+            }
+        )
+
+
+def sync_config_profile_labels_from_template(
+    cluster: magnum_objects.Cluster,
+    cluster_template: magnum_objects.ClusterTemplate,
+) -> None:
+    """Copy config profile selector labels from a target template."""
+    if cluster.labels is None:
+        cluster.labels = {}
+    template_labels = getattr(cluster_template, "labels", None) or {}
+    for label in CONFIG_PROFILE_SELECTOR_LABELS:
+        if label in template_labels:
+            cluster.labels[label] = template_labels[label]
+        else:
+            cluster.labels.pop(label, None)
+
+
 def get_auto_scaling_enabled(cluster: magnum_objects.Cluster) -> bool:
     return get_cluster_label_as_bool(cluster, "auto_scaling_enabled", False)
 
@@ -357,27 +395,7 @@ def validate_cluster_label_in_list(
         )
 
 
-def sync_kubelet_profile_labels_from_template(
-    cluster: magnum_objects.Cluster,
-    cluster_template: magnum_objects.ClusterTemplate,
-) -> None:
-    """Copy kubelet profile selector labels from a target template.
-
-    Magnum's cluster upgrade path is the durable user-facing API for changing
-    kubelet profiles after create.  Keep only selector labels in the cluster
-    row, and remove stale selector values when the target template omits them.
-    """
-    if cluster.labels is None:
-        cluster.labels = {}
-    template_labels = getattr(cluster_template, "labels", None) or {}
-    for label in CONFIG_PROFILE_SELECTOR_LABELS:
-        if label in template_labels:
-            cluster.labels[label] = template_labels[label]
-        else:
-            cluster.labels.pop(label, None)
-
-
-def validate_kubelet_config_labels(
+def validate_config_profile_labels(
     cluster: magnum_objects.Cluster,
     api: pykube.HTTPClient | None = None,
     namespace: str = "magnum-system",
@@ -394,7 +412,7 @@ def validate_kubelet_config_labels(
     )
 
 
-def validate_kubelet_config_profile(
+def validate_config_profile(
     profile: str,
     fields: typing.Any,
 ) -> typing.Dict[str, typing.Any]:
@@ -404,24 +422,21 @@ def validate_kubelet_config_profile(
             % {"profile": profile}
         )
 
-    if CONFIG_PROFILE_FIELDS & set(fields):
-        unsupported = set(fields) - CONFIG_PROFILE_FIELDS
-        if unsupported:
-            raise exception.Invalid(
-                "Unsupported config profile field %(field)s in %(profile)s."
-                % {"field": sorted(unsupported)[0], "profile": profile}
-            )
-        kubelet_fields = fields.get("kubeletConfig", {})
-        if kubelet_fields is None:
-            kubelet_fields = {}
-        if not isinstance(kubelet_fields, dict):
-            raise exception.Invalid(
-                "Invalid kubeletConfig in config profile %(profile)s. "
-                "Expected a YAML object." % {"profile": profile}
-            )
-        reserved_fields = set(kubelet_fields) & {"apiVersion", "kind"}
-    else:
-        reserved_fields = set(fields) & CONFIG_PROFILE_RESERVED_FIELDS
+    unsupported = set(fields) - CONFIG_PROFILE_FIELDS
+    if unsupported:
+        raise exception.Invalid(
+            "Unsupported config profile field %(field)s in %(profile)s."
+            % {"field": sorted(unsupported)[0], "profile": profile}
+        )
+    kubelet_fields = fields.get("kubeletConfig", {})
+    if kubelet_fields is None:
+        kubelet_fields = {}
+    if not isinstance(kubelet_fields, dict):
+        raise exception.Invalid(
+            "Invalid kubeletConfig in config profile %(profile)s. "
+            "Expected a YAML object." % {"profile": profile}
+        )
+    reserved_fields = set(kubelet_fields) & CONFIG_PROFILE_RESERVED_FIELDS
     if reserved_fields:
         raise exception.Invalid(
             "Unsupported config profile field %(field)s in %(profile)s. "
@@ -455,14 +470,7 @@ def get_config_profile_data(
     return profiles
 
 
-def get_kubelet_config_profile_data(
-    api: pykube.HTTPClient,
-    namespace: str = "magnum-system",
-) -> typing.Dict[str, typing.Any]:
-    return get_config_profile_data(api, namespace)
-
-
-def get_kubelet_config_profiles(
+def get_config_profiles(
     api: pykube.HTTPClient,
     namespace: str = "magnum-system",
 ) -> typing.Dict[str, typing.Dict[str, typing.Any]]:
@@ -470,7 +478,7 @@ def get_kubelet_config_profiles(
     for name, fields in get_config_profile_data(api, namespace).items():
         if isinstance(fields, dict) and set(fields) == {"nodegroups"}:
             continue
-        profiles[name] = validate_kubelet_config_profile(name, fields)
+        profiles[name] = validate_config_profile(name, fields)
     return profiles
 
 
@@ -485,7 +493,7 @@ def get_config_profile_defaults(
         raise exception.Invalid(
             "config_profile requires access to the management Kubernetes " "cluster."
         )
-    profiles = get_kubelet_config_profiles(api, namespace)
+    profiles = get_config_profiles(api, namespace)
     if profile not in profiles:
         if not profiles:
             raise exception.Invalid(
@@ -508,29 +516,13 @@ def get_config_profile_defaults(
     return profiles[profile]
 
 
-def get_kubelet_config_profile_defaults(
-    profile: str,
-    api: pykube.HTTPClient | None,
-    namespace: str = "magnum-system",
-) -> typing.Dict[str, typing.Any]:
-    return get_config_profile_defaults(profile, api, namespace)
-
-
-def _is_structured_config_profile(fields: typing.Dict[str, typing.Any]) -> bool:
-    return bool(CONFIG_PROFILE_FIELDS & set(fields))
-
-
 def _get_config_profile_kubelet_fields(
     fields: typing.Dict[str, typing.Any],
 ) -> typing.Dict[str, typing.Any]:
-    if _is_structured_config_profile(fields):
-        kubelet_fields = fields.get("kubeletConfig") or {}
-        if not isinstance(kubelet_fields, dict):
-            raise exception.Invalid(
-                "config profile kubeletConfig must be a YAML object."
-            )
-        return kubelet_fields
-    return fields
+    kubelet_fields = fields.get("kubeletConfig") or {}
+    if not isinstance(kubelet_fields, dict):
+        raise exception.Invalid("config profile kubeletConfig must be a YAML object.")
+    return kubelet_fields
 
 
 def _get_config_profile_list(
@@ -538,9 +530,6 @@ def _get_config_profile_list(
     key: str,
     max_items: int,
 ) -> list[typing.Any]:
-    if not _is_structured_config_profile(fields):
-        return []
-
     value = fields.get(key, [])
     if value is None:
         return []
@@ -728,14 +717,6 @@ def validate_nodegroup_config_profile_set(
     return config
 
 
-def validate_kubelet_nodegroup_config_profile_set(
-    profile_set: str,
-    fields: typing.Any,
-    profiles: typing.Dict[str, typing.Dict[str, typing.Any]],
-) -> typing.Dict[str, typing.Dict[str, str]]:
-    return validate_nodegroup_config_profile_set(profile_set, fields, profiles)
-
-
 def get_nodegroup_config_profile_set(
     profile_set: str,
     api: pykube.HTTPClient | None,
@@ -768,7 +749,7 @@ def get_nodegroup_config_profile_set(
             % {"value": profile_set, "allowed": ", ".join(sorted(profile_data))}
         )
 
-    profiles = get_kubelet_config_profiles(api, namespace)
+    profiles = get_config_profiles(api, namespace)
     return validate_nodegroup_config_profile_set(
         profile_set,
         profile_data[profile_set],
@@ -776,19 +757,11 @@ def get_nodegroup_config_profile_set(
     )
 
 
-def get_kubelet_nodegroup_config_profile_set(
-    profile_set: str,
-    api: pykube.HTTPClient | None,
-    namespace: str = "magnum-system",
-) -> typing.Dict[str, typing.Dict[str, str]]:
-    return get_nodegroup_config_profile_set(profile_set, api, namespace)
-
-
 def kubelet_config_from_profile_defaults(
     profile_defaults: typing.Dict[str, typing.Any],
 ) -> typing.Dict[str, typing.Any]:
     kubelet_fields = _get_config_profile_kubelet_fields(profile_defaults)
-    config_yaml = _render_kubelet_config_profile_yaml(kubelet_fields)
+    config_yaml = _render_kubelet_config_yaml(kubelet_fields)
 
     return {
         "enabled": bool(kubelet_fields),
@@ -796,7 +769,7 @@ def kubelet_config_from_profile_defaults(
     }
 
 
-def _render_kubelet_config_profile_yaml(
+def _render_kubelet_config_yaml(
     profile_defaults: typing.Dict[str, typing.Any],
 ) -> str:
     if not profile_defaults:
@@ -977,7 +950,7 @@ def validate_cluster(
     if cluster.cluster_template.network_driver not in ["cilium", "calico"]:
         raise mcapi_exceptions.UnsupportedCNI
 
-    validate_kubelet_config_labels(cluster, api)
+    validate_config_profile_labels(cluster, api)
 
     # Check master count
     if (cluster.master_count % 2) == 0:

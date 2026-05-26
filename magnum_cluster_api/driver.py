@@ -70,6 +70,16 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
+        original_labels = dict(cluster.labels or {})
+        utils.reject_config_profile_label_overrides(cluster)
+        utils.sync_config_profile_labels_from_template(
+            cluster,
+            cluster.cluster_template,
+        )
+        if cluster.labels != original_labels:
+            cluster.labels = dict(cluster.labels)
+            cluster.save()
+
         utils.validate_cluster(context, cluster, self.k8s_api)
 
         self.rust_driver.create_cluster(cluster)
@@ -341,7 +351,7 @@ class BaseDriver(driver.Driver):
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
-        utils.validate_cluster(context, cluster)
+        utils.validate_cluster(context, cluster, self.k8s_api)
 
         if nodes_to_remove:
             machines = objects.Machine.objects(self.k8s_api).filter(
@@ -404,7 +414,7 @@ class BaseDriver(driver.Driver):
 
         cluster.cluster_template_id = cluster_template.uuid
         cluster.labels["kube_tag"] = cluster_template.labels["kube_tag"]
-        utils.sync_kubelet_profile_labels_from_template(cluster, cluster_template)
+        utils.sync_config_profile_labels_from_template(cluster, cluster_template)
         utils.validate_cluster(context, cluster, self.k8s_api)
 
         labels_changed = cluster.labels != original_labels
