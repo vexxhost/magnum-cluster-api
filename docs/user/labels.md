@@ -243,7 +243,6 @@ is often accomplished by deploying a driver on each node.
    names are rejected during cluster validation.  Magnum's cluster update API
    does not currently allow changing `labels`, so change this value after
    creation by upgrading to a cluster template that selects a different profile.
-   The legacy `kubelet_config_profile` label is still accepted as an alias.
 
    Default value: unset
 
@@ -253,8 +252,7 @@ is often accomplished by deploying a driver on each node.
    `mcapi-config-profiles` ConfigMap.  The layout maps nodegroup names to
    profiles and renders MachineDeployment-level `configProfile` overrides.
    Unknown layout profiles or layouts that reference unknown profiles are
-   rejected during cluster validation.  The legacy
-   `kubelet_nodegroup_config_profile_set` label is still accepted as an alias.
+   rejected during cluster validation.
 
    Default value: unset
 
