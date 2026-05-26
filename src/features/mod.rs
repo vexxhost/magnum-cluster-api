@@ -45,7 +45,10 @@ use crate::cluster_api::{
 };
 use base64::prelude::*;
 use maplit::btreemap;
-use schemars::{generate::SchemaGenerator, JsonSchema, Schema};
+use schemars::{
+    generate::{SchemaGenerator, SchemaSettings},
+    JsonSchema, Schema,
+};
 use std::sync::LazyLock;
 
 pub mod admission_plugins;
@@ -134,8 +137,7 @@ pub fn assert_optional_string_schema_for_field<T: JsonSchema>(field: &str) {
     // JSONSchemaProps.Type is a plain string and rejects JSON arrays.
     let field_type = &v["properties"][field]["type"];
     assert_eq!(
-        field_type,
-        "string",
+        field_type, "string",
         "field `{field}` type must be a plain string (CAPI rejects arrays)"
     );
 }
@@ -168,7 +170,9 @@ pub trait ClusterClassVariablesSchemaExt {
 
 impl ClusterClassVariablesSchemaExt for ClusterClassVariablesSchema {
     fn from_object<T: JsonSchema>() -> Self {
-        let gen = SchemaGenerator::default();
+        let mut settings = SchemaSettings::default();
+        settings.inline_subschemas = true;
+        let gen = SchemaGenerator::new(settings);
         let schema = gen.into_root_schema_for::<T>();
         Self::from_root_schema(schema)
     }
@@ -330,6 +334,8 @@ pub static KUBEADM_CONFIG_TEMPLATE: LazyLock<KubeadmConfigTemplate> =
                         encoding: Some(KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64),
                         ..Default::default()
                     }]),
+                    pre_kubeadm_commands: Some(vec![]),
+                    post_kubeadm_commands: Some(vec![]),
                     join_configuration: Some(KubeadmConfigTemplateTemplateSpecJoinConfiguration {
                         node_registration: Some(
                             KubeadmConfigTemplateTemplateSpecJoinConfigurationNodeRegistration {
