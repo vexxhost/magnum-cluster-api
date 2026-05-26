@@ -130,7 +130,17 @@ fn profile_command_patch(
         "/spec/template/spec/kubeadmConfigSpec/{}/-",
         kubeadm_path_segment
     );
-    let worker_path = format!("/spec/template/spec/{}/-", kubeadm_path_segment);
+    let (worker_path, worker_template) = if idx == 0 {
+        (
+            format!("/spec/template/spec/{}", kubeadm_path_segment),
+            format!("- {{{{ index .configProfile.{} 0 }}}}", variable_name),
+        )
+    } else {
+        (
+            format!("/spec/template/spec/{}/-", kubeadm_path_segment),
+            template.clone(),
+        )
+    };
     ClusterClassPatches {
         name: format!("{}{}", patch_name_prefix, idx),
         enabled_if: Some(format!(
@@ -174,7 +184,7 @@ fn profile_command_patch(
                     op: "add".into(),
                     path: worker_path,
                     value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
-                        template: Some(template),
+                        template: Some(worker_template),
                         ..Default::default()
                     }),
                     ..Default::default()
@@ -381,6 +391,17 @@ mod tests {
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
+        {
+            let worker_spec = resources
+                .kubeadm_config_template
+                .spec
+                .template
+                .spec
+                .as_mut()
+                .expect("worker spec should be set");
+            worker_spec.pre_kubeadm_commands = None;
+            worker_spec.post_kubeadm_commands = None;
+        }
         resources.apply_patches(&patches, &values);
 
         let kubeadm_config_spec = resources
@@ -440,13 +461,17 @@ mod tests {
             .expect("worker files should be set")
             .iter()
             .any(|f| f.path == "/etc/gpu-init.sh"));
-        assert!(worker_spec
-            .pre_kubeadm_commands
-            .expect("worker pre commands should be set")
-            .contains(&"bash /etc/gpu-init.sh".to_string()));
-        assert!(worker_spec
-            .post_kubeadm_commands
-            .expect("worker post commands should be set")
-            .contains(&"echo done > /etc/gpu-init.done".to_string()));
+        assert_eq!(
+            worker_spec
+                .pre_kubeadm_commands
+                .expect("worker pre commands should be set"),
+            vec!["bash /etc/gpu-init.sh".to_string()]
+        );
+        assert_eq!(
+            worker_spec
+                .post_kubeadm_commands
+                .expect("worker post commands should be set"),
+            vec!["echo done > /etc/gpu-init.done".to_string()]
+        );
     }
 }
