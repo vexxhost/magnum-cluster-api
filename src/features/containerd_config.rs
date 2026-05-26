@@ -118,8 +118,14 @@ impl ClusterFeaturePatches for Feature {
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
-                                path: "/spec/template/spec/preKubeadmCommands".into(),
-                                value: Some(vec!["systemctl daemon-reload", "systemctl restart containerd"].into()),
+                                path: "/spec/template/spec/preKubeadmCommands/-".into(),
+                                value: Some("systemctl daemon-reload".into()),
+                                ..Default::default()
+                            },
+                            ClusterClassPatchesDefinitionsJsonPatches {
+                                op: "add".into(),
+                                path: "/spec/template/spec/preKubeadmCommands/-".into(),
+                                value: Some("systemctl restart containerd".into()),
                                 ..Default::default()
                             },
                         ],
