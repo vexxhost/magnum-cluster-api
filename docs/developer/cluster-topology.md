@@ -29,7 +29,11 @@ metadata:
 data:
   profile-gpu: |
     cpuManagerPolicy: static
+    cpuManagerPolicyOptions:
+      full-pcpus-only: "true"
+    memoryManagerPolicy: Static
     topologyManagerPolicy: single-numa-node
+    topologyManagerScope: pod
     reservedSystemCPUs: 0-1
     maxPods: 250
 
@@ -39,10 +43,11 @@ data:
         kubeletConfigProfile: profile-gpu
 ```
 
-Each kubelet profile value is a YAML object.  Supported kubelet profile fields
-are `cpuManagerPolicy`, `topologyManagerPolicy`, `reservedSystemCPUs`, and
-`maxPods`.  Layout profiles use a `nodegroups` object that maps nodegroup names
-to `kubeletConfigProfile` references.
+Each kubelet profile value is a YAML object containing a kubeadm
+`KubeletConfiguration` fragment.  Magnum renders `apiVersion` and `kind`, so
+profiles must not set those fields.  Layout profiles use a `nodegroups` object
+that maps nodegroup names to `kubeletConfigProfile` references, so ordinary
+kubelet profiles must not set `nodegroups`.
 
 Users select the cluster default profile with the `kubelet_config_profile`
 label.  Users select nodegroup-specific layout with

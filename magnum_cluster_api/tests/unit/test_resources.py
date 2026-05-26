@@ -112,10 +112,11 @@ def test_generate_machine_deployments_with_nodegroup_kubelet_override(context, m
         "magnum_cluster_api.utils.get_nodegroup_kubelet_config",
         return_value={
             "enabled": True,
-            "cpuManagerPolicy": "static",
-            "topologyManagerPolicy": "single-numa-node",
-            "reservedSystemCPUs": "0-1",
-            "maxPods": 250,
+            "configYaml": (
+                "cpuManagerPolicy: static\n"
+                "  topologyManagerPolicy: single-numa-node\n"
+                "  topologyManagerScope: pod"
+            ),
         },
     )
 
@@ -132,10 +133,11 @@ def test_generate_machine_deployments_with_nodegroup_kubelet_override(context, m
         "name": "kubeletConfig",
         "value": {
             "enabled": True,
-            "cpuManagerPolicy": "static",
-            "topologyManagerPolicy": "single-numa-node",
-            "reservedSystemCPUs": "0-1",
-            "maxPods": 250,
+            "configYaml": (
+                "cpuManagerPolicy: static\n"
+                "  topologyManagerPolicy: single-numa-node\n"
+                "  topologyManagerScope: pod"
+            ),
         },
     } in overrides
 
