@@ -239,7 +239,7 @@ is often accomplished by deploying a driver on each node.
    include `kubeletConfig`, `files`, `preKubeadmCommands`, and
    `postKubeadmCommands`.  Magnum adds `apiVersion` and `kind` when rendering
    the kubelet patch.
-   Users cannot create new profiles through cluster labels.  Unknown profile
+   Users cannot create new profiles through Magnum labels.  Unknown profile
    names are rejected during cluster validation.  Magnum's cluster update API
    does not currently allow changing `labels`, so change this value after
    creation by upgrading to a cluster template that selects a different profile.
@@ -259,10 +259,13 @@ is often accomplished by deploying a driver on each node.
    Example:
 
    ```bash
-   openstack coe cluster create bm-gpu \
-     --cluster-template k8s-bm \
+   openstack coe cluster template create k8s-bm-gpu \
+     ...same base template options... \
      --labels config_profile=profile-standard \
      --labels nodegroup_config_profile_set=profile-bm-gpu-layout
+
+   openstack coe cluster create bm-gpu \
+     --cluster-template k8s-bm-gpu
    ```
 
    See [Use Cases](use-cases.md#gpu-and-numa-aware-kubelet-tuning) for a

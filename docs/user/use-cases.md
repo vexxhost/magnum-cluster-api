@@ -40,9 +40,12 @@ data:
 ```
 
 ```bash
-openstack coe cluster create bm-gpu \
-  --cluster-template k8s-bm \
+openstack coe cluster template create k8s-bm-gpu \
+  ...same base template options... \
   --labels config_profile=profile-gpu
+
+openstack coe cluster create bm-gpu \
+  --cluster-template k8s-bm-gpu
 ```
 
 This renders a kubeadm `KubeletConfiguration` patch similar to:
@@ -60,10 +63,11 @@ reservedSystemCPUs: 0-1
 maxPods: 250
 ```
 
-Configuration profiles are defined by the cloud operator in the management cluster.
-Magnum users select a supported profile with `config_profile`; they do
-not create new profiles through cluster labels.  If the ConfigMap is missing or
-an unknown profile name is passed, cluster validation fails.
+Configuration profiles are defined by the cloud operator in the management
+cluster.  Magnum users select a supported profile with the `config_profile`
+cluster template label; they do not create new profiles through Magnum labels.
+If the ConfigMap is missing or an unknown profile name is passed, cluster
+validation fails.
 
 To change kubelet configuration after cluster creation, use Magnum cluster
 upgrade to a cluster template that selects a different profile:
@@ -120,10 +124,13 @@ data:
 ```
 
 ```bash
-openstack coe cluster create bm-gpu \
-  --cluster-template k8s-bm \
+openstack coe cluster template create k8s-bm-gpu \
+  ...same base template options... \
   --labels config_profile=profile-standard \
   --labels nodegroup_config_profile_set=profile-bm-gpu-layout
+
+openstack coe cluster create bm-gpu \
+  --cluster-template k8s-bm-gpu
 ```
 
 The cluster default profile applies to the control plane and worker

@@ -61,10 +61,11 @@ control plane and workers.
 Layout profiles use a `nodegroups` object that maps nodegroup names to `profile`
 references.
 
-Users select the cluster default profile with the `config_profile` label.  Users
-select nodegroup-specific layout with `nodegroup_config_profile_set`.  Unknown
-profile names, invalid layout profiles, and layout profiles that reference
-unknown profiles must be rejected during cluster validation and rendering.
+Users select the cluster default profile with the `config_profile` cluster
+template label.  Users select nodegroup-specific layout with the
+`nodegroup_config_profile_set` cluster template label.  Unknown profile names,
+invalid layout profiles, and layout profiles that reference unknown profiles
+must be rejected during cluster validation and rendering.
 
 The cluster default profile renders as the `configProfile` Cluster topology
 variable.  Layout profile entries render as MachineDeployment-level
