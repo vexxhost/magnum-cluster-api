@@ -125,7 +125,27 @@ fn profile_command_patch(
     kubeadm_path_segment: &str,
     patch_name_prefix: &str,
 ) -> ClusterClassPatches {
-    let template = format!("{{{{ index .configProfile.{} {} }}}}", variable_name, idx);
+    let template = if idx == 0 {
+        format!("- {{{{ index .configProfile.{} {} }}}}", variable_name, idx)
+    } else {
+        format!("{{{{ index .configProfile.{} {} }}}}", variable_name, idx)
+    };
+    let control_plane_path = if idx == 0 {
+        format!(
+            "/spec/template/spec/kubeadmConfigSpec/{}",
+            kubeadm_path_segment
+        )
+    } else {
+        format!(
+            "/spec/template/spec/kubeadmConfigSpec/{}/-",
+            kubeadm_path_segment
+        )
+    };
+    let worker_path = if idx == 0 {
+        format!("/spec/template/spec/{}", kubeadm_path_segment)
+    } else {
+        format!("/spec/template/spec/{}/-", kubeadm_path_segment)
+    };
     ClusterClassPatches {
         name: format!("{}{}", patch_name_prefix, idx),
         enabled_if: Some(format!(
@@ -144,10 +164,7 @@ fn profile_command_patch(
                 },
                 json_patches: vec![ClusterClassPatchesDefinitionsJsonPatches {
                     op: "add".into(),
-                    path: format!(
-                        "/spec/template/spec/kubeadmConfigSpec/{}/-",
-                        kubeadm_path_segment
-                    ),
+                    path: control_plane_path,
                     value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                         template: Some(template.clone()),
                         ..Default::default()
@@ -170,7 +187,7 @@ fn profile_command_patch(
                 },
                 json_patches: vec![ClusterClassPatchesDefinitionsJsonPatches {
                     op: "add".into(),
-                    path: format!("/spec/template/spec/{}/-", kubeadm_path_segment),
+                    path: worker_path,
                     value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
                         template: Some(template),
                         ..Default::default()
