@@ -109,14 +109,20 @@ def test_generate_machine_deployments_with_nodegroup_kubelet_override(context, m
     mock_ensure_worker_server_group.return_value = "foo"
 
     mocker.patch(
-        "magnum_cluster_api.utils.get_nodegroup_kubelet_config",
+        "magnum_cluster_api.utils.get_nodegroup_config_profile",
         return_value={
             "enabled": True,
-            "configYaml": (
-                "cpuManagerPolicy: static\n"
-                "  topologyManagerPolicy: single-numa-node\n"
-                "  topologyManagerScope: pod"
-            ),
+            "kubeletConfig": {
+                "enabled": True,
+                "configYaml": (
+                    "cpuManagerPolicy: static\n"
+                    "  topologyManagerPolicy: single-numa-node\n"
+                    "  topologyManagerScope: pod"
+                ),
+            },
+            "filesYaml": [],
+            "preKubeadmCommands": [],
+            "postKubeadmCommands": [],
         },
     )
 
@@ -130,14 +136,20 @@ def test_generate_machine_deployments_with_nodegroup_kubelet_override(context, m
 
     overrides = md["variables"]["overrides"]
     assert {
-        "name": "kubeletConfig",
+        "name": "configProfile",
         "value": {
             "enabled": True,
-            "configYaml": (
-                "cpuManagerPolicy: static\n"
-                "  topologyManagerPolicy: single-numa-node\n"
-                "  topologyManagerScope: pod"
-            ),
+            "kubeletConfig": {
+                "enabled": True,
+                "configYaml": (
+                    "cpuManagerPolicy: static\n"
+                    "  topologyManagerPolicy: single-numa-node\n"
+                    "  topologyManagerScope: pod"
+                ),
+            },
+            "filesYaml": [],
+            "preKubeadmCommands": [],
+            "postKubeadmCommands": [],
         },
     } in overrides
 

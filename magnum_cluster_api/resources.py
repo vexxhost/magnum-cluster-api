@@ -839,17 +839,17 @@ def mutate_machine_deployment(
         },
     ]
 
-    kubelet_config = utils.get_nodegroup_kubelet_config(
+    config_profile = utils.get_nodegroup_config_profile(
         cluster,
         node_group,
         pykube_api,
         namespace,
     )
-    if kubelet_config is not None:
+    if config_profile is not None:
         overrides.append(
             {
-                "name": "kubeletConfig",
-                "value": kubelet_config,
+                "name": "configProfile",
+                "value": config_profile,
             }
         )
 
@@ -1259,8 +1259,8 @@ class Cluster(ClusterBase):
                             ),
                         },
                         {
-                            "name": "kubeletConfig",
-                            "value": utils.get_kubelet_config(
+                            "name": "configProfile",
+                            "value": utils.get_config_profile(
                                 self.cluster,
                                 self.pykube_api,
                                 self.namespace,

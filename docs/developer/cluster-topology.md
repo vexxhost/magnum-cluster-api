@@ -11,51 +11,67 @@ It's important to note that there are only _one_ scenarios where the `spec.topol
 
 For users, it's important to keep in mind that if they want to use a newer `ClusterClass` in order to make sure of a new feature available in a newer `ClusterClass`, they can simply do an upgrade within Magnum to the same cluster template and it will actually force an update of the `spec.topology.class`, which might then naturally cause a full rollout to occur.
 
-## Kubelet configuration profiles
+## Configuration profiles
 
-Kubelet configuration profiles are operator-defined management-cluster
-resources.  They let users select a reviewed kubelet tuning mode without
-exposing an arbitrary `KubeletConfiguration` JSON passthrough in Magnum labels.
+Configuration profiles are operator-defined management-cluster resources.  They
+let users select reviewed node bootstrap changes without exposing arbitrary
+cloud-init or kubeadm configuration in Magnum labels.
 
-Profiles are defined in the `mcapi-kubelet-config-profiles` ConfigMap in the
-management cluster namespace, normally `magnum-system`:
+Profiles are defined in the `mcapi-config-profiles` ConfigMap in the management
+cluster namespace, normally `magnum-system`.  The legacy
+`mcapi-kubelet-config-profiles` ConfigMap name is still accepted as a fallback:
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: mcapi-kubelet-config-profiles
+  name: mcapi-config-profiles
   namespace: magnum-system
 data:
   profile-gpu: |
-    cpuManagerPolicy: static
-    cpuManagerPolicyOptions:
-      full-pcpus-only: "true"
-    memoryManagerPolicy: Static
-    topologyManagerPolicy: single-numa-node
-    topologyManagerScope: pod
-    reservedSystemCPUs: 0-1
-    maxPods: 250
+    kubeletConfig:
+      cpuManagerPolicy: static
+      cpuManagerPolicyOptions:
+        full-pcpus-only: "true"
+      memoryManagerPolicy: Static
+      topologyManagerPolicy: single-numa-node
+      topologyManagerScope: pod
+      reservedSystemCPUs: 0-1
+      maxPods: 250
+    files:
+      - path: /etc/gpu-init.sh
+        permissions: "0755"
+        content: |
+          #!/bin/bash
+          modprobe nvidia || true
+    preKubeadmCommands:
+      - bash /etc/gpu-init.sh
 
   profile-bm-gpu-layout: |
     nodegroups:
       gpu-workers:
-        kubeletConfigProfile: profile-gpu
+        profile: profile-gpu
 ```
 
-Each kubelet profile value is a YAML object containing a kubeadm
-`KubeletConfiguration` fragment.  Magnum renders `apiVersion` and `kind`, so
-profiles must not set those fields.  Layout profiles use a `nodegroups` object
-that maps nodegroup names to `kubeletConfigProfile` references, so ordinary
-kubelet profiles must not set `nodegroups`.
+Each profile value is a YAML object.  `kubeletConfig` contains a kubeadm
+`KubeletConfiguration` fragment; Magnum renders `apiVersion` and `kind`, so the
+fragment must not set those fields.  `files`, `preKubeadmCommands`, and
+`postKubeadmCommands` are rendered into CAPI kubeadm config fields for the
+control plane and workers.  Legacy kubelet-only profile values without a
+`kubeletConfig` wrapper are still accepted.
 
-Users select the cluster default profile with the `kubelet_config_profile`
-label.  Users select nodegroup-specific layout with
-`kubelet_nodegroup_config_profile_set`.  Unknown profile names, invalid layout
-profiles, and layout profiles that reference unknown kubelet profiles must be
-rejected during cluster validation and in the kubelet config rendering path.
+Layout profiles use a `nodegroups` object that maps nodegroup names to `profile`
+references.  The legacy `kubeletConfigProfile` key is still accepted.
 
-The cluster default profile renders as the `kubeletConfig` Cluster topology
+Users select the cluster default profile with the `config_profile` label.  Users
+select nodegroup-specific layout with `nodegroup_config_profile_set`.  The
+legacy `kubelet_config_profile` and `kubelet_nodegroup_config_profile_set`
+labels remain aliases.  Unknown profile names, invalid layout profiles, and
+layout profiles that reference unknown profiles must be rejected during cluster
+validation and rendering.
+
+The cluster default profile renders as the `configProfile` Cluster topology
 variable.  Layout profile entries render as MachineDeployment-level
-`kubeletConfig` variable overrides, so a worker pool such as `gpu-workers` can
-receive a different kubelet configuration from the cluster default.
+`configProfile` variable overrides, so a worker pool such as `gpu-workers` can
+receive different files, commands, and kubelet configuration from the cluster
+default.

@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import base64 as stdlib_base64
 import json
 import re
 import string
@@ -52,11 +53,24 @@ KUBELET_CONFIG_PROFILE_RESERVED_FIELDS = {
     "kind",
     "nodegroups",
 }
-KUBELET_PROFILE_SELECTOR_LABELS = {
+CONFIG_PROFILE_SELECTOR_LABELS = {
+    "config_profile",
+    "nodegroup_config_profile_set",
     "kubelet_config_profile",
     "kubelet_nodegroup_config_profile_set",
 }
+KUBELET_PROFILE_SELECTOR_LABELS = CONFIG_PROFILE_SELECTOR_LABELS
+CONFIG_PROFILES_CONFIGMAP = "mcapi-config-profiles"
 KUBELET_CONFIG_PROFILES_CONFIGMAP = "mcapi-kubelet-config-profiles"
+CONFIG_PROFILE_FIELDS = {
+    "kubeletConfig",
+    "files",
+    "preKubeadmCommands",
+    "postKubeadmCommands",
+}
+CONFIG_PROFILE_MAX_FILES = 10
+CONFIG_PROFILE_MAX_PRE_COMMANDS = 16
+CONFIG_PROFILE_MAX_POST_COMMANDS = 16
 CONF = cfg.CONF
 
 
@@ -360,11 +374,19 @@ def sync_kubelet_profile_labels_from_template(
     if cluster.labels is None:
         cluster.labels = {}
     template_labels = getattr(cluster_template, "labels", None) or {}
-    for label in KUBELET_PROFILE_SELECTOR_LABELS:
+    for label in CONFIG_PROFILE_SELECTOR_LABELS:
         if label in template_labels:
             cluster.labels[label] = template_labels[label]
         else:
             cluster.labels.pop(label, None)
+
+
+def _first_label(labels: typing.Dict[str, str], *names: str) -> str:
+    for name in names:
+        value = labels.get(name)
+        if value:
+            return value
+    return ""
 
 
 def validate_kubelet_config_labels(
@@ -372,13 +394,17 @@ def validate_kubelet_config_labels(
     api: pykube.HTTPClient | None = None,
     namespace: str = "magnum-system",
 ) -> None:
-    get_kubelet_config_profile_defaults(
-        cluster.labels.get("kubelet_config_profile", ""),
+    get_config_profile_defaults(
+        _first_label(cluster.labels, "config_profile", "kubelet_config_profile"),
         api,
         namespace,
     )
-    get_kubelet_nodegroup_config_profile_set(
-        cluster.labels.get("kubelet_nodegroup_config_profile_set", ""),
+    get_nodegroup_config_profile_set(
+        _first_label(
+            cluster.labels,
+            "nodegroup_config_profile_set",
+            "kubelet_nodegroup_config_profile_set",
+        ),
         api,
         namespace,
     )
@@ -394,7 +420,24 @@ def validate_kubelet_config_profile(
             % {"profile": profile}
         )
 
-    reserved_fields = set(fields) & KUBELET_CONFIG_PROFILE_RESERVED_FIELDS
+    if CONFIG_PROFILE_FIELDS & set(fields):
+        unsupported = set(fields) - CONFIG_PROFILE_FIELDS
+        if unsupported:
+            raise exception.Invalid(
+                "Unsupported config profile field %(field)s in %(profile)s."
+                % {"field": sorted(unsupported)[0], "profile": profile}
+            )
+        kubelet_fields = fields.get("kubeletConfig", {})
+        if kubelet_fields is None:
+            kubelet_fields = {}
+        if not isinstance(kubelet_fields, dict):
+            raise exception.Invalid(
+                "Invalid kubeletConfig in config profile %(profile)s. "
+                "Expected a YAML object." % {"profile": profile}
+            )
+        reserved_fields = set(kubelet_fields) & {"apiVersion", "kind"}
+    else:
+        reserved_fields = set(fields) & KUBELET_CONFIG_PROFILE_RESERVED_FIELDS
     if reserved_fields:
         raise exception.Invalid(
             "Unsupported kubelet config profile field %(field)s in %(profile)s. "
@@ -405,13 +448,17 @@ def validate_kubelet_config_profile(
     return fields
 
 
-def get_kubelet_config_profile_data(
+def get_config_profile_data(
     api: pykube.HTTPClient,
     namespace: str = "magnum-system",
 ) -> typing.Dict[str, typing.Any]:
     config_map = pykube.ConfigMap.objects(api, namespace=namespace).get_or_none(
-        name=KUBELET_CONFIG_PROFILES_CONFIGMAP
+        name=CONFIG_PROFILES_CONFIGMAP
     )
+    if config_map is None:
+        config_map = pykube.ConfigMap.objects(api, namespace=namespace).get_or_none(
+            name=KUBELET_CONFIG_PROFILES_CONFIGMAP
+        )
     if config_map is None:
         return {}
 
@@ -421,11 +468,18 @@ def get_kubelet_config_profile_data(
             fields = yaml.safe_load(raw_profile) or {}
         except yaml.YAMLError as exc:
             raise exception.Invalid(
-                "Invalid YAML in kubelet config profile %(profile)s: %(error)s."
+                "Invalid YAML in config profile %(profile)s: %(error)s."
                 % {"profile": name, "error": exc}
             )
         profiles[name] = fields
     return profiles
+
+
+def get_kubelet_config_profile_data(
+    api: pykube.HTTPClient,
+    namespace: str = "magnum-system",
+) -> typing.Dict[str, typing.Any]:
+    return get_config_profile_data(api, namespace)
 
 
 def get_kubelet_config_profiles(
@@ -433,14 +487,14 @@ def get_kubelet_config_profiles(
     namespace: str = "magnum-system",
 ) -> typing.Dict[str, typing.Dict[str, typing.Any]]:
     profiles: typing.Dict[str, typing.Dict[str, typing.Any]] = {}
-    for name, fields in get_kubelet_config_profile_data(api, namespace).items():
+    for name, fields in get_config_profile_data(api, namespace).items():
         if isinstance(fields, dict) and set(fields) == {"nodegroups"}:
             continue
         profiles[name] = validate_kubelet_config_profile(name, fields)
     return profiles
 
 
-def get_kubelet_config_profile_defaults(
+def get_config_profile_defaults(
     profile: str,
     api: pykube.HTTPClient | None,
     namespace: str = "magnum-system",
@@ -449,24 +503,24 @@ def get_kubelet_config_profile_defaults(
         return {}
     if api is None:
         raise exception.Invalid(
-            "kubelet_config_profile requires access to the management Kubernetes "
-            "cluster."
+            "config_profile requires access to the management Kubernetes " "cluster."
         )
     profiles = get_kubelet_config_profiles(api, namespace)
     if profile not in profiles:
         if not profiles:
             raise exception.Invalid(
-                "Invalid value for kubelet_config_profile: %(value)s. No profiles "
-                "are registered in ConfigMap %(configmap)s in namespace "
+                "Invalid value for config_profile: %(value)s. No profiles "
+                "are registered in ConfigMap %(configmap)s or %(legacy)s in namespace "
                 "%(namespace)s."
                 % {
                     "value": profile,
-                    "configmap": KUBELET_CONFIG_PROFILES_CONFIGMAP,
+                    "configmap": CONFIG_PROFILES_CONFIGMAP,
+                    "legacy": KUBELET_CONFIG_PROFILES_CONFIGMAP,
                     "namespace": namespace,
                 }
             )
         raise exception.Invalid(
-            "Invalid value for kubelet_config_profile: %(value)s. "
+            "Invalid value for config_profile: %(value)s. "
             "Allowed values: %(allowed)s."
             % {
                 "value": profile,
@@ -476,21 +530,168 @@ def get_kubelet_config_profile_defaults(
     return profiles[profile]
 
 
-def validate_kubelet_nodegroup_config_profile_set(
+def get_kubelet_config_profile_defaults(
+    profile: str,
+    api: pykube.HTTPClient | None,
+    namespace: str = "magnum-system",
+) -> typing.Dict[str, typing.Any]:
+    return get_config_profile_defaults(profile, api, namespace)
+
+
+def _is_structured_config_profile(fields: typing.Dict[str, typing.Any]) -> bool:
+    return bool(CONFIG_PROFILE_FIELDS & set(fields))
+
+
+def _get_config_profile_kubelet_fields(
+    fields: typing.Dict[str, typing.Any],
+) -> typing.Dict[str, typing.Any]:
+    if _is_structured_config_profile(fields):
+        kubelet_fields = fields.get("kubeletConfig") or {}
+        if not isinstance(kubelet_fields, dict):
+            raise exception.Invalid(
+                "config profile kubeletConfig must be a YAML object."
+            )
+        return kubelet_fields
+    return fields
+
+
+def _get_config_profile_list(
+    fields: typing.Dict[str, typing.Any],
+    key: str,
+    max_items: int,
+) -> list[typing.Any]:
+    if not _is_structured_config_profile(fields):
+        return []
+
+    value = fields.get(key, [])
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise exception.Invalid(
+            "config profile %(key)s must be a YAML list." % {"key": key}
+        )
+    if len(value) > max_items:
+        raise exception.Invalid(
+            "config profile %(key)s supports at most %(max)d entries."
+            % {"key": key, "max": max_items}
+        )
+    return value
+
+
+def _normalise_config_profile_file(
+    entry: typing.Any,
+) -> typing.Dict[str, typing.Any]:
+    if not isinstance(entry, dict):
+        raise exception.Invalid("config profile files entries must be YAML objects.")
+
+    unsupported = set(entry) - {
+        "append",
+        "content",
+        "contentFrom",
+        "encoding",
+        "owner",
+        "path",
+        "permissions",
+    }
+    if unsupported:
+        raise exception.Invalid(
+            "Unsupported config profile file field %(field)s."
+            % {"field": sorted(unsupported)[0]}
+        )
+
+    path = entry.get("path")
+    if not isinstance(path, str) or not path.startswith("/"):
+        raise exception.Invalid(
+            "config profile files entries must set an absolute path."
+        )
+
+    has_content = "content" in entry
+    has_content_from = "contentFrom" in entry
+    if has_content == has_content_from:
+        raise exception.Invalid(
+            "config profile file %(path)s must set exactly one of content or contentFrom."
+            % {"path": path}
+        )
+
+    file_entry: typing.Dict[str, typing.Any] = {"path": path}
+
+    for key in ("append", "contentFrom", "owner"):
+        if key in entry:
+            file_entry[key] = entry[key]
+
+    permissions = entry.get("permissions", "0644")
+    if isinstance(permissions, int):
+        permissions = f"{permissions:04o}"
+    if not isinstance(permissions, str):
+        raise exception.Invalid(
+            "config profile file %(path)s permissions must be a string."
+            % {"path": path}
+        )
+    file_entry["permissions"] = permissions
+
+    if has_content:
+        content = entry["content"]
+        if not isinstance(content, str):
+            raise exception.Invalid(
+                "config profile file %(path)s content must be a string."
+                % {"path": path}
+            )
+        encoding = entry.get("encoding")
+        if encoding is None:
+            file_entry["content"] = stdlib_base64.b64encode(
+                content.encode("utf-8")
+            ).decode("ascii")
+            file_entry["encoding"] = "base64"
+        else:
+            if encoding not in {"base64", "gzip", "gzip+base64"}:
+                raise exception.Invalid(
+                    "Unsupported config profile file %(path)s encoding %(encoding)s."
+                    % {"path": path, "encoding": encoding}
+                )
+            file_entry["content"] = content
+            file_entry["encoding"] = encoding
+
+    return file_entry
+
+
+def _render_config_profile_yaml(value: typing.Dict[str, typing.Any]) -> str:
+    return yaml.safe_dump(
+        value,
+        default_flow_style=False,
+        sort_keys=False,
+    ).rstrip()
+
+
+def _get_config_profile_commands(
+    fields: typing.Dict[str, typing.Any],
+    key: str,
+    max_items: int,
+) -> list[str]:
+    commands = _get_config_profile_list(fields, key, max_items)
+    for command in commands:
+        if not isinstance(command, str) or not command:
+            raise exception.Invalid(
+                "config profile %(key)s entries must be non-empty strings."
+                % {"key": key}
+            )
+    return commands
+
+
+def validate_nodegroup_config_profile_set(
     profile_set: str,
     fields: typing.Any,
     profiles: typing.Dict[str, typing.Dict[str, typing.Any]],
 ) -> typing.Dict[str, typing.Dict[str, str]]:
     if not isinstance(fields, dict):
         raise exception.Invalid(
-            "Invalid kubelet nodegroup config profile set %(profile)s. "
+            "Invalid nodegroup config profile set %(profile)s. "
             "Expected a YAML object." % {"profile": profile_set}
         )
 
     unsupported = set(fields) - {"nodegroups"}
     if unsupported:
         raise exception.Invalid(
-            "Unsupported kubelet nodegroup config profile set field %(field)s "
+            "Unsupported nodegroup config profile set field %(field)s "
             "in %(profile)s. Supported fields: nodegroups."
             % {"field": sorted(unsupported)[0], "profile": profile_set}
         )
@@ -506,17 +707,17 @@ def validate_kubelet_nodegroup_config_profile_set(
     for nodegroup_name, nodegroup_config in nodegroups.items():
         if not isinstance(nodegroup_config, dict):
             raise exception.Invalid(
-                "Invalid nodegroup %(nodegroup)s in kubelet nodegroup config "
+                "Invalid nodegroup %(nodegroup)s in nodegroup config "
                 "profile set %(profile)s. Expected a YAML object."
                 % {"nodegroup": nodegroup_name, "profile": profile_set}
             )
 
-        unsupported = set(nodegroup_config) - {"kubeletConfigProfile"}
+        unsupported = set(nodegroup_config) - {"profile", "kubeletConfigProfile"}
         if unsupported:
             raise exception.Invalid(
                 "Unsupported field %(field)s for nodegroup %(nodegroup)s in "
-                "kubelet nodegroup config profile set %(profile)s. Supported "
-                "fields: kubeletConfigProfile."
+                "nodegroup config profile set %(profile)s. Supported "
+                "fields: profile, kubeletConfigProfile."
                 % {
                     "field": sorted(unsupported)[0],
                     "nodegroup": nodegroup_name,
@@ -524,32 +725,42 @@ def validate_kubelet_nodegroup_config_profile_set(
                 }
             )
 
-        kubelet_config_profile = nodegroup_config.get("kubeletConfigProfile")
-        if not kubelet_config_profile:
+        config_profile = nodegroup_config.get("profile") or nodegroup_config.get(
+            "kubeletConfigProfile"
+        )
+        if not config_profile:
             raise exception.Invalid(
                 "Nodegroup %(nodegroup)s in kubelet nodegroup config profile "
-                "set %(profile)s must set kubeletConfigProfile."
+                "set %(profile)s must set profile."
                 % {"nodegroup": nodegroup_name, "profile": profile_set}
             )
-        if kubelet_config_profile not in profiles:
+        if config_profile not in profiles:
             raise exception.Invalid(
-                "Invalid kubeletConfigProfile %(value)s for nodegroup "
+                "Invalid profile %(value)s for nodegroup "
                 "%(nodegroup)s in kubelet nodegroup config profile set "
                 "%(profile)s. Allowed values: %(allowed)s."
                 % {
-                    "value": kubelet_config_profile,
+                    "value": config_profile,
                     "nodegroup": nodegroup_name,
                     "profile": profile_set,
                     "allowed": ", ".join(sorted(profiles)),
                 }
             )
 
-        config[nodegroup_name] = {"kubeletConfigProfile": kubelet_config_profile}
+        config[nodegroup_name] = {"profile": config_profile}
 
     return config
 
 
-def get_kubelet_nodegroup_config_profile_set(
+def validate_kubelet_nodegroup_config_profile_set(
+    profile_set: str,
+    fields: typing.Any,
+    profiles: typing.Dict[str, typing.Dict[str, typing.Any]],
+) -> typing.Dict[str, typing.Dict[str, str]]:
+    return validate_nodegroup_config_profile_set(profile_set, fields, profiles)
+
+
+def get_nodegroup_config_profile_set(
     profile_set: str,
     api: pykube.HTTPClient | None,
     namespace: str = "magnum-system",
@@ -558,44 +769,53 @@ def get_kubelet_nodegroup_config_profile_set(
         return {}
     if api is None:
         raise exception.Invalid(
-            "kubelet_nodegroup_config_profile_set requires access to the "
+            "nodegroup_config_profile_set requires access to the "
             "management Kubernetes cluster."
         )
 
-    profile_data = get_kubelet_config_profile_data(api, namespace)
+    profile_data = get_config_profile_data(api, namespace)
     if profile_set not in profile_data:
         if not profile_data:
             raise exception.Invalid(
-                "Invalid value for kubelet_nodegroup_config_profile_set: "
+                "Invalid value for nodegroup_config_profile_set: "
                 "%(value)s. No profiles are registered in ConfigMap "
                 "%(configmap)s in namespace %(namespace)s."
                 % {
                     "value": profile_set,
-                    "configmap": KUBELET_CONFIG_PROFILES_CONFIGMAP,
+                    "configmap": CONFIG_PROFILES_CONFIGMAP,
                     "namespace": namespace,
                 }
             )
         raise exception.Invalid(
-            "Invalid value for kubelet_nodegroup_config_profile_set: %(value)s. "
+            "Invalid value for nodegroup_config_profile_set: %(value)s. "
             "Allowed values: %(allowed)s."
             % {"value": profile_set, "allowed": ", ".join(sorted(profile_data))}
         )
 
     profiles = get_kubelet_config_profiles(api, namespace)
-    return validate_kubelet_nodegroup_config_profile_set(
+    return validate_nodegroup_config_profile_set(
         profile_set,
         profile_data[profile_set],
         profiles,
     )
 
 
+def get_kubelet_nodegroup_config_profile_set(
+    profile_set: str,
+    api: pykube.HTTPClient | None,
+    namespace: str = "magnum-system",
+) -> typing.Dict[str, typing.Dict[str, str]]:
+    return get_nodegroup_config_profile_set(profile_set, api, namespace)
+
+
 def kubelet_config_from_profile_defaults(
     profile_defaults: typing.Dict[str, typing.Any],
 ) -> typing.Dict[str, typing.Any]:
-    config_yaml = _render_kubelet_config_profile_yaml(profile_defaults)
+    kubelet_fields = _get_config_profile_kubelet_fields(profile_defaults)
+    config_yaml = _render_kubelet_config_profile_yaml(kubelet_fields)
 
     return {
-        "enabled": bool(profile_defaults),
+        "enabled": bool(kubelet_fields),
         "configYaml": config_yaml,
     }
 
@@ -623,13 +843,58 @@ def get_kubelet_config(
     api: pykube.HTTPClient | None = None,
     namespace: str = "magnum-system",
 ) -> typing.Dict[str, typing.Any]:
-    kubelet_config_profile = cluster.labels.get("kubelet_config_profile", "")
-    profile_defaults = get_kubelet_config_profile_defaults(
-        kubelet_config_profile,
+    return get_config_profile(cluster, api, namespace)["kubeletConfig"]
+
+
+def config_profile_from_profile_defaults(
+    profile_defaults: typing.Dict[str, typing.Any],
+) -> typing.Dict[str, typing.Any]:
+    kubelet_config = kubelet_config_from_profile_defaults(profile_defaults)
+    files_yaml = [
+        _render_config_profile_yaml(_normalise_config_profile_file(entry))
+        for entry in _get_config_profile_list(
+            profile_defaults,
+            "files",
+            CONFIG_PROFILE_MAX_FILES,
+        )
+    ]
+    pre_kubeadm_commands = _get_config_profile_commands(
+        profile_defaults,
+        "preKubeadmCommands",
+        CONFIG_PROFILE_MAX_PRE_COMMANDS,
+    )
+    post_kubeadm_commands = _get_config_profile_commands(
+        profile_defaults,
+        "postKubeadmCommands",
+        CONFIG_PROFILE_MAX_POST_COMMANDS,
+    )
+
+    return {
+        "enabled": bool(
+            kubelet_config["enabled"]
+            or files_yaml
+            or pre_kubeadm_commands
+            or post_kubeadm_commands
+        ),
+        "kubeletConfig": kubelet_config,
+        "filesYaml": files_yaml,
+        "preKubeadmCommands": pre_kubeadm_commands,
+        "postKubeadmCommands": post_kubeadm_commands,
+    }
+
+
+def get_config_profile(
+    cluster: magnum_objects.Cluster,
+    api: pykube.HTTPClient | None = None,
+    namespace: str = "magnum-system",
+) -> typing.Dict[str, typing.Any]:
+    profile = _first_label(cluster.labels, "config_profile", "kubelet_config_profile")
+    profile_defaults = get_config_profile_defaults(
+        profile,
         api,
         namespace,
     )
-    return kubelet_config_from_profile_defaults(profile_defaults)
+    return config_profile_from_profile_defaults(profile_defaults)
 
 
 def get_nodegroup_kubelet_config(
@@ -638,8 +903,24 @@ def get_nodegroup_kubelet_config(
     api: pykube.HTTPClient | None = None,
     namespace: str = "magnum-system",
 ) -> typing.Dict[str, typing.Any] | None:
-    profile_set = get_kubelet_nodegroup_config_profile_set(
-        cluster.labels.get("kubelet_nodegroup_config_profile_set", ""),
+    config_profile = get_nodegroup_config_profile(cluster, nodegroup, api, namespace)
+    if config_profile is None:
+        return None
+    return config_profile["kubeletConfig"]
+
+
+def get_nodegroup_config_profile(
+    cluster: magnum_objects.Cluster,
+    nodegroup: magnum_objects.NodeGroup,
+    api: pykube.HTTPClient | None = None,
+    namespace: str = "magnum-system",
+) -> typing.Dict[str, typing.Any] | None:
+    profile_set = get_nodegroup_config_profile_set(
+        _first_label(
+            cluster.labels,
+            "nodegroup_config_profile_set",
+            "kubelet_nodegroup_config_profile_set",
+        ),
         api,
         namespace,
     )
@@ -647,9 +928,9 @@ def get_nodegroup_kubelet_config(
     if nodegroup_config is None:
         return None
 
-    return kubelet_config_from_profile_defaults(
-        get_kubelet_config_profile_defaults(
-            nodegroup_config["kubeletConfigProfile"],
+    return config_profile_from_profile_defaults(
+        get_config_profile_defaults(
+            nodegroup_config["profile"],
             api,
             namespace,
         )

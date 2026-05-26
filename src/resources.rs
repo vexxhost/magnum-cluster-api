@@ -265,7 +265,15 @@ pub mod fixtures {
             .api_server_tls_cipher_suites("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305".into())
             .api_server_sans("".into())
             .kubelet_tls_cipher_suites("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305".into())
-            .kubelet_config(kubelet_config::KubeletConfig::builder().enabled(false).build())
+            .config_profile(
+                kubelet_config::ConfigProfile::builder()
+                    .enabled(false)
+                    .kubelet_config(kubelet_config::KubeletConfig::builder().enabled(false).build())
+                    .files_yaml(Vec::<String>::new())
+                    .pre_kubeadm_commands(Vec::<String>::new())
+                    .post_kubeadm_commands(Vec::<String>::new())
+                    .build(),
+            )
             .hardware_disk_bus("".into())
             .enable_docker_volume(false)
             .docker_volume_size(0)
@@ -421,8 +429,8 @@ mod tests {
                 "kubeletTLSCipherSuites" => {
                     assert_eq!(var.value, json!(default_values().kubelet_tls_cipher_suites));
                 }
-                "kubeletConfig" => {
-                    assert_eq!(var.value, json!(default_values().kubelet_config));
+                "configProfile" => {
+                    assert_eq!(var.value, json!(default_values().config_profile));
                 }
                 "apiServerSANs" => {
                     assert_eq!(var.value, json!(default_values().api_server_sans));

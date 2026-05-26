@@ -459,9 +459,32 @@ class TestKubeletConfigLabels:
             ),
         }
 
+    def _empty_config_profile(self):
+        return {
+            "enabled": False,
+            "kubeletConfig": self._empty_kubelet_config(),
+            "filesYaml": [],
+            "preKubeadmCommands": [],
+            "postKubeadmCommands": [],
+        }
+
+    def _gpu_config_profile(self):
+        return {
+            "enabled": True,
+            "kubeletConfig": self._gpu_kubelet_config(),
+            "filesYaml": [],
+            "preKubeadmCommands": [],
+            "postKubeadmCommands": [],
+        }
+
     def test_get_kubelet_config_disabled(self):
         assert (
             utils.get_kubelet_config(self._cluster({})) == self._empty_kubelet_config()
+        )
+
+    def test_get_config_profile_disabled(self):
+        assert (
+            utils.get_config_profile(self._cluster({})) == self._empty_config_profile()
         )
 
     def test_get_kubelet_config_enabled(self):
@@ -476,6 +499,82 @@ class TestKubeletConfigLabels:
             )
             == self._gpu_kubelet_config()
         )
+
+    def test_get_config_profile_enabled(self):
+        assert (
+            utils.get_config_profile(
+                self._cluster(
+                    {
+                        "config_profile": "profile-gpu",
+                    }
+                ),
+                self.api,
+            )
+            == self._gpu_config_profile()
+        )
+
+    def test_get_config_profile_supports_files_and_commands(self):
+        self.config_map.obj["data"] = {
+            "profile-gpu": (
+                "kubeletConfig:\n"
+                "  maxPods: 250\n"
+                "files:\n"
+                "  - path: /etc/gpu-init.sh\n"
+                '    permissions: "0755"\n'
+                "    content: |\n"
+                "      #!/bin/bash\n"
+                "      echo gpu\n"
+                "preKubeadmCommands:\n"
+                "  - bash /etc/gpu-init.sh\n"
+                "postKubeadmCommands:\n"
+                "  - echo done > /etc/gpu-init.done\n"
+            ),
+        }
+
+        profile = utils.get_config_profile(
+            self._cluster({"config_profile": "profile-gpu"}),
+            self.api,
+        )
+
+        assert profile["enabled"] is True
+        assert profile["kubeletConfig"] == {
+            "enabled": True,
+            "configYaml": "maxPods: 250",
+        }
+        assert profile["filesYaml"] == [
+            (
+                "path: /etc/gpu-init.sh\n"
+                "permissions: '0755'\n"
+                "content: IyEvYmluL2Jhc2gKZWNobyBncHUK\n"
+                "encoding: base64"
+            )
+        ]
+        assert profile["preKubeadmCommands"] == ["bash /etc/gpu-init.sh"]
+        assert profile["postKubeadmCommands"] == ["echo done > /etc/gpu-init.done"]
+
+    def test_get_config_profile_preserves_base64_file_content(self):
+        self.config_map.obj["data"] = {
+            "profile-gpu": (
+                "files:\n"
+                "  - path: /etc/atmosphere/test-marker\n"
+                "    content: ZzItc21va2UtcHIxMDE1Cg==\n"
+                "    encoding: base64\n"
+            ),
+        }
+
+        profile = utils.get_config_profile(
+            self._cluster({"config_profile": "profile-gpu"}),
+            self.api,
+        )
+
+        assert profile["filesYaml"] == [
+            (
+                "path: /etc/atmosphere/test-marker\n"
+                "permissions: '0644'\n"
+                "content: ZzItc21va2UtcHIxMDE1Cg==\n"
+                "encoding: base64"
+            )
+        ]
 
     def test_validate_kubelet_config_labels(self):
         cluster = self._cluster(
@@ -604,6 +703,57 @@ class TestKubeletConfigLabels:
             == self._gpu_kubelet_config()
         )
 
+    def test_get_nodegroup_config_profile(self):
+        self.config_map.obj["data"]["profile-layout"] = (
+            "nodegroups:\n" "  gpu-workers:\n" "    profile: profile-gpu\n"
+        )
+        cluster = self._cluster({"nodegroup_config_profile_set": "profile-layout"})
+        nodegroup = self._nodegroup("gpu-workers")
+
+        assert (
+            utils.get_nodegroup_config_profile(cluster, nodegroup, self.api)
+            == self._gpu_config_profile()
+        )
+
+    def test_get_nodegroup_config_profile_supports_distinct_files(self):
+        self.config_map.obj["data"] = {
+            "profile-standard": (
+                "files:\n"
+                "  - path: /etc/atmosphere/role\n"
+                "    content: standard\n"
+                "preKubeadmCommands:\n"
+                "  - cat /etc/atmosphere/role\n"
+            ),
+            "profile-gpu": (
+                "files:\n"
+                "  - path: /etc/atmosphere/role\n"
+                "    content: gpu\n"
+                "preKubeadmCommands:\n"
+                "  - cat /etc/atmosphere/role\n"
+            ),
+            "profile-layout": (
+                "nodegroups:\n" "  gpu-workers:\n" "    profile: profile-gpu\n"
+            ),
+        }
+        cluster = self._cluster(
+            {
+                "config_profile": "profile-standard",
+                "nodegroup_config_profile_set": "profile-layout",
+            }
+        )
+
+        default_profile = utils.get_config_profile(cluster, self.api)
+        gpu_profile = utils.get_nodegroup_config_profile(
+            cluster,
+            self._nodegroup("gpu-workers"),
+            self.api,
+        )
+
+        assert "content: c3RhbmRhcmQ=" in default_profile["filesYaml"][0]
+        assert "content: Z3B1" in gpu_profile["filesYaml"][0]
+        assert default_profile["preKubeadmCommands"] == ["cat /etc/atmosphere/role"]
+        assert gpu_profile["preKubeadmCommands"] == ["cat /etc/atmosphere/role"]
+
     def test_get_nodegroup_kubelet_config_ignores_unmapped_nodegroup(self):
         cluster = self._cluster(
             {"kubelet_nodegroup_config_profile_set": "profile-layout"}
@@ -650,6 +800,8 @@ class TestKubeletConfigLabels:
     def test_sync_kubelet_profile_labels_from_template(self):
         cluster = self._cluster(
             {
+                "config_profile": "profile-current",
+                "nodegroup_config_profile_set": "layout-current",
                 "kubelet_config_profile": "profile-old",
                 "kubelet_nodegroup_config_profile_set": "layout-old",
                 "kube_tag": "v1.34.3",
@@ -657,13 +809,15 @@ class TestKubeletConfigLabels:
         )
         template = mock.Mock(
             labels={
-                "kubelet_config_profile": "profile-gpu",
+                "config_profile": "profile-gpu",
             }
         )
 
         utils.sync_kubelet_profile_labels_from_template(cluster, template)
 
-        assert cluster.labels["kubelet_config_profile"] == "profile-gpu"
+        assert cluster.labels["config_profile"] == "profile-gpu"
+        assert "nodegroup_config_profile_set" not in cluster.labels
+        assert "kubelet_config_profile" not in cluster.labels
         assert "kubelet_nodegroup_config_profile_set" not in cluster.labels
         assert cluster.labels["kube_tag"] == "v1.34.3"
 
@@ -678,5 +832,5 @@ class TestKubeletConfigLabels:
             namespace="magnum-system",
         )
         self.config_maps.get_or_none.assert_called_once_with(
-            name="mcapi-kubelet-config-profiles"
+            name="mcapi-config-profiles"
         )
