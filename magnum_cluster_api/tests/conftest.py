@@ -14,6 +14,7 @@
 
 import os
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from unittest import mock
 
 import openstack
@@ -105,6 +106,10 @@ def mock_osc(session_mocker, image):
     mock_clients.cinder_region_name.return_value = "RegionOne"
 
     # Others
+    mock_limits = mock_clients.nova.return_value.limits.get.return_value
+    mock_limits.absolute = [
+        SimpleNamespace(name="maxServerGroupMembers", value=10),
+    ]
     mock_clients.url_for.return_value = "http://fake_url"
 
     return mock_clients
