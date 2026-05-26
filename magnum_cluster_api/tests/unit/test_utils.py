@@ -379,7 +379,26 @@ class TestKubeletConfigLabels:
                 "data": {
                     "profile-gpu": (
                         "cpuManagerPolicy: static\n"
+                        "cpuManagerPolicyOptions:\n"
+                        '  full-pcpus-only: "true"\n'
+                        "cpuManagerReconcilePeriod: 5s\n"
+                        "memoryManagerPolicy: Static\n"
                         "topologyManagerPolicy: single-numa-node\n"
+                        "topologyManagerScope: pod\n"
+                        "topologyManagerPolicyOptions:\n"
+                        '  max-allowable-numa-nodes: "2"\n'
+                        "qosReserved:\n"
+                        '  memory: "50%"\n'
+                        "systemReserved:\n"
+                        "  memory: 1Gi\n"
+                        "kubeReserved:\n"
+                        "  cpu: 200m\n"
+                        "enforceNodeAllocatable:\n"
+                        "  - pods\n"
+                        "reservedMemory:\n"
+                        "  - numaNode: 0\n"
+                        "    limits:\n"
+                        "      memory: 1Gi\n"
                         "reservedSystemCPUs: 0-1\n"
                         "maxPods: 250\n"
                     ),
@@ -404,30 +423,59 @@ class TestKubeletConfigLabels:
         nodegroup.name = name
         return nodegroup
 
-    def test_get_kubelet_config_disabled(self):
-        assert utils.get_kubelet_config(self._cluster({})) == {
+    def _empty_kubelet_config(self):
+        return {
             "enabled": False,
-            "cpuManagerPolicy": "",
-            "topologyManagerPolicy": "",
-            "reservedSystemCPUs": "",
-            "maxPods": 0,
+            "configYaml": "",
         }
 
-    def test_get_kubelet_config_enabled(self):
-        assert utils.get_kubelet_config(
-            self._cluster(
-                {
-                    "kubelet_config_profile": "profile-gpu",
-                }
-            ),
-            self.api,
-        ) == {
+    def _gpu_kubelet_config(self):
+        return {
             "enabled": True,
-            "cpuManagerPolicy": "static",
-            "topologyManagerPolicy": "single-numa-node",
-            "reservedSystemCPUs": "0-1",
-            "maxPods": 250,
+            "configYaml": (
+                "cpuManagerPolicy: static\n"
+                "  cpuManagerPolicyOptions:\n"
+                "    full-pcpus-only: 'true'\n"
+                "  cpuManagerReconcilePeriod: 5s\n"
+                "  enforceNodeAllocatable:\n"
+                "  - pods\n"
+                "  kubeReserved:\n"
+                "    cpu: 200m\n"
+                "  maxPods: 250\n"
+                "  memoryManagerPolicy: Static\n"
+                "  qosReserved:\n"
+                "    memory: 50%\n"
+                "  reservedMemory:\n"
+                "  - limits:\n"
+                "      memory: 1Gi\n"
+                "    numaNode: 0\n"
+                "  reservedSystemCPUs: 0-1\n"
+                "  systemReserved:\n"
+                "    memory: 1Gi\n"
+                "  topologyManagerPolicy: single-numa-node\n"
+                "  topologyManagerPolicyOptions:\n"
+                "    max-allowable-numa-nodes: '2'\n"
+                "  topologyManagerScope: pod"
+            ),
         }
+
+    def test_get_kubelet_config_disabled(self):
+        assert (
+            utils.get_kubelet_config(self._cluster({})) == self._empty_kubelet_config()
+        )
+
+    def test_get_kubelet_config_enabled(self):
+        assert (
+            utils.get_kubelet_config(
+                self._cluster(
+                    {
+                        "kubelet_config_profile": "profile-gpu",
+                    }
+                ),
+                self.api,
+            )
+            == self._gpu_kubelet_config()
+        )
 
     def test_validate_kubelet_config_labels(self):
         cluster = self._cluster(
@@ -458,16 +506,13 @@ class TestKubeletConfigLabels:
             utils.get_kubelet_config(cluster)
 
     def test_get_kubelet_config_profile_defaults(self):
-        assert utils.get_kubelet_config(
-            self._cluster({"kubelet_config_profile": "profile-gpu"}),
-            self.api,
-        ) == {
-            "enabled": True,
-            "cpuManagerPolicy": "static",
-            "topologyManagerPolicy": "single-numa-node",
-            "reservedSystemCPUs": "0-1",
-            "maxPods": 250,
-        }
+        assert (
+            utils.get_kubelet_config(
+                self._cluster({"kubelet_config_profile": "profile-gpu"}),
+                self.api,
+            )
+            == self._gpu_kubelet_config()
+        )
 
     def test_get_kubelet_config_profile_configures_max_pods(self):
         self.config_map.obj["data"] = {
@@ -479,10 +524,7 @@ class TestKubeletConfigLabels:
             self.api,
         ) == {
             "enabled": True,
-            "cpuManagerPolicy": "",
-            "topologyManagerPolicy": "",
-            "reservedSystemCPUs": "0-1",
-            "maxPods": 500,
+            "configYaml": "maxPods: 500\n  reservedSystemCPUs: 0-1",
         }
 
     def test_get_kubelet_config_rejects_missing_profiles_configmap(self):
@@ -503,8 +545,31 @@ class TestKubeletConfigLabels:
                 self.api,
             )
 
-    def test_get_kubelet_config_profile_rejects_unsupported_field(self):
-        self.config_map.obj["data"] = {"profile-bad": "shutdownGracePeriod: 30s\n"}
+    def test_get_kubelet_config_profile_allows_dynamic_kubelet_fields(self):
+        self.config_map.obj["data"] = {
+            "profile-dynamic": (
+                "shutdownGracePeriod: 30s\n"
+                "featureGates:\n"
+                "  TopologyManagerPolicyOptions: true\n"
+                "topologyManagerScope: pod\n"
+            )
+        }
+
+        assert utils.get_kubelet_config(
+            self._cluster({"kubelet_config_profile": "profile-dynamic"}),
+            self.api,
+        ) == {
+            "enabled": True,
+            "configYaml": (
+                "featureGates:\n"
+                "    TopologyManagerPolicyOptions: true\n"
+                "  shutdownGracePeriod: 30s\n"
+                "  topologyManagerScope: pod"
+            ),
+        }
+
+    def test_get_kubelet_config_profile_rejects_reserved_field(self):
+        self.config_map.obj["data"] = {"profile-bad": "apiVersion: v1\n"}
 
         with pytest.raises(exception.Invalid):
             utils.get_kubelet_config(
@@ -512,8 +577,15 @@ class TestKubeletConfigLabels:
                 self.api,
             )
 
-    def test_get_kubelet_config_profile_rejects_invalid_config(self):
-        self.config_map.obj["data"] = {"profile-bad": "maxPods: 0\n"}
+    def test_get_kubelet_config_profile_rejects_mixed_nodegroups_field(self):
+        self.config_map.obj["data"] = {
+            "profile-bad": (
+                "nodegroups:\n"
+                "  gpu-workers:\n"
+                "    kubeletConfigProfile: profile-gpu\n"
+                "maxPods: 250\n"
+            )
+        }
 
         with pytest.raises(exception.Invalid):
             utils.get_kubelet_config(
@@ -527,13 +599,10 @@ class TestKubeletConfigLabels:
         )
         nodegroup = self._nodegroup("gpu-workers")
 
-        assert utils.get_nodegroup_kubelet_config(cluster, nodegroup, self.api) == {
-            "enabled": True,
-            "cpuManagerPolicy": "static",
-            "topologyManagerPolicy": "single-numa-node",
-            "reservedSystemCPUs": "0-1",
-            "maxPods": 250,
-        }
+        assert (
+            utils.get_nodegroup_kubelet_config(cluster, nodegroup, self.api)
+            == self._gpu_kubelet_config()
+        )
 
     def test_get_nodegroup_kubelet_config_ignores_unmapped_nodegroup(self):
         cluster = self._cluster(

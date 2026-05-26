@@ -236,6 +236,8 @@ is often accomplished by deploying a driver on each node.
    Select an operator-defined kubelet configuration profile rendered through a
    kubeadm `KubeletConfiguration` patch.  Supported values depend on the
    `mcapi-kubelet-config-profiles` ConfigMap in the management cluster.
+   Profiles are kubeadm `KubeletConfiguration` fragments; Magnum adds
+   `apiVersion` and `kind` when rendering the patch.
    Users cannot create new profiles through cluster labels.  Unknown profile
    names are rejected during cluster validation.  Magnum's cluster update API
    does not currently allow changing `labels`, so change this value after

@@ -29,37 +29,9 @@ use typed_builder::TypedBuilder;
 pub struct KubeletConfig {
     pub enabled: bool,
 
-    #[serde(
-        default,
-        skip_serializing_if = "str::is_empty",
-        rename = "cpuManagerPolicy"
-    )]
+    #[serde(default, skip_serializing_if = "str::is_empty", rename = "configYaml")]
     #[builder(default)]
-    pub cpu_manager_policy: String,
-
-    #[serde(
-        default,
-        skip_serializing_if = "str::is_empty",
-        rename = "topologyManagerPolicy"
-    )]
-    #[builder(default)]
-    pub topology_manager_policy: String,
-
-    #[serde(
-        default,
-        skip_serializing_if = "str::is_empty",
-        rename = "reservedSystemCPUs"
-    )]
-    #[builder(default)]
-    pub reserved_system_cpus: String,
-
-    #[serde(default, skip_serializing_if = "is_zero", rename = "maxPods")]
-    #[builder(default)]
-    pub max_pods: i32,
-}
-
-fn is_zero(value: &i32) -> bool {
-    *value == 0
+    pub config_yaml: String,
 }
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
@@ -80,11 +52,7 @@ impl ClusterFeaturePatches for Feature {
             content: |
               apiVersion: kubelet.config.k8s.io/v1beta1
               kind: KubeletConfiguration
-              {{ if .kubeletConfig.cpuManagerPolicy }}cpuManagerPolicy: {{ .kubeletConfig.cpuManagerPolicy }}
-              {{ end }}{{ if .kubeletConfig.topologyManagerPolicy }}topologyManagerPolicy: {{ .kubeletConfig.topologyManagerPolicy }}
-              {{ end }}{{ if .kubeletConfig.reservedSystemCPUs }}reservedSystemCPUs: {{ .kubeletConfig.reservedSystemCPUs }}
-              {{ end }}{{ if .kubeletConfig.maxPods }}maxPods: {{ .kubeletConfig.maxPods }}
-              {{ end }}
+              {{ .kubeletConfig.configYaml }}
         "#};
 
         vec![ClusterClassPatches {
@@ -209,10 +177,24 @@ mod tests {
         let mut values = default_values();
         values.kubelet_config = KubeletConfig::builder()
             .enabled(true)
-            .cpu_manager_policy("static".into())
-            .topology_manager_policy("single-numa-node".into())
-            .reserved_system_cpus("0-1".into())
-            .max_pods(250)
+            .config_yaml(
+                indoc! {r#"
+                    cpuManagerPolicy: static
+                      cpuManagerPolicyOptions:
+                        full-pcpus-only: 'true'
+                      memoryManagerPolicy: Static
+                      topologyManagerPolicy: single-numa-node
+                      topologyManagerScope: pod
+                      reservedMemory:
+                      - limits:
+                          memory: 1Gi
+                        numaNode: 0
+                      reservedSystemCPUs: 0-1
+                      maxPods: 250
+                "#}
+                .trim()
+                .into(),
+            )
             .build();
 
         let patches = feature.patches();
@@ -233,9 +215,17 @@ mod tests {
             .expect("kubelet config patch should be written");
         let control_plane_content = control_plane_file.content.expect("content should be set");
 
+        assert!(!control_plane_content.contains("builtin"));
         assert!(control_plane_content.contains("kind: KubeletConfiguration"));
         assert!(control_plane_content.contains("cpuManagerPolicy: static"));
+        assert!(control_plane_content.contains("cpuManagerPolicyOptions:"));
+        assert!(control_plane_content.contains("  full-pcpus-only: 'true'"));
+        assert!(control_plane_content.contains("memoryManagerPolicy: Static"));
         assert!(control_plane_content.contains("topologyManagerPolicy: single-numa-node"));
+        assert!(control_plane_content.contains("topologyManagerScope: pod"));
+        assert!(control_plane_content.contains("reservedMemory:"));
+        assert!(control_plane_content.contains("- limits:"));
+        assert!(control_plane_content.contains("numaNode: 0"));
         assert!(control_plane_content.contains("reservedSystemCPUs: 0-1"));
         assert!(control_plane_content.contains("maxPods: 250"));
         assert_eq!(

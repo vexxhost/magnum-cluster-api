@@ -47,18 +47,10 @@ AVAILABLE_SERVER_GROUP_POLICIES = [
     "soft-affinity",
     "soft-anti-affinity",
 ]
-KUBELET_CPU_MANAGER_POLICIES = ["none", "static"]
-KUBELET_TOPOLOGY_MANAGER_POLICIES = [
-    "none",
-    "best-effort",
-    "restricted",
-    "single-numa-node",
-]
-KUBELET_CONFIG_PROFILE_FIELDS = {
-    "cpuManagerPolicy",
-    "topologyManagerPolicy",
-    "reservedSystemCPUs",
-    "maxPods",
+KUBELET_CONFIG_PROFILE_RESERVED_FIELDS = {
+    "apiVersion",
+    "kind",
+    "nodegroups",
 }
 KUBELET_PROFILE_SELECTOR_LABELS = {
     "kubelet_config_profile",
@@ -402,49 +394,15 @@ def validate_kubelet_config_profile(
             % {"profile": profile}
         )
 
-    config: typing.Dict[str, typing.Any] = {}
-    for key, value in fields.items():
-        if key not in KUBELET_CONFIG_PROFILE_FIELDS:
-            raise exception.Invalid(
-                "Unsupported kubelet config profile field %(field)s in "
-                "%(profile)s. Supported fields: %(supported)s."
-                % {
-                    "field": key,
-                    "profile": profile,
-                    "supported": ", ".join(sorted(KUBELET_CONFIG_PROFILE_FIELDS)),
-                }
-            )
-        config[key] = value
-
-    if "cpuManagerPolicy" in config and config["cpuManagerPolicy"] not in (
-        KUBELET_CPU_MANAGER_POLICIES
-    ):
+    reserved_fields = set(fields) & KUBELET_CONFIG_PROFILE_RESERVED_FIELDS
+    if reserved_fields:
         raise exception.Invalid(
-            "Invalid cpuManagerPolicy in kubelet config profile %(profile)s: "
-            "%(value)s." % {"profile": profile, "value": config["cpuManagerPolicy"]}
+            "Unsupported kubelet config profile field %(field)s in %(profile)s. "
+            "Magnum renders this field itself."
+            % {"field": sorted(reserved_fields)[0], "profile": profile}
         )
-    if (
-        "topologyManagerPolicy" in config
-        and config["topologyManagerPolicy"] not in KUBELET_TOPOLOGY_MANAGER_POLICIES
-    ):
-        raise exception.Invalid(
-            "Invalid topologyManagerPolicy in kubelet config profile "
-            "%(profile)s: %(value)s."
-            % {"profile": profile, "value": config["topologyManagerPolicy"]}
-        )
-    if "maxPods" in config:
-        try:
-            max_pods = strutils.validate_integer(config["maxPods"], "maxPods")
-        except ValueError as exc:
-            raise exception.Invalid(str(exc))
-        if max_pods <= 0:
-            raise exception.Invalid(
-                "maxPods in kubelet config profile %(profile)s must be a "
-                "positive integer." % {"profile": profile}
-            )
-        config["maxPods"] = max_pods
 
-    return config
+    return fields
 
 
 def get_kubelet_config_profile_data(
@@ -476,7 +434,7 @@ def get_kubelet_config_profiles(
 ) -> typing.Dict[str, typing.Dict[str, typing.Any]]:
     profiles: typing.Dict[str, typing.Dict[str, typing.Any]] = {}
     for name, fields in get_kubelet_config_profile_data(api, namespace).items():
-        if isinstance(fields, dict) and "nodegroups" in fields:
+        if isinstance(fields, dict) and set(fields) == {"nodegroups"}:
             continue
         profiles[name] = validate_kubelet_config_profile(name, fields)
     return profiles
@@ -633,33 +591,38 @@ def get_kubelet_nodegroup_config_profile_set(
 
 def kubelet_config_from_profile_defaults(
     profile_defaults: typing.Dict[str, typing.Any],
-) -> typing.Dict[str, typing.Union[str, bool, int]]:
-    cpu_manager_policy = profile_defaults.get("cpuManagerPolicy", "")
-    topology_manager_policy = profile_defaults.get("topologyManagerPolicy", "")
-    reserved_system_cpus = profile_defaults.get("reservedSystemCPUs", "")
-    max_pods = int(profile_defaults.get("maxPods", 0))
+) -> typing.Dict[str, typing.Any]:
+    config_yaml = _render_kubelet_config_profile_yaml(profile_defaults)
 
     return {
-        "enabled": any(
-            [
-                cpu_manager_policy,
-                topology_manager_policy,
-                reserved_system_cpus,
-                max_pods,
-            ]
-        ),
-        "cpuManagerPolicy": cpu_manager_policy,
-        "topologyManagerPolicy": topology_manager_policy,
-        "reservedSystemCPUs": reserved_system_cpus,
-        "maxPods": max_pods,
+        "enabled": bool(profile_defaults),
+        "configYaml": config_yaml,
     }
+
+
+def _render_kubelet_config_profile_yaml(
+    profile_defaults: typing.Dict[str, typing.Any],
+) -> str:
+    if not profile_defaults:
+        return ""
+
+    config_yaml = yaml.safe_dump(
+        profile_defaults,
+        default_flow_style=False,
+        sort_keys=True,
+    ).rstrip()
+    lines = config_yaml.splitlines()
+    if not lines:
+        return ""
+
+    return "\n".join([lines[0], *[f"  {line}" for line in lines[1:]]])
 
 
 def get_kubelet_config(
     cluster: magnum_objects.Cluster,
     api: pykube.HTTPClient | None = None,
     namespace: str = "magnum-system",
-) -> typing.Dict[str, typing.Union[str, bool, int]]:
+) -> typing.Dict[str, typing.Any]:
     kubelet_config_profile = cluster.labels.get("kubelet_config_profile", "")
     profile_defaults = get_kubelet_config_profile_defaults(
         kubelet_config_profile,
@@ -674,7 +637,7 @@ def get_nodegroup_kubelet_config(
     nodegroup: magnum_objects.NodeGroup,
     api: pykube.HTTPClient | None = None,
     namespace: str = "magnum-system",
-) -> typing.Dict[str, typing.Union[str, bool, int]] | None:
+) -> typing.Dict[str, typing.Any] | None:
     profile_set = get_kubelet_nodegroup_config_profile_set(
         cluster.labels.get("kubelet_nodegroup_config_profile_set", ""),
         api,

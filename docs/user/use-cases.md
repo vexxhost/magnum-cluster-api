@@ -21,7 +21,11 @@ metadata:
 data:
   profile-gpu: |
     cpuManagerPolicy: static
+    cpuManagerPolicyOptions:
+      full-pcpus-only: "true"
+    memoryManagerPolicy: Static
     topologyManagerPolicy: single-numa-node
+    topologyManagerScope: pod
     reservedSystemCPUs: 0-1
     maxPods: 250
 ```
@@ -38,7 +42,11 @@ This renders a kubeadm `KubeletConfiguration` patch similar to:
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
 cpuManagerPolicy: static
+cpuManagerPolicyOptions:
+  full-pcpus-only: "true"
+memoryManagerPolicy: Static
 topologyManagerPolicy: single-numa-node
+topologyManagerScope: pod
 reservedSystemCPUs: 0-1
 maxPods: 250
 ```
@@ -60,9 +68,9 @@ openstack coe cluster upgrade bm-gpu k8s-bm-gpu-v2
 ```
 
 The driver does not accept arbitrary kubelet JSON configuration through labels.
-It also does not expose individual kubelet fields as Magnum labels.  If another
-kubelet field needs to be exposed, the cloud operator should add it to a named
-profile.
+It also does not expose individual kubelet fields as Magnum labels.  Cloud
+operators define named kubeadm `KubeletConfiguration` fragments in the profile
+ConfigMap, and users select those named profiles.
 
 ## Nodegroup-specific kubelet tuning
 
@@ -86,7 +94,11 @@ data:
 
   profile-gpu: |
     cpuManagerPolicy: static
+    cpuManagerPolicyOptions:
+      full-pcpus-only: "true"
+    memoryManagerPolicy: Static
     topologyManagerPolicy: single-numa-node
+    topologyManagerScope: pod
     reservedSystemCPUs: 0-1
     maxPods: 250
 
