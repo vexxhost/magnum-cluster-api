@@ -108,3 +108,14 @@ Options under this group are used for configuring Openstack authentication for C
 :   If set, then the server's certificate will not be verified.
     **Type**: `boolean`
     **Default value**: `False`
+
+## cinder
+Options under this group are used for configuring OpenStack Cinder behavior.
+
+`cross_az_attach`
+
+:   When set to False, Cluster Availability Zone will be used to create a volume.
+    For that Availability Zone names in Cinder and Nova should match.
+    Otherwise, default `nova` Availability Zone will be used for volumes.
+    **Type**: `boolean`
+    **Default value**: `True`
