@@ -70,6 +70,11 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
+        # See note in delete_cluster: Magnum REPLACES template labels with the
+        # cluster's own --labels list.  Merge any missing keys back in so the
+        # Rust driver and downstream consumers see a complete label dict.
+        utils.fill_missing_labels_from_template(cluster)
+
         self.rust_driver.create_cluster(cluster)
 
         utils.validate_cluster(context, cluster)
@@ -444,6 +449,13 @@ class BaseDriver(driver.Driver):
         #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/issues/842
         #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/pull/990
         utils.delete_loadbalancers(context, cluster)
+
+        # NOTE(rlin): Magnum's `cluster create --labels` REPLACES (rather than
+        # merges) the cluster_template labels.  This means a cluster row may
+        # legitimately be missing keys (e.g. ``kube_tag``) that the Rust driver
+        # needs to deserialize ClusterLabels.  Merge template labels as a
+        # fallback so delete never trips over a sparse label dict.
+        utils.fill_missing_labels_from_template(cluster)
 
         self.rust_driver.delete_cluster(cluster)
         resources.Cluster(
