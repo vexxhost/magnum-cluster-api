@@ -73,7 +73,11 @@ class BaseDriver(driver.Driver):
         # See note in delete_cluster: Magnum REPLACES template labels with the
         # cluster's own --labels list.  Merge any missing keys back in so the
         # Rust driver and downstream consumers see a complete label dict.
+        original_labels = dict(cluster.labels or {})
         utils.fill_missing_labels_from_template(cluster)
+        if cluster.labels != original_labels:
+            cluster.labels = dict(cluster.labels)
+            cluster.save()
 
         self.rust_driver.create_cluster(cluster)
 

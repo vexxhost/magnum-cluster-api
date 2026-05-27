@@ -331,6 +331,35 @@ class TestDriver:
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
 
+    def test_create_cluster_persists_template_labels_for_sparse_cluster_labels(
+        self,
+        context,
+        ubuntu_driver,
+        cluster_template,
+        mock_validate_cluster,
+        mock_rust_driver,
+        mocker,
+    ):
+        self.cluster.labels = {"smoke": "test"}
+        cluster_template.labels = {
+            "kube_tag": "v1.34.3",
+            "octavia_provider": "amphorav2",
+        }
+        mocker.patch.object(ubuntu_driver, "_create_cluster")
+        mocker.patch(
+            "magnum_cluster_api.utils.generate_cluster_api_name",
+            return_value="kube-test",
+        )
+
+        ubuntu_driver.create_cluster(context, self.cluster, 60)
+
+        assert self.cluster.labels == {
+            "smoke": "test",
+            "kube_tag": "v1.34.3",
+            "octavia_provider": "amphorav2",
+        }
+        assert self.cluster.save.call_count == 2
+
     def setup_node_group_tests(self, rsps, before, after=None):
         rsps.add(
             self._response_for_cluster_with_machine_deployments(*before),
