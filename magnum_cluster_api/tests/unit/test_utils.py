@@ -379,7 +379,7 @@ class TestFillMissingLabelsFromTemplate:
         return cluster
 
     def test_fills_missing_keys(self):
-        """F3: missing keys (e.g. kube_tag) are pulled from the template."""
+        """Missing keys (e.g. kube_tag) are pulled from the template."""
         cluster = self._cluster(
             {"extra_files": "x"},
             {"kube_tag": "v1.30.0", "boot_volume_size": "20"},
