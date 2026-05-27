@@ -52,6 +52,18 @@ pub struct ClusterLabels {
     #[pyo3(default="v1.32.0".to_owned())]
     pub cinder_csi_plugin_tag: String,
 
+    /// Controls --feature-gates=Topology=... on the csi-provisioner container.
+    /// Set to "false" when the Cinder AZ and the Nova compute AZ don't match.
+    #[builder(default = "true".to_owned())]
+    #[pyo3(default = "true".to_owned())]
+    pub cinder_csi_topology: String,
+
+    /// volumeBindingMode for generated block-* StorageClasses.
+    /// Set to "WaitForFirstConsumer" to defer volume creation until a node is chosen.
+    #[builder(default = "Immediate".to_owned())]
+    #[pyo3(default = "Immediate".to_owned())]
+    pub cinder_csi_volume_binding_mode: String,
+
     /// Enable the use of the Manila CSI driver for the cluster.
     #[builder(default = true)]
     #[pyo3(default = true)]

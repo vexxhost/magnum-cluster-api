@@ -24,9 +24,15 @@ pub struct CSIValues {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct CSIProvisionerComponent {
+    pub image: ImageDetails,
+    pub topology: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct CSIComponents {
     attacher: CSIComponent,
-    provisioner: CSIComponent,
+    provisioner: CSIProvisionerComponent,
     snapshotter: CSIComponent,
     resizer: CSIComponent,
     livenessprobe: CSIComponent,
@@ -104,12 +110,13 @@ impl TryFrom<magnum::Cluster> for CSIValues {
                         .image
                         .using_cluster::<Self>(&cluster, &cluster.labels.csi_attacher_tag)?,
                 },
-                provisioner: CSIComponent {
+                provisioner: CSIProvisionerComponent {
                     image: values
                         .csi
                         .provisioner
                         .image
                         .using_cluster::<Self>(&cluster, &cluster.labels.csi_provisioner_tag)?,
+                    topology: cluster.labels.cinder_csi_topology.clone(),
                 },
                 snapshotter: CSIComponent {
                     image: values
@@ -429,6 +436,45 @@ mod tests {
         );
         assert_eq!(values.storage_class.enabled, false);
         assert_eq!(values.cluster_id, cluster.uuid);
+    }
+
+    #[test]
+    fn test_cinder_csi_topology_default() {
+        let cluster = magnum::Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: magnum::ClusterLabels::builder().build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let values: CSIValues = cluster.try_into().expect("failed to create values");
+        assert_eq!(values.csi.provisioner.topology, "true");
+    }
+
+    #[test]
+    fn test_cinder_csi_topology_disabled() {
+        let cluster = magnum::Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: magnum::ClusterLabels::builder()
+                .cinder_csi_topology("false".to_string())
+                .build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let values: CSIValues = cluster.clone().try_into().expect("failed to create values");
+        assert_eq!(values.csi.provisioner.topology, "false");
+
+        let addon = Addon::new(cluster);
+        let manifests = addon.manifests().expect("failed to get manifests");
+        let manifest = manifests.get("cinder-csi.yaml").expect("manifest missing");
+        assert!(manifest.contains("--feature-gates=Topology=false"));
     }
 
     #[test]
