@@ -109,7 +109,7 @@ class TestGenerateCloudControllerManagerConfig:
             tls-insecure=false
 
             [LoadBalancer]
-            lb-provider=amphora
+            lb-provider=amphorav2
             lb-method=ROUND_ROBIN
             create-monitor=True
             """
@@ -368,3 +368,43 @@ class TestUtils(base.BaseTestCase):
             context,
             fixed_network,
         )
+
+
+class TestFillMissingLabelsFromTemplate:
+    def _cluster(self, labels, template_labels):
+        cluster = mock.Mock()
+        cluster.labels = dict(labels)
+        cluster.cluster_template = mock.Mock()
+        cluster.cluster_template.labels = dict(template_labels)
+        return cluster
+
+    def test_fills_missing_keys(self):
+        """Missing keys (e.g. kube_tag) are pulled from the template."""
+        cluster = self._cluster(
+            {"extra_files": "x"},
+            {"kube_tag": "v1.30.0", "boot_volume_size": "20"},
+        )
+        utils.fill_missing_labels_from_template(cluster)
+        assert cluster.labels["kube_tag"] == "v1.30.0"
+        assert cluster.labels["boot_volume_size"] == "20"
+        assert cluster.labels["extra_files"] == "x"
+
+    def test_does_not_override_cluster_values(self):
+        cluster = self._cluster({"kube_tag": "v1.34.3"}, {"kube_tag": "v1.30.0"})
+        utils.fill_missing_labels_from_template(cluster)
+        assert cluster.labels["kube_tag"] == "v1.34.3"
+
+    def test_no_template_is_safe(self):
+        cluster = mock.Mock()
+        cluster.labels = {"a": "b"}
+        cluster.cluster_template = None
+        utils.fill_missing_labels_from_template(cluster)
+        assert cluster.labels == {"a": "b"}
+
+    def test_none_labels_initialised(self):
+        cluster = mock.Mock()
+        cluster.labels = None
+        cluster.cluster_template = mock.Mock()
+        cluster.cluster_template.labels = {"kube_tag": "v1.30.0"}
+        utils.fill_missing_labels_from_template(cluster)
+        assert cluster.labels == {"kube_tag": "v1.30.0"}
