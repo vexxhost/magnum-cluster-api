@@ -522,15 +522,13 @@ class BaseDriver(driver.Driver):
             # NOTE(mnaser): If the cluster is in `DELETE_IN_PROGRESS` state, we need to
             #               wait for the `MachineDeployment` to be deleted before we can
             #               mark the node group as `DELETE_COMPLETE`.
-            if (
-                node_group.status == fields.ClusterStatus.DELETE_IN_PROGRESS
-                and md is None
-            ):
-                utils.delete_worker_server_group(
-                    ctx=context, cluster=cluster, node_group=node_group
-                )
-                node_group.status = fields.ClusterStatus.DELETE_COMPLETE
-                node_group.save()
+            if node_group.status == fields.ClusterStatus.DELETE_IN_PROGRESS:
+                if md is None:
+                    utils.delete_worker_server_group(
+                        ctx=context, cluster=cluster, node_group=node_group
+                    )
+                    node_group.status = fields.ClusterStatus.DELETE_COMPLETE
+                    node_group.save()
                 continue
 
             md_is_running = (
