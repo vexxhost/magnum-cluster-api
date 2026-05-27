@@ -655,9 +655,7 @@ class TestConfigProfiles:
                         "  maxPods: 250\n"
                     ),
                     "profile-layout": (
-                        "nodegroups:\n"
-                        "  gpu-workers:\n"
-                        "    profile: profile-gpu\n"
+                        "nodegroups:\n" "  gpu-workers:\n" "    profile: profile-gpu\n"
                     ),
                 }
             }
@@ -868,9 +866,7 @@ class TestConfigProfiles:
     def test_get_config_profile_configures_max_pods(self):
         self.config_map.obj["data"] = {
             "profile-large": (
-                "kubeletConfig:\n"
-                "  maxPods: 500\n"
-                "  reservedSystemCPUs: 0-1\n"
+                "kubeletConfig:\n" "  maxPods: 500\n" "  reservedSystemCPUs: 0-1\n"
             )
         }
 
@@ -963,9 +959,7 @@ class TestConfigProfiles:
             )
 
     def test_get_nodegroup_kubelet_config(self):
-        cluster = self._cluster(
-            {"nodegroup_config_profile_set": "profile-layout"}
-        )
+        cluster = self._cluster({"nodegroup_config_profile_set": "profile-layout"})
         nodegroup = self._nodegroup("gpu-workers")
 
         assert (
@@ -1025,17 +1019,13 @@ class TestConfigProfiles:
         assert gpu_profile["preKubeadmCommands"] == ["cat /etc/atmosphere/role"]
 
     def test_get_nodegroup_kubelet_config_ignores_unmapped_nodegroup(self):
-        cluster = self._cluster(
-            {"nodegroup_config_profile_set": "profile-layout"}
-        )
+        cluster = self._cluster({"nodegroup_config_profile_set": "profile-layout"})
         nodegroup = self._nodegroup("default-worker")
 
         assert utils.get_nodegroup_kubelet_config(cluster, nodegroup, self.api) is None
 
     def test_get_nodegroup_kubelet_config_rejects_invalid_profile_set(self):
-        cluster = self._cluster(
-            {"nodegroup_config_profile_set": "missing-layout"}
-        )
+        cluster = self._cluster({"nodegroup_config_profile_set": "missing-layout"})
         nodegroup = self._nodegroup("gpu-workers")
 
         with pytest.raises(exception.Invalid):
@@ -1043,13 +1033,9 @@ class TestConfigProfiles:
 
     def test_get_nodegroup_kubelet_config_rejects_missing_profile_reference(self):
         self.config_map.obj["data"]["profile-layout"] = (
-            "nodegroups:\n"
-            "  gpu-workers:\n"
-            "    profile: missing-profile\n"
+            "nodegroups:\n" "  gpu-workers:\n" "    profile: missing-profile\n"
         )
-        cluster = self._cluster(
-            {"nodegroup_config_profile_set": "profile-layout"}
-        )
+        cluster = self._cluster({"nodegroup_config_profile_set": "profile-layout"})
         nodegroup = self._nodegroup("gpu-workers")
 
         with pytest.raises(exception.Invalid):
@@ -1059,9 +1045,7 @@ class TestConfigProfiles:
         self.config_map.obj["data"]["profile-layout"] = (
             "nodegroups:\n" "  gpu-workers:\n" "    maxPods: 250\n"
         )
-        cluster = self._cluster(
-            {"nodegroup_config_profile_set": "profile-layout"}
-        )
+        cluster = self._cluster({"nodegroup_config_profile_set": "profile-layout"})
         nodegroup = self._nodegroup("gpu-workers")
 
         with pytest.raises(exception.Invalid):
