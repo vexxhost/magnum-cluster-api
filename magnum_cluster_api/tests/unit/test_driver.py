@@ -27,7 +27,29 @@ from oslo_serialization import base64, jsonutils  # type: ignore
 from oslo_utils import uuidutils  # type: ignore
 from responses import matchers
 
-from magnum_cluster_api import objects, resources
+from magnum_cluster_api import driver, objects, resources
+
+
+def test_base_driver_uses_direct_rust_clients(mocker):
+    rust_driver = mocker.MagicMock()
+    kube_client = mocker.MagicMock()
+    mocker.patch("magnum_cluster_api.driver.clients.get_pykube_api")
+    mock_rust_driver_class = mocker.patch(
+        "magnum_cluster_api.driver.magnum_cluster_api.Driver",
+        return_value=rust_driver,
+    )
+    mock_kube_client_class = mocker.patch(
+        "magnum_cluster_api.driver.magnum_cluster_api.KubeClient",
+        return_value=kube_client,
+    )
+
+    ubuntu_driver = driver.UbuntuDriver()
+
+    mock_rust_driver_class.assert_called_once_with("magnum-system")
+    mock_kube_client_class.assert_not_called()
+    assert ubuntu_driver.rust_driver is rust_driver
+    assert ubuntu_driver.kube_client is kube_client
+    mock_kube_client_class.assert_called_once_with()
 
 
 @pytest.mark.parametrize(
@@ -329,6 +351,44 @@ class TestDriver:
         self.cluster.save.assert_called_once()
 
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
+        self.cluster.save.assert_called_once()
+
+    def test_update_cluster_status_handles_missing_capi_conditions(
+        self,
+        context,
+        ubuntu_driver,
+        mocker,
+    ):
+        self.cluster.status = fields.ClusterStatus.CREATE_IN_PROGRESS
+        self.cluster.refresh = mocker.MagicMock()
+        capi_cluster = mocker.MagicMock()
+        capi_cluster.obj = {
+            "metadata": {"name": self.cluster.stack_id},
+            "spec": {},
+            "status": {},
+        }
+
+        mocker.patch.object(
+            ubuntu_driver,
+            "update_cluster_control_plane_status",
+            return_value=mocker.Mock(status=fields.ClusterStatus.CREATE_COMPLETE),
+        )
+        mocker.patch.object(ubuntu_driver, "update_nodegroups_status", return_value=[])
+        mocker.patch(
+            "magnum_cluster_api.driver.resources.Cluster"
+        ).return_value.get_or_none.return_value = capi_cluster
+        mocker.patch.object(
+            ubuntu_driver,
+            "_get_cluster_status_reason",
+            return_value="CAPI Cluster status is not ready yet",
+        )
+
+        ubuntu_driver.update_cluster_status(context, self.cluster)
+
+        self.cluster.refresh.assert_called_once()
+        capi_cluster.reload.assert_called_once()
+        assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
+        assert self.cluster.status_reason == "CAPI Cluster status is not ready yet"
         self.cluster.save.assert_called_once()
 
     def setup_node_group_tests(self, rsps, before, after=None):

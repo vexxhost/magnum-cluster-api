@@ -13,6 +13,54 @@
 # under the License.
 
 import sherlock  # type: ignore
+from kubernetes import client as kubernetes_client  # type: ignore
+from kubernetes import config as kubernetes_config  # type: ignore
+from kubernetes.config.config_exception import ConfigException  # type: ignore
+
+
+def _normalize_bearer_token(
+    configuration: kubernetes_client.Configuration,
+) -> None:
+    authorization = configuration.api_key.get(
+        "authorization",
+        configuration.api_key.get("BearerToken"),
+    )
+    if not authorization:
+        return
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        token = authorization
+
+    configuration.api_key["authorization"] = token
+    configuration.api_key["BearerToken"] = token
+    configuration.api_key_prefix["authorization"] = "Bearer"
+    configuration.api_key_prefix["BearerToken"] = "Bearer"
+
+
+def _load_kubernetes_client() -> kubernetes_client.CoordinationV1Api:
+    try:
+        kubernetes_config.load_incluster_config()
+    except ConfigException:
+        kubernetes_config.load_config()
+
+    configuration = kubernetes_client.Configuration.get_default_copy()
+    refresh_api_key_hook = configuration.refresh_api_key_hook
+
+    if refresh_api_key_hook is not None:
+
+        def _refresh_api_key(
+            refreshed_configuration: kubernetes_client.Configuration,
+        ) -> None:
+            refresh_api_key_hook(refreshed_configuration)
+            _normalize_bearer_token(refreshed_configuration)
+
+        configuration.refresh_api_key_hook = _refresh_api_key
+
+    _normalize_bearer_token(configuration)
+    return kubernetes_client.CoordinationV1Api(
+        kubernetes_client.ApiClient(configuration)
+    )
 
 
 class ClusterLock(sherlock.KubernetesLock):
@@ -33,4 +81,5 @@ class ClusterLock(sherlock.KubernetesLock):
             lock_name="cluster-%s" % cluster_id,
             k8s_namespace="magnum-system",
             expire=expire,
+            client=_load_kubernetes_client(),
         )
