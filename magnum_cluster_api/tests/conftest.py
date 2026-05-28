@@ -45,7 +45,7 @@ def context():
 
 @pytest.fixture(scope="session")
 def mock_cluster_lock(session_mocker):
-    session_mocker.patch("kubernetes.config.load_config")
+    session_mocker.patch("magnum_cluster_api.sync._load_kubernetes_client")
     session_mocker.patch("magnum_cluster_api.sync.ClusterLock.acquire")
     session_mocker.patch("magnum_cluster_api.sync.ClusterLock.release")
 

@@ -27,7 +27,29 @@ from oslo_serialization import base64, jsonutils  # type: ignore
 from oslo_utils import uuidutils  # type: ignore
 from responses import matchers
 
-from magnum_cluster_api import objects, resources
+from magnum_cluster_api import driver, objects, resources
+
+
+def test_base_driver_uses_direct_rust_clients(mocker):
+    rust_driver = mocker.MagicMock()
+    kube_client = mocker.MagicMock()
+    mocker.patch("magnum_cluster_api.driver.clients.get_pykube_api")
+    mock_rust_driver_class = mocker.patch(
+        "magnum_cluster_api.driver.magnum_cluster_api.Driver",
+        return_value=rust_driver,
+    )
+    mock_kube_client_class = mocker.patch(
+        "magnum_cluster_api.driver.magnum_cluster_api.KubeClient",
+        return_value=kube_client,
+    )
+
+    ubuntu_driver = driver.UbuntuDriver()
+
+    mock_rust_driver_class.assert_called_once_with("magnum-system")
+    mock_kube_client_class.assert_not_called()
+    assert ubuntu_driver.rust_driver is rust_driver
+    assert ubuntu_driver.kube_client is kube_client
+    mock_kube_client_class.assert_called_once_with()
 
 
 @pytest.mark.parametrize(
