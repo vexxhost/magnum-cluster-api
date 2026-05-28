@@ -27,6 +27,10 @@ use crate::{
 use cluster_feature_derive::ClusterFeatureValues;
 use kube::CustomResourceExt;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+
+pub(crate) const WORKER_PRE_KUBEADM_COMMANDS: [&str; 2] =
+    ["systemctl daemon-reload", "systemctl restart containerd"];
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 #[allow(dead_code)]
@@ -118,14 +122,8 @@ impl ClusterFeaturePatches for Feature {
                             },
                             ClusterClassPatchesDefinitionsJsonPatches {
                                 op: "add".into(),
-                                path: "/spec/template/spec/preKubeadmCommands/-".into(),
-                                value: Some("systemctl daemon-reload".into()),
-                                ..Default::default()
-                            },
-                            ClusterClassPatchesDefinitionsJsonPatches {
-                                op: "add".into(),
-                                path: "/spec/template/spec/preKubeadmCommands/-".into(),
-                                value: Some("systemctl restart containerd".into()),
+                                path: "/spec/template/spec/preKubeadmCommands".into(),
+                                value: Some(json!(WORKER_PRE_KUBEADM_COMMANDS)),
                                 ..Default::default()
                             },
                         ],

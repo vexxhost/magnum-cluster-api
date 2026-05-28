@@ -13,8 +13,8 @@ use crate::{
         kubeadmcontrolplanetemplates::KubeadmControlPlaneTemplate,
     },
     features::{
-        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
-        ClusterFeatureVariables,
+        containerd_config::WORKER_PRE_KUBEADM_COMMANDS, ClusterClassVariablesSchemaExt,
+        ClusterFeatureEntry, ClusterFeaturePatches, ClusterFeatureVariables,
     },
 };
 use cluster_feature_derive::ClusterFeatureValues;
@@ -143,9 +143,24 @@ fn profile_command_patch(
         kubeadm_path_segment
     );
     let (worker_path, worker_template) = if idx == 0 {
+        let mut commands = Vec::new();
+
+        if kubeadm_path_segment == "preKubeadmCommands" {
+            commands.extend(
+                WORKER_PRE_KUBEADM_COMMANDS
+                    .iter()
+                    .map(|command| format!("- {}", command)),
+            );
+        }
+
+        commands.push(format!(
+            "- {{{{ index .configProfile.{} 0 }}}}",
+            variable_name
+        ));
+
         (
             format!("/spec/template/spec/{}", kubeadm_path_segment),
-            format!("- {{{{ index .configProfile.{} 0 }}}}", variable_name),
+            commands.join("\n"),
         )
     } else {
         (
@@ -478,7 +493,11 @@ mod tests {
             worker_spec
                 .pre_kubeadm_commands
                 .expect("worker pre commands should be set"),
-            vec!["bash /etc/gpu-init.sh".to_string()]
+            vec![
+                "systemctl daemon-reload".to_string(),
+                "systemctl restart containerd".to_string(),
+                "bash /etc/gpu-init.sh".to_string()
+            ]
         );
         assert_eq!(
             worker_spec
@@ -612,7 +631,56 @@ mod tests {
             worker_spec
                 .pre_kubeadm_commands
                 .expect("worker pre commands should be set"),
-            vec!["echo pre".to_string()]
+            vec![
+                "systemctl daemon-reload".to_string(),
+                "systemctl restart containerd".to_string(),
+                "echo pre".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn test_worker_pre_kubeadm_commands_preserve_containerd_commands() {
+        let containerd_feature = crate::features::containerd_config::Feature {};
+        let feature = Feature {};
+        let mut values = default_values();
+        values.config_profile = ConfigProfile::builder()
+            .enabled(true)
+            .pre_kubeadm_commands(vec!["echo pre".into(), "echo second".into()])
+            .build();
+
+        let mut patches = containerd_feature.patches();
+        patches.extend(feature.patches());
+
+        let mut resources = TestClusterResources::new();
+        {
+            let worker_spec = resources
+                .kubeadm_config_template
+                .spec
+                .template
+                .spec
+                .as_mut()
+                .expect("worker spec should be set");
+            worker_spec.pre_kubeadm_commands = None;
+        }
+        resources.apply_patches(&patches, &values);
+
+        let worker_spec = resources
+            .kubeadm_config_template
+            .spec
+            .template
+            .spec
+            .expect("worker spec should be set");
+        assert_eq!(
+            worker_spec
+                .pre_kubeadm_commands
+                .expect("worker pre commands should be set"),
+            vec![
+                "systemctl daemon-reload".to_string(),
+                "systemctl restart containerd".to_string(),
+                "echo pre".to_string(),
+                "echo second".to_string()
+            ]
         );
     }
 
