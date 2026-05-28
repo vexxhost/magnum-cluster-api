@@ -368,3 +368,112 @@ class TestUtils(base.BaseTestCase):
             context,
             fixed_network,
         )
+
+
+class TestGetDefaultBootVolumeSize(base.BaseTestCase):
+    def _cluster(self, server_type):
+        cluster = mock.Mock()
+        cluster.cluster_template = mock.Mock(server_type=server_type)
+        return cluster
+
+    def test_vm_returns_passed_default(self):
+        cluster = self._cluster("vm")
+        self.assertEqual(20, utils.get_default_boot_volume_size(cluster, 20))
+
+    def test_bm_returns_zero(self):
+        cluster = self._cluster("bm")
+        self.assertEqual(0, utils.get_default_boot_volume_size(cluster, 20))
+
+    def test_bm_ignores_nonzero_default(self):
+        cluster = self._cluster("bm")
+        self.assertEqual(0, utils.get_default_boot_volume_size(cluster, 100))
+
+    def test_missing_server_type_attr_falls_back_to_vm(self):
+        cluster = mock.Mock()
+        cluster.cluster_template = object()  # no server_type attr
+        self.assertEqual(20, utils.get_default_boot_volume_size(cluster, 20))
+
+
+class TestValidateBaremetalFlavors(base.BaseTestCase):
+    def _flavor(self, extra_specs):
+        flavor = mock.Mock()
+        flavor.get_keys.return_value = extra_specs
+        return flavor
+
+    def _cluster(self, server_type, master="bm-master", worker="bm-worker"):
+        cluster = mock.Mock()
+        cluster.cluster_template = mock.Mock(server_type=server_type)
+        cluster.master_flavor_id = master
+        cluster.flavor_id = worker
+        return cluster
+
+    def _client(self, lookup_results):
+        cli = mock.Mock()
+
+        def _list():
+            return list(lookup_results.values())
+
+        cli.nova.return_value.flavors.list.side_effect = _list
+        # lookup_flavor matches by name or id
+        for name, flavor in lookup_results.items():
+            flavor.name = name
+            flavor.id = name
+        return cli
+
+    def test_is_baremetal_flavor_true_for_custom_resource_class(self):
+        flavor = self._flavor({"resources:CUSTOM_BAREMETAL": "1"})
+        self.assertTrue(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_false_for_empty_extra_specs(self):
+        flavor = self._flavor({})
+        self.assertFalse(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_false_for_unrelated_extra_specs(self):
+        flavor = self._flavor({"hw:cpu_policy": "dedicated"})
+        self.assertFalse(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_falls_back_to_extra_specs_attr(self):
+        flavor = mock.Mock(extra_specs={"resources:CUSTOM_GPU": "1"})
+        flavor.get_keys.side_effect = RuntimeError("not loaded")
+        self.assertTrue(utils._is_baremetal_flavor(flavor))
+
+    def test_validator_noop_for_vm_template(self):
+        cluster = self._cluster("vm")
+        cli = mock.Mock()
+        utils.validate_baremetal_flavors(cli, cluster)
+        cli.nova.assert_not_called()
+
+    def test_validator_passes_when_both_flavors_are_baremetal(self):
+        cluster = self._cluster("bm")
+        cli = self._client(
+            {
+                "bm-master": self._flavor({"resources:CUSTOM_BAREMETAL": "1"}),
+                "bm-worker": self._flavor({"resources:CUSTOM_BM_GPU": "1"}),
+            }
+        )
+        utils.validate_baremetal_flavors(cli, cluster)
+
+    def test_validator_rejects_virtual_master_flavor(self):
+        cluster = self._cluster("bm", master="m1.small", worker="bm-worker")
+        cli = self._client(
+            {
+                "m1.small": self._flavor({}),
+                "bm-worker": self._flavor({"resources:CUSTOM_BAREMETAL": "1"}),
+            }
+        )
+        with pytest.raises(exception.InvalidParameterValue) as excinfo:
+            utils.validate_baremetal_flavors(cli, cluster)
+        assert "master_flavor_id" in str(excinfo.value)
+        assert "m1.small" in str(excinfo.value)
+
+    def test_validator_rejects_virtual_worker_flavor(self):
+        cluster = self._cluster("bm", master="bm-master", worker="m1.small")
+        cli = self._client(
+            {
+                "bm-master": self._flavor({"resources:CUSTOM_BAREMETAL": "1"}),
+                "m1.small": self._flavor({}),
+            }
+        )
+        with pytest.raises(exception.InvalidParameterValue) as excinfo:
+            utils.validate_baremetal_flavors(cli, cluster)
+        assert "flavor_id" in str(excinfo.value)
