@@ -604,6 +604,52 @@ class TestConfigProfiles:
         assert profile["preKubeadmCommands"] == ["bash /etc/gpu-init.sh"]
         assert profile["postKubeadmCommands"] == ["echo done > /etc/gpu-init.done"]
 
+    @pytest.mark.parametrize(
+        ("profile_yaml", "expected"),
+        [
+            (
+                "files:\n"
+                "  - path: /etc/profile-file\n"
+                "    content: profile\n",
+                {
+                    "filesYaml": [
+                        (
+                            "path: /etc/profile-file\n"
+                            "permissions: '0644'\n"
+                            "content: cHJvZmlsZQ==\n"
+                            "encoding: base64"
+                        )
+                    ],
+                },
+            ),
+            (
+                "preKubeadmCommands:\n"
+                "  - echo pre\n",
+                {"preKubeadmCommands": ["echo pre"]},
+            ),
+            (
+                "postKubeadmCommands:\n"
+                "  - echo post\n",
+                {"postKubeadmCommands": ["echo post"]},
+            ),
+        ],
+    )
+    def test_get_config_profile_supports_solo_profile_keys(
+        self,
+        profile_yaml,
+        expected,
+    ):
+        self.config_map.obj["data"] = {"profile-gpu": profile_yaml}
+
+        profile = utils.get_config_profile(
+            self._cluster({"config_profile": "profile-gpu"}),
+            self.api,
+        )
+
+        assert profile["enabled"] is True
+        for key, value in expected.items():
+            assert profile[key] == value
+
     def test_get_config_profile_preserves_base64_file_content(self):
         self.config_map.obj["data"] = {
             "profile-gpu": (
@@ -679,6 +725,30 @@ class TestConfigProfiles:
             "enabled": True,
             "configYaml": "maxPods: 500\n  reservedSystemCPUs: 0-1",
         }
+
+    def test_get_config_profile_preserves_string_reserved_system_cpus(self):
+        self.config_map.obj["data"] = {
+            "profile-large": ("kubeletConfig:\n" '  reservedSystemCPUs: "0"\n')
+        }
+
+        assert utils.get_kubelet_config(
+            self._cluster({"config_profile": "profile-large"}),
+            self.api,
+        ) == {
+            "enabled": True,
+            "configYaml": "reservedSystemCPUs: '0'",
+        }
+
+    def test_get_config_profile_rejects_numeric_reserved_system_cpus(self):
+        self.config_map.obj["data"] = {
+            "profile-bad": "kubeletConfig:\n  reservedSystemCPUs: 0\n"
+        }
+
+        with pytest.raises(exception.Invalid):
+            utils.get_kubelet_config(
+                self._cluster({"config_profile": "profile-bad"}),
+                self.api,
+            )
 
     def test_get_kubelet_config_rejects_missing_profiles_configmap(self):
         self.config_maps.get_or_none.return_value = None

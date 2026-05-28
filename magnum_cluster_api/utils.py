@@ -64,6 +64,9 @@ CONFIG_PROFILE_FIELDS = {
     "preKubeadmCommands",
     "postKubeadmCommands",
 }
+CONFIG_PROFILE_STRING_KUBELET_FIELDS = {
+    "reservedSystemCPUs",
+}
 CONFIG_PROFILE_MAX_FILES = 10
 CONFIG_PROFILE_MAX_PRE_COMMANDS = 16
 CONFIG_PROFILE_MAX_POST_COMMANDS = 16
@@ -443,6 +446,13 @@ def validate_config_profile(
             "Magnum renders this field itself."
             % {"field": sorted(reserved_fields)[0], "profile": profile}
         )
+    for field in sorted(CONFIG_PROFILE_STRING_KUBELET_FIELDS):
+        if field in kubelet_fields and not isinstance(kubelet_fields[field], str):
+            raise exception.Invalid(
+                "Invalid kubeletConfig.%(field)s in config profile %(profile)s. "
+                "Expected a YAML string."
+                % {"field": field, "profile": profile}
+            )
 
     return fields
 

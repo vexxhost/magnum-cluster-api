@@ -238,7 +238,9 @@ is often accomplished by deploying a driver on each node.
    `mcapi-config-profiles` ConfigMap in the management cluster.  Profiles can
    include `kubeletConfig`, `files`, `preKubeadmCommands`, and
    `postKubeadmCommands`.  Magnum adds `apiVersion` and `kind` when rendering
-   the kubelet patch.
+   the kubelet patch.  Each of those profile keys can be used on its own.
+   String-typed kubelet fields must be quoted in profile YAML when they look
+   numeric, for example `reservedSystemCPUs: "0"`.
    Users cannot create new profiles through Magnum labels.  Unknown profile
    names are rejected during cluster validation.  Magnum's cluster update API
    does not currently allow changing `labels`, so change this value after
