@@ -18,3 +18,6 @@ class ServerGroupCache(object):
 
     def set(self, project_id, server_group_name, server_group_id):
         self._cache.set((project_id, server_group_name), server_group_id, self._ttl)
+
+    def delete(self, project_id, server_group_name):
+        self._cache.delete((project_id, server_group_name))
