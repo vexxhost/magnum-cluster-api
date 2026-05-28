@@ -12,6 +12,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from types import SimpleNamespace
+
 import pytest
 from magnum.objects import fields
 from magnum.tests.unit.objects import utils
@@ -80,6 +82,124 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     )
 
     assert len(mds) == 2
+
+
+def test_cluster_control_plane_labels_match_cloud_controller_manager(
+    context, mocker
+):
+    cluster = mocker.Mock()
+    cluster.cluster_template = mocker.Mock(
+        network_driver="calico",
+        dns_nameserver="1.1.1.1",
+        external_network_id="public",
+    )
+    cluster.default_ng_master = mocker.Mock(image_id="image")
+    cluster.docker_volume_size = None
+    cluster.fixed_network = None
+    cluster.fixed_subnet = None
+    cluster.flavor_id = "worker"
+    cluster.keypair = None
+    cluster.labels = {}
+    cluster.master_count = 1
+    cluster.master_flavor_id = "control-plane"
+    cluster.master_lb_enabled = True
+    cluster.nodegroups = []
+    cluster.stack_id = "kube-test"
+
+    default_volume_type = SimpleNamespace(name="fast")
+    openstack_client = mocker.Mock()
+    openstack_client.cinder.return_value.volume_types.default.return_value = (
+        default_volume_type
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.clients.get_openstack_api",
+        return_value=openstack_client,
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.cinder.get_default_boot_volume_type",
+        return_value=default_volume_type.name,
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.generate_machine_deployments_for_cluster",
+        return_value=[],
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.neutron.get_external_network_id",
+        return_value="external-network",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.neutron.get_fixed_subnet_id",
+        return_value=None,
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.ensure_controlplane_server_group",
+        return_value="server-group",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.generate_api_cert_san_list",
+        return_value="",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.generate_apt_proxy_config",
+        return_value="",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.generate_containerd_config",
+        return_value="",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.generate_systemd_proxy_config",
+        return_value="",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.get_cluster_container_infra_prefix",
+        return_value="",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.get_fixed_network_id",
+        return_value=None,
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.get_kube_tag",
+        return_value="v1.34.3",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.get_operating_system",
+        return_value="ubuntu",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.is_controlplane_different_failure_domain",
+        return_value=False,
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.lookup_flavor",
+        side_effect=[
+            SimpleNamespace(name="control-plane"),
+            SimpleNamespace(name="worker"),
+        ],
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.lookup_image",
+        return_value={"id": "image"},
+    )
+
+    rust_driver = mocker.Mock()
+    rust_driver.resolve_immutable_fields.return_value = {
+        "apiServerLoadBalancer": {"enabled": True}
+    }
+
+    resource = resources.Cluster(
+        context,
+        mocker.Mock(),
+        mocker.Mock(),
+        cluster,
+        rust_driver,
+    ).get_object()
+
+    assert resource["spec"]["topology"]["controlPlane"]["metadata"]["labels"] == {
+        "node-role.kubernetes.io/master": "",
+        "node-role.kubernetes.io/control-plane": "",
+    }
 
 
 @pytest.mark.parametrize(
