@@ -353,6 +353,44 @@ class TestDriver:
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
 
+    def test_update_cluster_status_handles_missing_capi_conditions(
+        self,
+        context,
+        ubuntu_driver,
+        mocker,
+    ):
+        self.cluster.status = fields.ClusterStatus.CREATE_IN_PROGRESS
+        self.cluster.refresh = mocker.MagicMock()
+        capi_cluster = mocker.MagicMock()
+        capi_cluster.obj = {
+            "metadata": {"name": self.cluster.stack_id},
+            "spec": {},
+            "status": {},
+        }
+
+        mocker.patch.object(
+            ubuntu_driver,
+            "update_cluster_control_plane_status",
+            return_value=mocker.Mock(status=fields.ClusterStatus.CREATE_COMPLETE),
+        )
+        mocker.patch.object(ubuntu_driver, "update_nodegroups_status", return_value=[])
+        mocker.patch(
+            "magnum_cluster_api.driver.resources.Cluster"
+        ).return_value.get_or_none.return_value = capi_cluster
+        mocker.patch.object(
+            ubuntu_driver,
+            "_get_cluster_status_reason",
+            return_value="CAPI Cluster status is not ready yet",
+        )
+
+        ubuntu_driver.update_cluster_status(context, self.cluster)
+
+        self.cluster.refresh.assert_called_once()
+        capi_cluster.reload.assert_called_once()
+        assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
+        assert self.cluster.status_reason == "CAPI Cluster status is not ready yet"
+        self.cluster.save.assert_called_once()
+
     def setup_node_group_tests(self, rsps, before, after=None):
         rsps.add(
             self._response_for_cluster_with_machine_deployments(*before),
