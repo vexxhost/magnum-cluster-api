@@ -533,6 +533,17 @@ class BaseDriver(driver.Driver):
                 node_group.save()
                 continue
 
+            if node_group.status == fields.ClusterStatus.DELETE_FAILED:
+                if self._nodegroup_backend_resources_deleted(
+                    cluster_resource, cluster, node_group, md
+                ):
+                    utils.delete_worker_server_group(
+                        ctx=context, cluster=cluster, node_group=node_group
+                    )
+                    node_group.status = fields.ClusterStatus.DELETE_COMPLETE
+                    node_group.save()
+                continue
+
             md_is_running = (
                 md is not None and md.obj.get("status", {}).get("phase") == "Running"
             )
@@ -598,6 +609,40 @@ class BaseDriver(driver.Driver):
                 continue
 
         return node_groups
+
+    def _nodegroup_backend_resources_deleted(
+        self,
+        cluster_resource: objects.Cluster,
+        cluster: magnum_objects.Cluster,
+        node_group: magnum_objects.NodeGroup,
+        md: objects.MachineDeployment | None,
+    ) -> bool:
+        if md is not None:
+            return False
+
+        try:
+            cluster_resource.get_machine_deployment_index(node_group.name)
+            return False
+        except exceptions.MachineDeploymentNotFound:
+            pass
+
+        selector = {
+            "cluster.x-k8s.io/cluster-name": cluster.stack_id,
+            "topology.cluster.x-k8s.io/deployment-name": node_group.name,
+        }
+        resource_types = (
+            objects.MachineSet,
+            objects.Machine,
+            objects.OpenStackMachine,
+        )
+        for resource_type in resource_types:
+            resources = resource_type.objects(
+                self.k8s_api, namespace="magnum-system"
+            ).filter(selector=selector)
+            if len(resources) > 0:
+                return False
+
+        return True
 
     @cluster_lock_wrapper
     def update_nodegroup(

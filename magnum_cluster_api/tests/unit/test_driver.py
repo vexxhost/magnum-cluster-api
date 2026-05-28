@@ -166,6 +166,40 @@ class TestDriver:
             json=json,
         )
 
+    def _response_for_machine_sets(self, *machine_sets):
+        return responses.Response(
+            responses.GET,
+            re.compile(
+                f"http://localhost/apis/{objects.MachineSet.version}/namespaces/magnum-system/{objects.MachineSet.endpoint}.*"  # noqa
+            ),
+            json={"items": list(machine_sets)},
+        )
+
+    def _response_for_machines(self, deployment_name, machines=None):
+        json = {"items": []}
+
+        if machines:
+            json["items"].extend(machines)
+
+        return responses.Response(
+            responses.GET,
+            "http://localhost/apis/%s/namespaces/%s/%s"
+            % (
+                objects.Machine.version,
+                "magnum-system",
+                objects.Machine.endpoint,
+            ),
+            match=[
+                matchers.query_param_matcher(
+                    {
+                        "labelSelector": "cluster.x-k8s.io/cluster-name=%s,topology.cluster.x-k8s.io/deployment-name=%s"
+                        % (self.cluster.stack_id, deployment_name)
+                    }
+                ),
+            ],
+            json=json,
+        )
+
     def _response_for_openstack_machines(self, deployment_name, machine_specs=None):
         """Helper method to create a mock response for OpenStackMachine API calls."""
         json = {"items": []}
@@ -569,3 +603,106 @@ class TestDriver:
                     self.node_group.destroy.assert_called_once()
                 else:
                     self.node_group.destroy.assert_not_called()
+
+    def test_update_nodegroups_status_recovers_stale_delete_failed_nodegroup(
+        self, context, ubuntu_driver, requests_mock, mocker, mock_rust_driver
+    ):
+        self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        self.node_group.status = fields.ClusterStatus.DELETE_FAILED
+        delete_worker_server_group = mocker.patch(
+            "magnum_cluster_api.utils.delete_worker_server_group"
+        )
+
+        with mock.patch(
+            "magnum.objects.NodeGroup.list",
+            return_value=[self.node_group],
+        ):
+            with requests_mock as rsps:
+                rsps.add(
+                    self._response_for_cluster_with_machine_deployments(
+                        {
+                            "name": "unrelated-machine-deployment",
+                            "replicas": 1,
+                            "metadata": {"labels": {}},
+                        },
+                    )
+                )
+                rsps.add(
+                    self._response_for_machine_deployment_spec(
+                        {"name": self.node_group.name},
+                        deleted=True,
+                    )
+                )
+                rsps.add(self._response_for_machine_sets())
+                rsps.add(self._response_for_machines(self.node_group.name))
+                rsps.add(self._response_for_openstack_machines(self.node_group.name))
+
+                ubuntu_driver.update_nodegroups_status(context, self.cluster)
+
+        assert self.node_group.status == fields.ClusterStatus.DELETE_COMPLETE
+        self.node_group.save.assert_called_once()
+        delete_worker_server_group.assert_called_once_with(
+            ctx=context, cluster=self.cluster, node_group=self.node_group
+        )
+
+    @pytest.mark.parametrize(
+        ("machine_sets", "machines", "openstack_machines"),
+        [
+            ([{"metadata": {"name": "test-machineset"}}], [], []),
+            ([], [{"metadata": {"name": "test-machine"}}], []),
+            ([], [], [{"name": "test-openstack-machine"}]),
+        ],
+    )
+    def test_update_nodegroups_status_keeps_delete_failed_with_backend_resources(
+        self,
+        context,
+        ubuntu_driver,
+        requests_mock,
+        mocker,
+        mock_rust_driver,
+        machine_sets,
+        machines,
+        openstack_machines,
+    ):
+        self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
+        self.node_group.status = fields.ClusterStatus.DELETE_FAILED
+        delete_worker_server_group = mocker.patch(
+            "magnum_cluster_api.utils.delete_worker_server_group"
+        )
+
+        with mock.patch(
+            "magnum.objects.NodeGroup.list",
+            return_value=[self.node_group],
+        ):
+            with requests_mock as rsps:
+                rsps.add(
+                    self._response_for_cluster_with_machine_deployments(
+                        {
+                            "name": "unrelated-machine-deployment",
+                            "replicas": 1,
+                            "metadata": {"labels": {}},
+                        },
+                    )
+                )
+                rsps.add(
+                    self._response_for_machine_deployment_spec(
+                        {"name": self.node_group.name},
+                        deleted=True,
+                    )
+                )
+                rsps.add(self._response_for_machine_sets(*machine_sets))
+                if not machine_sets:
+                    rsps.add(self._response_for_machines(self.node_group.name, machines))
+                if not machine_sets and not machines:
+                    rsps.add(
+                        self._response_for_openstack_machines(
+                            self.node_group.name,
+                            openstack_machines,
+                        )
+                    )
+
+                ubuntu_driver.update_nodegroups_status(context, self.cluster)
+
+        assert self.node_group.status == fields.ClusterStatus.DELETE_FAILED
+        self.node_group.save.assert_not_called()
+        delete_worker_server_group.assert_not_called()
