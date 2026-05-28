@@ -27,7 +27,7 @@ data:
       memoryManagerPolicy: Static
       topologyManagerPolicy: single-numa-node
       topologyManagerScope: pod
-      reservedSystemCPUs: 0-1
+      reservedSystemCPUs: "0-1"
       maxPods: 250
     files:
       - path: /etc/gpu-init.sh
@@ -59,7 +59,7 @@ cpuManagerPolicyOptions:
 memoryManagerPolicy: Static
 topologyManagerPolicy: single-numa-node
 topologyManagerScope: pod
-reservedSystemCPUs: 0-1
+reservedSystemCPUs: "0-1"
 maxPods: 250
 ```
 
@@ -116,7 +116,7 @@ data:
       memoryManagerPolicy: Static
       topologyManagerPolicy: single-numa-node
       topologyManagerScope: pod
-      reservedSystemCPUs: 0-1
+      reservedSystemCPUs: "0-1"
       maxPods: 250
 
   profile-bm-gpu-layout: |

@@ -35,7 +35,7 @@ data:
       memoryManagerPolicy: Static
       topologyManagerPolicy: single-numa-node
       topologyManagerScope: pod
-      reservedSystemCPUs: 0-1
+      reservedSystemCPUs: "0-1"
       maxPods: 250
     files:
       - path: /etc/gpu-init.sh
@@ -57,6 +57,11 @@ Each profile value is a YAML object.  `kubeletConfig` contains a kubeadm
 fragment must not set those fields.  `files`, `preKubeadmCommands`, and
 `postKubeadmCommands` are rendered into CAPI kubeadm config fields for the
 control plane and workers.
+
+Any of `kubeletConfig`, `files`, `preKubeadmCommands`, or
+`postKubeadmCommands` can be used by itself in a profile. String-typed kubelet
+fields must remain YAML strings even when the value looks numeric; for example,
+use `reservedSystemCPUs: "0"` or `reservedSystemCPUs: "0-1"`.
 
 Layout profiles use a `nodegroups` object that maps nodegroup names to `profile`
 references.

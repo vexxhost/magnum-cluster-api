@@ -29,8 +29,10 @@ pub const MAX_CONFIG_PROFILE_FILES: usize = 10;
 pub const MAX_CONFIG_PROFILE_PRE_COMMANDS: usize = 16;
 pub const MAX_CONFIG_PROFILE_POST_COMMANDS: usize = 16;
 
-#[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
+#[derive(Clone, Default, Serialize, Deserialize, JsonSchema, TypedBuilder)]
 pub struct KubeletConfig {
+    #[serde(default)]
+    #[builder(default)]
     pub enabled: bool,
 
     #[serde(default, skip_serializing_if = "str::is_empty", rename = "configYaml")]
@@ -38,20 +40,30 @@ pub struct KubeletConfig {
     pub config_yaml: String,
 }
 
-#[derive(Clone, Serialize, Deserialize, JsonSchema, TypedBuilder)]
+#[derive(Clone, Default, Serialize, Deserialize, JsonSchema, TypedBuilder)]
 pub struct ConfigProfile {
+    #[serde(default)]
+    #[builder(default)]
     pub enabled: bool,
 
+    #[serde(default)]
     #[serde(rename = "kubeletConfig")]
+    #[builder(default)]
     pub kubelet_config: KubeletConfig,
 
+    #[serde(default)]
     #[serde(rename = "filesYaml")]
+    #[builder(default)]
     pub files_yaml: Vec<String>,
 
+    #[serde(default)]
     #[serde(rename = "preKubeadmCommands")]
+    #[builder(default)]
     pub pre_kubeadm_commands: Vec<String>,
 
+    #[serde(default)]
     #[serde(rename = "postKubeadmCommands")]
+    #[builder(default)]
     pub post_kubeadm_commands: Vec<String>,
 }
 
@@ -321,6 +333,7 @@ mod tests {
     use crate::features::test::TestClusterResources;
     use crate::resources::fixtures::default_values;
     use pretty_assertions::assert_eq;
+    use serde_json::json;
 
     #[test]
     fn test_disabled() {
@@ -472,6 +485,157 @@ mod tests {
                 .post_kubeadm_commands
                 .expect("worker post commands should be set"),
             vec!["echo done > /etc/gpu-init.done".to_string()]
+        );
+    }
+
+    fn resources_with_config_profile(profile: ConfigProfile) -> TestClusterResources {
+        let feature = Feature {};
+        let mut values = default_values();
+        values.config_profile = profile;
+
+        let mut resources = TestClusterResources::new();
+        {
+            let worker_spec = resources
+                .kubeadm_config_template
+                .spec
+                .template
+                .spec
+                .as_mut()
+                .expect("worker spec should be set");
+            worker_spec.pre_kubeadm_commands = None;
+            worker_spec.post_kubeadm_commands = None;
+        }
+        resources.apply_patches(&feature.patches(), &values);
+        resources
+    }
+
+    #[test]
+    fn test_config_profile_deserializes_solo_keys() {
+        let cases = vec![
+            json!({
+                "enabled": true,
+                "kubeletConfig": {
+                    "enabled": true,
+                    "configYaml": "maxPods: 250",
+                },
+            }),
+            json!({
+                "enabled": true,
+                "filesYaml": [
+                    "path: /etc/profile-file\ncontent: cHJvZmlsZQo=\nencoding: base64",
+                ],
+            }),
+            json!({
+                "enabled": true,
+                "preKubeadmCommands": ["echo pre"],
+            }),
+            json!({
+                "enabled": true,
+                "postKubeadmCommands": ["echo post"],
+            }),
+        ];
+
+        for case in cases {
+            let profile: ConfigProfile =
+                serde_json::from_value(case).expect("profile should deserialize");
+            assert!(profile.enabled);
+        }
+    }
+
+    #[test]
+    fn test_apply_patches_with_solo_kubelet_config() {
+        let resources = resources_with_config_profile(
+            ConfigProfile::builder()
+                .enabled(true)
+                .kubelet_config(
+                    KubeletConfig::builder()
+                        .enabled(true)
+                        .config_yaml("maxPods: 250".into())
+                        .build(),
+                )
+                .build(),
+        );
+
+        let control_plane_files = resources
+            .kubeadm_control_plane_template
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .files
+            .expect("control plane files should be set");
+        assert!(control_plane_files
+            .iter()
+            .any(|f| f.path == "/etc/kubernetes/patches/kubeletconfiguration+merge.yaml"));
+    }
+
+    #[test]
+    fn test_apply_patches_with_solo_file() {
+        let resources = resources_with_config_profile(
+            ConfigProfile::builder()
+                .enabled(true)
+                .files_yaml(vec![
+                    "path: /etc/profile-file\ncontent: cHJvZmlsZQo=\nencoding: base64".into(),
+                ])
+                .build(),
+        );
+
+        let worker_spec = resources
+            .kubeadm_config_template
+            .spec
+            .template
+            .spec
+            .expect("worker spec should be set");
+        assert!(worker_spec
+            .files
+            .expect("worker files should be set")
+            .iter()
+            .any(|f| f.path == "/etc/profile-file"));
+    }
+
+    #[test]
+    fn test_apply_patches_with_solo_pre_kubeadm_command() {
+        let resources = resources_with_config_profile(
+            ConfigProfile::builder()
+                .enabled(true)
+                .pre_kubeadm_commands(vec!["echo pre".into()])
+                .build(),
+        );
+
+        let worker_spec = resources
+            .kubeadm_config_template
+            .spec
+            .template
+            .spec
+            .expect("worker spec should be set");
+        assert_eq!(
+            worker_spec
+                .pre_kubeadm_commands
+                .expect("worker pre commands should be set"),
+            vec!["echo pre".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_apply_patches_with_solo_post_kubeadm_command() {
+        let resources = resources_with_config_profile(
+            ConfigProfile::builder()
+                .enabled(true)
+                .post_kubeadm_commands(vec!["echo post".into()])
+                .build(),
+        );
+
+        let worker_spec = resources
+            .kubeadm_config_template
+            .spec
+            .template
+            .spec
+            .expect("worker spec should be set");
+        assert_eq!(
+            worker_spec
+                .post_kubeadm_commands
+                .expect("worker post commands should be set"),
+            vec!["echo post".to_string()]
         );
     }
 }
