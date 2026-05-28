@@ -21,16 +21,21 @@ from kubernetes.config.config_exception import ConfigException  # type: ignore
 def _normalize_bearer_token(
     configuration: kubernetes_client.Configuration,
 ) -> None:
-    authorization = configuration.api_key.get("authorization")
+    authorization = configuration.api_key.get(
+        "authorization",
+        configuration.api_key.get("BearerToken"),
+    )
     if not authorization:
         return
 
     scheme, _, token = authorization.partition(" ")
     if scheme.lower() != "bearer" or not token:
-        return
+        token = authorization
 
     configuration.api_key["authorization"] = token
+    configuration.api_key["BearerToken"] = token
     configuration.api_key_prefix["authorization"] = "Bearer"
+    configuration.api_key_prefix["BearerToken"] = "Bearer"
 
 
 def _load_kubernetes_client() -> kubernetes_client.CoordinationV1Api:
