@@ -90,6 +90,12 @@ impl ToRenderedPatchOperation for ClusterClassPatchesDefinitionsJsonPatches {
         version: &str,
         values: &T,
     ) -> PatchOperation {
+        if self.op == "remove" {
+            return json_patch::PatchOperation::Remove(RemoveOperation {
+                path: PointerBuf::parse(&self.path).unwrap(),
+            });
+        }
+
         let value = match self.value_from {
             Some(value_from) => value_from.to_rendered_value(version, values),
             None => self.value.expect("value should be present").into(),
@@ -103,9 +109,6 @@ impl ToRenderedPatchOperation for ClusterClassPatchesDefinitionsJsonPatches {
             "replace" => json_patch::PatchOperation::Replace(ReplaceOperation {
                 path: PointerBuf::parse(&self.path).unwrap(),
                 value: value,
-            }),
-            "remove" => json_patch::PatchOperation::Remove(RemoveOperation {
-                path: PointerBuf::parse(&self.path).unwrap(),
             }),
             _ => panic!("Unsupported patch operation: {}", self.op),
         }

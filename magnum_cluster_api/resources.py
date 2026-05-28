@@ -1198,6 +1198,13 @@ class Cluster(ClusterBase):
                             ),
                         },
                         {
+                            "name": "disableManagedSecurityGroups",
+                            "value": getattr(
+                                self.cluster.cluster_template, "server_type", "vm"
+                            )
+                            == "bm",
+                        },
+                        {
                             "name": "dnsNameservers",
                             "value": self.cluster.cluster_template.dns_nameserver.split(
                                 ","
