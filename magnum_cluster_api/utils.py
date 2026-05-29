@@ -450,8 +450,7 @@ def validate_config_profile(
         if field in kubelet_fields and not isinstance(kubelet_fields[field], str):
             raise exception.Invalid(
                 "Invalid kubeletConfig.%(field)s in config profile %(profile)s. "
-                "Expected a YAML string."
-                % {"field": field, "profile": profile}
+                "Expected a YAML string." % {"field": field, "profile": profile}
             )
 
     return fields

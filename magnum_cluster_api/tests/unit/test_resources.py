@@ -84,7 +84,9 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
 
 def test_generate_machine_deployments_with_nodegroup_kubelet_override(context, mocker):
     cluster = utils.get_test_cluster(context, labels={})
-    cluster.cluster_template = utils.get_test_cluster_template(context, server_type="vm")
+    cluster.cluster_template = utils.get_test_cluster_template(
+        context, server_type="vm"
+    )
     nodegroup = utils.get_test_nodegroup(
         context,
         name="gpu-workers",

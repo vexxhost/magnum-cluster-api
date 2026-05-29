@@ -608,9 +608,7 @@ class TestConfigProfiles:
         ("profile_yaml", "expected"),
         [
             (
-                "files:\n"
-                "  - path: /etc/profile-file\n"
-                "    content: profile\n",
+                "files:\n" "  - path: /etc/profile-file\n" "    content: profile\n",
                 {
                     "filesYaml": [
                         (
@@ -623,13 +621,11 @@ class TestConfigProfiles:
                 },
             ),
             (
-                "preKubeadmCommands:\n"
-                "  - echo pre\n",
+                "preKubeadmCommands:\n" "  - echo pre\n",
                 {"preKubeadmCommands": ["echo pre"]},
             ),
             (
-                "postKubeadmCommands:\n"
-                "  - echo post\n",
+                "postKubeadmCommands:\n" "  - echo post\n",
                 {"postKubeadmCommands": ["echo post"]},
             ),
         ],
