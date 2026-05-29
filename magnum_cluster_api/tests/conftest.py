@@ -106,6 +106,9 @@ def mock_osc(session_mocker, image):
 
     # Others
     mock_clients.url_for.return_value = "http://fake_url"
+    mock_nova_client = mock_clients.nova.return_value
+    mock_nova_client.server_groups.list.return_value = []
+    mock_nova_client.server_groups.create.return_value.id = uuidutils.generate_uuid()
 
     return mock_clients
 
