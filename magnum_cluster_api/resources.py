@@ -703,6 +703,8 @@ def mutate_machine_deployment(
     cluster: objects.Cluster,
     node_group: magnum_objects.NodeGroup,
     machine_deployment: dict = None,
+    pykube_api: pykube.HTTPClient | None = None,
+    namespace: str = "magnum-system",
 ):
     """
     This function will either makes updates to machine deployment fields which
@@ -788,6 +790,69 @@ def mutate_machine_deployment(
     # At this point, this is all code that will be added for brand-new machine
     # deployments.  We can bring any of this code into the above block if we
     # want to change it for existing machine deployments.
+    overrides = [
+        {
+            "name": "bootVolume",
+            "value": {
+                "size": utils.get_node_group_label_as_int(
+                    node_group,
+                    "boot_volume_size",
+                    CONF.cinder.default_boot_volume_size,
+                ),
+                "type": node_group.labels.get(
+                    "boot_volume_type",
+                    cinder.get_default_boot_volume_type(context),
+                ),
+            },
+        },
+        {
+            "name": "flavor",
+            "value": flavor.name,
+        },
+        {
+            "name": "imageRepository",
+            "value": node_group.labels.get(
+                "container_infra_prefix",
+                "",
+            ),
+        },
+        {
+            "name": "imageUUID",
+            "value": image.get("id"),
+        },
+        {
+            "name": "hardwareDiskBus",
+            "value": image.get("hw_disk_bus", ""),
+        },
+        # NOTE(oleks): Override using MachineDeployment-level variables for node groups
+        {
+            "name": "serverGroupId",
+            "value": utils.ensure_worker_server_group(
+                ctx=context, cluster=cluster, node_group=node_group
+            ),
+        },
+        {
+            "name": "isServerGroupDiffFailureDomain",
+            "value": utils.is_node_group_different_failure_domain(
+                node_group=node_group, cluster=cluster
+            ),
+        },
+    ]
+
+    config_profile = utils.get_nodegroup_config_profile(
+        cluster,
+        node_group,
+        pykube_api,
+        namespace,
+    )
+    if config_profile is not None:
+        overrides.append(
+            {
+                "name": "configProfile",
+                "value": config_profile,
+            }
+        )
+
     machine_deployment.update(
         {
             "class": "default-worker",
@@ -795,54 +860,7 @@ def mutate_machine_deployment(
             "failureDomain": node_group.labels.get("availability_zone"),
             "machineHealthCheck": {"enable": utils.get_auto_healing_enabled(cluster)},
             "variables": {
-                "overrides": [
-                    {
-                        "name": "bootVolume",
-                        "value": {
-                            "size": utils.get_node_group_label_as_int(
-                                node_group,
-                                "boot_volume_size",
-                                CONF.cinder.default_boot_volume_size,
-                            ),
-                            "type": node_group.labels.get(
-                                "boot_volume_type",
-                                cinder.get_default_boot_volume_type(context),
-                            ),
-                        },
-                    },
-                    {
-                        "name": "flavor",
-                        "value": flavor.name,
-                    },
-                    {
-                        "name": "imageRepository",
-                        "value": node_group.labels.get(
-                            "container_infra_prefix",
-                            "",
-                        ),
-                    },
-                    {
-                        "name": "imageUUID",
-                        "value": image.get("id"),
-                    },
-                    {
-                        "name": "hardwareDiskBus",
-                        "value": image.get("hw_disk_bus", ""),
-                    },
-                    # NOTE(oleks): Override using MachineDeployment-level variables for node groups
-                    {
-                        "name": "serverGroupId",
-                        "value": utils.ensure_worker_server_group(
-                            ctx=context, cluster=cluster, node_group=node_group
-                        ),
-                    },
-                    {
-                        "name": "isServerGroupDiffFailureDomain",
-                        "value": utils.is_node_group_different_failure_domain(
-                            node_group=node_group, cluster=cluster
-                        ),
-                    },
-                ],
+                "overrides": overrides,
             },
         }
     )
@@ -906,14 +924,23 @@ def migrate_cluster_failure_domain(
 
 
 def generate_machine_deployments_for_cluster(
-    context: context.RequestContext, cluster: objects.Cluster
+    context: context.RequestContext,
+    cluster: objects.Cluster,
+    pykube_api: pykube.HTTPClient | None = None,
+    namespace: str = "magnum-system",
 ) -> list:
     machine_deployments = []
     for ng in cluster.nodegroups:
         if ng.role == "master" or ng.status.startswith("DELETE"):
             continue
 
-        machine_deployment = mutate_machine_deployment(context, cluster, ng)
+        machine_deployment = mutate_machine_deployment(
+            context,
+            cluster,
+            ng,
+            pykube_api=pykube_api,
+            namespace=namespace,
+        )
         machine_deployments.append(machine_deployment)
 
     return machine_deployments
@@ -1039,7 +1066,10 @@ class Cluster(ClusterBase):
                     },
                     "workers": {
                         "machineDeployments": generate_machine_deployments_for_cluster(
-                            self.context, self.cluster
+                            self.context,
+                            self.cluster,
+                            self.pykube_api,
+                            self.namespace,
                         ),
                     },
                     "variables": [
@@ -1226,6 +1256,14 @@ class Cluster(ClusterBase):
                             "value": self.cluster.labels.get(
                                 "kubelet_tls_cipher_suites",
                                 "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",  # noqa: E501
+                            ),
+                        },
+                        {
+                            "name": "configProfile",
+                            "value": utils.get_config_profile(
+                                self.cluster,
+                                self.pykube_api,
+                                self.namespace,
                             ),
                         },
                         {

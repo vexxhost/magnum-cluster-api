@@ -82,6 +82,81 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     assert len(mds) == 2
 
 
+def test_generate_machine_deployments_with_nodegroup_kubelet_override(context, mocker):
+    cluster = utils.get_test_cluster(context, labels={})
+    cluster.cluster_template = utils.get_test_cluster_template(
+        context, server_type="vm"
+    )
+    nodegroup = utils.get_test_nodegroup(
+        context,
+        name="gpu-workers",
+        labels={},
+    )
+    mock_get_default_boot_volume_type = mocker.patch(
+        "magnum_cluster_api.integrations.cinder.get_default_boot_volume_type"
+    )
+    mock_get_default_boot_volume_type.return_value = "foo"
+
+    mock_lookup_image = mocker.patch("magnum_cluster_api.utils.lookup_image")
+    mock_lookup_image.return_value = {"id": "foo"}
+
+    mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
+    mock_lookup_flavor.return_value = flavors.Flavor(
+        None,
+        {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
+    )
+
+    mock_ensure_worker_server_group = mocker.patch(
+        "magnum_cluster_api.utils.ensure_worker_server_group"
+    )
+    mock_ensure_worker_server_group.return_value = "foo"
+
+    mocker.patch(
+        "magnum_cluster_api.utils.get_nodegroup_config_profile",
+        return_value={
+            "enabled": True,
+            "kubeletConfig": {
+                "enabled": True,
+                "configYaml": (
+                    "cpuManagerPolicy: static\n"
+                    "  topologyManagerPolicy: single-numa-node\n"
+                    "  topologyManagerScope: pod"
+                ),
+            },
+            "filesYaml": [],
+            "preKubeadmCommands": [],
+            "postKubeadmCommands": [],
+        },
+    )
+
+    md = resources.mutate_machine_deployment(
+        context,
+        cluster,
+        nodegroup,
+        pykube_api=mocker.Mock(),
+        namespace="magnum-system",
+    )
+
+    overrides = md["variables"]["overrides"]
+    assert {
+        "name": "configProfile",
+        "value": {
+            "enabled": True,
+            "kubeletConfig": {
+                "enabled": True,
+                "configYaml": (
+                    "cpuManagerPolicy: static\n"
+                    "  topologyManagerPolicy: single-numa-node\n"
+                    "  topologyManagerScope: pod"
+                ),
+            },
+            "filesYaml": [],
+            "preKubeadmCommands": [],
+            "postKubeadmCommands": [],
+        },
+    } in overrides
+
+
 @pytest.mark.parametrize(
     "auto_scaling_enabled",
     [True, False, None],
