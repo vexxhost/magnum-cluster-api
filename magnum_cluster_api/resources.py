@@ -18,9 +18,9 @@ import math
 import os
 import types
 import typing
+from importlib import resources as importlib_resources
 
 import certifi
-import pkg_resources
 import pykube  # type: ignore
 import yaml
 from magnum import objects as magnum_objects  # type: ignore
@@ -61,43 +61,44 @@ class ClusterAutoscalerHelmRelease:
     def __init__(self, api, cluster) -> None:
         self.cluster = cluster
 
-    @property
     def apply(self):
         image = images.get_cluster_autoscaler_image(
             utils.get_kube_tag(self.cluster),
         )
         image_repo, image_tag = image.split(":", 1)
 
-        return helm.UpgradeReleaseCommand(
-            namespace="magnum-system",
-            release_name=self.cluster.stack_id,
-            chart_ref=os.path.join(
-                pkg_resources.resource_filename("magnum_cluster_api", "charts"),
-                "cluster-autoscaler/",
-            ),
-            values={
-                "fullnameOverride": f"{self.cluster.stack_id}-autoscaler",
-                "cloudProvider": "clusterapi",
-                "clusterAPIMode": "kubeconfig-incluster",
-                "clusterAPIKubeconfigSecret": f"{self.cluster.stack_id}-kubeconfig",
-                "autoDiscovery": {
-                    "clusterName": self.cluster.stack_id,
+        with importlib_resources.as_file(
+            importlib_resources.files("magnum_cluster_api")
+            / "charts"
+            / "cluster-autoscaler"
+        ) as chart_path:
+            return helm.UpgradeReleaseCommand(
+                namespace="magnum-system",
+                release_name=self.cluster.stack_id,
+                chart_ref=os.path.join(str(chart_path), ""),
+                values={
+                    "fullnameOverride": f"{self.cluster.stack_id}-autoscaler",
+                    "cloudProvider": "clusterapi",
+                    "clusterAPIMode": "kubeconfig-incluster",
+                    "clusterAPIKubeconfigSecret": f"{self.cluster.stack_id}-kubeconfig",
+                    "autoDiscovery": {
+                        "clusterName": self.cluster.stack_id,
+                    },
+                    "image": {
+                        "repository": image_repo,
+                        "tag": image_tag,
+                    },
+                    "nodeSelector": {
+                        "openstack-control-plane": "enabled",
+                    },
+                    "extraArgs": {
+                        "logtostderr": True,
+                        "stderrthreshold": "info",
+                        "v": 4,
+                        "enforce-node-group-min-size": True,
+                    },
                 },
-                "image": {
-                    "repository": image_repo,
-                    "tag": image_tag,
-                },
-                "nodeSelector": {
-                    "openstack-control-plane": "enabled",
-                },
-                "extraArgs": {
-                    "logtostderr": True,
-                    "stderrthreshold": "info",
-                    "v": 4,
-                    "enforce-node-group-min-size": True,
-                },
-            },
-        )
+            )()
 
     @property
     def delete(self):
@@ -401,9 +402,6 @@ class LegacyClusterResourcesSecret(ClusterBase):
 
     def get_object(self) -> dict:
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
-        manifests_path = pkg_resources.resource_filename(
-            "magnum_cluster_api", "manifests"
-        )
 
         data = magnum_cluster_api.Driver.get_legacy_cluster_resource_secret_data(
             self.cluster
@@ -433,33 +431,39 @@ class LegacyClusterResourcesSecret(ClusterBase):
             },
         }
 
-        if self.cluster.cluster_template.network_driver == "calico":
-            calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
-            data = {
-                **data,
-                **{
-                    "calico.yml": image_utils.update_manifest_images(
-                        self.cluster.uuid,
-                        os.path.join(manifests_path, f"calico/{calico_version}.yaml"),
-                        repository=repository,
-                    )
-                },
-            }
+        with importlib_resources.as_file(
+            importlib_resources.files("magnum_cluster_api") / "manifests"
+        ) as manifests_path:
+            if self.cluster.cluster_template.network_driver == "calico":
+                calico_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
+                data = {
+                    **data,
+                    **{
+                        "calico.yml": image_utils.update_manifest_images(
+                            self.cluster.uuid,
+                            os.path.join(
+                                str(manifests_path),
+                                f"calico/{calico_version}.yaml",
+                            ),
+                            repository=repository,
+                        )
+                    },
+                }
 
-        if manila.is_enabled(self.cluster):
-            data = {
-                **data,
-                **{
-                    os.path.basename(manifest): image_utils.update_manifest_images(
-                        self.cluster.uuid,
-                        manifest,
-                        repository=repository,
-                    )
-                    for manifest in glob.glob(
-                        os.path.join(manifests_path, "nfs-csi/*.yaml")
-                    )
-                },
-            }
+            if manila.is_enabled(self.cluster):
+                data = {
+                    **data,
+                    **{
+                        os.path.basename(manifest): image_utils.update_manifest_images(
+                            self.cluster.uuid,
+                            manifest,
+                            repository=repository,
+                        )
+                        for manifest in glob.glob(
+                            os.path.join(str(manifests_path), "nfs-csi/*.yaml")
+                        )
+                    },
+                }
 
         osc = clients.get_openstack_api(self.context)
         if utils.get_cluster_label_as_bool(self.cluster, "keystone_auth_enabled", True):
@@ -467,31 +471,31 @@ class LegacyClusterResourcesSecret(ClusterBase):
                 service_type="identity",
                 interface="public",
             )
-            data = {
-                **data,
-                **{
-                    "keystone-auth.yaml": helm.TemplateReleaseCommand(
-                        namespace="kube-system",
-                        release_name="k8s-keystone-auth",
-                        chart_ref=os.path.join(
-                            pkg_resources.resource_filename(
-                                "magnum_cluster_api", "charts"
-                            ),
-                            "k8s-keystone-auth/",
-                        ),
-                        values={
-                            "conf": {
-                                "auth_url": auth_url
-                                + ("" if auth_url.endswith("/v3") else "/v3"),
-                                "ca_cert": magnum_utils.get_openstack_ca(),
-                                "policy": utils.get_keystone_auth_default_policy(
-                                    self.cluster
-                                ),
+            with importlib_resources.as_file(
+                importlib_resources.files("magnum_cluster_api")
+                / "charts"
+                / "k8s-keystone-auth"
+            ) as chart_path:
+                data = {
+                    **data,
+                    **{
+                        "keystone-auth.yaml": helm.TemplateReleaseCommand(
+                            namespace="kube-system",
+                            release_name="k8s-keystone-auth",
+                            chart_ref=os.path.join(str(chart_path), ""),
+                            values={
+                                "conf": {
+                                    "auth_url": auth_url
+                                    + ("" if auth_url.endswith("/v3") else "/v3"),
+                                    "ca_cert": magnum_utils.get_openstack_ca(),
+                                    "policy": utils.get_keystone_auth_default_policy(
+                                        self.cluster
+                                    ),
+                                },
                             },
-                        },
-                    )(repository=repository)
-                },
-            }
+                        )(repository=repository)
+                    },
+                }
 
         return {
             "type": "addons.cluster.x-k8s.io/resource-set",
