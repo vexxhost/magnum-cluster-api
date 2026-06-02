@@ -188,7 +188,16 @@ def generate_manila_csi_cloud_config(
 
 
 def get_kube_tag(cluster: magnum_objects.Cluster) -> str:
-    return cluster.labels.get("kube_tag", "v1.25.3")
+    # Check cluster's own labels first, then fall back to template labels
+    kube_tag = cluster.labels.get("kube_tag")
+    if kube_tag:
+        return kube_tag
+    ct = cluster.cluster_template
+    if ct and ct.labels:
+        kube_tag = ct.labels.get("kube_tag")
+        if kube_tag:
+            return kube_tag
+    return "v1.25.3"
 
 
 def get_auto_scaling_enabled(cluster: magnum_objects.Cluster) -> bool:

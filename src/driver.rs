@@ -315,6 +315,14 @@ impl Driver {
         self.apply_cluster_class(py)?;
         self.apply_cloud_provider_cluster_resource_set(py, &cluster, true)?;
 
+        // When auto_upgrade_cni is enabled, apply a Reconcile-strategy
+        // ClusterResourceSet for CNI so that the updated calico_tag/cilium_tag
+        // labels (already copied from the new template by driver.py) are
+        // reflected in the workload cluster.  This is Option C from issue #919.
+        if cluster.labels.is_auto_upgrade_cni_enabled() {
+            self.apply_cni_cluster_resource_set(py, &cluster)?;
+        }
+
         Ok(())
     }
 
@@ -354,6 +362,65 @@ impl Driver {
 
         let result = pythonize::pythonize(py, &json_variables)?;
         Ok(result.unbind())
+    }
+}
+
+impl Driver {
+    /// Apply the CNI addon ClusterResourceSet (and its backing Secret) for the
+    /// given cluster using `strategy: Reconcile`.
+    ///
+    /// This creates a dedicated ClusterResourceSet for the cluster's CNI
+    /// plugin (Calico or Cilium) that is separate from the legacy
+    /// ApplyOnce CRS.  Using Reconcile strategy ensures that CAPI re-applies
+    /// the CNI manifests whenever the Secret content changes, which is
+    /// required to actually perform a CNI version upgrade.
+    ///
+    /// Called from `upgrade_cluster()` when `auto_upgrade_cni` is enabled.
+    fn apply_cni_cluster_resource_set(
+        &self,
+        py: Python<'_>,
+        cluster: &magnum::Cluster,
+    ) -> PyResult<()> {
+        if addons::cilium::Addon::new(cluster.clone()).enabled() {
+            let addon = addons::cilium::Addon::new(cluster.clone());
+            Python::detach(py, || {
+                get_runtime().block_on(async {
+                    self.client
+                        .create_or_update_namespaced_resource(
+                            &self.namespace,
+                            cluster.cluster_addon_secret(&addon)?,
+                        )
+                        .await?;
+                    self.client
+                        .create_or_update_namespaced_resource(
+                            &self.namespace,
+                            cluster.cluster_addon_cluster_resource_set(&addon)?,
+                        )
+                        .await?;
+                    Ok::<(), PyErr>(())
+                })
+            })?;
+        } else if addons::calico::Addon::new(cluster.clone()).enabled() {
+            let addon = addons::calico::Addon::new(cluster.clone());
+            Python::detach(py, || {
+                get_runtime().block_on(async {
+                    self.client
+                        .create_or_update_namespaced_resource(
+                            &self.namespace,
+                            cluster.cluster_addon_secret(&addon)?,
+                        )
+                        .await?;
+                    self.client
+                        .create_or_update_namespaced_resource(
+                            &self.namespace,
+                            cluster.cluster_addon_cluster_resource_set(&addon)?,
+                        )
+                        .await?;
+                    Ok::<(), PyErr>(())
+                })
+            })?;
+        }
+        Ok(())
     }
 }
 

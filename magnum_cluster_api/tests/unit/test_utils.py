@@ -368,3 +368,28 @@ class TestUtils(base.BaseTestCase):
             context,
             fixed_network,
         )
+
+
+class TestGetKubeTag:
+    def test_returns_cluster_label_kube_tag(self):
+        cluster = mock.MagicMock()
+        cluster.labels = {"kube_tag": "v1.30.0"}
+        assert utils.get_kube_tag(cluster) == "v1.30.0"
+
+    def test_falls_back_to_template_label(self):
+        cluster = mock.MagicMock()
+        cluster.labels = {}
+        cluster.cluster_template.labels = {"kube_tag": "v1.34.5"}
+        assert utils.get_kube_tag(cluster) == "v1.34.5"
+
+    def test_cluster_label_overrides_template(self):
+        cluster = mock.MagicMock()
+        cluster.labels = {"kube_tag": "v1.30.0"}
+        cluster.cluster_template.labels = {"kube_tag": "v1.34.5"}
+        assert utils.get_kube_tag(cluster) == "v1.30.0"
+
+    def test_returns_default_when_neither_has_kube_tag(self):
+        cluster = mock.MagicMock()
+        cluster.labels = {}
+        cluster.cluster_template.labels = {}
+        assert utils.get_kube_tag(cluster) == "v1.25.3"

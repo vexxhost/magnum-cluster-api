@@ -569,3 +569,103 @@ class TestDriver:
                     self.node_group.destroy.assert_called_once()
                 else:
                     self.node_group.destroy.assert_not_called()
+
+
+class TestUpgradeClusterCniLabels:
+    """Unit tests for the auto_upgrade_cni label-copying logic in upgrade_cluster."""
+
+    def _make_nodegroup(self, labels=None):
+        ng = mock.MagicMock()
+        ng.labels = dict(labels or {})
+        ng.save = mock.MagicMock()
+        return ng
+
+    def test_auto_upgrade_cni_on_cluster_copies_calico_tag(
+        self, context, ubuntu_driver
+    ):
+        ng = self._make_nodegroup({"kube_tag": "v1.29.0"})
+        cluster = mock.MagicMock()
+        cluster.labels = {"kube_tag": "v1.29.0", "auto_upgrade_cni": "true"}
+        cluster.nodegroups = [ng]
+
+        new_template = mock.MagicMock()
+        new_template.labels = {"kube_tag": "v1.30.0", "calico_tag": "v3.29.0"}
+
+        ubuntu_driver.upgrade_cluster(
+            context, cluster, new_template, 1, mock.MagicMock()
+        )
+
+        assert cluster.labels["calico_tag"] == "v3.29.0"
+        assert ng.labels["calico_tag"] == "v3.29.0"
+
+    def test_auto_upgrade_cni_on_template_copies_calico_tag(
+        self, context, ubuntu_driver
+    ):
+        ng = self._make_nodegroup({"kube_tag": "v1.29.0"})
+        cluster = mock.MagicMock()
+        cluster.labels = {"kube_tag": "v1.29.0"}
+        cluster.nodegroups = [ng]
+
+        new_template = mock.MagicMock()
+        new_template.labels = {
+            "kube_tag": "v1.30.0",
+            "auto_upgrade_cni": "true",
+            "calico_tag": "v3.29.0",
+        }
+
+        ubuntu_driver.upgrade_cluster(
+            context, cluster, new_template, 1, mock.MagicMock()
+        )
+
+        assert cluster.labels["calico_tag"] == "v3.29.0"
+        assert ng.labels["calico_tag"] == "v3.29.0"
+
+    def test_no_auto_upgrade_cni_does_not_copy_cni_labels(self, context, ubuntu_driver):
+        ng = self._make_nodegroup({"kube_tag": "v1.29.0"})
+        cluster = mock.MagicMock()
+        cluster.labels = {"kube_tag": "v1.29.0"}
+        cluster.nodegroups = [ng]
+
+        new_template = mock.MagicMock()
+        new_template.labels = {"kube_tag": "v1.30.0", "calico_tag": "v3.29.0"}
+
+        ubuntu_driver.upgrade_cluster(
+            context, cluster, new_template, 1, mock.MagicMock()
+        )
+
+        assert "calico_tag" not in cluster.labels
+        assert "calico_tag" not in ng.labels
+
+    def test_auto_upgrade_cni_skips_absent_cni_labels_in_template(
+        self, context, ubuntu_driver
+    ):
+        ng = self._make_nodegroup({"kube_tag": "v1.29.0"})
+        cluster = mock.MagicMock()
+        cluster.labels = {"kube_tag": "v1.29.0", "auto_upgrade_cni": "true"}
+        cluster.nodegroups = [ng]
+
+        new_template = mock.MagicMock()
+        new_template.labels = {"kube_tag": "v1.30.0"}
+
+        ubuntu_driver.upgrade_cluster(
+            context, cluster, new_template, 1, mock.MagicMock()
+        )
+
+        assert "calico_tag" not in cluster.labels
+        assert "cilium_tag" not in cluster.labels
+
+    def test_auto_upgrade_cni_copies_cilium_tag(self, context, ubuntu_driver):
+        ng = self._make_nodegroup({"kube_tag": "v1.29.0"})
+        cluster = mock.MagicMock()
+        cluster.labels = {"kube_tag": "v1.29.0", "auto_upgrade_cni": "true"}
+        cluster.nodegroups = [ng]
+
+        new_template = mock.MagicMock()
+        new_template.labels = {"kube_tag": "v1.30.0", "cilium_tag": "v1.16.0"}
+
+        ubuntu_driver.upgrade_cluster(
+            context, cluster, new_template, 1, mock.MagicMock()
+        )
+
+        assert cluster.labels["cilium_tag"] == "v1.16.0"
+        assert ng.labels["cilium_tag"] == "v1.16.0"
