@@ -28,3 +28,38 @@
         KUBE_TAG: "{{ kube_tag }}"
         NETWORK_DRIVER: "{{ network_driver }}"
         OS_CLOUD: devstack
+      register: integration_result
+      ignore_errors: true
+
+    - name: Install tmate for debugging
+      become: true
+      ansible.builtin.apt:
+        name: tmate
+        state: present
+      when: integration_result is failed
+
+    - name: Start tmate session
+      ansible.builtin.shell: |
+        tmate -S /tmp/tmate.sock new-session -d
+        tmate -S /tmp/tmate.sock wait tmate-ready
+        tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'
+      register: tmate_session
+      when: integration_result is failed
+
+    - name: Print tmate SSH connection string
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          TMATE SESSION: {{ tmate_session.stdout }}
+          ========================================
+      when: integration_result is failed
+
+    - name: Wait for debugging (60 min timeout)
+      ansible.builtin.pause:
+        minutes: 60
+      when: integration_result is failed
+
+    - name: Fail if integration tests failed
+      ansible.builtin.fail:
+        msg: "Integration tests failed"
+      when: integration_result is failed
