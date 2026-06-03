@@ -78,6 +78,11 @@ class TestDriver:
         )
 
         mocker.patch(
+            "magnum_cluster_api.utils.validate_flavor",
+            return_value=True,
+        )
+
+        mocker.patch(
             "magnum_cluster_api.integrations.cinder.get_default_boot_volume_type",
             return_value="nvme",
         )

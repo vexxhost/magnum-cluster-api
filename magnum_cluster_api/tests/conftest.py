@@ -73,8 +73,23 @@ def image():
     }
 
 
+class Flavor:
+    def __init__(self, id, name, disk):
+        self.id = id
+        self.name = name
+        self.disk = disk
+
+
 @pytest.fixture(scope="session")
-def mock_osc(session_mocker, image):
+def flavors():
+    return [
+        Flavor(id=uuidutils.generate_uuid(), name="fake_flavor_with_zero_disk", disk=0),
+        Flavor(id=uuidutils.generate_uuid(), name="fake_flavor_with_disk", disk=100),
+    ]
+
+
+@pytest.fixture(scope="session")
+def mock_osc(session_mocker, image, flavors):
     mock_clients = session_mocker.patch(
         "magnum_cluster_api.clients.OpenStackClients"
     ).return_value
@@ -103,6 +118,10 @@ def mock_osc(session_mocker, image):
     mock_cinder_client = mock_clients.cinder.return_value
     mock_cinder_client.volume_types.default.return_value.name = "__DEFAULT__"
     mock_clients.cinder_region_name.return_value = "RegionOne"
+
+    # Nova
+    mock_nova_client = mock_clients.nova.return_value
+    mock_nova_client.flavors.list.return_value = flavors
 
     # Others
     mock_clients.url_for.return_value = "http://fake_url"
