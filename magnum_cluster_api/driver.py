@@ -84,7 +84,7 @@ class BaseDriver(driver.Driver):
     ):
         osc = clients.get_openstack_api(context)
 
-        credential = osc.keystone().client.application_credentials.create(
+        credential = osc.keystone().client.create_application_credential(
             user=cluster.user_id,
             name=cluster.uuid,
             description=f"Magnum cluster ({cluster.uuid})",
@@ -277,12 +277,15 @@ class BaseDriver(driver.Driver):
             # NOTE(maximmonin): Keystone policy may forbid extraction of project
             #                   application credentials with admin rights.
             try:
-                osc.keystone().client.application_credentials.find(
-                    name=cluster.uuid,
-                    user=cluster.user_id,
-                ).delete()
-            except keystoneauth1.exceptions.http.NotFound:
-                pass
+                app_cred = osc.keystone().client.find_application_credential(
+                    cluster.user_id,
+                    cluster.uuid,
+                )
+                if app_cred:
+                    osc.keystone().client.delete_application_credential(
+                        cluster.user_id,
+                        app_cred,
+                    )
             except keystoneauth1.exceptions.http.Forbidden:
                 pass
 

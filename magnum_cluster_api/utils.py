@@ -334,8 +334,8 @@ def delete_loadbalancers(ctx, cluster):
         octavia_client = user_clients.octavia()
 
         # Get load balancers created for service/ingress
-        lbs = octavia_client.load_balancer_list().get("loadbalancers", [])
-        lbs = [lb for lb in lbs if re.match(pattern, lb["description"])]
+        lbs = [lb for lb in octavia_client.load_balancers()
+               if re.match(pattern, lb.description)]
         deleted = octavia._delete_loadbalancers(
             ctx, lbs, cluster, octavia_admin_client, remove_fip=True
         )
