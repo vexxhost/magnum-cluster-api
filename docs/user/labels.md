@@ -231,6 +231,27 @@ is often accomplished by deploying a driver on each node.
 
    Default value: `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305`
 
+* `kubelet_extra_args`
+
+   Pass extra command-line flags to the kubelet on every control-plane and
+   worker node in the cluster.  These are merged into the
+   `kubeletExtraArgs` map of the underlying `KubeadmControlPlaneTemplate`
+   and `KubeadmConfigTemplate`, in addition to the defaults that the
+   driver always sets (`cloud-provider=external` and `tls-cipher-suites`).
+
+   The label value is a **semicolon-separated** list of `key=value` pairs.
+   Semicolon (rather than comma) is used so that values which themselves
+   contain commas — such as kubelet's `--system-reserved` flag — pass
+   through unchanged.  Keys are kubelet flag names without the leading
+   `--`.  Whitespace around pairs is stripped, and entries without `=` or
+   with an empty key are silently ignored.
+
+   Example:
+
+       kubelet_extra_args=max-pods=150;system-reserved=cpu=100m,memory=128Mi;eviction-hard=memory.available<100Mi
+
+   Default value: `""` (no extra arguments)
+
 * `kube_tag`
 
    The version of Kubernetes to use.

@@ -318,6 +318,77 @@ def get_cluster_label_as_bool(
     return strutils.bool_from_string(value, strict=True)
 
 
+def _parse_kubelet_extra_args(raw: str) -> dict[str, str]:
+    extra_args = {}
+    if not raw:
+        return extra_args
+
+    for pair in raw.split(";"):
+        pair = pair.strip()
+        if not pair or "=" not in pair:
+            continue
+        key, _, value = pair.partition("=")
+        key = key.strip()
+        if not key:
+            continue
+        extra_args[key] = value.strip()
+
+    return extra_args
+
+
+def _render_kubelet_extra_args(extra_args: dict[str, str]) -> str:
+    if not extra_args:
+        return ""
+
+    lines = []
+    for key, value in extra_args.items():
+        encoded = yaml.safe_dump(value, default_style='"').strip()
+        lines.append(f"{key}: {encoded}")
+
+    return "\n" + "\n".join(lines)
+
+
+def get_kubelet_extra_args(cluster: magnum_objects.Cluster) -> str:
+    """Render the user-supplied ``kubelet_extra_args`` cluster label.
+
+    Returns a YAML snippet (with leading newline) that gets spliced into the
+    rendered ``kubeletExtraArgs`` map by the matching ClusterClass patch.
+    Returns an empty string when the label is unset, so the patch only emits
+    the defaults owned by the feature (``cloud-provider`` and
+    ``tls-cipher-suites``).
+
+    The label value is a semicolon-separated list of ``key=value`` pairs, e.g.::
+
+        kubelet_extra_args=max-pods=150;system-reserved=cpu=100m,memory=128Mi
+
+    Semicolon is used as the pair separator (rather than comma) so that
+    values which themselves contain commas — such as kubelet's
+    ``--system-reserved`` flag — pass through unchanged.  Whitespace around
+    pairs is stripped, an empty key is rejected, and entries without ``=``
+    are ignored.  Each pair becomes a line in the rendered YAML snippet,
+    with the value emitted as a double-quoted YAML scalar.
+    """
+    return _render_kubelet_extra_args(
+        _parse_kubelet_extra_args(cluster.labels.get("kubelet_extra_args", ""))
+    )
+
+
+def get_node_group_kubelet_extra_args(
+    cluster: magnum_objects.Cluster, node_group: magnum_objects.NodeGroup
+) -> str:
+    """Render merged cluster and node group ``kubelet_extra_args`` labels.
+
+    Node group arguments are layered on top of the cluster-level label so a
+    worker pool can add new flags or override individual keys without dropping
+    the template-provided defaults for the rest of the cluster.
+    """
+    extra_args = _parse_kubelet_extra_args(cluster.labels.get("kubelet_extra_args", ""))
+    extra_args.update(
+        _parse_kubelet_extra_args(node_group.labels.get("kubelet_extra_args", ""))
+    )
+    return _render_kubelet_extra_args(extra_args)
+
+
 def delete_loadbalancers(ctx, cluster):
     # NOTE(mnaser): This code is duplicated from magnum.common.octavia
     #               since the original code is very Heat-specific.

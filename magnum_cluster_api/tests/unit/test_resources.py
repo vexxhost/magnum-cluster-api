@@ -116,6 +116,16 @@ class TestExistingMutateMachineDeployment:
             {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
         )
 
+        mock_get_default_boot_volume_type = mocker.patch(
+            "magnum_cluster_api.integrations.cinder.get_default_boot_volume_type"
+        )
+        mock_get_default_boot_volume_type.return_value = "fake-volume-type"
+
+        mock_ensure_worker_server_group = mocker.patch(
+            "magnum_cluster_api.utils.ensure_worker_server_group"
+        )
+        mock_ensure_worker_server_group.return_value = "server-group-id"
+
     def _assert_no_mutations(self, md):
         assert md["name"] == self.node_group.name
         assert "class" not in md
@@ -161,3 +171,25 @@ class TestExistingMutateMachineDeployment:
         else:
             assert md["replicas"] == self.node_group.node_count
             assert md["metadata"]["annotations"] == {}
+
+    def test_new_machine_deployment_merges_kubelet_extra_args(self, context):
+        self.cluster.labels["kubelet_extra_args"] = (
+            "max-pods=150;serialize-image-pulls=true"
+        )
+        self.node_group.labels["kubelet_extra_args"] = (
+            "max-pods=200;system-reserved=cpu=100m,memory=128Mi"
+        )
+
+        md = resources.mutate_machine_deployment(context, self.cluster, self.node_group)
+
+        self._assert_common_machine_deployment_values(md)
+        kubelet_extra_args = next(
+            override["value"]
+            for override in md["variables"]["overrides"]
+            if override["name"] == "kubeletExtraArgs"
+        )
+        assert kubelet_extra_args == (
+            '\nmax-pods: "200"'
+            '\nserialize-image-pulls: "true"'
+            '\nsystem-reserved: "cpu=100m,memory=128Mi"'
+        )
