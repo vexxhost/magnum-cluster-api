@@ -54,9 +54,9 @@
           ========================================
       when: integration_result is failed
 
-    - name: Wait for debugging (60 min timeout)
+    - name: Wait for debugging (120 min timeout)
       ansible.builtin.pause:
-        minutes: 60
+        minutes: 120
       when: integration_result is failed
 
     - name: Fail if integration tests failed

@@ -1,3 +1,4 @@
+# Zuul CI pipeline configuration
 - project:
     check:
       jobs:
