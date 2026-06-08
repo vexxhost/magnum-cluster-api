@@ -65,7 +65,7 @@
     run: zuul.d/playbooks/hydrophone/run.yml
     post-run: zuul.d/playbooks/hydrophone/post.yml
     vars:
-      image_url: "https://github.com/vexxhost/capo-image-elements/releases/latest/download/ubuntu-22.04-{{ kube_tag }}.qcow2"
+      image_url: "https://github.com/vexxhost/capo-image-elements/releases/download/2026.05-7/ubuntu-22.04-{{ kube_tag }}.qcow2"
       devstack_localrc:
         MAGNUM_GUEST_IMAGE_URL: "{{ image_url }}"
 
