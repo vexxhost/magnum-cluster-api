@@ -21,6 +21,9 @@
         magnum-cluster-api: https://github.com/vexxhost/magnum-cluster-api
       devstack_localrc:
         DISABLE_AMP_IMAGE_BUILD: true
+        EXTRA_FILES_DOWNLOAD_TIMEOUT: 10
+        EXTRA_FILES_RETRY: 30
+        EXTRA_FILES_RETRY_ERRORS: 500,503,504
         FIXED_RANGE: 10.1.0.0/20
         GIT_BASE: https://github.com
         MANILA_DEFAULT_SHARE_TYPE_EXTRA_SPECS: snapshot_support=True create_share_from_snapshot_support=True
@@ -70,55 +73,58 @@
         MAGNUM_GUEST_IMAGE_URL: "{{ image_url }}"
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.33.11
+    name: magnum-cluster-api-hydrophone-v1.33.12
     parent: magnum-cluster-api-hydrophone
     vars:
-      kube_tag: v1.33.11
+      kube_tag: v1.33.12
+      image_url: https://github.com/vexxhost/capo-image-elements/releases/download/2026.05-7/ubuntu-22.04-v1.33.12.qcow2
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.33.11-calico
-    parent: magnum-cluster-api-hydrophone-v1.33.11
+    name: magnum-cluster-api-hydrophone-v1.33.12-calico
+    parent: magnum-cluster-api-hydrophone-v1.33.12
     vars:
       network_driver: calico
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.33.11-cilium
-    parent: magnum-cluster-api-hydrophone-v1.33.11
+    name: magnum-cluster-api-hydrophone-v1.33.12-cilium
+    parent: magnum-cluster-api-hydrophone-v1.33.12
     vars:
       network_driver: cilium
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.34.7
+    name: magnum-cluster-api-hydrophone-v1.34.8
     parent: magnum-cluster-api-hydrophone
     vars:
-      kube_tag: v1.34.7
+      kube_tag: v1.34.8
+      image_url: https://github.com/vexxhost/capo-image-elements/releases/download/2026.05-7/ubuntu-22.04-v1.34.8.qcow2
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.34.7-calico
-    parent: magnum-cluster-api-hydrophone-v1.34.7
+    name: magnum-cluster-api-hydrophone-v1.34.8-calico
+    parent: magnum-cluster-api-hydrophone-v1.34.8
     vars:
       network_driver: calico
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.34.7-cilium
-    parent: magnum-cluster-api-hydrophone-v1.34.7
+    name: magnum-cluster-api-hydrophone-v1.34.8-cilium
+    parent: magnum-cluster-api-hydrophone-v1.34.8
     vars:
       network_driver: cilium
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.35.4
+    name: magnum-cluster-api-hydrophone-v1.35.5
     parent: magnum-cluster-api-hydrophone
     vars:
-      kube_tag: v1.35.4
+      kube_tag: v1.35.5
+      image_url: https://github.com/vexxhost/capo-image-elements/releases/download/2026.05-7/ubuntu-22.04-v1.35.5.qcow2
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.35.4-calico
-    parent: magnum-cluster-api-hydrophone-v1.35.4
+    name: magnum-cluster-api-hydrophone-v1.35.5-calico
+    parent: magnum-cluster-api-hydrophone-v1.35.5
     vars:
       network_driver: calico
 
 - job:
-    name: magnum-cluster-api-hydrophone-v1.35.4-cilium
-    parent: magnum-cluster-api-hydrophone-v1.35.4
+    name: magnum-cluster-api-hydrophone-v1.35.5-cilium
+    parent: magnum-cluster-api-hydrophone-v1.35.5
     vars:
       network_driver: cilium

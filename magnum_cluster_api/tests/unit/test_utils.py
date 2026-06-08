@@ -13,6 +13,7 @@
 # under the License.
 
 import textwrap
+import types
 from unittest import mock
 
 import pykube
@@ -25,6 +26,59 @@ from oslo_utils import uuidutils
 from oslotest import base
 
 from magnum_cluster_api import exceptions, utils
+
+
+def test_get_server_group_id_with_callable_nova_server_groups(mocker, context):
+    mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
+    mock_cache.get.return_value = None
+    mock_osc = mocker.patch("magnum_cluster_api.clients.get_openstack_api").return_value
+    server_groups = mock.Mock()
+    server_groups.list.return_value = [
+        types.SimpleNamespace(id="server-group-id", name="cluster-name")
+    ]
+    mock_osc.nova.return_value.server_groups = lambda: server_groups
+
+    server_group_id = utils.get_server_group_id(
+        context,
+        "cluster-name",
+        "project-id",
+    )
+
+    assert server_group_id == "server-group-id"
+    server_groups.list.assert_called_once_with(all_projects=False)
+    mock_cache.set.assert_called_once_with(
+        "project-id",
+        "cluster-name",
+        "server-group-id",
+    )
+
+
+def test_ensure_server_group_with_callable_nova_server_groups(mocker, context):
+    mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
+    mock_cache.get.return_value = None
+    mock_osc = mocker.patch("magnum_cluster_api.clients.get_openstack_api").return_value
+    server_groups = mock.Mock()
+    server_groups.list.return_value = []
+    server_groups.create.return_value = types.SimpleNamespace(id="server-group-id")
+    mock_osc.nova.return_value.server_groups = lambda: server_groups
+
+    server_group_id = utils._ensure_server_group(
+        "cluster-name",
+        context,
+        ["soft-anti-affinity"],
+        "project-id",
+    )
+
+    assert server_group_id == "server-group-id"
+    server_groups.create.assert_called_once_with(
+        "cluster-name",
+        "soft-anti-affinity",
+    )
+    mock_cache.set.assert_called_once_with(
+        "project-id",
+        "cluster-name",
+        "server-group-id",
+    )
 
 
 def test_generate_cluster_api_name(mocker):

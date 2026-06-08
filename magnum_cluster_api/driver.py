@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import keystoneauth1  # type: ignore
 from eventlet import tpool  # type: ignore
 from heatclient import exc  # type: ignore
 from magnum import objects as magnum_objects  # type: ignore
@@ -23,6 +22,7 @@ from magnum.common import exception as magnum_exception  # type: ignore
 from magnum.conductor import scale_manager  # type: ignore
 from magnum.drivers.common import driver  # type: ignore
 from magnum.objects import fields  # type: ignore
+from openstack import exceptions as openstack_exceptions  # type: ignore
 
 from magnum_cluster_api import (
     clients,
@@ -84,7 +84,7 @@ class BaseDriver(driver.Driver):
     ):
         osc = clients.get_openstack_api(context)
 
-        credential = osc.keystone().client.application_credentials.create(
+        credential = osc.sdk().identity.create_application_credential(
             user=cluster.user_id,
             name=cluster.uuid,
             description=f"Magnum cluster ({cluster.uuid})",
@@ -277,13 +277,18 @@ class BaseDriver(driver.Driver):
             # NOTE(maximmonin): Keystone policy may forbid extraction of project
             #                   application credentials with admin rights.
             try:
-                osc.keystone().client.application_credentials.find(
-                    name=cluster.uuid,
+                credential = osc.sdk().identity.find_application_credential(
                     user=cluster.user_id,
-                ).delete()
-            except keystoneauth1.exceptions.http.NotFound:
+                    name_or_id=cluster.uuid,
+                )
+                if credential:
+                    osc.sdk().identity.delete_application_credential(
+                        user=cluster.user_id,
+                        application_credential=credential,
+                    )
+            except openstack_exceptions.NotFoundException:
                 pass
-            except keystoneauth1.exceptions.http.Forbidden:
+            except openstack_exceptions.ForbiddenException:
                 pass
 
             resources.CloudConfigSecret(context, self.kube_client, cluster).delete()

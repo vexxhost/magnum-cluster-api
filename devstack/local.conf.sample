@@ -19,6 +19,9 @@ enable_plugin ovn-octavia-provider https://opendev.org/openstack/ovn-octavia-pro
 enable_service octavia o-api o-hk o-da
 OCTAVIA_NODE=api
 DISABLE_AMP_IMAGE_BUILD=True
+EXTRA_FILES_DOWNLOAD_TIMEOUT=10
+EXTRA_FILES_RETRY=30
+EXTRA_FILES_RETRY_ERRORS=500,503,504
 
 enable_plugin manila https://opendev.org/openstack/manila
 MANILA_ENABLED_BACKENDS=generic

@@ -87,9 +87,9 @@ def mock_osc(session_mocker, image):
         return_value=mock_clients,
     )
 
-    # Keystone
-    mock_keystone_client = mock_clients.keystone.return_value.client
-    mock_keystone_client.application_credentials.create.return_value = (
+    # OpenStackSDK
+    mock_identity = mock_clients.sdk.return_value.identity
+    mock_identity.create_application_credential.return_value = (
         openstack.identity.v3.application_credential.ApplicationCredential(
             id="fake_id", secret="fake_secret"
         )

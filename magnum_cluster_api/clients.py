@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import openstack.connection  # type: ignore
 import pykube  # type: ignore
 from magnum.common import clients, exception  # type: ignore
 from manilaclient.v2 import client as manilaclient  # type: ignore
@@ -23,6 +24,16 @@ class OpenStackClients(clients.OpenStackClients):
     def __init__(self, context):
         super(OpenStackClients, self).__init__(context)
         self._manila = None
+        self._sdk = None
+
+    def sdk(self):
+        if self._sdk:
+            return self._sdk
+
+        self._sdk = openstack.connection.Connection(
+            session=self.keystone().session,
+        )
+        return self._sdk
 
     @exception.wrap_keystone_exception
     def manila(self):
