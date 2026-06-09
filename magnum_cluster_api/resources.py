@@ -263,8 +263,8 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
 
         osc = clients.get_openstack_api(self.context)
         if cinder.is_enabled(self.cluster):
-            volume_types = osc.cinder().volume_types.list()
-            default_volume_type = osc.cinder().volume_types.default()
+            volume_types = osc.cinder().types()
+            default_volume_type = osc.cinder().get_type("default")
             data = {
                 **data,
                 **magnum_cluster_api.Driver.get_cinder_csi_cluster_resource_secret_data(
@@ -978,7 +978,7 @@ class Cluster(ClusterBase):
 
     def get_object(self) -> dict:
         osc = clients.get_openstack_api(self.context)
-        default_volume_type = osc.cinder().volume_types.default()
+        default_volume_type = osc.cinder().get_type("default")
         pod_cidr = DEFAULT_POD_CIDR
         if self.cluster.cluster_template.network_driver == "calico":
             pod_cidr = self.cluster.labels.get(
