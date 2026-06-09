@@ -39,12 +39,12 @@ def is_service_enabled(service_type: str) -> bool:
     keystone = osc.keystone()
 
     try:
-        service = keystone.client.services.list(type=service_type)
+        service = list(keystone.client.services(type=service_type))
     except Exception:
         LOG.exception("Failed to list services")
         raise exception.ServicesListFailed()
 
-    if service and service[0].enabled:
+    if service and service[0].is_enabled:
         return True
 
     LOG.info("There is no %s service enabled in the cloud.", service_type)
