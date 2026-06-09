@@ -27,6 +27,8 @@ from oslotest import base
 
 from magnum_cluster_api import exceptions, utils
 
+_ORIGINAL_GET_SERVER_GROUP_ID = utils.get_server_group_id
+
 
 def test_get_server_group_id_with_callable_nova_server_groups(mocker, context):
     mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
@@ -36,9 +38,11 @@ def test_get_server_group_id_with_callable_nova_server_groups(mocker, context):
     server_groups.list.return_value = [
         types.SimpleNamespace(id="server-group-id", name="cluster-name")
     ]
-    mock_osc.nova.return_value.server_groups = lambda: server_groups
+    mock_osc.nova.return_value = types.SimpleNamespace(
+        server_groups=lambda: server_groups
+    )
 
-    server_group_id = utils.get_server_group_id(
+    server_group_id = _ORIGINAL_GET_SERVER_GROUP_ID(
         context,
         "cluster-name",
         "project-id",
@@ -53,14 +57,47 @@ def test_get_server_group_id_with_callable_nova_server_groups(mocker, context):
     )
 
 
+def test_get_server_group_id_with_generator_nova_server_groups(mocker, context):
+    mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
+    mock_cache.get.return_value = None
+    mock_osc = mocker.patch("magnum_cluster_api.clients.get_openstack_api").return_value
+    calls = {}
+
+    def server_groups(**query):
+        calls.update(query)
+        return iter([types.SimpleNamespace(id="server-group-id", name="cluster-name")])
+
+    mock_osc.nova.return_value = types.SimpleNamespace(server_groups=server_groups)
+
+    server_group_id = _ORIGINAL_GET_SERVER_GROUP_ID(
+        context,
+        "cluster-name",
+        "project-id",
+    )
+
+    assert server_group_id == "server-group-id"
+    assert calls == {"all_projects": False}
+    mock_cache.set.assert_called_once_with(
+        "project-id",
+        "cluster-name",
+        "server-group-id",
+    )
+
+
 def test_ensure_server_group_with_callable_nova_server_groups(mocker, context):
     mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
     mock_cache.get.return_value = None
+    mocker.patch(
+        "magnum_cluster_api.utils.get_server_group_id",
+        _ORIGINAL_GET_SERVER_GROUP_ID,
+    )
     mock_osc = mocker.patch("magnum_cluster_api.clients.get_openstack_api").return_value
     server_groups = mock.Mock()
     server_groups.list.return_value = []
     server_groups.create.return_value = types.SimpleNamespace(id="server-group-id")
-    mock_osc.nova.return_value.server_groups = lambda: server_groups
+    mock_osc.nova.return_value = types.SimpleNamespace(
+        server_groups=lambda: server_groups
+    )
 
     server_group_id = utils._ensure_server_group(
         "cluster-name",
@@ -79,6 +116,61 @@ def test_ensure_server_group_with_callable_nova_server_groups(mocker, context):
         "cluster-name",
         "server-group-id",
     )
+
+
+def test_ensure_server_group_with_sdk_nova_server_groups(mocker, context):
+    mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
+    mock_cache.get.return_value = None
+    mocker.patch(
+        "magnum_cluster_api.utils.get_server_group_id",
+        _ORIGINAL_GET_SERVER_GROUP_ID,
+    )
+    mock_osc = mocker.patch("magnum_cluster_api.clients.get_openstack_api").return_value
+    create_server_group = mock.Mock(
+        return_value=types.SimpleNamespace(id="server-group-id")
+    )
+    mock_osc.nova.return_value = types.SimpleNamespace(
+        server_groups=lambda **query: iter([]),
+        create_server_group=create_server_group,
+    )
+
+    server_group_id = utils._ensure_server_group(
+        "cluster-name",
+        context,
+        ["soft-anti-affinity"],
+        "project-id",
+    )
+
+    assert server_group_id == "server-group-id"
+    create_server_group.assert_called_once_with(
+        name="cluster-name",
+        policy="soft-anti-affinity",
+    )
+    mock_cache.set.assert_called_once_with(
+        "project-id",
+        "cluster-name",
+        "server-group-id",
+    )
+
+
+def test_delete_server_group_with_sdk_nova_server_groups(mocker, context):
+    mocker.patch(
+        "magnum_cluster_api.utils.get_server_group_id",
+        return_value="server-group-id",
+    )
+    mock_osc = mocker.patch("magnum_cluster_api.clients.get_openstack_api").return_value
+    delete_server_group = mock.Mock()
+    mock_osc.nova.return_value = types.SimpleNamespace(
+        delete_server_group=delete_server_group
+    )
+
+    utils._delete_server_group(
+        "cluster-name",
+        context,
+        "project-id",
+    )
+
+    delete_server_group.assert_called_once_with("server-group-id")
 
 
 def test_generate_cluster_api_name(mocker):
