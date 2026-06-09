@@ -27,7 +27,6 @@ from magnum import objects as magnum_objects  # type: ignore
 from magnum.api import attr_validator  # type: ignore
 from magnum.common import context, exception, neutron, octavia  # type: ignore
 from magnum.common import utils as magnum_utils
-from novaclient import exceptions as nova_exception  # type: ignore
 from novaclient.v2 import flavors  # type: ignore
 from oslo_config import cfg  # type: ignore
 from oslo_serialization import base64  # type: ignore
