@@ -827,7 +827,7 @@ def mutate_machine_deployment(
                     },
                     {
                         "name": "hardwareDiskBus",
-                        "value": image.get("hw_disk_bus", ""),
+                        "value": image.get("hw_disk_bus") or "",
                     },
                     # NOTE(oleks): Override using MachineDeployment-level variables for node groups
                     {
@@ -1249,7 +1249,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "hardwareDiskBus",
-                            "value": image.get("hw_disk_bus", ""),
+                            "value": image.get("hw_disk_bus") or "",
                         },
                         {
                             "name": "enableDockerVolume",
