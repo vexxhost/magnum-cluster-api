@@ -21,6 +21,14 @@ from magnum_cluster_api import clients, utils
 LOG = logging.getLogger(__name__)
 
 
+def _list_keystone_services(keystone, service_type):
+    services = keystone.client.services
+    if hasattr(services, "list"):
+        return services.list(type=service_type)
+
+    return services(type=service_type)
+
+
 def is_enabled(
     cluster: objects.Cluster,
     label_flag: str,
@@ -39,7 +47,7 @@ def is_service_enabled(service_type: str) -> bool:
     keystone = osc.keystone()
 
     try:
-        service = keystone.client.services.list(type=service_type)
+        service = list(_list_keystone_services(keystone, service_type))
     except Exception:
         LOG.exception("Failed to list services")
         raise exception.ServicesListFailed()
