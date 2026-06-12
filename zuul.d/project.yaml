@@ -7,8 +7,6 @@
         - magnum-cluster-api-hydrophone-v1.34.8-cilium
         - magnum-cluster-api-hydrophone-v1.35.5-calico
         - magnum-cluster-api-hydrophone-v1.35.5-cilium
-        - magnum-cluster-api-hydrophone-v1.36.1-calico
-        - magnum-cluster-api-hydrophone-v1.36.1-cilium
     gate:
       jobs:
         - magnum-cluster-api-hydrophone-v1.33.12-calico
@@ -17,5 +15,3 @@
         - magnum-cluster-api-hydrophone-v1.34.8-cilium
         - magnum-cluster-api-hydrophone-v1.35.5-calico
         - magnum-cluster-api-hydrophone-v1.35.5-cilium
-        - magnum-cluster-api-hydrophone-v1.36.1-calico
-        - magnum-cluster-api-hydrophone-v1.36.1-cilium
