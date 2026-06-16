@@ -219,7 +219,8 @@ class BaseDriver(driver.Driver):
 
             capi_cluster.reload()
             status_map = {
-                c["type"]: c["status"] for c in capi_cluster.obj["status"]["conditions"]
+                c["type"]: c["status"]
+                for c in capi_cluster.obj.get("status", {}).get("conditions", [])
             }
 
             for condition in ("ControlPlaneReady", "InfrastructureReady", "Ready"):

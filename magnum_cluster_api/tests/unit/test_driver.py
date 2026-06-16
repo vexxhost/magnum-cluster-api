@@ -403,6 +403,65 @@ class TestDriver:
 
             ubuntu_driver.create_nodegroup(context, self.cluster, self.node_group)
 
+    def test_update_cluster_status_without_capi_conditions(
+        self,
+        context,
+        ubuntu_driver,
+        requests_mock,
+        mock_openstack_connection,
+        mock_rust_driver,
+        mocker,
+    ):
+        self.cluster.status = fields.ClusterStatus.CREATE_IN_PROGRESS
+        self.cluster.refresh = mocker.MagicMock()
+        ubuntu_driver._kube_client = mocker.MagicMock()
+        get_status_reason = mocker.patch.object(
+            ubuntu_driver,
+            "_get_cluster_status_reason",
+            return_value="Cluster conditions are not available yet",
+        )
+        mocker.patch.object(
+            ubuntu_driver,
+            "update_cluster_control_plane_status",
+            return_value=mocker.MagicMock(
+                status=fields.ClusterStatus.CREATE_IN_PROGRESS
+            ),
+        )
+        mocker.patch.object(ubuntu_driver, "update_nodegroups_status", return_value=[])
+
+        with requests_mock as rsps:
+            rsps.add(
+                responses.GET,
+                re.compile(
+                    f"http://localhost/apis/{objects.Cluster.version}/namespaces/magnum-system/{objects.Cluster.endpoint}/\\w+"  # noqa
+                ),
+                json={
+                    "metadata": {
+                        "name": self.cluster.stack_id,
+                        "namespace": "magnum-system",
+                    },
+                    "spec": {
+                        "topology": {
+                            "version": "v1.34.3",
+                        },
+                        "controlPlaneEndpoint": {
+                            "host": "192.0.2.10",
+                            "port": 6443,
+                        },
+                    },
+                    "status": {
+                        "phase": "Provisioned",
+                    },
+                },
+            )
+
+            ubuntu_driver.update_cluster_status(context, self.cluster)
+
+        assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
+        assert self.cluster.status_reason == "Cluster conditions are not available yet"
+        get_status_reason.assert_called_once()
+        self.cluster.save.assert_called_once()
+
     def test_update_nodegroup(self, context, ubuntu_driver, requests_mock):
         with requests_mock as rsps:
             self.setup_node_group_tests(
