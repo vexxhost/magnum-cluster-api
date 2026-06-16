@@ -393,6 +393,12 @@ class TestDriver:
         ubuntu_driver.rust_driver = mock.MagicMock()
         self.cluster.stack_id = "kube-test"
         self.cluster.labels = {"audit_log_enabled": "true"}
+        self.cluster.labels_skipped = {
+            "fixed_subnet_cidr": "192.168.24.0/24",
+            "kube_tag": "v1.34.3",
+            "octavia_provider": "ovn",
+        }
+        self.cluster.cluster_template.labels = {}
 
         delete_loadbalancers = mocker.patch(
             "magnum_cluster_api.utils.delete_loadbalancers"
@@ -406,7 +412,9 @@ class TestDriver:
 
         assert self.cluster.labels == {
             "audit_log_enabled": "true",
-            "kube_tag": self.cluster.cluster_template.labels["kube_tag"],
+            "fixed_subnet_cidr": "192.168.24.0/24",
+            "kube_tag": "v1.34.3",
+            "octavia_provider": "ovn",
         }
         delete_loadbalancers.assert_called_once_with(context, self.cluster)
         ubuntu_driver.rust_driver.delete_cluster.assert_called_once_with(self.cluster)

@@ -58,8 +58,14 @@ class BaseDriver(driver.Driver):
 
     @staticmethod
     def _merge_cluster_template_labels(cluster: magnum_objects.Cluster) -> None:
-        for key, value in cluster.cluster_template.labels.items():
-            cluster.labels.setdefault(key, value)
+        label_sources = [
+            getattr(cluster, "labels_skipped", {}) or {},
+            getattr(getattr(cluster, "cluster_template", None), "labels", {}) or {},
+        ]
+
+        for labels in label_sources:
+            for key, value in labels.items():
+                cluster.labels.setdefault(key, value)
 
     def create_cluster(
         self, context, cluster: magnum_objects.Cluster, cluster_create_timeout: int
