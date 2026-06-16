@@ -368,3 +368,103 @@ class TestUtils(base.BaseTestCase):
             context,
             fixed_network,
         )
+
+
+class TestKubeApplyPatch:
+    """Verify kube_apply_patch strips read-only/optimistic-concurrency fields
+    from the request body before sending the Server-Side Apply.
+
+    The apiserver only runs the optimistic-concurrency check (returning 409
+    "the object has been modified") when ``metadata.resourceVersion`` is
+    present in the body. Because pykube serialises the full ``resource.obj``
+    (which carries the GET response's ``resourceVersion``, ``uid`` and
+    ``generation``), the helper must strip those keys so SSA receives a
+    pure declaration of desired state.
+    """
+
+    def test_strips_resource_version_uid_generation_from_body(self, mocker):
+        captured = {}
+
+        def fake_patch(**kwargs):
+            captured["data"] = kwargs.get("data")
+            resp = mock.Mock()
+            resp.json.return_value = {
+                "metadata": {
+                    "name": "thing",
+                    "resourceVersion": "999",
+                    "uid": "uid-server",
+                    "generation": 7,
+                },
+            }
+            resp.status_code = 200
+            resp.ok = True
+            return resp
+
+        resource = mock.Mock()
+        resource.obj = {
+            "apiVersion": "cluster.x-k8s.io/v1beta1",
+            "kind": "Cluster",
+            "metadata": {
+                "name": "thing",
+                "namespace": "magnum-system",
+                "resourceVersion": "12345",
+                "uid": "abc-123",
+                "generation": 4,
+            },
+            "spec": {
+                "topology": {
+                    "workers": {"machineDeployments": []},
+                },
+            },
+        }
+        resource.api.patch.side_effect = fake_patch
+        resource.api.api_kwargs = lambda **kw: kw
+        resource.api_kwargs = lambda **kw: kw
+        resource.api.raise_for_status = mock.Mock()
+
+        utils.kube_apply_patch(resource)
+
+        sent = jsonutils.loads(captured["data"])
+
+        # Read-only / optimistic-concurrency fields must NOT leak into the
+        # SSA body, otherwise the apiserver runs its OCC check and returns 409
+        # under any concurrent write.
+        assert "resourceVersion" not in sent["metadata"]
+        assert "uid" not in sent["metadata"]
+        assert "generation" not in sent["metadata"]
+
+        # Caller-supplied state must survive untouched.
+        assert sent["metadata"]["name"] == "thing"
+        assert sent["metadata"]["namespace"] == "magnum-system"
+        assert sent["spec"]["topology"]["workers"]["machineDeployments"] == []
+
+    def test_does_not_mutate_caller_resource_obj(self, mocker):
+        """Stripping is performed on a copy; resource.obj must be untouched."""
+        resource = mock.Mock()
+        resource.obj = {
+            "metadata": {
+                "name": "thing",
+                "resourceVersion": "12345",
+                "uid": "abc-123",
+                "generation": 4,
+            },
+            "spec": {},
+        }
+        before = {
+            "resourceVersion": resource.obj["metadata"]["resourceVersion"],
+            "uid": resource.obj["metadata"]["uid"],
+            "generation": resource.obj["metadata"]["generation"],
+        }
+
+        resp = mock.Mock()
+        resp.json.return_value = {"metadata": {"name": "thing"}}
+        resp.ok = True
+        resource.api.patch.return_value = resp
+        resource.api_kwargs = lambda **kw: kw
+        resource.api.raise_for_status = mock.Mock()
+
+        utils.kube_apply_patch(resource)
+
+        assert resource.obj["metadata"]["resourceVersion"] == before["resourceVersion"]
+        assert resource.obj["metadata"]["uid"] == before["uid"]
+        assert resource.obj["metadata"]["generation"] == before["generation"]
