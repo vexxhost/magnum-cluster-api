@@ -383,6 +383,36 @@ class TestDriver:
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
 
+    def test_delete_cluster_merges_template_labels(
+        self,
+        context,
+        ubuntu_driver,
+        mocker,
+    ):
+        ubuntu_driver._kube_client = mock.MagicMock()
+        ubuntu_driver.rust_driver = mock.MagicMock()
+        self.cluster.stack_id = "kube-test"
+        self.cluster.labels = {"audit_log_enabled": "true"}
+
+        delete_loadbalancers = mocker.patch(
+            "magnum_cluster_api.utils.delete_loadbalancers"
+        )
+        cluster_resource = mocker.patch("magnum_cluster_api.resources.Cluster")
+        autoscaler_release = mocker.patch(
+            "magnum_cluster_api.resources.ClusterAutoscalerHelmRelease"
+        )
+
+        ubuntu_driver.delete_cluster(context, self.cluster)
+
+        assert self.cluster.labels == {
+            "audit_log_enabled": "true",
+            "kube_tag": self.cluster.cluster_template.labels["kube_tag"],
+        }
+        delete_loadbalancers.assert_called_once_with(context, self.cluster)
+        ubuntu_driver.rust_driver.delete_cluster.assert_called_once_with(self.cluster)
+        cluster_resource.return_value.delete.assert_called_once_with()
+        autoscaler_release.return_value.delete.assert_called_once_with()
+
     def setup_node_group_tests(self, rsps, before, after=None, machine_sets=False):
         rsps.add(
             self._response_for_cluster_with_machine_deployments(*before),

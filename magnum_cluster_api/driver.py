@@ -453,6 +453,8 @@ class BaseDriver(driver.Driver):
         """
         if cluster.stack_id is None:
             return
+        self._merge_cluster_template_labels(cluster)
+
         # NOTE(mnaser): This should be removed when this is fixed:
         #
         #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/issues/842
