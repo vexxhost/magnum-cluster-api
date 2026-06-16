@@ -56,6 +56,11 @@ class BaseDriver(driver.Driver):
             self._kube_client = tpool.Proxy(magnum_cluster_api.KubeClient())
         return self._kube_client
 
+    @staticmethod
+    def _merge_cluster_template_labels(cluster: magnum_objects.Cluster) -> None:
+        for key, value in cluster.cluster_template.labels.items():
+            cluster.labels.setdefault(key, value)
+
     def create_cluster(
         self, context, cluster: magnum_objects.Cluster, cluster_create_timeout: int
     ):
@@ -70,6 +75,7 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
+        self._merge_cluster_template_labels(cluster)
         self.rust_driver.create_cluster(cluster)
 
         utils.validate_cluster(context, cluster)

@@ -245,7 +245,12 @@ class TestDriver:
         mock_rust_driver,
     ):
         ubuntu_driver._kube_client = mock.MagicMock()
+        ubuntu_driver.rust_driver = mock.MagicMock()
+        ubuntu_driver.rust_driver.resolve_immutable_fields.side_effect = (
+            lambda _name, _labels, variables: variables
+        )
         mock_openstack_connection.identity.create_application_credential.reset_mock()
+        self.cluster.labels = {"audit_log_enabled": "true"}
 
         with requests_mock as rsps:
             rsps.add(
@@ -283,6 +288,14 @@ class TestDriver:
             )
 
             ubuntu_driver.create_cluster(context, self.cluster, 60)
+
+            assert self.cluster.labels == {
+                "audit_log_enabled": "true",
+                "kube_tag": self.cluster.cluster_template.labels["kube_tag"],
+            }
+            ubuntu_driver.rust_driver.create_cluster.assert_called_once_with(
+                self.cluster
+            )
 
             assert ubuntu_driver._kube_client.create_or_update.call_args_list == [
                 mock.call(
