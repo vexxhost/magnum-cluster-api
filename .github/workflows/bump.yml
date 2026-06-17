@@ -21,6 +21,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           token: ${{ secrets.VEXXHOST_BOT_PAT }}
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
       - run: ./hack/bump/kubernetes.sh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -33,8 +34,8 @@ jobs:
           title: "chore(deps): update kubernetes"
           body: |
             ## Automated Kubernetes Version Update
-            This PR updates the Kubernetes versions in the CI workflow to the latest maintained versions.
-            Source: https://endoflife.date/kubernetes
+            This PR updates the Kubernetes versions in Zuul CI to the latest `capo-image-elements` release and pins generated image URLs to that release.
+            Source: https://github.com/vexxhost/capo-image-elements/releases
           delete-branch: true
           branch: bump/kubernetes
 
