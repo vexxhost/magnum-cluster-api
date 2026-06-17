@@ -87,9 +87,8 @@ def mock_osc(session_mocker, image):
         return_value=mock_clients,
     )
 
-    # Keystone
-    mock_keystone_client = mock_clients.keystone.return_value.client
-    mock_keystone_client.application_credentials.create.return_value = (
+    # OpenStack client compatibility helpers
+    mock_clients.create_application_credential.return_value = (
         openstack.identity.v3.application_credential.ApplicationCredential(
             id="fake_id", secret="fake_secret"
         )
@@ -100,8 +99,7 @@ def mock_osc(session_mocker, image):
     mock_glance_client.images.get.return_value = image
 
     # Cinder
-    mock_cinder_client = mock_clients.cinder.return_value
-    mock_cinder_client.volume_types.default.return_value.name = "__DEFAULT__"
+    mock_clients.get_default_volume_type.return_value.name = "__DEFAULT__"
     mock_clients.cinder_region_name.return_value = "RegionOne"
 
     # Others

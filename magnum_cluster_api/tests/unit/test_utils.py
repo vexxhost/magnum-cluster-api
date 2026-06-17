@@ -13,6 +13,7 @@
 # under the License.
 
 import textwrap
+import types
 from unittest import mock
 
 import pykube
@@ -20,6 +21,7 @@ import pytest
 import responses
 from magnum.common import exception
 from magnum.tests.unit.objects import utils as magnum_test_utils  # type: ignore
+from openstack.load_balancer.v2 import load_balancer as sdk_load_balancer
 from oslo_serialization import base64, jsonutils
 from oslo_utils import uuidutils
 from oslotest import base
@@ -109,7 +111,7 @@ class TestGenerateCloudControllerManagerConfig:
             tls-insecure=false
 
             [LoadBalancer]
-            lb-provider=amphora
+            lb-provider=amphorav2
             lb-method=ROUND_ROBIN
             create-monitor=True
             """
@@ -379,3 +381,188 @@ class TestUtils(base.BaseTestCase):
             context,
             fixed_network,
         )
+
+
+def test_delete_loadbalancers(mocker):
+    ctx = mocker.Mock()
+    cluster = mocker.Mock()
+    cluster.uuid = "cluster-id"
+
+    load_balancer = {
+        "id": "lb-id",
+        "description": "Kubernetes service from cluster cluster-id",
+        "provisioning_status": "ACTIVE",
+        "vip_port_id": "port-id",
+    }
+    unrelated_load_balancer = {
+        "id": "other-lb-id",
+        "description": "unrelated",
+        "provisioning_status": "ACTIVE",
+        "vip_port_id": "other-port-id",
+    }
+    octavia_admin_client = mocker.Mock()
+    octavia_client = mocker.Mock()
+    admin_clients = mocker.Mock()
+    admin_clients.octavia.return_value = octavia_admin_client
+    user_clients = mocker.Mock()
+    user_clients.octavia.return_value = octavia_client
+    user_clients.list_load_balancers.return_value = [
+        load_balancer,
+        unrelated_load_balancer,
+    ]
+    mocker.patch("magnum_cluster_api.utils.context.get_admin_context")
+    mocker.patch(
+        "magnum_cluster_api.clients.get_openstack_api",
+        side_effect=[admin_clients, user_clients],
+    )
+    delete_loadbalancers = mocker.patch(
+        "magnum_cluster_api.utils.octavia._delete_loadbalancers",
+        return_value={"lb-id"},
+    )
+    wait_for_lb_deleted = mocker.patch(
+        "magnum_cluster_api.utils.octavia.wait_for_lb_deleted"
+    )
+
+    utils.delete_loadbalancers(ctx, cluster)
+
+    delete_loadbalancers.assert_called_once_with(
+        ctx,
+        [load_balancer],
+        cluster,
+        octavia_admin_client,
+        remove_fip=True,
+    )
+    wait_for_lb_deleted.assert_called_once_with(octavia_client, {"lb-id"})
+
+
+def test_delete_loadbalancers_supports_sdk_load_balancer_proxy(mocker):
+    ctx = mocker.Mock()
+    cluster = mocker.Mock()
+    cluster.uuid = "cluster-id"
+    load_balancer = types.SimpleNamespace(
+        id="lb-id",
+        description="Kubernetes service from cluster cluster-id",
+        provisioning_status="ACTIVE",
+        vip_port_id="port-id",
+    )
+    unrelated_load_balancer = types.SimpleNamespace(
+        id="other-lb-id",
+        description="unrelated",
+        provisioning_status="ACTIVE",
+        vip_port_id="other-port-id",
+    )
+    octavia_client = types.SimpleNamespace(
+        load_balancers=mocker.Mock(
+            side_effect=[[load_balancer, unrelated_load_balancer], []]
+        ),
+        delete_load_balancer=mocker.Mock(),
+    )
+    admin_clients = mocker.Mock()
+    user_clients = mocker.Mock()
+    user_clients.octavia.return_value = octavia_client
+    user_clients.list_load_balancers.side_effect = [
+        [load_balancer, unrelated_load_balancer]
+    ]
+    mocker.patch("magnum_cluster_api.utils.context.get_admin_context")
+    mocker.patch(
+        "magnum_cluster_api.clients.get_openstack_api",
+        side_effect=[admin_clients, user_clients],
+    )
+    delete_floatingip = mocker.patch(
+        "magnum_cluster_api.utils.neutron.delete_floatingip"
+    )
+
+    utils.delete_loadbalancers(ctx, cluster)
+
+    octavia_client.delete_load_balancer.assert_called_once_with(
+        load_balancer,
+        ignore_missing=True,
+        cascade=True,
+    )
+    delete_floatingip.assert_called_once_with(ctx, "port-id", cluster)
+
+
+def test_delete_loadbalancers_skips_pending_sdk_load_balancers(mocker):
+    ctx = mocker.Mock()
+    cluster = mocker.Mock()
+    cluster.uuid = "cluster-id"
+    load_balancer = types.SimpleNamespace(
+        id="lb-id",
+        description="Kubernetes service from cluster cluster-id",
+        provisioning_status="PENDING_DELETE",
+        vip_port_id="port-id",
+    )
+    octavia_client = types.SimpleNamespace(
+        load_balancers=mocker.Mock(return_value=[load_balancer]),
+        delete_load_balancer=mocker.Mock(),
+    )
+    admin_clients = mocker.Mock()
+    user_clients = mocker.Mock()
+    user_clients.octavia.return_value = octavia_client
+    user_clients.list_load_balancers.return_value = [load_balancer]
+    mocker.patch("magnum_cluster_api.utils.context.get_admin_context")
+    mocker.patch(
+        "magnum_cluster_api.clients.get_openstack_api",
+        side_effect=[admin_clients, user_clients],
+    )
+    delete_floatingip = mocker.patch(
+        "magnum_cluster_api.utils.neutron.delete_floatingip"
+    )
+
+    utils.delete_loadbalancers(ctx, cluster)
+
+    octavia_client.delete_load_balancer.assert_not_called()
+    delete_floatingip.assert_not_called()
+
+
+def test_delete_loadbalancers_supports_generic_sdk_proxy(mocker):
+    ctx = mocker.Mock()
+    cluster = mocker.Mock()
+    cluster.uuid = "cluster-id"
+    load_balancer = types.SimpleNamespace(
+        id="lb-id",
+        description="Kubernetes service from cluster cluster-id",
+        provisioning_status="ACTIVE",
+        vip_port_id="port-id",
+    )
+    octavia_client = types.SimpleNamespace(
+        _list=mocker.Mock(side_effect=[[load_balancer], []]),
+        _delete=mocker.Mock(),
+    )
+    admin_clients = mocker.Mock()
+    user_clients = mocker.Mock()
+    user_clients.octavia.return_value = octavia_client
+    user_clients.list_load_balancers.return_value = [load_balancer]
+    mocker.patch("magnum_cluster_api.utils.context.get_admin_context")
+    mocker.patch(
+        "magnum_cluster_api.clients.get_openstack_api",
+        side_effect=[admin_clients, user_clients],
+    )
+    delete_floatingip = mocker.patch(
+        "magnum_cluster_api.utils.neutron.delete_floatingip"
+    )
+
+    utils.delete_loadbalancers(ctx, cluster)
+
+    octavia_client._delete.assert_called_once_with(
+        sdk_load_balancer.LoadBalancer,
+        load_balancer,
+        ignore_missing=True,
+    )
+    assert load_balancer.cascade is True
+    delete_floatingip.assert_called_once_with(ctx, "port-id", cluster)
+
+
+def test_wait_for_sdk_loadbalancers_deleted_times_out(mocker):
+    lb = types.SimpleNamespace(id="lb-id", provisioning_status="ACTIVE")
+    octavia_client = types.SimpleNamespace(
+        load_balancers=mocker.Mock(return_value=[lb])
+    )
+    mocker.patch("magnum_cluster_api.utils.CONF.cluster.pre_delete_lb_timeout", 1)
+    mocker.patch("magnum_cluster_api.utils.time.time", side_effect=[0, 0, 2])
+    sleep = mocker.patch("magnum_cluster_api.utils.time.sleep")
+
+    with pytest.raises(Exception, match="Timeout waiting for the load balancers"):
+        utils._wait_for_sdk_loadbalancers_deleted(octavia_client, {"lb-id"})
+
+    sleep.assert_called_once_with(1)

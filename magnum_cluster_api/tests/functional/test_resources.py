@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import string
+import types
 
 import fixtures  # type: ignore
 import shortuuid
@@ -53,11 +54,13 @@ class ResourceBaseTestCase(base.BaseTestCase):
 
         self.context = magnum_context.RequestContext(is_admin=False)
 
-        self.mock_cinder = self.useFixture(
-            fixtures.MockPatch("magnum_cluster_api.clients.OpenStackClients.cinder")
+        self.mock_get_default_volume_type = self.useFixture(
+            fixtures.MockPatch(
+                "magnum_cluster_api.clients.OpenStackClients.get_default_volume_type"
+            )
         ).mock
-        self.mock_cinder.return_value.volume_types.default.return_value.name = (
-            "fake-boot-volume-type"
+        self.mock_get_default_volume_type.return_value = types.SimpleNamespace(
+            name="fake-boot-volume-type"
         )
 
         self.useFixture(NodeGroups(self.context))
