@@ -98,7 +98,15 @@ class OpenStackClients(clients.OpenStackClients):
             return volume_types.default()
 
         response = cinder.get("/types/default")
-        return types.SimpleNamespace(**response.json()["volume_type"])
+        if getattr(response, "status_code", 200) < 400:
+            volume_type = response.json().get("volume_type")
+            if volume_type is not None:
+                return types.SimpleNamespace(**volume_type)
+
+        if getattr(response, "status_code", 200) not in (404, 406):
+            response.raise_for_status()
+
+        return next(iter(cinder.types()), None)
 
     def list_flavors(self):
         nova = self.nova()

@@ -18,6 +18,7 @@ import json
 import re
 import string
 import textwrap
+import time
 import typing
 
 import pykube  # type: ignore
@@ -28,6 +29,9 @@ from magnum.api import attr_validator  # type: ignore
 from magnum.common import context, exception, neutron, octavia  # type: ignore
 from magnum.common import utils as magnum_utils
 from novaclient.v2 import flavors  # type: ignore
+from openstack.load_balancer.v2 import (
+    load_balancer as sdk_load_balancer,  # type: ignore
+)
 from oslo_config import cfg  # type: ignore
 from oslo_serialization import base64  # type: ignore
 from oslo_utils import strutils, uuidutils  # type: ignore
@@ -338,23 +342,92 @@ def delete_loadbalancers(ctx, cluster):
             for lb in user_clients.list_load_balancers()
             if re.match(pattern, _get_loadbalancer_description(lb))
         ]
-        deleted = octavia._delete_loadbalancers(
-            ctx, lbs, cluster, octavia_admin_client, remove_fip=True
-        )
+        if hasattr(octavia_client, "load_balancer_list"):
+            deleted = octavia._delete_loadbalancers(
+                ctx, lbs, cluster, octavia_admin_client, remove_fip=True
+            )
+        else:
+            deleted = _delete_sdk_loadbalancers(ctx, lbs, cluster, octavia_client)
         candidates.update(deleted)
 
         if not candidates:
             return
 
-        octavia.wait_for_lb_deleted(octavia_client, candidates)
+        if hasattr(octavia_client, "load_balancer_list"):
+            octavia.wait_for_lb_deleted(octavia_client, candidates)
+        else:
+            _wait_for_sdk_loadbalancers_deleted(octavia_client, candidates)
     except Exception as e:
         raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
 
 
-def _get_loadbalancer_description(lb):
+def _get_loadbalancer_attr(lb, name):
     if isinstance(lb, dict):
-        return lb.get("description", "")
-    return lb.description or ""
+        return lb.get(name)
+    return getattr(lb, name, None)
+
+
+def _get_loadbalancer_description(lb):
+    return _get_loadbalancer_attr(lb, "description") or ""
+
+
+def _delete_sdk_loadbalancers(ctx, lbs, cluster, octavia_client):
+    candidates = set()
+
+    for lb in lbs:
+        status = _get_loadbalancer_attr(lb, "provisioning_status")
+        if status in ("PENDING_DELETE", "DELETED"):
+            continue
+
+        lb_id = _get_loadbalancer_attr(lb, "id")
+        if hasattr(octavia_client, "delete_load_balancer"):
+            octavia_client.delete_load_balancer(
+                lb,
+                ignore_missing=True,
+                cascade=True,
+            )
+        else:
+            lb.cascade = True
+            octavia_client._delete(
+                sdk_load_balancer.LoadBalancer,
+                lb,
+                ignore_missing=True,
+            )
+        candidates.add(lb_id)
+
+        vip_port_id = _get_loadbalancer_attr(lb, "vip_port_id")
+        if vip_port_id:
+            neutron.delete_floatingip(ctx, vip_port_id, cluster)
+
+    return candidates
+
+
+def _sdk_loadbalancers(octavia_client):
+    if hasattr(octavia_client, "load_balancers"):
+        return octavia_client.load_balancers()
+
+    return octavia_client._list(sdk_load_balancer.LoadBalancer)
+
+
+def _wait_for_sdk_loadbalancers_deleted(octavia_client, deleted_lbs):
+    timeout = CONF.cluster.pre_delete_lb_timeout
+    start_time = time.time()
+
+    while True:
+        lb_ids = {
+            _get_loadbalancer_attr(lb, "id")
+            for lb in _sdk_loadbalancers(octavia_client)
+            if _get_loadbalancer_attr(lb, "provisioning_status") != "DELETED"
+        }
+        if not (deleted_lbs & lb_ids):
+            break
+
+        if time.time() - start_time > timeout:
+            raise Exception(
+                "Timeout waiting for the load balancers %s to be deleted." % deleted_lbs
+            )
+
+        time.sleep(1)
 
 
 def format_event_message(event: pykube.Event):
