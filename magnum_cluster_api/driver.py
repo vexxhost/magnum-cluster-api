@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import keystoneauth1  # type: ignore
 from eventlet import tpool  # type: ignore
 from heatclient import exc  # type: ignore
 from magnum import objects as magnum_objects  # type: ignore
@@ -84,8 +83,8 @@ class BaseDriver(driver.Driver):
     ):
         osc = clients.get_openstack_api(context)
 
-        credential = osc.keystone().client.application_credentials.create(
-            user=cluster.user_id,
+        credential = osc.create_application_credential(
+            user_id=cluster.user_id,
             name=cluster.uuid,
             description=f"Magnum cluster ({cluster.uuid})",
         )
@@ -276,15 +275,10 @@ class BaseDriver(driver.Driver):
             #               to make sure CAPI doesn't lose access to OpenStack.
             # NOTE(maximmonin): Keystone policy may forbid extraction of project
             #                   application credentials with admin rights.
-            try:
-                osc.keystone().client.application_credentials.find(
-                    name=cluster.uuid,
-                    user=cluster.user_id,
-                ).delete()
-            except keystoneauth1.exceptions.http.NotFound:
-                pass
-            except keystoneauth1.exceptions.http.Forbidden:
-                pass
+            osc.delete_application_credential(
+                user_id=cluster.user_id,
+                name=cluster.uuid,
+            )
 
             resources.CloudConfigSecret(context, self.kube_client, cluster).delete()
             resources.ApiCertificateAuthoritySecret(
