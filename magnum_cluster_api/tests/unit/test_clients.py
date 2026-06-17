@@ -164,7 +164,8 @@ def test_list_volume_types_and_default_legacy(mocker):
 def test_list_volume_types_and_default_sdk(mocker):
     volume_type = types.SimpleNamespace(name="fast")
     response = types.SimpleNamespace(
-        json=mocker.Mock(return_value={"volume_type": {"name": "__DEFAULT__"}})
+        status_code=200,
+        json=mocker.Mock(return_value={"volume_type": {"name": "__DEFAULT__"}}),
     )
     cinder = types.SimpleNamespace(
         types=mocker.Mock(return_value=[volume_type]),
@@ -176,6 +177,42 @@ def test_list_volume_types_and_default_sdk(mocker):
     assert osc.get_default_volume_type().name == "__DEFAULT__"
     cinder.types.assert_called_once_with()
     cinder.get.assert_called_once_with("/types/default")
+
+
+def test_default_volume_type_falls_back_for_sdk_not_found(mocker):
+    volume_type = types.SimpleNamespace(name="fallback")
+    response = types.SimpleNamespace(
+        status_code=404,
+        raise_for_status=mocker.Mock(),
+    )
+    cinder = types.SimpleNamespace(
+        types=mocker.Mock(return_value=[volume_type]),
+        get=mocker.Mock(return_value=response),
+    )
+    osc = make_openstack_clients(mocker, cinder=cinder)
+
+    assert osc.get_default_volume_type() is volume_type
+    response.raise_for_status.assert_not_called()
+
+
+def test_default_volume_type_raises_unexpected_sdk_response(mocker):
+    response = types.SimpleNamespace(
+        status_code=500,
+        raise_for_status=mocker.Mock(side_effect=RuntimeError("boom")),
+    )
+    cinder = types.SimpleNamespace(
+        types=mocker.Mock(),
+        get=mocker.Mock(return_value=response),
+    )
+    osc = make_openstack_clients(mocker, cinder=cinder)
+
+    try:
+        osc.get_default_volume_type()
+    except RuntimeError as exc:
+        assert str(exc) == "boom"
+    else:
+        raise AssertionError("expected RuntimeError")
+    response.raise_for_status.assert_called_once_with()
 
 
 def test_flavors_legacy_and_sdk(mocker):
