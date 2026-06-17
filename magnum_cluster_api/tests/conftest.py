@@ -13,6 +13,7 @@
 # under the License.
 
 import os
+import types
 from datetime import datetime, timedelta
 from unittest import mock
 
@@ -76,36 +77,32 @@ def image():
 @pytest.fixture(scope="session")
 def mock_osc(session_mocker, image):
     mock_clients = session_mocker.patch(
-        "magnum_cluster_api.clients.OpenStackClients"
+        "magnum_cluster_api.clients.get_openstack_api"
     ).return_value
-
-    # NOTE(mnaser): Since there are reference in the Magnum code to the
-    #               OpenStackClients, we need to make sure we mock it
-    #               in the Magnum code as well.
     session_mocker.patch(
-        "magnum.common.clients.OpenStackClients",
-        return_value=mock_clients,
+        "magnum_cluster_api.clients.get_cinder_region_name",
+        return_value="RegionOne",
     )
 
-    # Keystone
-    mock_keystone_client = mock_clients.keystone.return_value.client
-    mock_keystone_client.application_credentials.create.return_value = (
+    mock_clients.identity.create_application_credential.return_value = (
         openstack.identity.v3.application_credential.ApplicationCredential(
             id="fake_id", secret="fake_secret"
         )
     )
 
     # Glance
-    mock_glance_client = mock_clients.glance.return_value
-    mock_glance_client.images.get.return_value = image
+    mock_clients.image.find_image.return_value = types.SimpleNamespace(**image)
 
     # Cinder
-    mock_cinder_client = mock_clients.cinder.return_value
-    mock_cinder_client.volume_types.default.return_value.name = "__DEFAULT__"
-    mock_clients.cinder_region_name.return_value = "RegionOne"
+    mock_clients.block_storage.types.return_value = iter([])
+    volume_type_response = mock_clients.block_storage.get.return_value
+    volume_type_response.status_code = 200
+    volume_type_response.json.return_value = {
+        "volume_type": {"id": "fake-volume-type", "name": "__DEFAULT__"}
+    }
 
     # Others
-    mock_clients.url_for.return_value = "http://fake_url"
+    mock_clients.endpoint_for.return_value = "http://fake_url"
 
     return mock_clients
 

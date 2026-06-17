@@ -24,7 +24,7 @@ import pkg_resources
 import pykube  # type: ignore
 import yaml
 from magnum import objects as magnum_objects  # type: ignore
-from magnum.common import context, neutron  # type: ignore
+from magnum.common import context  # type: ignore
 from magnum.common import utils as magnum_utils  # type: ignore
 from magnum.common.cert_manager import cert_manager  # type: ignore
 from magnum.common.x509 import operations as x509  # type: ignore
@@ -263,8 +263,8 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
 
         osc = clients.get_openstack_api(self.context)
         if cinder.is_enabled(self.cluster):
-            volume_types = osc.cinder().volume_types.list()
-            default_volume_type = osc.cinder().volume_types.default()
+            volume_types = list(osc.block_storage.types())
+            default_volume_type = cinder.get_default_volume_type(osc)
             data = {
                 **data,
                 **magnum_cluster_api.Driver.get_cinder_csi_cluster_resource_secret_data(
@@ -300,7 +300,7 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
             }
 
         if manila.is_enabled(self.cluster):
-            share_types = osc.manila().share_types.list()
+            share_types = manila.get_share_types(osc)
             share_network_id = self.cluster.labels.get("manila_csi_share_network_id")
             data = {
                 **data,
@@ -463,7 +463,7 @@ class LegacyClusterResourcesSecret(ClusterBase):
 
         osc = clients.get_openstack_api(self.context)
         if utils.get_cluster_label_as_bool(self.cluster, "keystone_auth_enabled", True):
-            auth_url = osc.url_for(
+            auth_url = osc.endpoint_for(
                 service_type="identity",
                 interface="public",
             )
@@ -643,7 +643,7 @@ class CloudConfigSecret(ClusterBase):
         super().__init__(api, cluster)
         self.context = context
         osc = clients.get_openstack_api(self.context)
-        self.auth_url = osc.url_for(
+        self.auth_url = osc.endpoint_for(
             service_type="identity",
             interface=CONF.capi_client.endpoint_type.replace("URL", ""),
         )
@@ -827,7 +827,7 @@ def mutate_machine_deployment(
                     },
                     {
                         "name": "hardwareDiskBus",
-                        "value": image.get("hw_disk_bus", ""),
+                        "value": image.get("hw_disk_bus") or "",
                     },
                     # NOTE(oleks): Override using MachineDeployment-level variables for node groups
                     {
@@ -978,7 +978,7 @@ class Cluster(ClusterBase):
 
     def get_object(self) -> dict:
         osc = clients.get_openstack_api(self.context)
-        default_volume_type = osc.cinder().volume_types.default()
+        default_volume_type = cinder.get_default_volume_type(osc)
         pod_cidr = DEFAULT_POD_CIDR
         if self.cluster.cluster_template.network_driver == "calico":
             pod_cidr = self.cluster.labels.get(
@@ -1188,7 +1188,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "externalNetworkId",
-                            "value": neutron.get_external_network_id(
+                            "value": utils.get_external_network_id(
                                 self.context,
                                 self.cluster.cluster_template.external_network_id,
                             ),
@@ -1202,7 +1202,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "fixedSubnetId",
-                            "value": neutron.get_fixed_subnet_id(
+                            "value": utils.get_fixed_subnet_id(
                                 self.context, self.cluster.fixed_subnet
                             )
                             or "",
@@ -1249,7 +1249,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "hardwareDiskBus",
-                            "value": image.get("hw_disk_bus", ""),
+                            "value": image.get("hw_disk_bus") or "",
                         },
                         {
                             "name": "enableDockerVolume",

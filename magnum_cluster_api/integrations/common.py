@@ -36,16 +36,19 @@ def is_service_enabled(service_type: str) -> bool:
 
     admin_context = context.make_admin_context()
     osc = clients.get_openstack_api(admin_context)
-    keystone = osc.keystone()
 
     try:
-        service = keystone.client.services.list(type=service_type)
+        service = list(osc.identity.services(type=service_type))
     except Exception:
         LOG.exception("Failed to list services")
         raise exception.ServicesListFailed()
 
-    if service and service[0].enabled:
-        return True
+    if service:
+        enabled = getattr(service[0], "is_enabled", None)
+        if enabled is None:
+            enabled = getattr(service[0], "enabled", False)
+        if enabled:
+            return True
 
     LOG.info("There is no %s service enabled in the cloud.", service_type)
     return False

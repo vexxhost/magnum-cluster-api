@@ -12,6 +12,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import types
+
 from magnum import objects
 
 from magnum_cluster_api.integrations import common
@@ -21,3 +23,12 @@ def is_enabled(cluster: objects.Cluster) -> bool:
     return common.is_enabled(
         cluster, "manila_csi_enabled", "sharev2"
     ) or common.is_enabled(cluster, "manila_csi_enabled", "share")
+
+
+def get_share_types(osc):
+    response = osc.shared_file_system.get("/types")
+    response.raise_for_status()
+    return [
+        types.SimpleNamespace(**share_type)
+        for share_type in response.json().get("share_types", [])
+    ]

@@ -14,6 +14,7 @@
 
 from magnum import objects
 from magnum.common import exception
+from openstack.block_storage.v3 import type as volume_type  # type: ignore
 from oslo_config import cfg
 
 from magnum_cluster_api import clients
@@ -42,9 +43,23 @@ def get_default_boot_volume_type(context):
         return CONF.cinder.default_boot_volume_type
 
     osc = clients.get_openstack_api(context)
-    default_volume_type = osc.cinder().volume_types.default()
+    default_volume_type = get_default_volume_type(osc)
 
     if default_volume_type is None:
         raise exception.VolumeTypeNotFound()
 
     return default_volume_type.name
+
+
+def get_default_volume_type(osc):
+    response = osc.block_storage.get("/types/default")
+
+    if response.status_code < 400:
+        data = response.json().get("volume_type")
+        if data is not None:
+            return volume_type.Type(**data)
+
+    if response.status_code not in (404, 406):
+        response.raise_for_status()
+
+    return next(osc.block_storage.types(), None)

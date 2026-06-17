@@ -18,17 +18,16 @@ import json
 import re
 import string
 import textwrap
+import time
 import typing
 
 import pykube  # type: ignore
 import shortuuid
 import yaml
 from magnum import objects as magnum_objects  # type: ignore
-from magnum.api import attr_validator  # type: ignore
-from magnum.common import context, exception, neutron, octavia  # type: ignore
+from magnum.common import context, exception  # type: ignore
 from magnum.common import utils as magnum_utils
-from novaclient import exceptions as nova_exception  # type: ignore
-from novaclient.v2 import flavors  # type: ignore
+from openstack import exceptions as sdk_exceptions  # type: ignore
 from oslo_config import cfg  # type: ignore
 from oslo_serialization import base64  # type: ignore
 from oslo_utils import strutils, uuidutils  # type: ignore
@@ -51,6 +50,105 @@ CONF = cfg.CONF
 
 
 g_server_group_cache = ServerGroupCache()
+
+
+def _sdk_resource_value(resource, key, default=None):
+    value = getattr(resource, key, None)
+    if value is not None:
+        return value
+
+    if isinstance(resource, dict):
+        return resource.get(key, default)
+
+    try:
+        return resource[key]
+    except (KeyError, TypeError):
+        pass
+
+    properties = getattr(resource, "properties", None)
+    if hasattr(properties, "get"):
+        return properties.get(key, default)
+
+    return default
+
+
+def _network_is_external(network) -> bool:
+    value = _sdk_resource_value(network, "is_router_external", None)
+    if value is None:
+        value = _sdk_resource_value(network, "router:external", False)
+    return bool(value)
+
+
+def _network_matches_external(network, external: bool) -> bool:
+    return _network_is_external(network) is external
+
+
+def _raise_network_not_found(network, external):
+    if external:
+        raise exception.ExternalNetworkNotFound(network=network)
+    raise exception.FixedNetworkNotFound(network=network)
+
+
+def _get_network_value(ctx, network, source, target, external):
+    osc = clients.get_openstack_api(ctx)
+
+    if source == "id":
+        try:
+            sdk_network = osc.network.get_network(network)
+        except (sdk_exceptions.NotFoundException, sdk_exceptions.ResourceNotFound):
+            _raise_network_not_found(network, external)
+
+        if not _network_matches_external(sdk_network, external):
+            _raise_network_not_found(network, external)
+
+        return _sdk_resource_value(sdk_network, target)
+
+    networks = [
+        sdk_network
+        for sdk_network in osc.network.networks(name=network)
+        if _sdk_resource_value(sdk_network, source) == network
+        and _network_matches_external(sdk_network, external)
+    ]
+
+    if len(networks) == 0:
+        _raise_network_not_found(network, external)
+
+    if len(networks) > 1:
+        raise exception.Conflict(
+            "Multiple networks exist with same name '%s'. Please use the "
+            "network ID instead." % network
+        )
+
+    return _sdk_resource_value(networks[0], target)
+
+
+def _get_subnet_value(ctx, subnet, source, target):
+    osc = clients.get_openstack_api(ctx)
+
+    if source == "id":
+        try:
+            sdk_subnet = osc.network.get_subnet(subnet)
+        except (sdk_exceptions.NotFoundException, sdk_exceptions.ResourceNotFound):
+            raise exception.FixedSubnetNotFound(subnet=subnet)
+
+        return _sdk_resource_value(sdk_subnet, target)
+
+    subnets = [
+        sdk_subnet
+        for sdk_subnet in osc.network.subnets(name=subnet)
+        if _sdk_resource_value(sdk_subnet, source) == subnet
+    ]
+
+    if len(subnets) == 0:
+        raise exception.FixedSubnetNotFound(subnet=subnet)
+
+    if len(subnets) > 1:
+        raise exception.Conflict(
+            "Multiple subnets exist with same name '%s'. Please use the "
+            "subnet ID instead." % subnet
+        )
+
+    return _sdk_resource_value(subnets[0], target)
 
 
 def get_cluster_api_cloud_config_secret_name(cluster: magnum_objects.Cluster) -> str:
@@ -136,7 +234,7 @@ def generate_cloud_controller_manager_config(
     return textwrap.dedent(
         f"""\
         [Global]
-        auth-url={osc.url_for(service_type="identity", interface="public")}
+        auth-url={osc.endpoint_for(service_type="identity", interface="public")}
         region={cloud_config["clouds"]["default"]["region_name"]}
         application-credential-id={cloud_config["clouds"]["default"]["auth"]["application_credential_id"]}
         application-credential-secret={cloud_config["clouds"]["default"]["auth"]["application_credential_secret"]}
@@ -166,7 +264,7 @@ def generate_manila_csi_cloud_config(
     cloud_config = yaml.safe_load(clouds_yaml)
 
     config = {
-        "os-authURL": osc.url_for(service_type="identity", interface="public"),
+        "os-authURL": osc.endpoint_for(service_type="identity", interface="public"),
         "os-region": cloud_config["clouds"]["default"]["region_name"],
         "os-applicationCredentialID": cloud_config["clouds"]["default"]["auth"][
             "application_credential_id"
@@ -330,23 +428,89 @@ def delete_loadbalancers(ctx, cluster):
     candidates = set()
 
     try:
-        octavia_admin_client = admin_clients.octavia()
-        octavia_client = user_clients.octavia()
+        octavia_admin_client = admin_clients.load_balancer
+        octavia_client = user_clients.load_balancer
 
         # Get load balancers created for service/ingress
-        lbs = octavia_client.load_balancer_list().get("loadbalancers", [])
-        lbs = [lb for lb in lbs if re.match(pattern, lb["description"])]
-        deleted = octavia._delete_loadbalancers(
-            ctx, lbs, cluster, octavia_admin_client, remove_fip=True
+        lbs = [
+            lb
+            for lb in octavia_client.load_balancers()
+            if re.match(pattern, lb.description)
+        ]
+        deleted = _delete_loadbalancers(
+            ctx,
+            lbs,
+            cluster,
+            octavia_admin_client,
+            remove_fip=True,
         )
         candidates.update(deleted)
 
         if not candidates:
             return
 
-        octavia.wait_for_lb_deleted(octavia_client, candidates)
+        _wait_for_loadbalancers_deleted(octavia_client, candidates)
     except Exception as e:
         raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
+
+
+def _delete_loadbalancers(
+    ctx,
+    lbs,
+    cluster,
+    octavia_client,
+    remove_fip=False,
+    cascade=True,
+):
+    candidates = set()
+
+    for lb in lbs:
+        if lb.provisioning_status not in ["PENDING_DELETE", "DELETED"]:
+            octavia_client.delete_load_balancer(lb.id, cascade=cascade)
+            candidates.add(lb.id)
+
+            if remove_fip:
+                _delete_floatingip(ctx, lb.vip_port_id, cluster)
+
+    return candidates
+
+
+def _delete_floatingip(ctx, port_id, cluster):
+    """Delete Kubernetes-created floating IPs associated with a load balancer."""
+    pattern = r"Floating IP for Kubernetes .+ from cluster %s$" % cluster.uuid
+    osc = clients.get_openstack_api(ctx)
+
+    try:
+        for floating_ip in osc.network.ips(port_id=port_id):
+            description = _sdk_resource_value(floating_ip, "description", "")
+            floating_ip_id = _sdk_resource_value(floating_ip, "id")
+
+            if re.match(pattern, description):
+                osc.network.delete_ip(floating_ip_id, ignore_missing=True)
+    except Exception as e:
+        raise exception.PreDeletionFailed(cluster_uuid=cluster.uuid, msg=str(e))
+
+
+def _wait_for_loadbalancers_deleted(octavia_client, deleted_lbs):
+    timeout = CONF.cluster.pre_delete_lb_timeout
+    start_time = time.time()
+
+    while True:
+        lb_ids = {
+            lb.id
+            for lb in octavia_client.load_balancers()
+            if lb.provisioning_status != "DELETED"
+        }
+        if not (deleted_lbs & lb_ids):
+            break
+
+        if (time.time() - timeout) > start_time:
+            raise Exception(
+                "Timeout waiting for the load balancers "
+                "%s to be deleted." % deleted_lbs
+            )
+
+        time.sleep(1)
 
 
 def format_event_message(event: pykube.Event):
@@ -356,25 +520,40 @@ def format_event_message(event: pykube.Event):
     )
 
 
-def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
+def lookup_flavor(cli, flavor: str):
     """Lookup a flavor either by name or id."""
 
     if flavor is None:
         return
-    flavor_list = cli.nova().flavors.list()
+    flavor_list = list(cli.compute.flavors())
     for f in flavor_list:
         if f.name == flavor or f.id == flavor:
             return f
     raise exception.FlavorNotFound(flavor=flavor)
 
 
-def lookup_image(cli: clients.OpenStackClients, image_ref: str) -> dict:
+def lookup_image(cli, image_ref: str) -> dict:
     """
     Get image object from image ref
 
     :param image_ref: Image id or name
     """
-    return attr_validator.validate_image(cli, image_ref)
+    try:
+        image = cli.image.find_image(image_ref, ignore_missing=False)
+    except (sdk_exceptions.NotFoundException, exception.ResourceNotFound):
+        raise exception.ImageNotFound(image_id=image_ref)
+    except sdk_exceptions.DuplicateResource:
+        raise exception.Conflict(
+            "Multiple images exist with same name '%s'. "
+            "Please use the image ID instead." % image_ref
+        )
+    except sdk_exceptions.ForbiddenException:
+        raise exception.ImageNotAuthorized(image_id=image_ref)
+
+    if not image.os_distro:
+        raise exception.OSDistroFieldNotFound(image_id=image_ref)
+
+    return image
 
 
 def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluster):
@@ -389,7 +568,7 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
     # Check if fixed_network exists
     if cluster.fixed_network:
         if uuidutils.is_uuid_like(cluster.fixed_network):
-            neutron.get_network(
+            _get_network_value(
                 ctx,
                 cluster.fixed_network,
                 source="id",
@@ -397,7 +576,7 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
                 external=False,
             )
         else:
-            neutron.get_network(
+            _get_network_value(
                 ctx,
                 cluster.fixed_network,
                 source="name",
@@ -408,9 +587,9 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
     # Check if fixed_subnet exists
     if cluster.fixed_subnet:
         if uuidutils.is_uuid_like(cluster.fixed_subnet):
-            neutron.get_subnet(ctx, cluster.fixed_subnet, source="id", target="name")
+            _get_subnet_value(ctx, cluster.fixed_subnet, source="id", target="name")
         else:
-            neutron.get_subnet(ctx, cluster.fixed_subnet, source="name", target="id")
+            _get_subnet_value(ctx, cluster.fixed_subnet, source="name", target="id")
 
 
 def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
@@ -507,7 +686,7 @@ def get_server_group_id(
 
     # Check if the server group exists already
     osc = clients.get_openstack_api(ctx)
-    server_groups = osc.nova().server_groups.list(all_projects=ctx.is_admin)
+    server_groups = osc.compute.server_groups(all_projects=ctx.is_admin)
     server_group_id_list = []
     for sg in server_groups:
         if sg.name == name:
@@ -627,7 +806,7 @@ def _ensure_server_group(
         policies = DEFAULT_SERVER_GROUP_POLICIES
 
     # NOTE(oleks): Requires API microversion 2.15 or later for soft-affinity and soft-anti-affinity policy rules.
-    server_group = osc.nova().server_groups.create(name=name, policies=policies)
+    server_group = osc.compute.create_server_group(name=name, policies=policies)
     g_server_group_cache.set(project_id, name, server_group.id)
     return server_group.id
 
@@ -643,15 +822,31 @@ def _delete_server_group(
 
     osc = clients.get_openstack_api(ctx)
     try:
-        osc.nova().server_groups.delete(server_group_id)
-    except nova_exception.NotFound:
+        osc.compute.delete_server_group(server_group_id, ignore_missing=True)
+    except (sdk_exceptions.NotFoundException, sdk_exceptions.ResourceNotFound):
         return
 
 
 def get_fixed_network_id(context, network):
     if network and not uuidutils.is_uuid_like(network):
-        return neutron.get_network(
+        return _get_network_value(
             context, network, source="name", target="id", external=False
         )
     else:
         return network
+
+
+def get_external_network_id(context, network):
+    if network and uuidutils.is_uuid_like(network):
+        return network
+
+    return _get_network_value(
+        context, network, source="name", target="id", external=True
+    )
+
+
+def get_fixed_subnet_id(context, subnet):
+    if subnet and not uuidutils.is_uuid_like(subnet):
+        return _get_subnet_value(context, subnet, source="name", target="id")
+
+    return subnet
