@@ -299,6 +299,17 @@ class TestGenerateAptProxyConfig:
         assert config == ""
 
 
+@pytest.mark.parametrize("cluster_distro", ["debian", "debian-13"])
+def test_get_operating_system_for_debian(context, cluster_distro):
+    cluster = magnum_test_utils.get_test_cluster(context, labels={})
+    cluster.cluster_template = magnum_test_utils.get_test_cluster_template(
+        context,
+        cluster_distro=cluster_distro,
+    )
+
+    assert utils.get_operating_system(cluster) == "debian"
+
+
 class TestUtils(base.BaseTestCase):
     """Test case for utils."""
 

@@ -749,6 +749,14 @@ class UbuntuFocalDriver(UbuntuDriver):
         ]
 
 
+class DebianDriver(BaseDriver):
+    @property
+    def provides(self):
+        return [
+            {"server_type": "vm", "os": "debian", "coe": "kubernetes"},
+        ]
+
+
 class FlatcarDriver(BaseDriver):
     @property
     def provides(self):
