@@ -29,8 +29,8 @@ kube = { version = "3.0.0", features = ["runtime", "derive", "http-proxy"] }
 log = "0.4.27"
 env_logger = { version = "0.11.6", default-features = false, features = ["auto-color", "humantime"] }
 maplit = "1.0.2"
-pyo3-async-runtimes = { version = "0.28.0", features = ["tokio-runtime"] }
-pythonize = "0.28.0"
+pyo3-async-runtimes = { version = "0.29.0", features = ["tokio-runtime"] }
+pythonize = "0.29.0"
 schemars = "1.0"
 semver = "1.0.26"
 serde = "1.0.218"
