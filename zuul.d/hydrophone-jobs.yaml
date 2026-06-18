@@ -10,6 +10,8 @@
         - magnum-cluster-api-hydrophone-v1.35.5-cilium
         - magnum-cluster-api-hydrophone-v1.36.1-calico
         - magnum-cluster-api-hydrophone-v1.36.1-cilium
+        - magnum-cluster-api-hydrophone-ubuntu-24.04-v1.36.1-calico
+        - magnum-cluster-api-hydrophone-ubuntu-24.04-v1.36.1-cilium
     gate:
       jobs:
         - magnum-cluster-api-hydrophone-v1.33.12-calico
@@ -20,6 +22,8 @@
         - magnum-cluster-api-hydrophone-v1.35.5-cilium
         - magnum-cluster-api-hydrophone-v1.36.1-calico
         - magnum-cluster-api-hydrophone-v1.36.1-cilium
+        - magnum-cluster-api-hydrophone-ubuntu-24.04-v1.36.1-calico
+        - magnum-cluster-api-hydrophone-ubuntu-24.04-v1.36.1-cilium
 - job:
     name: magnum-cluster-api-hydrophone
     parent: magnum-cluster-api-devstack
@@ -28,7 +32,8 @@
     run: zuul.d/playbooks/hydrophone/run.yml
     post-run: zuul.d/playbooks/hydrophone/post.yml
     vars:
-      image_url: https://github.com/vexxhost/capo-image-elements/releases/download/{{ image_release }}/ubuntu-22.04-{{ kube_tag }}.qcow2
+      image_prefix: ubuntu-22.04
+      image_url: https://github.com/vexxhost/capo-image-elements/releases/download/{{ image_release }}/{{ image_prefix }}-{{ kube_tag }}.qcow2
       devstack_localrc:
         MAGNUM_GUEST_IMAGE_URL: '{{ image_url }}'
 - job:
@@ -93,5 +98,20 @@
 - job:
     name: magnum-cluster-api-hydrophone-v1.36.1-cilium
     parent: magnum-cluster-api-hydrophone-v1.36.1
+    vars:
+      network_driver: cilium
+- job:
+    name: magnum-cluster-api-hydrophone-ubuntu-24.04-v1.36.1
+    parent: magnum-cluster-api-hydrophone-v1.36.1
+    vars:
+      image_prefix: ubuntu-24.04
+- job:
+    name: magnum-cluster-api-hydrophone-ubuntu-24.04-v1.36.1-calico
+    parent: magnum-cluster-api-hydrophone-ubuntu-24.04-v1.36.1
+    vars:
+      network_driver: calico
+- job:
+    name: magnum-cluster-api-hydrophone-ubuntu-24.04-v1.36.1-cilium
+    parent: magnum-cluster-api-hydrophone-ubuntu-24.04-v1.36.1
     vars:
       network_driver: cilium
