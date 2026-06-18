@@ -84,9 +84,7 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     assert len(mds) == 2
 
 
-def test_cluster_control_plane_labels_match_cloud_controller_manager(
-    context, mocker
-):
+def test_cluster_control_plane_labels_match_cloud_controller_manager(context, mocker):
     cluster = mocker.Mock()
     cluster.cluster_template = mocker.Mock(
         network_driver="calico",
