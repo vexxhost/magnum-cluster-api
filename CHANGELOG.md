@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.37.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.6...v0.37.0) (2026-06-18)
+
+
+### Features
+
+* **driver:** add debian support ([#1072](https://github.com/vexxhost/magnum-cluster-api/issues/1072)) ([dfb02e9](https://github.com/vexxhost/magnum-cluster-api/commit/dfb02e9b8931b815a8ab8970d442d967e589b3b6))
+
+
+### Bug Fixes
+
+* **#790:** enable kube http-proxy feature for Rust driver ([#998](https://github.com/vexxhost/magnum-cluster-api/issues/998)) ([171e1ae](https://github.com/vexxhost/magnum-cluster-api/commit/171e1aeeb260c1758a1aab42d7c328ac3dfb1475)), closes [#790](https://github.com/vexxhost/magnum-cluster-api/issues/790)
+* **clients:** support legacy and SDK OpenStack clients ([#1071](https://github.com/vexxhost/magnum-cluster-api/issues/1071)) ([f2c1c00](https://github.com/vexxhost/magnum-cluster-api/commit/f2c1c00fb93bf4972ba0892b1a4cb5bb6333a785))
+* correct arg type of cluster object ([#423](https://github.com/vexxhost/magnum-cluster-api/issues/423)) ([9378220](https://github.com/vexxhost/magnum-cluster-api/commit/9378220832f91622a982635bde44f533b05bc2df))
+* use string values for bool-ish cluster labels ([#1064](https://github.com/vexxhost/magnum-cluster-api/issues/1064)) ([234afbd](https://github.com/vexxhost/magnum-cluster-api/commit/234afbd5966f180b3e81224bc5dfdb1a5103d433)), closes [#1063](https://github.com/vexxhost/magnum-cluster-api/issues/1063)
+
 ## [0.36.6](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.5...v0.36.6) (2026-04-21)
 
 
