@@ -471,3 +471,7 @@ def _check_platform_support(
         return True
     except subprocess.CalledProcessError:
         return False
+
+
+if __name__ == "__main__":
+    main()

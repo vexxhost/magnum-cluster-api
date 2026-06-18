@@ -16,7 +16,15 @@ RUN <<EOF
     sleep 0.1
   done
 
-  uv run magnum-cluster-api-image-loader --insecure --repository localhost:5000
+  uv run --no-project \
+    --with click \
+    --with diskcache \
+    --with platformdirs \
+    --with requests \
+    --with pyyaml \
+    -m magnum_cluster_api.cmd.image_loader \
+    --insecure \
+    --repository localhost:5000
 EOF
 
 FROM registry-base AS registry
