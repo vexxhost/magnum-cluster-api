@@ -51,7 +51,7 @@ dashboard, Terraform, Ansible or the Magnum API directly.
     export IMAGE_FAMILY=ubuntu-24.04
     for version in v1.33.12 v1.34.8 v1.35.5 v1.36.1; do \
       IMAGE_NAME="${IMAGE_FAMILY}-${version}"; \
-      curl -LO https://github.com/vexxhost/capo-image-elements/releases/latest/download/${IMAGE_NAME}.qcow2; \
+      curl -LO https://github.com/vexxhost/capo-image-elements/releases/download/2026.05-7/${IMAGE_NAME}.qcow2; \
       openstack image create ${IMAGE_NAME} --disk-format=qcow2 --container-format=bare --property os_distro=${OS_DISTRO} --file=${IMAGE_NAME}.qcow2; \
       openstack coe cluster template create \
           --image $(openstack image show ${IMAGE_NAME} -c id -f value) \

@@ -24,8 +24,7 @@ from github import Auth, Github
 from github.GithubException import GithubException, UnknownObjectException
 
 RELEASE_REPOSITORY = "vexxhost/capo-image-elements"
-IMAGE_PREFIX = "ubuntu-22.04"
-CANARY_IMAGE_PREFIXES = ("ubuntu-24.04",)
+IMAGE_PREFIX = "ubuntu-24.04"
 
 BASE_JOB_NAME = "magnum-cluster-api-hydrophone"
 PROJECT_TEMPLATE_NAME = f"{BASE_JOB_NAME}-jobs"
@@ -49,7 +48,6 @@ class Release:
     name: str
     image_prefix: str
     versions: tuple[str, ...]
-    assets: tuple[str, ...]
 
 
 class IndentedDumper(yaml.SafeDumper):
@@ -79,7 +77,6 @@ def latest_release(repository: str, image_prefix: str) -> Release:
             name=release.name or tag_name,
             image_prefix=image_prefix,
             versions=versions_from_assets(tag_name, assets, image_prefix),
-            assets=tuple(assets),
         )
     except UnknownObjectException as exc:
         raise ScriptError(
@@ -159,21 +156,12 @@ def hydrophone_jobs(release: Release) -> list[dict[str, Any]]:
         for version in release.versions
         for network_driver in NETWORK_DRIVERS
     ]
-    latest_version = release.versions[-1]
-    canary_prefixes = [
-        prefix for prefix in CANARY_IMAGE_PREFIXES if prefix != release.image_prefix
-    ]
-    canary_jobs = [
-        f"{BASE_JOB_NAME}-{prefix}-v{latest_version}-{network_driver}"
-        for prefix in canary_prefixes
-        for network_driver in NETWORK_DRIVERS
-    ]
     jobs = [
         {
             "project-template": {
                 "name": PROJECT_TEMPLATE_NAME,
-                "check": {"jobs": list(generated_jobs) + list(canary_jobs)},
-                "gate": {"jobs": list(generated_jobs) + list(canary_jobs)},
+                "check": {"jobs": list(generated_jobs)},
+                "gate": {"jobs": list(generated_jobs)},
             }
         },
         {
@@ -215,44 +203,6 @@ def hydrophone_jobs(release: Release) -> list[dict[str, Any]]:
                     "job": {
                         "name": f"{VERSIONED_JOB_PREFIX}{version}-{network_driver}",
                         "parent": f"{VERSIONED_JOB_PREFIX}{version}",
-                        "vars": {
-                            "network_driver": network_driver,
-                        },
-                    }
-                }
-            )
-
-    for prefix in canary_prefixes:
-        canary_versions = set(
-            versions_from_assets(release.tag_name, list(release.assets), prefix)
-        )
-        if latest_version not in canary_versions:
-            raise ScriptError(
-                f"Release {release.tag_name} has no {prefix} image "
-                f"for v{latest_version}"
-            )
-
-        jobs.append(
-            {
-                "job": {
-                    "name": f"{BASE_JOB_NAME}-{prefix}-v{latest_version}",
-                    "parent": f"{VERSIONED_JOB_PREFIX}{latest_version}",
-                    "vars": {
-                        "image_prefix": prefix,
-                    },
-                }
-            }
-        )
-
-        for network_driver in NETWORK_DRIVERS:
-            jobs.append(
-                {
-                    "job": {
-                        "name": (
-                            f"{BASE_JOB_NAME}-{prefix}-v{latest_version}-"
-                            f"{network_driver}"
-                        ),
-                        "parent": f"{BASE_JOB_NAME}-{prefix}-v{latest_version}",
                         "vars": {
                             "network_driver": network_driver,
                         },
@@ -351,7 +301,7 @@ class KubernetesBumpTests(unittest.TestCase):
         ]
 
         self.assertEqual(
-            versions_from_assets("2026.05-7", assets, "ubuntu-22.04"),
+            versions_from_assets("2026.05-7", assets, IMAGE_PREFIX),
             ("1.33.12", "1.34.8"),
         )
 
@@ -360,11 +310,11 @@ class KubernetesBumpTests(unittest.TestCase):
     ) -> None:
         assets = [
             "debian-13-v1.33.12.qcow2",
-            "ubuntu-22.04-v1.34.8.qcow2",
+            "ubuntu-24.04-v1.34.8.qcow2",
         ]
 
         with self.assertRaisesRegex(ScriptError, "v1.33.12"):
-            versions_from_assets("2026.05-7", assets, "ubuntu-22.04")
+            versions_from_assets("2026.05-7", assets, IMAGE_PREFIX)
 
     def test_hydrophone_jobs_include_template_base_release_and_network_jobs(
         self,
@@ -372,12 +322,8 @@ class KubernetesBumpTests(unittest.TestCase):
         release = Release(
             tag_name="2026.05-7",
             name="2026.05-7",
-            image_prefix="ubuntu-22.04",
+            image_prefix=IMAGE_PREFIX,
             versions=("1.33.12",),
-            assets=(
-                "ubuntu-22.04-v1.33.12.qcow2",
-                "ubuntu-24.04-v1.33.12.qcow2",
-            ),
         )
         document = hydrophone_jobs(release)
 
@@ -388,8 +334,6 @@ class KubernetesBumpTests(unittest.TestCase):
             [
                 "magnum-cluster-api-hydrophone-v1.33.12-calico",
                 "magnum-cluster-api-hydrophone-v1.33.12-cilium",
-                "magnum-cluster-api-hydrophone-ubuntu-24.04-v1.33.12-calico",
-                "magnum-cluster-api-hydrophone-ubuntu-24.04-v1.33.12-cilium",
             ],
         )
         self.assertEqual(template["gate"]["jobs"], template["check"]["jobs"])
@@ -405,20 +349,16 @@ class KubernetesBumpTests(unittest.TestCase):
         self.assertEqual(job_name(document[1]), BASE_JOB_NAME)
         self.assertIn("{{ image_release }}", document[1]["job"]["vars"]["image_url"])
         self.assertIn("{{ image_prefix }}", document[1]["job"]["vars"]["image_url"])
-        self.assertEqual(document[1]["job"]["vars"]["image_prefix"], "ubuntu-22.04")
+        self.assertEqual(document[1]["job"]["vars"]["image_prefix"], IMAGE_PREFIX)
         self.assertEqual(
             [job_name(entry) for entry in document[2:]],
             [
                 "magnum-cluster-api-hydrophone-v1.33.12",
                 "magnum-cluster-api-hydrophone-v1.33.12-calico",
                 "magnum-cluster-api-hydrophone-v1.33.12-cilium",
-                "magnum-cluster-api-hydrophone-ubuntu-24.04-v1.33.12",
-                "magnum-cluster-api-hydrophone-ubuntu-24.04-v1.33.12-calico",
-                "magnum-cluster-api-hydrophone-ubuntu-24.04-v1.33.12-cilium",
             ],
         )
         self.assertEqual(document[2]["job"]["vars"]["image_release"], "2026.05-7")
-        self.assertEqual(document[5]["job"]["vars"]["image_prefix"], "ubuntu-24.04")
 
     def test_prune_jobs_text_preserves_non_hydrophone_job_format(self) -> None:
         text = dedent(
