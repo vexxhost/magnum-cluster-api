@@ -23,14 +23,10 @@ section.
 
     * **Network connectivity**
       When the cluster goes up, it needs to pull all the container images from the
-      container registry.  By default, it will pull all the images from the upstream
-      registries.  If you have a slow network connection, you can use a local
-      registry to speed up the deployment process and read more about pointing to
-      it in the [Labels](labels.md#images) section.
-
-    [Atmosphere](https://github.com/vexxhost/atmosphere) deploys a local
-    registry by default as well as includes several speed optimizations to
-    improve the deployment speed down to 5 minutes.
+      container registry.  By default, it pulls images from upstream registries.
+      If you have a slow network connection, you can configure an externally
+      managed mirror with `container_infra_prefix`; read more in the
+      [Labels](labels.md#images) section.
 
 You can create clusters using several different methods which all end up using
 the Magnum API.  You can either use the OpenStack CLI, OpenStack Horizon
