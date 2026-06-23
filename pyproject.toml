@@ -39,7 +39,6 @@ dependencies = [
   "oslo.privsep>=2.7.0",
   "oslo.service>=2.8.0",
   "openstacksdk",
-  "platformdirs>=2.4.0",
   "pykube-ng",
   "pyroute2>=0.3.4",
   "python-heatclient",
@@ -64,7 +63,6 @@ dev = [
 
 [project.scripts]
 magnum-cluster-api-image-builder = "magnum_cluster_api.cmd.image_builder:main"
-magnum-cluster-api-image-loader = "magnum_cluster_api.cmd.image_loader:main"
 magnum-cluster-api-proxy = "magnum_cluster_api.cmd.proxy:main"
 
 [project.entry-points."magnum.drivers"]
