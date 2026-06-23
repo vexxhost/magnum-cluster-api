@@ -24,7 +24,7 @@ from github import Auth, Github
 from github.GithubException import GithubException, UnknownObjectException
 
 RELEASE_REPOSITORY = "vexxhost/capo-image-elements"
-IMAGE_PREFIX = "ubuntu-22.04"
+IMAGE_PREFIX = "ubuntu-24.04"
 
 BASE_JOB_NAME = "magnum-cluster-api-hydrophone"
 PROJECT_TEMPLATE_NAME = f"{BASE_JOB_NAME}-jobs"
@@ -32,7 +32,7 @@ VERSIONED_JOB_PREFIX = f"{BASE_JOB_NAME}-v"
 NETWORK_DRIVERS = ("calico", "cilium")
 IMAGE_URL = (
     "https://github.com/vexxhost/capo-image-elements/releases/download/"
-    "{{ image_release }}/ubuntu-22.04-{{ kube_tag }}.qcow2"
+    "{{ image_release }}/{{ image_prefix }}-{{ kube_tag }}.qcow2"
 )
 
 KUBERNETES_IMAGE_RE = re.compile(r"^.+-v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\.qcow2$")
@@ -46,6 +46,7 @@ class ScriptError(RuntimeError):
 class Release:
     tag_name: str
     name: str
+    image_prefix: str
     versions: tuple[str, ...]
 
 
@@ -74,6 +75,7 @@ def latest_release(repository: str, image_prefix: str) -> Release:
         return Release(
             tag_name=tag_name,
             name=release.name or tag_name,
+            image_prefix=image_prefix,
             versions=versions_from_assets(tag_name, assets, image_prefix),
         )
     except UnknownObjectException as exc:
@@ -171,6 +173,7 @@ def hydrophone_jobs(release: Release) -> list[dict[str, Any]]:
                 "run": "zuul.d/playbooks/hydrophone/run.yml",
                 "post-run": "zuul.d/playbooks/hydrophone/post.yml",
                 "vars": {
+                    "image_prefix": release.image_prefix,
                     "image_url": IMAGE_URL,
                     "devstack_localrc": {
                         "MAGNUM_GUEST_IMAGE_URL": "{{ image_url }}",
@@ -232,7 +235,7 @@ def prune_jobs_text(text: str) -> str:
                 break
 
         if name == BASE_JOB_NAME or (
-            name is not None and name.startswith(VERSIONED_JOB_PREFIX)
+            name is not None and name.startswith(f"{BASE_JOB_NAME}-")
         ):
             continue
         kept_blocks.append("".join(block))
@@ -298,7 +301,7 @@ class KubernetesBumpTests(unittest.TestCase):
         ]
 
         self.assertEqual(
-            versions_from_assets("2026.05-7", assets, "ubuntu-22.04"),
+            versions_from_assets("2026.05-7", assets, IMAGE_PREFIX),
             ("1.33.12", "1.34.8"),
         )
 
@@ -307,16 +310,21 @@ class KubernetesBumpTests(unittest.TestCase):
     ) -> None:
         assets = [
             "debian-13-v1.33.12.qcow2",
-            "ubuntu-22.04-v1.34.8.qcow2",
+            "ubuntu-24.04-v1.34.8.qcow2",
         ]
 
         with self.assertRaisesRegex(ScriptError, "v1.33.12"):
-            versions_from_assets("2026.05-7", assets, "ubuntu-22.04")
+            versions_from_assets("2026.05-7", assets, IMAGE_PREFIX)
 
     def test_hydrophone_jobs_include_template_base_release_and_network_jobs(
         self,
     ) -> None:
-        release = Release("2026.05-7", "2026.05-7", ("1.33.12",))
+        release = Release(
+            tag_name="2026.05-7",
+            name="2026.05-7",
+            image_prefix=IMAGE_PREFIX,
+            versions=("1.33.12",),
+        )
         document = hydrophone_jobs(release)
 
         template = document[0]["project-template"]
@@ -340,6 +348,8 @@ class KubernetesBumpTests(unittest.TestCase):
 
         self.assertEqual(job_name(document[1]), BASE_JOB_NAME)
         self.assertIn("{{ image_release }}", document[1]["job"]["vars"]["image_url"])
+        self.assertIn("{{ image_prefix }}", document[1]["job"]["vars"]["image_url"])
+        self.assertEqual(document[1]["job"]["vars"]["image_prefix"], IMAGE_PREFIX)
         self.assertEqual(
             [job_name(entry) for entry in document[2:]],
             [
@@ -367,6 +377,8 @@ class KubernetesBumpTests(unittest.TestCase):
                 name: magnum-cluster-api-hydrophone
             - job:
                 name: magnum-cluster-api-hydrophone-v1.32.9
+            - job:
+                name: magnum-cluster-api-hydrophone-ubuntu-24.04-v1.32.9
             """
         )
         expected = dedent(
