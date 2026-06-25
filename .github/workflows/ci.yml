@@ -28,7 +28,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
       - uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
@@ -109,7 +109,7 @@ jobs:
         with:
           client-id: ${{ vars.VEXXHOST_CI_APP_CLIENT_ID }}
           private-key: ${{ secrets.VEXXHOST_CI_APP_PRIVATE_KEY }}
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ github.head_ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
@@ -129,7 +129,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: vexxhost/chart-vendor@4fc41f31003d79923b9923230c5d0ff1dc8e8dd5 # main
         with:
           charts-root: magnum_cluster_api/charts
