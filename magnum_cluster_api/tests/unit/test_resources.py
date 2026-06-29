@@ -61,7 +61,7 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     mock_get_default_boot_volume_type.return_value = "foo"
 
     mock_lookup_image = mocker.patch("magnum_cluster_api.utils.lookup_image")
-    mock_lookup_image.return_value = {"id": "foo"}
+    mock_lookup_image.return_value = {"id": "foo", "hw_disk_bus": None}
 
     mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
     mock_lookup_flavor.return_value = flavors.Flavor(
@@ -98,7 +98,7 @@ def test_generate_machine_deployments_with_nodegroup_kubelet_override(context, m
     mock_get_default_boot_volume_type.return_value = "foo"
 
     mock_lookup_image = mocker.patch("magnum_cluster_api.utils.lookup_image")
-    mock_lookup_image.return_value = {"id": "foo"}
+    mock_lookup_image.return_value = {"id": "foo", "hw_disk_bus": None}
 
     mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
     mock_lookup_flavor.return_value = flavors.Flavor(
@@ -138,6 +138,10 @@ def test_generate_machine_deployments_with_nodegroup_kubelet_override(context, m
     )
 
     overrides = md["variables"]["overrides"]
+    assert {
+        "name": "hardwareDiskBus",
+        "value": "",
+    } in overrides
     assert {
         "name": "configProfile",
         "value": {
