@@ -46,7 +46,9 @@ class ClusterLockTestCase(TestCase):
 
     @mock.patch("magnum_cluster_api.sync.kubernetes_client.CoordinationV1Api")
     @mock.patch("magnum_cluster_api.sync.kubernetes_client.ApiClient")
-    @mock.patch("magnum_cluster_api.sync.kubernetes_client.Configuration.get_default_copy")
+    @mock.patch(
+        "magnum_cluster_api.sync.kubernetes_client.Configuration.get_default_copy"
+    )
     @mock.patch("magnum_cluster_api.sync.kubernetes_config.load_config")
     @mock.patch("magnum_cluster_api.sync.kubernetes_config.load_incluster_config")
     def test_load_kubernetes_client_uses_incluster_config(
@@ -77,7 +79,9 @@ class ClusterLockTestCase(TestCase):
 
     @mock.patch("magnum_cluster_api.sync.kubernetes_client.CoordinationV1Api")
     @mock.patch("magnum_cluster_api.sync.kubernetes_client.ApiClient")
-    @mock.patch("magnum_cluster_api.sync.kubernetes_client.Configuration.get_default_copy")
+    @mock.patch(
+        "magnum_cluster_api.sync.kubernetes_client.Configuration.get_default_copy"
+    )
     @mock.patch("magnum_cluster_api.sync.kubernetes_config.load_config")
     @mock.patch("magnum_cluster_api.sync.kubernetes_config.load_incluster_config")
     def test_load_kubernetes_client_falls_back_to_kubeconfig(
@@ -105,7 +109,9 @@ class ClusterLockTestCase(TestCase):
 
     @mock.patch("magnum_cluster_api.sync.kubernetes_client.CoordinationV1Api")
     @mock.patch("magnum_cluster_api.sync.kubernetes_client.ApiClient")
-    @mock.patch("magnum_cluster_api.sync.kubernetes_client.Configuration.get_default_copy")
+    @mock.patch(
+        "magnum_cluster_api.sync.kubernetes_client.Configuration.get_default_copy"
+    )
     @mock.patch("magnum_cluster_api.sync.kubernetes_config.load_incluster_config")
     def test_load_kubernetes_client_normalizes_refreshed_token(
         self,
@@ -137,7 +143,9 @@ class ClusterLockTestCase(TestCase):
 
     @mock.patch("magnum_cluster_api.sync.kubernetes_client.CoordinationV1Api")
     @mock.patch("magnum_cluster_api.sync.kubernetes_client.ApiClient")
-    @mock.patch("magnum_cluster_api.sync.kubernetes_client.Configuration.get_default_copy")
+    @mock.patch(
+        "magnum_cluster_api.sync.kubernetes_client.Configuration.get_default_copy"
+    )
     @mock.patch("magnum_cluster_api.sync.kubernetes_config.load_incluster_config")
     def test_load_kubernetes_client_populates_bearer_token_key(
         self,
