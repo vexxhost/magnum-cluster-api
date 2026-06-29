@@ -700,7 +700,9 @@ class TestDriver:
                 )
                 rsps.add(self._response_for_machine_sets(*machine_sets))
                 if not machine_sets:
-                    rsps.add(self._response_for_machines(self.node_group.name, machines))
+                    rsps.add(
+                        self._response_for_machines(self.node_group.name, machines)
+                    )
                 if not machine_sets and not machines:
                     rsps.add(
                         self._response_for_openstack_machines(
