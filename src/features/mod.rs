@@ -342,9 +342,6 @@ pub static KUBEADM_CONFIG_TEMPLATE: LazyLock<KubeadmConfigTemplate> =
                         ),
                         ..Default::default()
                     }),
-                    post_kubeadm_commands: Some(vec![
-                        "echo PLACEHOLDER".to_string(),
-                    ]),
                     ..Default::default()
                 }),
                 ..Default::default()

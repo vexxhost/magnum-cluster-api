@@ -78,7 +78,7 @@ impl ClusterFeaturePatches for Feature {
                             ..Default::default()
                         },
                         // Inject the kubelet config strategic-merge patch file.
-                        // kubelet-csr-approver is installed via ClusterResourceSet (LegacyClusterResourcesSecret) like CCM/CSI.
+                        // kubelet-csr-approver is installed via the Rust ClusterAddon path.
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
                             path: "/spec/template/spec/kubeadmConfigSpec/files/-".into(),
