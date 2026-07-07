@@ -21,5 +21,3 @@
 .idea/
 *.tmproj
 .vscode/
-# Helm test hooks are not applied through ClusterResourceSet.
-templates/tests/

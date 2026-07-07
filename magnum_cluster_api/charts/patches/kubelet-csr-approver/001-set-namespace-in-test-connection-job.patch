@@ -1,0 +1,12 @@
+diff --git a/kubelet-csr-approver/templates/tests/test-connection.yaml b/kubelet-csr-approver/templates/tests/test-connection.yaml
+index 366452e..af8b92d 100644
+--- a/kubelet-csr-approver/templates/tests/test-connection.yaml
++++ b/kubelet-csr-approver/templates/tests/test-connection.yaml
+@@ -2,6 +2,7 @@ apiVersion: batch/v1
+ kind: Job
+ metadata:
+   name: "{{ include "kubelet-csr-approver.fullname" . }}-test-connection"
++  namespace: {{ include "kubelet-csr-approver.namespace" . }}
+   labels:
+     {{- include "kubelet-csr-approver.labels" . | nindent 4 }}
+   annotations:

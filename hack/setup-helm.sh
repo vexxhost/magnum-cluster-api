@@ -15,7 +15,7 @@
 # under the License.
 
 # Versions to test
-HELM_VERSION=${HELM_VERSION:-v3.10.3}
+HELM_VERSION=${HELM_VERSION:-v3.12.0}
 
 # Install `helm` CLI
 curl -Lo /tmp/helm.tar.gz "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"

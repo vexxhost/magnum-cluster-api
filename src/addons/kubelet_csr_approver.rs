@@ -104,11 +104,14 @@ impl ClusterAddon for Addon {
             .expect("failed to create values");
 
         Ok(btreemap! {
-            "kubelet-csr-approver.yaml".to_owned() => helm::template_using_include_dir(
+            "kubelet-csr-approver.yaml".to_owned() => helm::template_using_include_dir_with_options(
                 include_dir!("magnum_cluster_api/charts/kubelet-csr-approver"),
                 "kubelet-csr-approver",
                 "kube-system",
                 values,
+                helm::TemplateOptions {
+                    skip_tests: true,
+                },
             )?,
         })
     }
