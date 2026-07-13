@@ -31,7 +31,7 @@ MANILA_USE_UWSGI=False
 enable_plugin magnum https://opendev.org/openstack/magnum
 MAGNUM_GUEST_IMAGE_URL=https://github.com/vexxhost/capo-image-elements/releases/download/2026.05-7/ubuntu-24.04-v1.36.1.qcow2
 
-enable_plugin magnum-cluster-api https://github.com/vexxhost/magnum-cluster-api
+enable_plugin magnum-cluster-api https://github.com/vexxhost/magnum-cluster-api main
 
 [[post-config|/etc/manila/manila.conf]]
 [generic]
