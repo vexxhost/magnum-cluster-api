@@ -52,7 +52,6 @@ jobs:
         with:
           token: ${{ secrets.VEXXHOST_BOT_PAT }}
       - uses: step-security/setup-uv@479ad0a90c4286eda3535eb7db396ed723b63fb7 # v8.1.0
-      - run: ./hack/bump/cloud-provider-openstack.sh --self-test
       - run: ./hack/bump/cloud-provider-openstack.sh
         env:
           GH_TOKEN: ${{ github.token }}
