@@ -48,8 +48,8 @@ pub struct ClusterLabels {
     pub cinder_csi_enabled: String,
 
     /// The tag of the Cinder CSI container image to use for the cluster.
-    #[builder(default="v1.32.0".to_owned())]
-    #[pyo3(default="v1.32.0".to_owned())]
+    #[builder(default="v1.35.0".to_owned())]
+    #[pyo3(default="v1.35.0".to_owned())]
     pub cinder_csi_plugin_tag: String,
 
     /// Enable the use of the Manila CSI driver for the cluster.
@@ -58,8 +58,8 @@ pub struct ClusterLabels {
     pub manila_csi_enabled: String,
 
     /// The tag of the Manila CSI container image to use for the cluster.
-    #[builder(default="v1.32.0".to_owned())]
-    #[pyo3(default="v1.32.0".to_owned())]
+    #[builder(default="v1.35.0".to_owned())]
+    #[pyo3(default="v1.35.0".to_owned())]
     pub manila_csi_plugin_tag: String,
 
     /// The tag to use for the OpenStack cloud controller provider
@@ -76,33 +76,33 @@ pub struct ClusterLabels {
     pub container_infra_prefix: Option<String>,
 
     /// CSI attacher tag to use for the cluster.
-    #[builder(default="v4.7.0".to_owned())]
-    #[pyo3(default="v4.7.0".to_owned())]
+    #[builder(default="v4.10.0".to_owned())]
+    #[pyo3(default="v4.10.0".to_owned())]
     pub csi_attacher_tag: String,
 
     /// CSI liveness probe tag to use for the cluster.
-    #[builder(default="v2.14.0".to_owned())]
-    #[pyo3(default="v2.14.0".to_owned())]
+    #[builder(default="v2.17.0".to_owned())]
+    #[pyo3(default="v2.17.0".to_owned())]
     pub csi_liveness_probe_tag: String,
 
     /// CSI Node Driver Registrar tag to use for the cluster.
-    #[builder(default="v2.12.0".to_owned())]
-    #[pyo3(default="v2.12.0".to_owned())]
+    #[builder(default="v2.15.0".to_owned())]
+    #[pyo3(default="v2.15.0".to_owned())]
     pub csi_node_driver_registrar_tag: String,
 
     // CSI Provisioner tag to use for the cluster.
-    #[builder(default="v5.1.0".to_owned())]
-    #[pyo3(default="v5.1.0".to_owned())]
+    #[builder(default="v5.3.0".to_owned())]
+    #[pyo3(default="v5.3.0".to_owned())]
     pub csi_provisioner_tag: String,
 
     /// CSI Resizer tag to use for the cluster.
-    #[builder(default="v1.12.0".to_owned())]
-    #[pyo3(default="v1.12.0".to_owned())]
+    #[builder(default="v1.14.0".to_owned())]
+    #[pyo3(default="v1.14.0".to_owned())]
     pub csi_resizer_tag: String,
 
     /// CSI Snapshotter tag to use for the cluster.
-    #[builder(default="v8.1.0".to_owned())]
-    #[pyo3(default="v8.1.0".to_owned())]
+    #[builder(default="v8.4.0".to_owned())]
+    #[pyo3(default="v8.4.0".to_owned())]
     pub csi_snapshotter_tag: String,
 
     /// The Kubernetes version to use for the cluster.

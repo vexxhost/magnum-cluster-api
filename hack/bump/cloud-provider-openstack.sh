@@ -170,5 +170,18 @@ CHART_VERSION=$(gh release list \
         | sub("openstack-cloud-controller-manager-"; "")
     ')
 
-sed -i "/name: openstack-cloud-controller-manager/,/version:/ s/version: .*/version: $CHART_VERSION/" .charts.yml
+for chart in openstack-cloud-controller-manager openstack-cinder-csi openstack-manila-csi; do
+  sed -i "/name: $chart/,/version:/ s/version: .*/version: $CHART_VERSION/" .charts.yml
+done
+
+# Keep Cinder/Manila CSI plugin tag defaults aligned with the latest CPO release.
+sed -i "/pub cinder_csi_plugin_tag/{
+  N
+  s/default=\"v[^\"]*\"/default=\"$CPO_VERSION\"/g
+}" "$FILE"
+sed -i "/pub manila_csi_plugin_tag/{
+  N
+  s/default=\"v[^\"]*\"/default=\"$CPO_VERSION\"/g
+}" "$FILE"
+
 go run github.com/vexxhost/chart-vendor@latest --charts-root magnum_cluster_api/charts
