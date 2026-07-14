@@ -149,12 +149,20 @@ impl TryFrom<magnum::Cluster> for CSIValues {
                         .image
                         .using_cluster::<Self>(&cluster, &cluster.labels.cinder_csi_plugin_tag)?,
                     volumes: vec![],
-                    volume_mounts: vec![VolumeMount {
-                        name: "cloud-config".into(),
-                        mount_path: "/etc/config".into(),
-                        read_only: Some(true),
-                        ..Default::default()
-                    }],
+                    volume_mounts: vec![
+                        VolumeMount {
+                            name: "cloud-config".into(),
+                            mount_path: "/etc/kubernetes".into(),
+                            read_only: Some(true),
+                            ..Default::default()
+                        },
+                        VolumeMount {
+                            name: "cloud-config".into(),
+                            mount_path: "/etc/config".into(),
+                            read_only: Some(true),
+                            ..Default::default()
+                        },
+                    ],
                     controller_plugin: CSIControllerPlugin {
                         tolerations: vec![
                             Toleration {
@@ -382,12 +390,20 @@ mod tests {
         assert_eq!(values.csi.plugin.volumes, vec![]);
         assert_eq!(
             values.csi.plugin.volume_mounts,
-            vec![VolumeMount {
-                name: "cloud-config".into(),
-                mount_path: "/etc/config".into(),
-                read_only: Some(true),
-                ..Default::default()
-            }]
+            vec![
+                VolumeMount {
+                    name: "cloud-config".into(),
+                    mount_path: "/etc/kubernetes".into(),
+                    read_only: Some(true),
+                    ..Default::default()
+                },
+                VolumeMount {
+                    name: "cloud-config".into(),
+                    mount_path: "/etc/config".into(),
+                    read_only: Some(true),
+                    ..Default::default()
+                },
+            ]
         );
         assert_eq!(
             values.csi.plugin.controller_plugin.tolerations,

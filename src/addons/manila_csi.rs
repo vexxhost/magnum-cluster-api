@@ -4,7 +4,7 @@ use crate::{
 };
 use docker_image::DockerImage;
 use include_dir::include_dir;
-use k8s_openapi::api::core::v1::Toleration;
+use k8s_openapi::api::core::v1::{KeyToPath, SecretVolumeSource, Toleration, Volume, VolumeMount};
 use maplit::btreemap;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -20,6 +20,10 @@ pub struct CSIValues {
 pub struct CSINodePlugin {
     registrar: CSIComponent,
     tolerations: Vec<Toleration>,
+    volumes: Vec<Volume>,
+
+    #[serde(rename = "volumeMounts")]
+    volume_mounts: Vec<VolumeMount>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -28,6 +32,36 @@ pub struct CSIControllerPlugin {
     snapshotter: CSIComponent,
     resizer: CSIComponent,
     tolerations: Vec<Toleration>,
+    volumes: Vec<Volume>,
+
+    #[serde(rename = "volumeMounts")]
+    volume_mounts: Vec<VolumeMount>,
+}
+
+fn cloud_config_volume() -> Volume {
+    Volume {
+        name: "cloud-config".into(),
+        secret: Some(SecretVolumeSource {
+            secret_name: Some("cloud-config".into()),
+            default_mode: Some(420),
+            items: Some(vec![KeyToPath {
+                key: "ca.crt".into(),
+                path: "ca.crt".into(),
+                ..Default::default()
+            }]),
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
+fn cloud_config_volume_mount() -> VolumeMount {
+    VolumeMount {
+        name: "cloud-config".into(),
+        mount_path: "/etc/config".into(),
+        read_only: Some(true),
+        ..Default::default()
+    }
 }
 
 impl ClusterAddonValues for CSIValues {
@@ -77,6 +111,8 @@ impl TryFrom<magnum::Cluster> for CSIValues {
                     operator: Some("Exists".to_string()),
                     ..Default::default()
                 }],
+                volumes: vec![],
+                volume_mounts: vec![],
             },
             controllerplugin: CSIControllerPlugin {
                 provisioner: CSIComponent {
@@ -112,6 +148,8 @@ impl TryFrom<magnum::Cluster> for CSIValues {
                         ..Default::default()
                     },
                 ],
+                volumes: vec![cloud_config_volume()],
+                volume_mounts: vec![cloud_config_volume_mount()],
             },
         })
     }
@@ -306,6 +344,13 @@ mod tests {
                 },
             ]
         );
+        assert_eq!(values.controllerplugin.volumes, vec![cloud_config_volume()]);
+        assert_eq!(
+            values.controllerplugin.volume_mounts,
+            vec![cloud_config_volume_mount()]
+        );
+        assert_eq!(values.nodeplugin.volumes, vec![]);
+        assert_eq!(values.nodeplugin.volume_mounts, vec![]);
     }
 
     #[test]
