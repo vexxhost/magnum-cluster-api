@@ -38,32 +38,6 @@ pub struct CSIControllerPlugin {
     volume_mounts: Vec<VolumeMount>,
 }
 
-fn cloud_config_volume() -> Volume {
-    Volume {
-        name: "cloud-config".into(),
-        secret: Some(SecretVolumeSource {
-            secret_name: Some("cloud-config".into()),
-            default_mode: Some(420),
-            items: Some(vec![KeyToPath {
-                key: "ca.crt".into(),
-                path: "ca.crt".into(),
-                ..Default::default()
-            }]),
-            ..Default::default()
-        }),
-        ..Default::default()
-    }
-}
-
-fn cloud_config_volume_mount() -> VolumeMount {
-    VolumeMount {
-        name: "cloud-config".into(),
-        mount_path: "/etc/config".into(),
-        read_only: Some(true),
-        ..Default::default()
-    }
-}
-
 impl ClusterAddonValues for CSIValues {
     fn defaults() -> Result<Self, ClusterAddonValuesError> {
         let file = include_str!(concat!(
@@ -148,8 +122,26 @@ impl TryFrom<magnum::Cluster> for CSIValues {
                         ..Default::default()
                     },
                 ],
-                volumes: vec![cloud_config_volume()],
-                volume_mounts: vec![cloud_config_volume_mount()],
+                volumes: vec![Volume {
+                    name: "cloud-config".into(),
+                    secret: Some(SecretVolumeSource {
+                        secret_name: Some("cloud-config".into()),
+                        default_mode: Some(420),
+                        items: Some(vec![KeyToPath {
+                            key: "ca.crt".into(),
+                            path: "ca.crt".into(),
+                            ..Default::default()
+                        }]),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }],
+                volume_mounts: vec![VolumeMount {
+                    name: "cloud-config".into(),
+                    mount_path: "/etc/config".into(),
+                    read_only: Some(true),
+                    ..Default::default()
+                }],
             },
         })
     }
@@ -344,10 +336,31 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(values.controllerplugin.volumes, vec![cloud_config_volume()]);
+        assert_eq!(
+            values.controllerplugin.volumes,
+            vec![Volume {
+                name: "cloud-config".into(),
+                secret: Some(SecretVolumeSource {
+                    secret_name: Some("cloud-config".into()),
+                    default_mode: Some(420),
+                    items: Some(vec![KeyToPath {
+                        key: "ca.crt".into(),
+                        path: "ca.crt".into(),
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }]
+        );
         assert_eq!(
             values.controllerplugin.volume_mounts,
-            vec![cloud_config_volume_mount()]
+            vec![VolumeMount {
+                name: "cloud-config".into(),
+                mount_path: "/etc/config".into(),
+                read_only: Some(true),
+                ..Default::default()
+            }]
         );
         assert_eq!(values.nodeplugin.volumes, vec![]);
         assert_eq!(values.nodeplugin.volume_mounts, vec![]);
