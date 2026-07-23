@@ -4,6 +4,7 @@ use kube::{
     Client, ResourceExt,
 };
 use log::debug;
+use semver::Version;
 use serde_yaml::{Mapping, Value};
 
 const APT_PROXY_PATH: &str = "/etc/apt/apt.conf.d/90proxy";
@@ -24,7 +25,7 @@ pub async fn repair_legacy_proxy_file_patches(
 
     for mut cluster_class in api.list(&ListParams::default()).await?.items {
         let name = cluster_class.name_any();
-        if !is_magnum_cluster_class(&name) || name == *crate::CLUSTER_CLASS_NAME {
+        if !should_repair_cluster_class(&name) {
             continue;
         }
 
@@ -44,8 +45,24 @@ pub async fn repair_legacy_proxy_file_patches(
     Ok(repaired)
 }
 
-fn is_magnum_cluster_class(name: &str) -> bool {
-    name.starts_with("magnum-v")
+fn should_repair_cluster_class(name: &str) -> bool {
+    if name == *crate::CLUSTER_CLASS_NAME {
+        return false;
+    }
+
+    magnum_cluster_class_version(name)
+        .is_some_and(|version| version < proxy_patch_guard_fix_version())
+}
+
+fn magnum_cluster_class_version(name: &str) -> Option<Version> {
+    let version = name.strip_prefix("magnum-v")?;
+    let base_version = version.split('-').next().unwrap_or(version);
+
+    Version::parse(base_version).ok()
+}
+
+fn proxy_patch_guard_fix_version() -> Version {
+    Version::new(0, 36, 1)
 }
 
 pub(crate) fn repair_proxy_file_content_templates(cluster_class: &mut ClusterClass) -> bool {
@@ -136,6 +153,17 @@ mod tests {
         ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
     };
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn targets_only_cluster_classes_before_proxy_patch_guards() {
+        assert!(should_repair_cluster_class("magnum-v0.34.2"));
+        assert!(should_repair_cluster_class("magnum-v0.36.0"));
+        assert!(should_repair_cluster_class("magnum-v0.36.0-4-gabcdef"));
+        assert!(!should_repair_cluster_class("magnum-v0.36.1"));
+        assert!(!should_repair_cluster_class("magnum-v0.36.1-1-gabcdef"));
+        assert!(!should_repair_cluster_class("magnum-v0.36.7"));
+        assert!(!should_repair_cluster_class("other-v0.34.2"));
+    }
 
     fn proxy_file_template(path: &str, content: &str) -> String {
         serde_yaml::to_string(&serde_json::json!({
