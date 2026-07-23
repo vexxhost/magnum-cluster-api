@@ -5,6 +5,7 @@ mod cluster_api;
 mod driver;
 mod features;
 pub mod immutable_fields;
+mod legacy_cluster_class;
 mod logging;
 mod magnum;
 mod monitor;
