@@ -1,7 +1,4 @@
-use crate::{
-    clients::kubernetes,
-    cluster_api::clusterclasses::{ClusterClass, ClusterClassPatches},
-};
+use crate::{clients::kubernetes, cluster_api::clusterclasses::ClusterClass};
 use kube::{
     api::{Api, ListParams, Patch, PatchParams},
     Client, ResourceExt,
@@ -134,7 +131,8 @@ fn get_str<'a>(map: &'a Mapping, key: &str) -> Option<&'a str> {
 mod tests {
     use super::*;
     use crate::cluster_api::clusterclasses::{
-        ClusterClassPatchesDefinitions, ClusterClassPatchesDefinitionsJsonPatches,
+        ClusterClassPatches, ClusterClassPatchesDefinitions,
+        ClusterClassPatchesDefinitionsJsonPatches,
         ClusterClassPatchesDefinitionsJsonPatchesValueFrom, ClusterClassPatchesDefinitionsSelector,
     };
     use pretty_assertions::assert_eq;
