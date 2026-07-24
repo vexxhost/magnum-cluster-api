@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.38.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.38.0...v0.38.1) (2026-07-24)
+
+
+### Bug Fixes
+
+* disable Keystone trust creation ([#1128](https://github.com/vexxhost/magnum-cluster-api/issues/1128)) ([f7c3901](https://github.com/vexxhost/magnum-cluster-api/commit/f7c3901e2207cf9108a3a18e505a506bd6e219c7))
+
 ## [0.38.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.37.0...v0.38.0) (2026-07-23)
 
 
