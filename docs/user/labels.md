@@ -17,7 +17,11 @@ specify the volume size and type using the following labels:
 
 :   The size in gigabytes of the boot volume.  If you set this value, it will
     enable boot from volume.
-    **Default value**: Unset
+    **Default value**: Unset for `server_type=vm` clusters; automatically
+    `0` for `server_type=bm` clusters (baremetal nodes boot from local disk
+    via Ironic and cannot use a Cinder root volume). Operators can still
+    override explicitly on `server_type=bm` by setting this label on the
+    cluster_template, cluster, or node_group.
 
 `boot_volume_type`
 

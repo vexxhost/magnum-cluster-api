@@ -12,6 +12,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from types import SimpleNamespace
+
 import pytest
 from magnum.objects import fields
 from magnum.tests.unit.objects import utils
@@ -82,6 +84,135 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     assert len(mds) == 2
 
 
+def test_cluster_variables_disable_managed_security_groups_for_bm(context, mocker):
+    cluster = mocker.Mock()
+    cluster.cluster_template = mocker.Mock(
+        network_driver="calico",
+        dns_nameserver="1.1.1.1",
+        external_network_id="public",
+        server_type="vm",
+    )
+    cluster.default_ng_master = mocker.Mock(image_id="image")
+    cluster.docker_volume_size = None
+    cluster.fixed_network = None
+    cluster.fixed_subnet = None
+    cluster.flavor_id = "worker"
+    cluster.keypair = None
+    cluster.labels = {}
+    cluster.master_count = 1
+    cluster.master_flavor_id = "control-plane"
+    cluster.master_lb_enabled = True
+    cluster.nodegroups = []
+    cluster.stack_id = "kube-test"
+
+    default_volume_type = SimpleNamespace(name="fast")
+    openstack_client = mocker.Mock()
+    openstack_client.cinder.return_value.volume_types.default.return_value = (
+        default_volume_type
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.clients.get_openstack_api",
+        return_value=openstack_client,
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.cinder.get_default_boot_volume_type",
+        return_value=default_volume_type.name,
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.generate_machine_deployments_for_cluster",
+        return_value=[],
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.neutron.get_external_network_id",
+        return_value="external-network",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.neutron.get_fixed_subnet_id",
+        return_value=None,
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.ensure_controlplane_server_group",
+        return_value="server-group",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.generate_api_cert_san_list",
+        return_value="",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.generate_apt_proxy_config",
+        return_value="",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.generate_containerd_config",
+        return_value="",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.generate_systemd_proxy_config",
+        return_value="",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.get_cluster_container_infra_prefix",
+        return_value="",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.get_fixed_network_id",
+        return_value=None,
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.get_kube_tag",
+        return_value="v1.34.3",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.get_operating_system",
+        return_value="ubuntu",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.is_controlplane_different_failure_domain",
+        return_value=False,
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.lookup_flavor",
+        side_effect=lambda _osc, flavor_id: SimpleNamespace(name=flavor_id),
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.lookup_image",
+        return_value={"id": "image"},
+    )
+
+    rust_driver = mocker.Mock()
+    rust_driver.resolve_immutable_fields.return_value = {
+        "apiServerLoadBalancer": {"enabled": True}
+    }
+
+    resource = resources.Cluster(
+        context,
+        mocker.Mock(),
+        mocker.Mock(),
+        cluster,
+        rust_driver,
+    ).get_object()
+
+    variables = {
+        variable["name"]: variable["value"]
+        for variable in resource["spec"]["topology"]["variables"]
+    }
+    assert variables["disableManagedSecurityGroups"] is False
+
+    cluster.cluster_template.server_type = "bm"
+    resource = resources.Cluster(
+        context,
+        mocker.Mock(),
+        mocker.Mock(),
+        cluster,
+        rust_driver,
+    ).get_object()
+    variables = {
+        variable["name"]: variable["value"]
+        for variable in resource["spec"]["topology"]["variables"]
+    }
+    assert variables["disableManagedSecurityGroups"] is True
+
+
 @pytest.mark.parametrize(
     "auto_scaling_enabled",
     [True, False, None],
@@ -96,6 +227,14 @@ class TestExistingMutateMachineDeployment:
     @pytest.fixture(autouse=True)
     def setup(self, auto_scaling_enabled, auto_healing_enabled, context, mocker):
         self.cluster = utils.get_test_cluster(context, labels={})
+        # mutate_machine_deployment now consults cluster.cluster_template.server_type
+        # (via utils.get_default_boot_volume_size) which lazy-loads from the DB
+        # in this test context. Stub the helper so existing assertions are
+        # unaffected.
+        mocker.patch(
+            "magnum_cluster_api.utils.get_default_boot_volume_size",
+            side_effect=lambda cluster, default: default,
+        )
         if auto_scaling_enabled is not None:
             self.cluster.labels["auto_scaling_enabled"] = str(auto_scaling_enabled)
 
@@ -161,3 +300,68 @@ class TestExistingMutateMachineDeployment:
         else:
             assert md["replicas"] == self.node_group.node_count
             assert md["metadata"]["annotations"] == {}
+
+
+def test_mutate_machine_deployment_bm_omits_ephemeral_disk_annotation(context, mocker):
+    """For server_type=bm flavors with disk=0 the autoscaler annotation
+    should be omitted rather than emitted as "0", which would make the
+    autoscaler reject pods that request ephemeral-storage."""
+    cluster = utils.get_test_cluster(context, labels={})
+    mocker.patch(
+        "magnum_cluster_api.utils.get_default_boot_volume_size",
+        return_value=0,
+    )
+    cluster.labels["auto_scaling_enabled"] = "true"
+    node_group = utils.get_test_nodegroup(context, labels={})
+    node_group.min_node_count = 1
+    node_group.max_node_count = 3
+
+    mocker.patch("magnum_cluster_api.utils.lookup_image", return_value={"id": "foo"})
+    mocker.patch(
+        "magnum_cluster_api.utils.lookup_flavor",
+        return_value=flavors.Flavor(
+            None,
+            {"name": "bm-flavor", "disk": 0, "ram": 4096, "vcpus": 4},
+        ),
+    )
+
+    md = resources.mutate_machine_deployment(
+        context, cluster, node_group, {"name": node_group.name}
+    )
+
+    annotations = md["metadata"]["annotations"]
+    assert "capacity.cluster-autoscaler.kubernetes.io/ephemeral-disk" not in annotations
+    # The other autoscaler hints must still be set so the autoscaler can
+    # schedule on cpu/memory.
+    assert annotations["capacity.cluster-autoscaler.kubernetes.io/cpu"] == "4"
+    assert annotations["capacity.cluster-autoscaler.kubernetes.io/memory"] == "4G"
+
+
+def test_mutate_machine_deployment_vm_keeps_ephemeral_disk_annotation(context, mocker):
+    cluster = utils.get_test_cluster(context, labels={})
+    mocker.patch(
+        "magnum_cluster_api.utils.get_default_boot_volume_size",
+        side_effect=lambda cluster, default: default,
+    )
+    cluster.labels["auto_scaling_enabled"] = "true"
+    node_group = utils.get_test_nodegroup(context, labels={})
+    node_group.min_node_count = 1
+    node_group.max_node_count = 3
+
+    mocker.patch("magnum_cluster_api.utils.lookup_image", return_value={"id": "foo"})
+    mocker.patch(
+        "magnum_cluster_api.utils.lookup_flavor",
+        return_value=flavors.Flavor(
+            None,
+            {"name": "vm-flavor", "disk": 20, "ram": 1024, "vcpus": 1},
+        ),
+    )
+
+    md = resources.mutate_machine_deployment(
+        context, cluster, node_group, {"name": node_group.name}
+    )
+
+    annotations = md["metadata"]["annotations"]
+    assert (
+        annotations["capacity.cluster-autoscaler.kubernetes.io/ephemeral-disk"] == "20"
+    )
