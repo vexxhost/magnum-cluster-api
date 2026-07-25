@@ -165,3 +165,46 @@ Once the cluster is gone, you can clean up the project:
 $ unset OS_PROJECT_ID
 $ openstack project delete $CURRENT_PROJECT_ID
 ```
+
+## Legacy ClusterClass fails topology reconciliation after an upgrade
+
+ClusterClasses created by versions of the driver older than `v0.36.1` can
+contain proxy file patches whose rendered `content` is empty when no proxy is
+configured. Newer Cluster API validation rejects the empty value and leaves
+clusters using the class with `TopologyReconciled=False`.
+
+Do not repair every legacy ClusterClass automatically. Changing a ClusterClass
+causes all Clusters using it to reconcile and may trigger Machine rollouts.
+First, identify the Clusters using the affected class and stop any cluster
+upgrades:
+
+```
+$ export CLUSTER_CLASS=magnum-v0.34.2
+$ kubectl -n magnum-system get clusters \
+    -o custom-columns=NAME:.metadata.name,CLASS:.spec.topology.class \
+    | grep "$CLUSTER_CLASS"
+```
+
+Back up the ClusterClass before changing it:
+
+```
+$ kubectl -n magnum-system get clusterclass "$CLUSTER_CLASS" -o yaml \
+    > "$CLUSTER_CLASS.before-repair.yaml"
+```
+
+Repair only that ClusterClass. The command asks for confirmation unless
+`--yes` is supplied:
+
+```
+$ magnum-cluster-api-repair-legacy-cluster-class "$CLUSTER_CLASS"
+```
+
+Monitor topology reconciliation and Machine identities after applying the
+repair:
+
+```
+$ kubectl -n magnum-system get clusters \
+    -o custom-columns=NAME:.metadata.name,CLASS:.spec.topology.class,TOPOLOGY:.status.conditions[?(@.type==\"TopologyReconciled\")].status
+$ kubectl -n magnum-system get machines \
+    -o custom-columns=NAME:.metadata.name,UID:.metadata.uid,CLUSTER:.metadata.labels.cluster\\.x-k8s\\.io/cluster-name
+```
