@@ -111,7 +111,7 @@ pub struct ClusterLabels {
 }
 
 impl ClusterLabels {
-    const DEFAULT_CLOUD_PROVIDER_TAG: &'static str = "v1.35.0";
+    const DEFAULT_CLOUD_PROVIDER_TAG: &'static str = "v1.36.0";
 
     /// Returns true if Cilium Hubble UI is enabled.
     /// Parses the string label value "true"/"false" to a boolean.
@@ -145,6 +145,7 @@ impl ClusterLabels {
             (1, 33) => "v1.33.1".to_owned(),
             (1, 34) => "v1.34.1".to_owned(),
             (1, 35) => "v1.35.0".to_owned(),
+            (1, 36) => "v1.36.0".to_owned(),
             _ => Self::DEFAULT_CLOUD_PROVIDER_TAG.to_owned(),
         }
     }
@@ -457,10 +458,11 @@ mod tests {
     #[case("v1.33.0", "v1.33.1")]
     #[case("v1.34.0", "v1.34.1")]
     #[case("v1.35.0", "v1.35.0")]
-    #[case("v1.60.1", "v1.35.0")]
-    #[case("v2.0.0", "v1.35.0")]
-    #[case("invalid", "v1.35.0")]
-    #[case("master", "v1.35.0")]
+    #[case("v1.36.0", "v1.36.0")]
+    #[case("v1.60.1", "v1.36.0")]
+    #[case("v2.0.0", "v1.36.0")]
+    #[case("invalid", "v1.36.0")]
+    #[case("master", "v1.36.0")]
     fn test_get_cloud_provider_tag_from_kube_tag(
         #[case] kube_tag: &str,
         #[case] expected_cloud_provider_tag: &str,
