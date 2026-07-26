@@ -94,6 +94,58 @@ jobs:
       - run: |
           uv venv
           uv pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} ./*.whl
+      - name: Smoke-test driver import and entry-point loading
+        run: |
+          # setuptools provides pkg_resources, which keystonemiddleware
+          # still imports unconditionally. Without it the driver import
+          # blows up before any assertion can run, masking real regressions.
+          uv pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} \
+            magnum keystonemiddleware setuptools
+          # Pass 1 — narrow regression guard scoped to magnum_cluster_api itself.
+          # Importing only the package must NOT pull in pkg_resources (the
+          # legacy resolver does not apply PEP 503 name normalization across
+          # .|_|-, which is what broke against PEP 625-named wheels like
+          # oslo_cache-*.dist-info). This is the bug PR #1001 fixed and the
+          # one we are guarding against.
+          .venv/bin/python - <<'PY'
+          import sys
+          import magnum_cluster_api  # must not raise
+          import magnum_cluster_api.resources  # the original offender
+          assert "pkg_resources" not in sys.modules, (
+              "magnum_cluster_api must not import pkg_resources — it breaks "
+              "on PEP 625 wheels (e.g. oslo_cache-*.dist-info). Loaded by: "
+              + ", ".join(
+                  m for m, mod in sys.modules.items()
+                  if mod is not None and getattr(mod, "__file__", "") and "pkg_resources" in (getattr(mod, "__file__", "") or "")
+              )
+          )
+          print("OK magnum_cluster_api import is pkg_resources-free")
+          PY
+          # Pass 2 — full entry-point + driver loading. Upstream code (e.g.
+          # keystonemiddleware) may legitimately import pkg_resources here;
+          # we only care that the driver actually resolves.
+          .venv/bin/python - <<'PY'
+          from magnum.drivers.common import driver
+          import magnum_cluster_api.driver  # must not raise
+
+          eps = list(driver.Driver.load_entry_points())
+          ep_names = sorted(ep.name for ep, _ in eps)
+          assert any("cluster_api" in n for n in ep_names), ep_names
+
+          # Driver.definition_map must be populated — this is what
+          # instantiates each driver class and fails in production when
+          # pkg_resources cannot resolve a PEP 625 oslo_cache-*.dist-info.
+          definition_map = driver.Driver.get_drivers()
+          assert definition_map, "Driver.get_drivers() returned empty definition_map"
+          assert ("vm", "ubuntu", "kubernetes") in definition_map, (
+              "expected (vm, ubuntu, kubernetes) cluster_api driver in "
+              "definition_map, got: %s" % sorted(definition_map)
+          )
+
+          print("OK entry_points=%d definitions=%d" % (len(eps), len(definition_map)))
+          print("  entry_points:", ep_names)
+          print("  definitions :", sorted(definition_map))
+          PY
 
   pre-commit:
     runs-on: ubuntu-latest
