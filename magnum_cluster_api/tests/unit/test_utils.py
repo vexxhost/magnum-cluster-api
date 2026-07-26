@@ -114,6 +114,9 @@ class TestGenerateCloudControllerManagerConfig:
             lb-provider=amphorav2
             lb-method=ROUND_ROBIN
             create-monitor=True
+
+            [Networking]
+            address-sort-order=10.0.0.0/24
             """
         )
 
@@ -140,6 +143,9 @@ class TestGenerateCloudControllerManagerConfig:
             lb-provider=amphora
             lb-method=ROUND_ROBIN
             create-monitor=True
+
+            [Networking]
+            address-sort-order=10.0.0.0/24
             """
         )
 
@@ -171,6 +177,9 @@ class TestGenerateCloudControllerManagerConfig:
             lb-provider=ovn
             lb-method=SOURCE_IP_PORT
             create-monitor=False
+
+            [Networking]
+            address-sort-order=10.0.0.0/24
             """
         )
 
@@ -197,6 +206,9 @@ class TestGenerateCloudControllerManagerConfig:
             lb-provider=ovn
             lb-method=SOURCE_IP_PORT
             create-monitor=True
+
+            [Networking]
+            address-sort-order=10.0.0.0/24
             """
         )
 
@@ -228,6 +240,9 @@ class TestGenerateCloudControllerManagerConfig:
             lb-provider=ovn
             lb-method=SOURCE_IP_PORT
             create-monitor=True
+
+            [Networking]
+            address-sort-order=10.0.0.0/24
             """
         )
 
@@ -246,6 +261,37 @@ class TestGenerateCloudControllerManagerConfig:
                 utils.generate_cloud_controller_manager_config(
                     self.context, self.pykube_api, self.cluster
                 )
+
+    def test_generate_cloud_controller_manager_with_custom_subnet_cidr(
+        self, requests_mock
+    ):
+        self.cluster.labels = {"fixed_subnet_cidr": "10.0.50.0/24"}
+
+        with requests_mock as rsps:
+            rsps.add(self._response_for_cloud_config_secret())
+
+            config = utils.generate_cloud_controller_manager_config(
+                self.context, self.pykube_api, self.cluster
+            )
+
+        assert config == textwrap.dedent(
+            """\
+            [Global]
+            auth-url=http://localhost/v3
+            region=RegionOne
+            application-credential-id=fake_application_credential_id
+            application-credential-secret=fake_application_credential_secret
+            tls-insecure=false
+
+            [LoadBalancer]
+            lb-provider=amphora
+            lb-method=ROUND_ROBIN
+            create-monitor=True
+
+            [Networking]
+            address-sort-order=10.0.50.0/24
+            """
+        )
 
 
 class TestGenerateSystemdProxyConfig:
