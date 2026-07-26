@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-from eventlet import tpool  # type: ignore
 from heatclient import exc  # type: ignore
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.common import exception as magnum_exception  # type: ignore
@@ -49,12 +48,12 @@ class BaseDriver(driver.Driver):
 
     def __init__(self):
         self.k8s_api = clients.get_pykube_api()
-        self.rust_driver = tpool.Proxy(magnum_cluster_api.Driver("magnum-system"))
+        self.rust_driver = magnum_cluster_api.Driver("magnum-system")
 
     @property
     def kube_client(self):
         if not hasattr(self, "_kube_client"):
-            self._kube_client = tpool.Proxy(magnum_cluster_api.KubeClient())
+            self._kube_client = magnum_cluster_api.KubeClient()
         return self._kube_client
 
     def create_cluster(
@@ -221,7 +220,8 @@ class BaseDriver(driver.Driver):
 
             capi_cluster.reload()
             status_map = {
-                c["type"]: c["status"] for c in capi_cluster.obj["status"]["conditions"]
+                c["type"]: c["status"]
+                for c in capi_cluster.obj.get("status", {}).get("conditions", [])
             }
 
             for condition in ("ControlPlaneReady", "InfrastructureReady", "Ready"):

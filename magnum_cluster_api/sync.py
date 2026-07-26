@@ -13,6 +13,18 @@
 # under the License.
 
 import sherlock  # type: ignore
+from kubernetes import client as kubernetes_client  # type: ignore
+from kubernetes import config as kubernetes_config  # type: ignore
+from kubernetes.config.config_exception import ConfigException  # type: ignore
+
+
+def _load_kubernetes_client() -> kubernetes_client.CoordinationV1Api:
+    try:
+        kubernetes_config.load_incluster_config()
+    except ConfigException:
+        kubernetes_config.load_config()
+
+    return kubernetes_client.CoordinationV1Api()
 
 
 class ClusterLock(sherlock.KubernetesLock):
@@ -33,4 +45,5 @@ class ClusterLock(sherlock.KubernetesLock):
             lock_name="cluster-%s" % cluster_id,
             k8s_namespace="magnum-system",
             expire=expire,
+            client=_load_kubernetes_client(),
         )
