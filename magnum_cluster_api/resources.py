@@ -1301,6 +1301,12 @@ class Cluster(ClusterBase):
                             ),
                         },
                         {
+                            "name": "enableKubeletServingTLS",
+                            "value": utils.get_cluster_label_as_bool(
+                                self.cluster, "kubelet_serving_tls_enabled", False
+                            ),
+                        },
+                        {
                             "name": "controlPlaneAvailabilityZones",
                             "value": self.cluster.labels.get(
                                 "control_plane_availability_zones", ""
