@@ -57,6 +57,12 @@ spec:
               containerPort: {{ .Values.service.port }}
               hostPort: {{ .Values.service.hostPort }}
               protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: https
+          livenessProbe:
+            tcpSocket:
+              port: https
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
