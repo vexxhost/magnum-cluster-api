@@ -1,0 +1,101 @@
+# Calico Upgrade Values (Tigera Operator / Helm)
+#
+# This values file is for migrating a Magnum-provisioned Calico deployment
+# to the Tigera Operator managed via Helm. Use this with the tigera-operator
+# chart for a cleaner lifecycle management experience.
+#
+# INSTRUCTIONS:
+#   1. Update the version/tag below to your target Calico version.
+#   2. Verify the pod CIDR matches your cluster (default: 10.100.0.0/16).
+#   3. If using a private registry, update the registry field.
+#   4. Apply with:
+#       helm upgrade --install calico projectcalico/tigera-operator \
+#         --namespace tigera-operator \
+#         --create-namespace \
+#         --version <TARGET_CHART_VERSION> \
+#         --values calico-upgrade-values.yaml
+#
+# Current Magnum default Calico version: v3.31.3
+# Upstream Helm repo: https://docs.tigera.io/calico/charts
+# Supported versions in Magnum: v3.24.2, v3.25.2, v3.26.5, v3.27.4,
+#   v3.28.2, v3.29.0, v3.29.2, v3.29.3, v3.30.0, v3.30.1, v3.30.2, v3.31.3
+
+# -- Calico installation resource
+# This configures the Installation CR that the Tigera operator watches.
+installation:
+  enabled: true
+  # -- Calico version to deploy
+  # calicoVersion: "v3.31.3"
+
+  # -- Container registry
+  # Default: quay.io (upstream)
+  # If using a private registry, set this to your registry URL.
+  # registry: myregistry.example.com
+
+  # -- Calico networking configuration
+  calicoNetwork:
+    # -- BGP configuration
+    # Default for Magnum deployments is BGP enabled.
+    bgp: Enabled
+
+    # -- IP pools
+    # The CIDR MUST match your cluster's calico_ipv4pool label.
+    # Default Magnum pod CIDR: 10.100.0.0/16
+    ipPools:
+      - cidr: "10.100.0.0/16"  # <-- MUST match your cluster's pod CIDR
+        encapsulation: VXLANCrossSubnet
+        natOutgoing: Enabled
+        nodeSelector: all()
+        blockSize: 26
+
+    # -- Node address autodetection
+    nodeAddressAutodetectionV4:
+      firstFound: true
+
+  # -- Component image configuration
+  # Uncomment and set specific image paths if using a private registry.
+  # calicoNodeImage: myregistry.example.com/calico/node
+  # calicoKubeControllersImage: myregistry.example.com/calico/kube-controllers
+  # calicoCNIImage: myregistry.example.com/calico/cni
+
+# -- API server (optional, provides kubectl access to Calico APIs)
+apiServer:
+  enabled: false
+
+# -- Calico images
+# These are the default upstream images used by the Tigera operator.
+# Only override if using a private registry.
+# tigeraOperator:
+#   registry: quay.io
+#   image: tigera/operator
+#   version: v1.36.5  # <-- Must be compatible with your Calico version
+
+# ==========================================================================
+# ALTERNATIVE: Manifest-based upgrade (no Helm)
+# ==========================================================================
+# If you prefer to stay with the manifest-based deployment (matching how
+# Magnum originally deployed Calico), you don't need this values file.
+# Instead, download and apply the upstream manifest directly:
+#
+#   TARGET_VERSION="v3.31.3"
+#   curl -LO "https://raw.githubusercontent.com/projectcalico/calico/${TARGET_VERSION}/manifests/calico.yaml"
+#
+# Before applying, ensure CALICO_IPV4POOL_CIDR is set to your pod CIDR:
+#   grep -A2 "CALICO_IPV4POOL_CIDR" calico.yaml
+#
+# Then apply:
+#   kubectl apply -f calico.yaml
+#
+# ==========================================================================
+
+# ==========================================================================
+# PRIVATE REGISTRY CONFIGURATION
+# ==========================================================================
+# Magnum uses these upstream Calico images by default:
+#   quay.io/calico/cni
+#   quay.io/calico/node
+#   quay.io/calico/kube-controllers
+#
+# If container_infra_prefix is set in your Magnum cluster, images are
+# pulled from that registry instead. Update the registry/image fields
+# above accordingly.
