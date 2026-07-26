@@ -583,8 +583,7 @@ def get_server_group_id(
     name: str,
     project_id: typing.Optional[str] = None,
 ):
-    if g_server_group_cache.get(project_id, name):
-        return g_server_group_cache.get(project_id, name)
+    cached_server_group_id = g_server_group_cache.get(project_id, name)
 
     # Check if the server group exists already
     osc = clients.get_openstack_api(ctx)
@@ -593,6 +592,12 @@ def get_server_group_id(
     for sg in server_groups:
         if sg.name == name:
             server_group_id_list.append(sg.id)
+
+    if cached_server_group_id and cached_server_group_id in server_group_id_list:
+        return cached_server_group_id
+
+    if cached_server_group_id:
+        g_server_group_cache.delete(project_id, name)
 
     if len(server_group_id_list) == 1:
         g_server_group_cache.set(project_id, name, server_group_id_list[0])
@@ -724,6 +729,7 @@ def _delete_server_group(
 
     osc = clients.get_openstack_api(ctx)
     osc.delete_server_group(server_group_id)
+    g_server_group_cache.delete(project_id, name)
 
 
 def get_fixed_network_id(context, network):

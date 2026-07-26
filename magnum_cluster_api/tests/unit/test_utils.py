@@ -46,6 +46,74 @@ def test_generate_cluster_api_name(mocker):
     assert len(potential_node_name) <= 63
 
 
+def test_get_server_group_id_uses_verified_cache(context, mocker):
+    mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
+    mock_cache.get.return_value = "server-group-id"
+    nova = types.SimpleNamespace(
+        server_groups=types.SimpleNamespace(
+            list=mocker.Mock(
+                return_value=[
+                    types.SimpleNamespace(name="kube-test", id="server-group-id")
+                ]
+            )
+        )
+    )
+    mocker.patch(
+        "magnum_cluster_api.clients.get_openstack_api"
+    ).return_value.nova.return_value = nova
+
+    server_group_id = utils.get_server_group_id(context, "kube-test", "project-id")
+
+    assert server_group_id == "server-group-id"
+    mock_cache.delete.assert_not_called()
+    mock_cache.set.assert_not_called()
+
+
+def test_get_server_group_id_evicts_stale_cache(context, mocker):
+    mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
+    mock_cache.get.return_value = "stale-server-group-id"
+    osc = types.SimpleNamespace(
+        list_server_groups=mocker.Mock(
+            return_value=[types.SimpleNamespace(name="kube-test", id="server-group-id")]
+        )
+    )
+    mocker.patch("magnum_cluster_api.clients.get_openstack_api").return_value = osc
+
+    server_group_id = utils.get_server_group_id(context, "kube-test", "project-id")
+
+    assert server_group_id == "server-group-id"
+    mock_cache.delete.assert_called_once_with("project-id", "kube-test")
+    mock_cache.set.assert_called_once_with("project-id", "kube-test", "server-group-id")
+
+
+def test_delete_server_group_evicts_cache(context, mocker):
+    mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
+    mocker.patch("magnum_cluster_api.utils.get_server_group_id").return_value = (
+        "server-group-id"
+    )
+    osc = types.SimpleNamespace(delete_server_group=mocker.Mock())
+    mocker.patch("magnum_cluster_api.clients.get_openstack_api").return_value = osc
+
+    utils._delete_server_group("kube-test", context, "project-id")
+
+    osc.delete_server_group.assert_called_once_with("server-group-id")
+    mock_cache.delete.assert_called_once_with("project-id", "kube-test")
+
+
+def test_delete_server_group_evicts_cache_after_ignored_not_found(context, mocker):
+    mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
+    mocker.patch("magnum_cluster_api.utils.get_server_group_id").return_value = (
+        "server-group-id"
+    )
+    osc = types.SimpleNamespace(delete_server_group=mocker.Mock())
+    mocker.patch("magnum_cluster_api.clients.get_openstack_api").return_value = osc
+
+    utils._delete_server_group("kube-test", context, "project-id")
+
+    osc.delete_server_group.assert_called_once_with("server-group-id")
+    mock_cache.delete.assert_called_once_with("project-id", "kube-test")
+
+
 class TestGenerateCloudControllerManagerConfig:
     @pytest.fixture(autouse=True)
     def setup(self, context, pykube_api, mocker):
