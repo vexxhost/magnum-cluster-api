@@ -178,6 +178,24 @@ is often accomplished by deploying a driver on each node.
 
    Default value: Automatically detected based on `kube_tag` label.
 
+* `cinder_csi_topology`
+
+   Controls the `--feature-gates=Topology=...` flag on the Cinder CSI
+   provisioner sidecar. Set to `"false"` when the Cinder availability zone
+   and the Nova compute availability zone names do not match; doing so
+   prevents PersistentVolumes from receiving a `nodeAffinity` constraint
+   tied to the Cinder AZ.
+
+   Default value: `"true"`
+
+* `cinder_csi_volume_binding_mode`
+
+   The `volumeBindingMode` for all generated `block-*` StorageClasses.
+   Set to `"WaitForFirstConsumer"` to defer volume creation (and AZ
+   selection) until a pod is actually scheduled to a node.
+
+   Default value: `"Immediate"`
+
 ### Manila
 
 * `manila_csi_plugin_tag`

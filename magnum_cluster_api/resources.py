@@ -291,7 +291,9 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
                                 "type": vt.name,
                             },
                             "reclaimPolicy": "Delete",
-                            "volumeBindingMode": "Immediate",
+                            "volumeBindingMode": self.cluster.labels.get(
+                                "cinder_csi_volume_binding_mode", "Immediate"
+                            ),
                         }
                     )
                     for vt in volume_types
