@@ -50,6 +50,10 @@ class BaseDriver(driver.Driver):
     def __init__(self):
         self.k8s_api = clients.get_pykube_api()
         self.rust_driver = tpool.Proxy(magnum_cluster_api.Driver("magnum-system"))
+        # Ensure the current ClusterClass exists and legacy versioned
+        # ClusterClasses are compatible with the installed CAPI CRDs as soon as
+        # the conductor loads the driver, not only after a cluster operation.
+        self.rust_driver.apply_cluster_class()
 
     @property
     def kube_client(self):

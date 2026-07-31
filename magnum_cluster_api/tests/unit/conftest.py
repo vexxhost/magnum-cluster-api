@@ -18,6 +18,8 @@ import pykube  # type: ignore
 import pytest
 import responses
 
+from magnum_cluster_api import driver as driver_module
+
 
 @pytest.fixture(scope="session")
 def kubeconfig(tmp_path_factory):
@@ -70,4 +72,13 @@ def requests_mock(session_mocker, kubeconfig):
 def mock_rust_driver(session_mocker):
     driver = session_mocker.patch("magnum_cluster_api.magnum_cluster_api.Driver")
     driver.resolve_immutable_fields = lambda _cn, _lbls, variables: variables
+    driver.return_value.resolve_immutable_fields.side_effect = (
+        lambda _cn, _lbls, variables: variables
+    )
     return driver
+
+
+@pytest.fixture()
+def ubuntu_driver(mock_cluster_lock, mock_rust_driver, mocker):
+    mocker.patch("magnum_cluster_api.driver.tpool.Proxy", side_effect=lambda obj: obj)
+    yield driver_module.UbuntuDriver()
