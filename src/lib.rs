@@ -9,6 +9,7 @@ mod logging;
 mod magnum;
 mod monitor;
 mod resources;
+pub mod version;
 
 use pyo3::{prelude::*, Bound};
 use std::sync::LazyLock;
