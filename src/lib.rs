@@ -9,6 +9,7 @@ mod logging;
 mod magnum;
 mod monitor;
 mod resources;
+pub mod version;
 
 use pyo3::{prelude::*, Bound};
 use std::sync::LazyLock;
@@ -30,6 +31,7 @@ fn magnum_cluster_api(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<client::KubeClient>()?;
     m.add_class::<driver::Driver>()?;
     m.add_class::<monitor::Monitor>()?;
+    m.add_function(wrap_pyfunction!(version::py_get_compatibility_status, m)?)?;
 
     Ok(())
 }
