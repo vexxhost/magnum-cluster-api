@@ -1,3 +1,4 @@
+use pyo3::prelude::*;
 use std::fmt;
 
 /// Compatibility status of a Kubernetes version with magnum-cluster-api.
@@ -71,6 +72,16 @@ pub fn get_compatibility_status(kube_tag: &str) -> KubeVersionStatus {
         .find(|(k, _)| *k == key)
         .map(|(_, status)| *status)
         .unwrap_or(KubeVersionStatus::Unsupported)
+}
+
+/// Python-facing wrapper for [`get_compatibility_status`].
+///
+/// Returns the compatibility status as a string: `"supported"`,
+/// `"deprecated"`, or `"unsupported"`.
+#[pyfunction]
+#[pyo3(name = "get_kube_version_status")]
+pub fn py_get_compatibility_status(kube_tag: &str) -> String {
+    get_compatibility_status(kube_tag).to_string()
 }
 
 #[cfg(test)]

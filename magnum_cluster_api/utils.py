@@ -39,7 +39,7 @@ from tenacity import retry, retry_if_exception_type
 
 from magnum_cluster_api import clients
 from magnum_cluster_api import exceptions as mcapi_exceptions
-from magnum_cluster_api import image_utils, images, objects
+from magnum_cluster_api import image_utils, images, magnum_cluster_api, objects
 from magnum_cluster_api.cache import ServerGroupCache
 
 AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "debian", "flatcar", "rockylinux"]
@@ -192,6 +192,12 @@ def generate_manila_csi_cloud_config(
 
 def get_kube_tag(cluster: magnum_objects.Cluster) -> str:
     return cluster.labels.get("kube_tag", "v1.25.3")
+
+
+def validate_kube_version(kube_tag: str):
+    status = magnum_cluster_api.get_kube_version_status(kube_tag)
+    if status == "unsupported":
+        raise mcapi_exceptions.UnsupportedKubernetesVersion(kube_tag=kube_tag)
 
 
 def get_auto_scaling_enabled(cluster: magnum_objects.Cluster) -> bool:
