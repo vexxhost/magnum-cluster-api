@@ -12,17 +12,37 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from enum import Enum
+
+import pytest
 from click.testing import CliRunner
 
 from magnum_cluster_api.cmd import repair_legacy_cluster_class
 
 
-def test_repairs_one_cluster_class(mocker):
+class RepairResult(Enum):
+    Repaired = "repaired"
+    AlreadyFixed = "already-fixed"
+    OutOfScope = "out-of-scope"
+
+
+@pytest.fixture()
+def repair_results(mocker):
+    mocker.patch.object(
+        repair_legacy_cluster_class.magnum_cluster_api,
+        "LegacyClusterClassRepairResult",
+        RepairResult,
+        create=True,
+    )
+    return RepairResult
+
+
+def invoke_repair(mocker, repair_result):
     driver = mocker.patch(
         "magnum_cluster_api.cmd.repair_legacy_cluster_class."
         "magnum_cluster_api.Driver"
     ).return_value
-    driver.repair_legacy_cluster_class.return_value = True
+    driver.repair_legacy_cluster_class.return_value = repair_result
 
     result = CliRunner().invoke(
         repair_legacy_cluster_class.main,
@@ -31,7 +51,27 @@ def test_repairs_one_cluster_class(mocker):
 
     assert result.exit_code == 0
     driver.repair_legacy_cluster_class.assert_called_once_with("magnum-v0.34.2")
+    return result
+
+
+def test_repairs_one_cluster_class(mocker, repair_results):
+    result = invoke_repair(mocker, repair_results.Repaired)
+
     assert "Repaired ClusterClass test-system/magnum-v0.34.2." in result.output
+
+
+def test_reports_already_repaired_cluster_class(mocker, repair_results):
+    result = invoke_repair(mocker, repair_results.AlreadyFixed)
+
+    assert (
+        "ClusterClass test-system/magnum-v0.34.2 is already repaired." in result.output
+    )
+
+
+def test_reports_cluster_class_outside_repair_scope(mocker, repair_results):
+    result = invoke_repair(mocker, repair_results.OutOfScope)
+
+    assert "is outside the supported legacy repair scope." in result.output
 
 
 def test_warns_before_repair(mocker):

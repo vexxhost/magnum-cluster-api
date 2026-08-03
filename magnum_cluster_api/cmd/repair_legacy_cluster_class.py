@@ -34,12 +34,19 @@ def main(cluster_class_name: str, namespace: str, yes: bool) -> None:
             abort=True,
         )
 
-    repaired = magnum_cluster_api.Driver(namespace).repair_legacy_cluster_class(
+    result = magnum_cluster_api.Driver(namespace).repair_legacy_cluster_class(
         cluster_class_name
     )
-    if repaired:
+    if result == magnum_cluster_api.LegacyClusterClassRepairResult.Repaired:
         click.echo(f"Repaired ClusterClass {namespace}/{cluster_class_name}.")
-    else:
+    elif result == magnum_cluster_api.LegacyClusterClassRepairResult.AlreadyFixed:
         click.echo(
-            f"No repair was needed for ClusterClass {namespace}/{cluster_class_name}."
+            f"ClusterClass {namespace}/{cluster_class_name} is already repaired."
         )
+    elif result == magnum_cluster_api.LegacyClusterClassRepairResult.OutOfScope:
+        click.echo(
+            f"ClusterClass {namespace}/{cluster_class_name} is outside the supported "
+            "legacy repair scope."
+        )
+    else:
+        raise click.ClickException(f"Unexpected repair result: {result!r}")

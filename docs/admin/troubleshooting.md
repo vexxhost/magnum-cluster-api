@@ -174,7 +174,12 @@ configured. Newer Cluster API validation rejects the empty value and leaves
 clusters using the class with `TopologyReconciled=False`.
 
 Do not repair every legacy ClusterClass automatically. Changing a ClusterClass
-causes all Clusters using it to reconcile and may trigger Machine rollouts.
+causes all Clusters using it to reconcile and triggers control plane and worker
+Machine rollouts. Schedule a maintenance window for every affected Cluster and
+confirm sufficient infrastructure capacity for replacement Machines. A Cluster
+with a single control plane Machine can experience a brief Kubernetes API
+interruption during the replacement.
+
 First, identify the Clusters using the affected class and stop any cluster
 upgrades:
 
@@ -183,6 +188,14 @@ $ export CLUSTER_CLASS=magnum-v0.34.2
 $ kubectl -n magnum-system get clusters \
     -o custom-columns=NAME:.metadata.name,CLASS:.spec.topology.class \
     | grep "$CLUSTER_CLASS"
+```
+
+Pause every Cluster returned by the inventory before repairing the shared
+ClusterClass:
+
+```
+$ kubectl -n magnum-system annotate cluster <cluster-name> \
+    cluster.x-k8s.io/paused=true --overwrite
 ```
 
 Back up the ClusterClass before changing it:
@@ -199,10 +212,13 @@ Repair only that ClusterClass. The command asks for confirmation unless
 $ magnum-cluster-api-repair-legacy-cluster-class "$CLUSTER_CLASS"
 ```
 
-Monitor topology reconciliation and Machine identities after applying the
-repair:
+Unpause and monitor Clusters one at a time. Wait for each Cluster's topology,
+control plane, worker Machines, and workload Nodes to become healthy before
+unpausing the next Cluster:
 
 ```
+$ kubectl -n magnum-system annotate cluster <cluster-name> \
+    cluster.x-k8s.io/paused- --overwrite
 $ kubectl -n magnum-system get clusters \
     -o custom-columns=NAME:.metadata.name,CLASS:.spec.topology.class,TOPOLOGY:.status.conditions[?(@.type==\"TopologyReconciled\")].status
 $ kubectl -n magnum-system get machines \

@@ -244,7 +244,10 @@ impl Driver {
         &self,
         py: Python<'_>,
         cluster_class_name: String,
-    ) -> Result<bool, kubernetes::Error> {
+    ) -> Result<
+        crate::legacy_cluster_class::LegacyClusterClassRepairResult,
+        kubernetes::Error,
+    > {
         // This operation is intentionally explicit: changing bootstrap
         // configuration can trigger rollouts for every Cluster using the class.
         Python::detach(py, || {

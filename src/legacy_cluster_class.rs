@@ -4,6 +4,7 @@ use kube::{
     Client,
 };
 use log::debug;
+use pyo3::prelude::*;
 use semver::Version;
 use serde_yaml::{Mapping, Value};
 
@@ -16,19 +17,27 @@ const SYSTEMD_PROXY_VARIABLE: &str = "systemdProxyConfig";
 const SYSTEMD_PROXY_PLACEHOLDER_TEMPLATE: &str =
     r#"{{ if ne .systemdProxyConfig "" }}{{ .systemdProxyConfig }}{{ else }}Iw=={{ end }}"#;
 
+#[pyclass(eq, eq_int)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LegacyClusterClassRepairResult {
+    Repaired,
+    AlreadyFixed,
+    OutOfScope,
+}
+
 pub async fn repair_legacy_proxy_file_patches(
     client: Client,
     namespace: &str,
     cluster_class_name: &str,
-) -> Result<bool, kubernetes::Error> {
+) -> Result<LegacyClusterClassRepairResult, kubernetes::Error> {
     let api: Api<ClusterClass> = Api::namespaced(client, namespace);
     if !should_repair_cluster_class(cluster_class_name) {
-        return Ok(false);
+        return Ok(LegacyClusterClassRepairResult::OutOfScope);
     }
 
     let mut cluster_class = api.get(cluster_class_name).await?;
     if !repair_proxy_file_content_templates(&mut cluster_class) {
-        return Ok(false);
+        return Ok(LegacyClusterClassRepairResult::AlreadyFixed);
     }
 
     let patch = serde_json::json!({
@@ -44,7 +53,7 @@ pub async fn repair_legacy_proxy_file_patches(
     .await?;
     debug!("repaired legacy proxy file patches in ClusterClass {cluster_class_name}");
 
-    Ok(true)
+    Ok(LegacyClusterClassRepairResult::Repaired)
 }
 
 fn should_repair_cluster_class(name: &str) -> bool {

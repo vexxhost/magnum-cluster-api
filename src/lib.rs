@@ -30,6 +30,7 @@ fn magnum_cluster_api(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("CLUSTER_CLASS_NAME", CLUSTER_CLASS_NAME.as_str())?;
     m.add_class::<client::KubeClient>()?;
     m.add_class::<driver::Driver>()?;
+    m.add_class::<legacy_cluster_class::LegacyClusterClassRepairResult>()?;
     m.add_class::<monitor::Monitor>()?;
 
     Ok(())
