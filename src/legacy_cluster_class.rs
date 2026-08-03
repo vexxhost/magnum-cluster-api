@@ -17,7 +17,7 @@ const SYSTEMD_PROXY_VARIABLE: &str = "systemdProxyConfig";
 const SYSTEMD_PROXY_PLACEHOLDER_TEMPLATE: &str =
     r#"{{ if ne .systemdProxyConfig "" }}{{ .systemdProxyConfig }}{{ else }}Iw=={{ end }}"#;
 
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, skip_from_py_object)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LegacyClusterClassRepairResult {
     Repaired,
