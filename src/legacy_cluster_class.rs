@@ -1,9 +1,10 @@
 use crate::{clients::kubernetes, cluster_api::clusterclasses::ClusterClass};
 use kube::{
-    api::{Api, ListParams, Patch, PatchParams},
-    Client, ResourceExt,
+    api::{Api, Patch, PatchParams},
+    Client,
 };
 use log::debug;
+use pyo3::prelude::*;
 use semver::Version;
 use serde_yaml::{Mapping, Value};
 
@@ -16,33 +17,43 @@ const SYSTEMD_PROXY_VARIABLE: &str = "systemdProxyConfig";
 const SYSTEMD_PROXY_PLACEHOLDER_TEMPLATE: &str =
     r#"{{ if ne .systemdProxyConfig "" }}{{ .systemdProxyConfig }}{{ else }}Iw=={{ end }}"#;
 
+#[pyclass(eq, eq_int, skip_from_py_object)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LegacyClusterClassRepairResult {
+    Repaired,
+    AlreadyFixed,
+    OutOfScope,
+}
+
 pub async fn repair_legacy_proxy_file_patches(
     client: Client,
     namespace: &str,
-) -> Result<usize, kubernetes::Error> {
+    cluster_class_name: &str,
+) -> Result<LegacyClusterClassRepairResult, kubernetes::Error> {
     let api: Api<ClusterClass> = Api::namespaced(client, namespace);
-    let mut repaired = 0;
-
-    for mut cluster_class in api.list(&ListParams::default()).await?.items {
-        let name = cluster_class.name_any();
-        if !should_repair_cluster_class(&name) {
-            continue;
-        }
-
-        if repair_proxy_file_content_templates(&mut cluster_class) {
-            let patch = serde_json::json!({
-                "spec": {
-                    "patches": cluster_class.spec.patches,
-                },
-            });
-            api.patch(&name, &PatchParams::default(), &Patch::Merge(&patch))
-                .await?;
-            repaired += 1;
-            debug!("repaired legacy proxy file patches in ClusterClass {name}");
-        }
+    if !should_repair_cluster_class(cluster_class_name) {
+        return Ok(LegacyClusterClassRepairResult::OutOfScope);
     }
 
-    Ok(repaired)
+    let mut cluster_class = api.get(cluster_class_name).await?;
+    if !repair_proxy_file_content_templates(&mut cluster_class) {
+        return Ok(LegacyClusterClassRepairResult::AlreadyFixed);
+    }
+
+    let patch = serde_json::json!({
+        "spec": {
+            "patches": cluster_class.spec.patches,
+        },
+    });
+    api.patch(
+        cluster_class_name,
+        &PatchParams::default(),
+        &Patch::Merge(&patch),
+    )
+    .await?;
+    debug!("repaired legacy proxy file patches in ClusterClass {cluster_class_name}");
+
+    Ok(LegacyClusterClassRepairResult::Repaired)
 }
 
 fn should_repair_cluster_class(name: &str) -> bool {

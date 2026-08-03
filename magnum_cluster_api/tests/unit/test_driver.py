@@ -42,6 +42,18 @@ def test_debian_driver_provides():
     ]
 
 
+def test_driver_init_does_not_apply_cluster_class(mocker):
+    mocker.patch("magnum_cluster_api.driver.clients.get_pykube_api")
+    rust_driver = mocker.patch(
+        "magnum_cluster_api.driver.magnum_cluster_api.Driver"
+    ).return_value
+    mocker.patch("magnum_cluster_api.driver.tpool.Proxy", side_effect=lambda obj: obj)
+
+    driver.UbuntuDriver()
+
+    rust_driver.apply_cluster_class.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "auto_scaling_enabled", [True, False], ids=lambda x: f"auto_scaling_enabled={x}"
 )

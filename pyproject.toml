@@ -64,6 +64,7 @@ dev = [
 [project.scripts]
 magnum-cluster-api-image-builder = "magnum_cluster_api.cmd.image_builder:main"
 magnum-cluster-api-proxy = "magnum_cluster_api.cmd.proxy:main"
+magnum-cluster-api-repair-legacy-cluster-class = "magnum_cluster_api.cmd.repair_legacy_cluster_class:main"
 
 [project.entry-points."magnum.drivers"]
 k8s_cluster_api_ubuntu = "magnum_cluster_api.driver:UbuntuDriver"

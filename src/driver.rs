@@ -234,14 +234,30 @@ impl Driver {
                 self.client
                     .create_or_update_namespaced_resource(&self.namespace, cluster_class)
                     .await?;
-                crate::legacy_cluster_class::repair_legacy_proxy_file_patches(
-                    self.client.clone(),
-                    &self.namespace,
-                )
-                .await?;
 
                 Ok(())
             })
+        })
+    }
+
+    fn repair_legacy_cluster_class(
+        &self,
+        py: Python<'_>,
+        cluster_class_name: String,
+    ) -> Result<
+        crate::legacy_cluster_class::LegacyClusterClassRepairResult,
+        kubernetes::Error,
+    > {
+        // This operation is intentionally explicit: changing bootstrap
+        // configuration can trigger rollouts for every Cluster using the class.
+        Python::detach(py, || {
+            get_runtime().block_on(
+                crate::legacy_cluster_class::repair_legacy_proxy_file_patches(
+                    self.client.clone(),
+                    &self.namespace,
+                    &cluster_class_name,
+                ),
+            )
         })
     }
 

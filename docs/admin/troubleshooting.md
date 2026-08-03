@@ -165,3 +165,62 @@ Once the cluster is gone, you can clean up the project:
 $ unset OS_PROJECT_ID
 $ openstack project delete $CURRENT_PROJECT_ID
 ```
+
+## Legacy ClusterClass fails topology reconciliation after an upgrade
+
+ClusterClasses created by versions of the driver older than `v0.36.1` can
+contain proxy file patches whose rendered `content` is empty when no proxy is
+configured. Newer Cluster API validation rejects the empty value and leaves
+clusters using the class with `TopologyReconciled=False`.
+
+Do not repair every legacy ClusterClass automatically. Changing a ClusterClass
+causes all Clusters using it to reconcile and triggers control plane and worker
+Machine rollouts. Schedule a maintenance window for every affected Cluster and
+confirm sufficient infrastructure capacity for replacement Machines. A Cluster
+with a single control plane Machine can experience a brief Kubernetes API
+interruption during the replacement.
+
+First, identify the Clusters using the affected class and stop any cluster
+upgrades:
+
+```
+$ export CLUSTER_CLASS=magnum-v0.34.2
+$ kubectl -n magnum-system get clusters \
+    -o custom-columns=NAME:.metadata.name,CLASS:.spec.topology.class \
+    | grep "$CLUSTER_CLASS"
+```
+
+Pause every Cluster returned by the inventory before repairing the shared
+ClusterClass:
+
+```
+$ kubectl -n magnum-system annotate cluster <cluster-name> \
+    cluster.x-k8s.io/paused=true --overwrite
+```
+
+Back up the ClusterClass before changing it:
+
+```
+$ kubectl -n magnum-system get clusterclass "$CLUSTER_CLASS" -o yaml \
+    > "$CLUSTER_CLASS.before-repair.yaml"
+```
+
+Repair only that ClusterClass. The command asks for confirmation unless
+`--yes` is supplied:
+
+```
+$ magnum-cluster-api-repair-legacy-cluster-class "$CLUSTER_CLASS"
+```
+
+Unpause and monitor Clusters one at a time. Wait for each Cluster's topology,
+control plane, worker Machines, and workload Nodes to become healthy before
+unpausing the next Cluster:
+
+```
+$ kubectl -n magnum-system annotate cluster <cluster-name> \
+    cluster.x-k8s.io/paused- --overwrite
+$ kubectl -n magnum-system get clusters \
+    -o custom-columns=NAME:.metadata.name,CLASS:.spec.topology.class,TOPOLOGY:.status.conditions[?(@.type==\"TopologyReconciled\")].status
+$ kubectl -n magnum-system get machines \
+    -o custom-columns=NAME:.metadata.name,UID:.metadata.uid,CLUSTER:.metadata.labels.cluster\\.x-k8s\\.io/cluster-name
+```
