@@ -63,6 +63,13 @@ deployment process.
 :   The prefix of the container images to use for the cluster.
     **Default value**: None, defaults to upstream images.
 
+`container_infra_registry_insecure`
+
+:   Disable TLS certificate verification only for the registry selected by
+    `container_infra_prefix`. Use this only for a private registry whose CA is
+    not trusted by cluster nodes.
+    **Default value**: `false`
+
 ## Network
 
 The way containers talk to each other and the outside world is defined by the networking setup.

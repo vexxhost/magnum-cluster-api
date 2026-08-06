@@ -34,6 +34,12 @@ pub struct FeatureValues {
     #[serde(rename = "containerdConfig")]
     pub containerd_config: String,
 
+    #[serde(rename = "containerdRegistryHost", default)]
+    pub containerd_registry_host: String,
+
+    #[serde(rename = "containerdRegistryHostsConfig", default)]
+    pub containerd_registry_hosts_config: String,
+
     #[serde(rename = "systemdProxyConfig")]
     pub systemd_proxy_config: String,
 }
@@ -123,6 +129,77 @@ impl ClusterFeaturePatches for Feature {
                                 ..Default::default()
                             },
                         ],
+                    },
+                ]),
+                ..Default::default()
+            },
+            ClusterClassPatches {
+                name: "containerdRegistryHostsConfig".into(),
+                enabled_if: Some(
+                    r#"{{ if ne .containerdRegistryHostsConfig "" }}true{{end}}"#.into(),
+                ),
+                definitions: Some(vec![
+                    ClusterClassPatchesDefinitions {
+                        selector: ClusterClassPatchesDefinitionsSelector {
+                            api_version: KubeadmControlPlaneTemplate::api_resource().api_version,
+                            kind: KubeadmControlPlaneTemplate::api_resource().kind,
+                            match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                                control_plane: Some(true),
+                                ..Default::default()
+                            },
+                        },
+                        json_patches: vec![ClusterClassPatchesDefinitionsJsonPatches {
+                            op: "add".into(),
+                            path: "/spec/template/spec/kubeadmConfigSpec/files/-".into(),
+                            value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                template: Some(
+                                    serde_yaml::to_string(&KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles {
+                                        path: "/etc/containerd/certs.d/{{ .containerdRegistryHost }}/hosts.toml".to_string(),
+                                        owner: Some("root:root".into()),
+                                        permissions: Some("0644".to_string()),
+                                        encoding: Some(
+                                            KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64,
+                                        ),
+                                        content: Some("{{ .containerdRegistryHostsConfig }}".to_string()),
+                                        ..Default::default()
+                                    }).unwrap(),
+                                ),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        }],
+                    },
+                    ClusterClassPatchesDefinitions {
+                        selector: ClusterClassPatchesDefinitionsSelector {
+                            api_version: KubeadmConfigTemplate::api_resource().api_version,
+                            kind: KubeadmConfigTemplate::api_resource().kind,
+                            match_resources: ClusterClassPatchesDefinitionsSelectorMatchResources {
+                                machine_deployment_class: Some(ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass {
+                                    names: Some(vec!["default-worker".to_string()])
+                                }),
+                                ..Default::default()
+                            },
+                        },
+                        json_patches: vec![ClusterClassPatchesDefinitionsJsonPatches {
+                            op: "add".into(),
+                            path: "/spec/template/spec/files/-".into(),
+                            value_from: Some(ClusterClassPatchesDefinitionsJsonPatchesValueFrom {
+                                template: Some(
+                                    serde_yaml::to_string(&KubeadmConfigTemplateTemplateSpecFiles {
+                                        path: "/etc/containerd/certs.d/{{ .containerdRegistryHost }}/hosts.toml".to_string(),
+                                        owner: Some("root:root".into()),
+                                        permissions: Some("0644".to_string()),
+                                        encoding: Some(
+                                            KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64,
+                                        ),
+                                        content: Some("{{ .containerdRegistryHostsConfig }}".to_string()),
+                                        ..Default::default()
+                                    }).unwrap(),
+                                ),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        }],
                     },
                 ]),
                 ..Default::default()
@@ -275,6 +352,21 @@ mod tests {
             Some(values.containerd_config.clone())
         );
 
+        let kcpt_registry_hosts_file = kcpt_files
+            .iter()
+            .find(|f| {
+                f.path
+                    == format!(
+                        "/etc/containerd/certs.d/{}/hosts.toml",
+                        values.containerd_registry_host
+                    )
+            })
+            .expect("registry hosts file should be set");
+        assert_eq!(
+            kcpt_registry_hosts_file.content,
+            Some(values.containerd_registry_hosts_config.clone())
+        );
+
         let kct_spec = resources
             .kubeadm_config_template
             .spec
@@ -320,6 +412,21 @@ mod tests {
         assert_eq!(
             kct_containerd_file.content,
             Some(values.containerd_config.clone())
+        );
+
+        let kct_registry_hosts_file = kct_files
+            .iter()
+            .find(|f| {
+                f.path
+                    == format!(
+                        "/etc/containerd/certs.d/{}/hosts.toml",
+                        values.containerd_registry_host
+                    )
+            })
+            .expect("registry hosts file should be set");
+        assert_eq!(
+            kct_registry_hosts_file.content,
+            Some(values.containerd_registry_hosts_config.clone())
         );
     }
 
@@ -384,5 +491,68 @@ mod tests {
                 .is_none(),
             "proxy file should not be set when proxy is empty"
         );
+    }
+
+    #[test]
+    fn test_apply_patches_without_registry_hosts_config() {
+        let feature = Feature {};
+
+        let mut values = default_values();
+        values.containerd_registry_host = "".to_string();
+        values.containerd_registry_hosts_config = "".to_string();
+
+        let patches = feature.patches();
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
+
+        let kcpt_files = resources
+            .kubeadm_control_plane_template
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .files
+            .expect("files should be set");
+        assert!(kcpt_files.iter().all(|f| !f.path.ends_with("/hosts.toml")));
+
+        let kct_files = resources
+            .kubeadm_config_template
+            .spec
+            .template
+            .spec
+            .expect("spec should be set")
+            .files
+            .expect("files should be set");
+        assert!(kct_files.iter().all(|f| !f.path.ends_with("/hosts.toml")));
+    }
+
+    #[test]
+    fn test_registry_variables_are_optional_with_empty_defaults() {
+        let variables = Feature {}.variables();
+
+        for name in [
+            "containerdRegistryHost",
+            "containerdRegistryHostsConfig",
+        ] {
+            let variable = variables
+                .iter()
+                .find(|variable| variable.name == name)
+                .expect("registry variable should exist");
+
+            assert!(!variable.required);
+            assert_eq!(
+                variable.schema.open_apiv3_schema.default,
+                Some(serde_json::json!(""))
+            );
+        }
+
+        for name in ["containerdConfig", "systemdProxyConfig"] {
+            let variable = variables
+                .iter()
+                .find(|variable| variable.name == name)
+                .expect("existing variable should exist");
+
+            assert!(variable.required);
+        }
     }
 }

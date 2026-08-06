@@ -245,7 +245,7 @@ def generate_containerd_config(
     image_repository = get_cluster_container_infra_prefix(cluster)
     sandbox_image = image_utils.get_image(images.PAUSE, image_repository)
 
-    return textwrap.dedent(
+    config = textwrap.dedent(
         """\
         # Use config version 2 to enable new configuration fields.
         # Config file is parsed as version 1 by default.
@@ -262,6 +262,47 @@ def generate_containerd_config(
             SystemdCgroup = true
         """
     ).format(sandbox_image=sandbox_image)
+
+    if image_repository and get_cluster_label_as_bool(
+        cluster, "container_infra_registry_insecure", False
+    ):
+        config += textwrap.dedent(
+            """
+
+            [plugins."io.containerd.grpc.v1.cri".registry]
+                config_path = "/etc/containerd/certs.d"
+            """
+        )
+
+    return config
+
+
+def get_containerd_registry_host(cluster: magnum_objects.Cluster) -> str:
+    image_repository = get_cluster_container_infra_prefix(cluster)
+    if not image_repository or not get_cluster_label_as_bool(
+        cluster, "container_infra_registry_insecure", False
+    ):
+        return ""
+
+    return image_repository.split("://", 1)[-1].split("/", 1)[0]
+
+
+def generate_containerd_registry_hosts_config(
+    cluster: magnum_objects.Cluster,
+) -> str:
+    registry_host = get_containerd_registry_host(cluster)
+    if not registry_host:
+        return ""
+
+    return textwrap.dedent(
+        """\
+        server = "https://{registry_host}"
+
+        [host."https://{registry_host}"]
+            capabilities = ["pull", "resolve"]
+            skip_verify = true
+        """
+    ).format(registry_host=registry_host)
 
 
 def generate_systemd_proxy_config(cluster: magnum_objects.Cluster):
@@ -587,9 +628,7 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
 
     # Check if fixed_network exists
     if cluster.fixed_network:
-        allow_external = (
-            getattr(cluster.cluster_template, "server_type", "vm") == "bm"
-        )
+        allow_external = getattr(cluster.cluster_template, "server_type", "vm") == "bm"
         if uuidutils.is_uuid_like(cluster.fixed_network):
             _get_fixed_network(
                 ctx,

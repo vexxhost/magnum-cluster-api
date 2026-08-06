@@ -147,11 +147,19 @@ def test_cluster_bm_variables_and_control_plane_labels(context, mocker):
         return_value="",
     )
     mocker.patch(
+        "magnum_cluster_api.resources.utils.generate_containerd_registry_hosts_config",
+        return_value="",
+    )
+    mocker.patch(
         "magnum_cluster_api.resources.utils.generate_systemd_proxy_config",
         return_value="",
     )
     mocker.patch(
         "magnum_cluster_api.resources.utils.get_cluster_container_infra_prefix",
+        return_value="",
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.utils.get_containerd_registry_host",
         return_value="",
     )
     mocker.patch(

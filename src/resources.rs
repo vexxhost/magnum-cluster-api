@@ -222,6 +222,16 @@ pub mod fixtures {
                         SystemdCgroup = true
                 "#})
             )
+            .containerd_registry_host("registry.internal".to_string())
+            .containerd_registry_hosts_config(
+                BASE64_STANDARD.encode(indoc! {r#"
+                    server = "https://registry.internal"
+
+                    [host."https://registry.internal"]
+                        capabilities = ["pull", "resolve"]
+                        skip_verify = true
+                "#})
+            )
             .systemd_proxy_config(
                 BASE64_STANDARD.encode(indoc! {r#"
                     [Service]
@@ -311,7 +321,7 @@ mod tests {
         let values = default_values();
         let variables: Vec<ClusterTopologyVariables> = values.into();
 
-        assert_eq!(variables.len(), 40);
+        assert_eq!(variables.len(), 42);
 
         for var in &variables {
             match var.name.as_str() {
@@ -335,6 +345,15 @@ mod tests {
                 }
                 "containerdConfig" => {
                     assert_eq!(var.value, json!(default_values().containerd_config));
+                }
+                "containerdRegistryHost" => {
+                    assert_eq!(var.value, json!(default_values().containerd_registry_host));
+                }
+                "containerdRegistryHostsConfig" => {
+                    assert_eq!(
+                        var.value,
+                        json!(default_values().containerd_registry_hosts_config)
+                    );
                 }
                 "systemdProxyConfig" => {
                     assert_eq!(var.value, json!(default_values().systemd_proxy_config));
@@ -456,5 +475,18 @@ mod tests {
                 other => panic!("Unexpected field name: {}", other),
             }
         }
+    }
+
+    #[test]
+    fn test_values_deserialize_without_registry_variables() {
+        let mut serialized = serde_json::to_value(default_values()).unwrap();
+        let object = serialized.as_object_mut().unwrap();
+        object.remove("containerdRegistryHost");
+        object.remove("containerdRegistryHostsConfig");
+
+        let values: Values = serde_json::from_value(serialized).unwrap();
+
+        assert_eq!(values.containerd_registry_host, "");
+        assert_eq!(values.containerd_registry_hosts_config, "");
     }
 }

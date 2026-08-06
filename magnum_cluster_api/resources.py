@@ -1166,6 +1166,18 @@ class Cluster(ClusterBase):
                             ),
                         },
                         {
+                            "name": "containerdRegistryHost",
+                            "value": utils.get_containerd_registry_host(self.cluster),
+                        },
+                        {
+                            "name": "containerdRegistryHostsConfig",
+                            "value": base64.encode_as_text(
+                                utils.generate_containerd_registry_hosts_config(
+                                    self.cluster
+                                )
+                            ),
+                        },
+                        {
                             "name": "controlPlaneFlavor",
                             "value": control_plane_flavor.name,
                         },

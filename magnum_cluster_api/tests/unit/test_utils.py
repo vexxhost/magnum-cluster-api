@@ -301,6 +301,52 @@ class TestGenerateAptProxyConfig:
         assert config == ""
 
 
+class TestGenerateContainerdConfig:
+    def test_registry_tls_verification_is_enabled_by_default(self, context):
+        cluster = magnum_test_utils.get_test_cluster(
+            context,
+            labels={"container_infra_prefix": "registry.example.com/kubernetes"},
+        )
+
+        config = utils.generate_containerd_config(cluster)
+
+        assert "registry.example.com" in config
+        assert "config_path" not in config
+        assert utils.get_containerd_registry_host(cluster) == ""
+        assert utils.generate_containerd_registry_hosts_config(cluster) == ""
+
+    def test_insecure_registry_is_scoped_to_image_repository(self, context):
+        cluster = magnum_test_utils.get_test_cluster(
+            context,
+            labels={
+                "container_infra_prefix": "registry.example.com/kubernetes",
+                "container_infra_registry_insecure": "true",
+            },
+        )
+
+        config = utils.generate_containerd_config(cluster)
+
+        assert 'config_path = "/etc/containerd/certs.d"' in config
+        assert utils.get_containerd_registry_host(cluster) == "registry.example.com"
+        hosts_config = utils.generate_containerd_registry_hosts_config(cluster)
+        assert 'server = "https://registry.example.com"' in hosts_config
+        assert '[host."https://registry.example.com"]' in hosts_config
+        assert 'capabilities = ["pull", "resolve"]' in hosts_config
+        assert "skip_verify = true" in hosts_config
+
+    def test_insecure_registry_without_repository_changes_nothing(self, context):
+        cluster = magnum_test_utils.get_test_cluster(
+            context,
+            labels={"container_infra_registry_insecure": "true"},
+        )
+
+        config = utils.generate_containerd_config(cluster)
+
+        assert "config_path" not in config
+        assert utils.get_containerd_registry_host(cluster) == ""
+        assert utils.generate_containerd_registry_hosts_config(cluster) == ""
+
+
 @pytest.mark.parametrize("cluster_distro", ["debian", "debian-13"])
 def test_get_operating_system_for_debian(context, cluster_distro):
     cluster = magnum_test_utils.get_test_cluster(context, labels={})
@@ -366,9 +412,7 @@ class TestUtils(base.BaseTestCase):
         )
 
     @mock.patch("magnum.common.neutron.get_network")
-    def test_get_fixed_network_id_allows_external_for_baremetal(
-        self, mock_get_network
-    ):
+    def test_get_fixed_network_id_allows_external_for_baremetal(self, mock_get_network):
         context = mock.Mock()
         fixed_network = "baremetal-network"
         network_id = uuidutils.generate_uuid()

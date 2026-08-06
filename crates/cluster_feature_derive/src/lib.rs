@@ -27,6 +27,7 @@ pub fn derive_cluster_variable_values(input: TokenStream) -> TokenStream {
         let field_ident = field.ident.as_ref().unwrap();
         // Look for a serde(rename = "...") attribute on the field.
         let mut rename_value: Option<String> = None;
+        let mut has_default = false;
 
         for attr in &field.attrs {
             if attr.path().is_ident("serde") {
@@ -38,6 +39,8 @@ pub fn derive_cluster_variable_values(input: TokenStream) -> TokenStream {
                         // Parse the string literal
                         let lit: syn::LitStr = meta.input.parse()?;
                         rename_value = Some(lit.value());
+                    } else if meta.path.is_ident("default") {
+                        has_default = true;
                     }
                     Ok(())
                 });
@@ -51,12 +54,27 @@ pub fn derive_cluster_variable_values(input: TokenStream) -> TokenStream {
         };
 
         let ty = &field.ty;
+        let required = !has_default;
+        let default = if has_default {
+            quote! {
+                schema.open_apiv3_schema.default = Some(
+                    serde_json::to_value(<#ty as Default>::default()).unwrap()
+                );
+            }
+        } else {
+            quote! {}
+        };
         var_entries.push(quote! {
-            ClusterClassVariables {
-                name: #var_name.into(),
-                metadata: None,
-                required: true,
-                schema: ClusterClassVariablesSchema::from_object::<#ty>(),
+            {
+                let mut schema = ClusterClassVariablesSchema::from_object::<#ty>();
+                #default
+
+                ClusterClassVariables {
+                    name: #var_name.into(),
+                    metadata: None,
+                    required: #required,
+                    schema,
+                }
             }
         });
     }
