@@ -305,6 +305,34 @@ class TestExistingMutateMachineDeployment:
             assert md["replicas"] == self.node_group.node_count
             assert md["metadata"]["annotations"] == {}
 
+    def test_mutate_machine_deployment_removes_empty_failure_domain(self, context):
+        md = resources.mutate_machine_deployment(
+            context,
+            self.cluster,
+            self.node_group,
+            {
+                "name": self.node_group.name,
+                "failureDomain": "",
+            },
+        )
+
+        assert "failureDomain" not in md
+
+    def test_mutate_machine_deployment_updates_empty_failure_domain(self, context):
+        self.node_group.labels["availability_zone"] = "nova"
+
+        md = resources.mutate_machine_deployment(
+            context,
+            self.cluster,
+            self.node_group,
+            {
+                "name": self.node_group.name,
+                "failureDomain": "",
+            },
+        )
+
+        assert md["failureDomain"] == "nova"
+
 
 def test_mutate_machine_deployment_bm_omits_ephemeral_disk_annotation(context, mocker):
     """For server_type=bm flavors with disk=0 the autoscaler annotation
@@ -369,3 +397,97 @@ def test_mutate_machine_deployment_vm_keeps_ephemeral_disk_annotation(context, m
     assert (
         annotations["capacity.cluster-autoscaler.kubernetes.io/ephemeral-disk"] == "20"
     )
+
+
+def _patch_new_machine_deployment_dependencies(mocker):
+    mocker.patch(
+        "magnum_cluster_api.utils.get_default_boot_volume_size",
+        side_effect=lambda cluster, default: default,
+    )
+    mocker.patch("magnum_cluster_api.utils.lookup_image", return_value={"id": "foo"})
+    mocker.patch(
+        "magnum_cluster_api.utils.lookup_flavor",
+        return_value=flavors.Flavor(
+            None,
+            {"name": "bm-flavor", "disk": 0, "ram": 4096, "vcpus": 4},
+        ),
+    )
+    mocker.patch(
+        "magnum_cluster_api.integrations.cinder.get_default_boot_volume_type",
+        return_value="rbd1",
+    )
+    mocker.patch(
+        "magnum_cluster_api.utils.ensure_worker_server_group",
+        return_value="server-group",
+    )
+
+
+def test_new_machine_deployment_omits_unset_failure_domain(context, mocker):
+    cluster = utils.get_test_cluster(context, labels={})
+    node_group = utils.get_test_nodegroup(context, labels={})
+    _patch_new_machine_deployment_dependencies(mocker)
+
+    md = resources.mutate_machine_deployment(context, cluster, node_group)
+
+    assert "failureDomain" not in md
+
+
+def test_new_machine_deployment_sets_failure_domain(context, mocker):
+    cluster = utils.get_test_cluster(context, labels={})
+    node_group = utils.get_test_nodegroup(
+        context,
+        labels={"availability_zone": "nova"},
+    )
+    _patch_new_machine_deployment_dependencies(mocker)
+
+    md = resources.mutate_machine_deployment(context, cluster, node_group)
+
+    assert md["failureDomain"] == "nova"
+
+
+def test_migrate_machineset_failure_domain_removes_empty_value(context, mocker):
+    cluster = utils.get_test_cluster(context, labels={})
+    node_group = utils.get_test_nodegroup(context, labels={})
+    machine_set = mocker.Mock()
+    machine_set.obj = {
+        "spec": {
+            "template": {
+                "spec": {
+                    "failureDomain": "",
+                },
+            },
+        },
+    }
+    mocker.patch(
+        "magnum_cluster_api.objects.MachineSet.for_node_group",
+        return_value=[machine_set],
+    )
+
+    resources.migrate_machineset_failure_domain(
+        context,
+        cluster,
+        node_group,
+        mocker.Mock(),
+    )
+
+    assert "failureDomain" not in machine_set.obj["spec"]["template"]["spec"]
+    machine_set.update.assert_called_once_with()
+
+
+def test_migrate_cluster_failure_domain_removes_empty_value(context, mocker):
+    node_group = utils.get_test_nodegroup(context, labels={})
+    machine_deployment = {
+        "name": node_group.name,
+        "failureDomain": "",
+    }
+    cluster_resource = mocker.Mock()
+    cluster_resource.get_machine_deployment_spec.return_value = machine_deployment
+
+    resources.migrate_cluster_failure_domain(node_group, cluster_resource)
+
+    assert "failureDomain" not in machine_deployment
+    cluster_resource.set_machine_deployment_spec.assert_called_once_with(
+        node_group.name,
+        machine_deployment,
+    )
+    cluster_resource.update.assert_called_once_with()
