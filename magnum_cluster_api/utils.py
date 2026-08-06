@@ -587,21 +587,24 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
 
     # Check if fixed_network exists
     if cluster.fixed_network:
+        allow_external = (
+            getattr(cluster.cluster_template, "server_type", "vm") == "bm"
+        )
         if uuidutils.is_uuid_like(cluster.fixed_network):
-            neutron.get_network(
+            _get_fixed_network(
                 ctx,
                 cluster.fixed_network,
                 source="id",
                 target="name",
-                external=False,
+                allow_external=allow_external,
             )
         else:
-            neutron.get_network(
+            _get_fixed_network(
                 ctx,
                 cluster.fixed_network,
                 source="name",
                 target="id",
-                external=False,
+                allow_external=allow_external,
             )
 
     # Check if fixed_subnet exists
@@ -844,10 +847,34 @@ def _delete_server_group(
     osc.delete_server_group(server_group_id)
 
 
-def get_fixed_network_id(context, network):
-    if network and not uuidutils.is_uuid_like(network):
+def _get_fixed_network(context, network, source, target, allow_external=False):
+    """Resolve a fixed network, optionally accepting an external network.
+
+    Magnum normally requires fixed networks to be non-external. Bare-metal
+    clusters can instead use an external provider network as their physical
+    fixed network, so retry that lookup only when the caller explicitly opts
+    in. Other lookup errors remain unchanged.
+    """
+    try:
         return neutron.get_network(
-            context, network, source="name", target="id", external=False
+            context, network, source=source, target=target, external=False
+        )
+    except exception.FixedNetworkNotFound:
+        if not allow_external:
+            raise
+        return neutron.get_network(
+            context, network, source=source, target=target, external=True
+        )
+
+
+def get_fixed_network_id(context, network, allow_external=False):
+    if network and not uuidutils.is_uuid_like(network):
+        return _get_fixed_network(
+            context,
+            network,
+            source="name",
+            target="id",
+            allow_external=allow_external,
         )
     else:
         return network

@@ -1223,7 +1223,16 @@ class Cluster(ClusterBase):
                         {
                             "name": "fixedNetworkId",
                             "value": utils.get_fixed_network_id(
-                                self.context, self.cluster.fixed_network
+                                self.context,
+                                self.cluster.fixed_network,
+                                allow_external=(
+                                    getattr(
+                                        self.cluster.cluster_template,
+                                        "server_type",
+                                        "vm",
+                                    )
+                                    == "bm"
+                                ),
                             )
                             or "",
                         },
