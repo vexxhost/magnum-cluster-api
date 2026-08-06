@@ -84,7 +84,7 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     assert len(mds) == 2
 
 
-def test_cluster_variables_disable_managed_security_groups_for_bm(context, mocker):
+def test_cluster_bm_variables_and_control_plane_labels(context, mocker):
     cluster = mocker.Mock()
     cluster.cluster_template = mocker.Mock(
         network_driver="calico",
@@ -197,6 +197,10 @@ def test_cluster_variables_disable_managed_security_groups_for_bm(context, mocke
         for variable in resource["spec"]["topology"]["variables"]
     }
     assert variables["disableManagedSecurityGroups"] is False
+    assert resource["spec"]["topology"]["controlPlane"]["metadata"]["labels"] == {
+        "node-role.kubernetes.io/master": "",
+        "node-role.kubernetes.io/control-plane": "",
+    }
 
     cluster.cluster_template.server_type = "bm"
     resource = resources.Cluster(

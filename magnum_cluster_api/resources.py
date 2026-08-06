@@ -1044,6 +1044,7 @@ class Cluster(ClusterBase):
                         "metadata": {
                             "labels": {
                                 "node-role.kubernetes.io/master": "",
+                                "node-role.kubernetes.io/control-plane": "",
                             }
                         },
                         "replicas": self.cluster.master_count,
