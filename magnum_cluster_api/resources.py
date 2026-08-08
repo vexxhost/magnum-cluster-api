@@ -1021,7 +1021,9 @@ class Cluster(ClusterBase):
             self.cluster.stack_id, dict(self.cluster.labels), variables
         )
 
-        kube_vip_enabled = str(self.cluster.labels.get("kube_vip_enabled", "false")).lower() == "true"
+        kube_vip_enabled = (
+            str(self.cluster.labels.get("kube_vip_enabled", "false")).lower() == "true"
+        )
         kube_vip_image = self.cluster.labels.get(
             "kube_vip_image", "ghcr.io/kube-vip/kube-vip:v0.8.2"
         )
