@@ -1020,6 +1020,7 @@ class Cluster(ClusterBase):
         )
 
         api_server_fixed_ip = self.cluster.labels.get("api_server_fixed_ip", "")
+        kube_vip_enabled = str(self.cluster.labels.get("kube_vip_enabled", "false")).lower() == "true"
 
         return {
             "metadata": {
@@ -1069,6 +1070,10 @@ class Cluster(ClusterBase):
                         {
                             "name": "apiServerFixedIP",
                             "value": api_server_fixed_ip,
+                        },
+                        {
+                            "name": "kubeVip",
+                            "value": kube_vip_enabled,
                         },
                         {
                             "name": "apiServerTLSCipherSuites",

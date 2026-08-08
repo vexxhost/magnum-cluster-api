@@ -64,6 +64,7 @@ pub mod flavors;
 pub mod image_repository;
 pub mod images;
 pub mod keystone_auth;
+pub mod kube_vip;
 pub mod managed_security_groups;
 pub mod networks;
 pub mod openid_connect;
