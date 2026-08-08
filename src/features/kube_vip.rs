@@ -21,8 +21,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 #[allow(dead_code)]
 pub struct FeatureValues {
-    #[serde(rename = "kubeVip")]
+    #[serde(rename = "kubeVip", default)]
     pub kube_vip: bool,
+    #[serde(rename = "kubeVipImage", default)]
+    pub kube_vip_image: String,
+    #[serde(rename = "kubeVipInterface", default)]
+    pub kube_vip_interface: String,
 }
 
 pub struct Feature {}
@@ -53,7 +57,7 @@ content: |
           fieldRef:
             fieldPath: spec.nodeName
       - name: vip_interface
-        value: "eth0"
+        value: "{{ .kubeVipInterface }}"
       - name: vip_cidr
         value: "32"
       - name: dns_mode
@@ -76,7 +80,7 @@ content: |
         value: "{{ .apiServerFixedIP }}"
       - name: prometheus_server
         value: :2112
-      image: ghcr.io/kube-vip/kube-vip:v0.8.2
+      image: {{ .kubeVipImage }}
       imagePullPolicy: IfNotPresent
       name: kube-vip
       securityContext:
@@ -106,7 +110,7 @@ content: |
 
         vec![ClusterClassPatches {
             name: "kubeVip".into(),
-            enabled_if: Some("{{ if .kubeVip }}true{{end}}".into()),
+            enabled_if: Some("{{ if and .kubeVip .apiServerFixedIPManaged (ne .kubeVipInterface \"\") }}true{{end}}".into()),
             definitions: Some(vec![ClusterClassPatchesDefinitions {
                 selector: ClusterClassPatchesDefinitionsSelector {
                     api_version: KubeadmControlPlaneTemplate::api_resource().api_version,
@@ -133,4 +137,59 @@ content: |
 
 inventory::submit! {
     ClusterFeatureEntry{ feature: &Feature {} }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::features::test::TestClusterResources;
+    use crate::resources::fixtures::default_values;
+
+    #[test]
+    fn renders_only_with_an_explicit_vip_and_interface() {
+        let mut values = default_values();
+        values.kube_vip = true;
+        values.api_server_fixed_ip = "10.20.8.70".into();
+        values.api_server_fixed_ip_managed = true;
+        values.kube_vip_interface = "ens212f0np0".into();
+
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&Feature {}.patches(), &values);
+        let files = resources
+            .kubeadm_control_plane_template
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .files
+            .expect("control-plane files should be present");
+        let manifest = files
+            .iter()
+            .find(|file| file.path == "/etc/kubernetes/manifests/kube-vip.yaml")
+            .expect("kube-vip manifest should be rendered");
+        let content = manifest.content.as_deref().expect("manifest content");
+        assert!(content.contains("value: \"ens212f0np0\""));
+        assert!(content.contains("value: \"10.20.8.70\""));
+    }
+
+    #[test]
+    fn omits_the_manifest_without_an_interface() {
+        let mut values = default_values();
+        values.kube_vip = true;
+        values.api_server_fixed_ip = "10.20.8.70".into();
+        values.api_server_fixed_ip_managed = true;
+
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&Feature {}.patches(), &values);
+        assert!(resources
+            .kubeadm_control_plane_template
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .files
+            .unwrap_or_default()
+            .iter()
+            .all(|file| file.path != "/etc/kubernetes/manifests/kube-vip.yaml"));
+    }
 }

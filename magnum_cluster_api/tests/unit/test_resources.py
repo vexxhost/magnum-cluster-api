@@ -189,7 +189,9 @@ def test_cluster_bm_variables_and_control_plane_labels(context, mocker):
 
     rust_driver = mocker.Mock()
     rust_driver.resolve_immutable_fields.return_value = {
-        "apiServerLoadBalancer": {"enabled": True}
+        "apiServerLoadBalancer": {"enabled": True},
+        "apiServerFixedIP": "10.20.8.70",
+        "apiServerFixedIPManaged": True,
     }
 
     resource = resources.Cluster(
@@ -205,6 +207,8 @@ def test_cluster_bm_variables_and_control_plane_labels(context, mocker):
         for variable in resource["spec"]["topology"]["variables"]
     }
     assert variables["disableManagedSecurityGroups"] is False
+    assert variables["apiServerFixedIP"] == "10.20.8.70"
+    assert variables["apiServerFixedIPManaged"] is True
     assert resource["spec"]["topology"]["controlPlane"]["metadata"]["labels"] == {
         "node-role.kubernetes.io/master": "",
         "node-role.kubernetes.io/control-plane": "",

@@ -444,18 +444,23 @@ class BaseDriver(driver.Driver):
         """
         if cluster.stack_id is None:
             return
-        # NOTE(mnaser): This should be removed when this is fixed:
-        #
-        #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/issues/842
-        #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/pull/990
-        utils.delete_loadbalancers(context, cluster)
-
         # NOTE(rlin): Magnum's `cluster create --labels` REPLACES (rather than
         # merges) the cluster_template labels.  This means a cluster row may
         # legitimately be missing keys (e.g. ``kube_tag``) that the Rust driver
         # needs to deserialize ClusterLabels.  Merge template labels as a
         # fallback so delete never trips over a sparse label dict.
         utils.fill_missing_labels_from_template(cluster)
+
+        # A no-Octavia cluster never creates Service load balancers.  Skipping
+        # this legacy cleanup keeps its deletion independent of an Octavia
+        # endpoint while retaining the default cleanup path for all existing
+        # clusters.
+        if utils.get_cluster_label_as_bool(cluster, "octavia_enabled", True):
+            # NOTE(mnaser): This should be removed when this is fixed:
+            #
+            # https://github.com/kubernetes-sigs/cluster-api-provider-openstack/issues/842
+            # https://github.com/kubernetes-sigs/cluster-api-provider-openstack/pull/990
+            utils.delete_loadbalancers(context, cluster)
 
         self.rust_driver.delete_cluster(cluster)
         resources.Cluster(

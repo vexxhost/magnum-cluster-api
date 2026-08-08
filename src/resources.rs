@@ -186,6 +186,8 @@ pub mod fixtures {
 
     pub fn default_values() -> Values {
         Values::builder()
+            .api_server_fixed_ip("".to_string())
+            .api_server_fixed_ip_managed(false)
             .api_server_floating_ip("".to_string())
             .api_server_load_balancer(
                 api_server_load_balancer::APIServerLoadBalancerConfig::builder()
@@ -253,6 +255,9 @@ pub mod fixtures {
             .image_repository("registry.example.com/cluster-api".into())
             .image_uuid("bar".into())
             .enable_keystone_auth(true)
+            .kube_vip(false)
+            .kube_vip_image("ghcr.io/kube-vip/kube-vip:v0.8.2".to_string())
+            .kube_vip_interface("".to_string())
             .node_cidr("10.0.0.0/24".into())
             .dns_nameservers(vec!["1.1.1.1".into()])
             .fixed_network_id("".into())
@@ -321,10 +326,16 @@ mod tests {
         let values = default_values();
         let variables: Vec<ClusterTopologyVariables> = values.into();
 
-        assert_eq!(variables.len(), 42);
+        assert_eq!(variables.len(), 47);
 
         for var in &variables {
             match var.name.as_str() {
+                "apiServerFixedIP" => {
+                    assert_eq!(var.value, json!(default_values().api_server_fixed_ip));
+                }
+                "apiServerFixedIPManaged" => {
+                    assert_eq!(var.value, json!(default_values().api_server_fixed_ip_managed));
+                }
                 "apiServerFloatingIP" => {
                     assert_eq!(var.value, json!(default_values().api_server_floating_ip));
                 }
@@ -399,6 +410,15 @@ mod tests {
                 }
                 "enableKeystoneAuth" => {
                     assert_eq!(var.value, json!(default_values().enable_keystone_auth));
+                }
+                "kubeVip" => {
+                    assert_eq!(var.value, json!(default_values().kube_vip));
+                }
+                "kubeVipImage" => {
+                    assert_eq!(var.value, json!(default_values().kube_vip_image));
+                }
+                "kubeVipInterface" => {
+                    assert_eq!(var.value, json!(default_values().kube_vip_interface));
                 }
                 "nodeCidr" => {
                     assert_eq!(var.value, json!(default_values().node_cidr));
