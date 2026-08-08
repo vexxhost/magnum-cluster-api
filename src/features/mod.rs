@@ -49,6 +49,7 @@ use schemars::{generate::SchemaGenerator, JsonSchema, Schema};
 use std::sync::LazyLock;
 
 pub mod admission_plugins;
+pub mod api_server_fixed_ip;
 pub mod api_server_floating_ip;
 pub mod api_server_load_balancer;
 pub mod audit_log;

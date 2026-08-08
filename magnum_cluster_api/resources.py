@@ -1019,6 +1019,8 @@ class Cluster(ClusterBase):
             self.cluster.stack_id, dict(self.cluster.labels), variables
         )
 
+        api_server_fixed_ip = self.cluster.labels.get("api_server_fixed_ip", "")
+
         return {
             "metadata": {
                 "labels": self.labels,
@@ -1063,6 +1065,10 @@ class Cluster(ClusterBase):
                         {
                             "name": "apiServerLoadBalancer",
                             "value": variables["apiServerLoadBalancer"],
+                        },
+                        {
+                            "name": "apiServerFixedIP",
+                            "value": api_server_fixed_ip,
                         },
                         {
                             "name": "apiServerTLSCipherSuites",
