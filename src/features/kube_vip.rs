@@ -101,7 +101,7 @@ content: |
         ip: 127.0.0.1
     volumes:
     - hostPath:
-        path: /etc/kubernetes/admin.conf
+        path: /etc/kubernetes/super-admin.conf
       name: kubeconfig
     - hostPath:
         path: /etc/ssl/certs
@@ -170,6 +170,8 @@ mod tests {
         let content = manifest.content.as_deref().expect("manifest content");
         assert!(content.contains("value: \"ens212f0np0\""));
         assert!(content.contains("value: \"10.20.8.70\""));
+        assert!(content.contains("mountPath: /etc/kubernetes/admin.conf"));
+        assert!(content.contains("path: /etc/kubernetes/super-admin.conf"));
     }
 
     #[test]
