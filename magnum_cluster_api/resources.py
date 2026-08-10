@@ -746,7 +746,6 @@ def mutate_machine_deployment(
         if boot_volume_size == 0:
             boot_volume_size = flavor.disk
 
-        machine_deployment["replicas"] = None
         machine_deployment["metadata"]["annotations"] = {
             AUTOSCALE_ANNOTATION_MIN: str(node_group.min_node_count),
             AUTOSCALE_ANNOTATION_MAX: str(
@@ -770,11 +769,12 @@ def mutate_machine_deployment(
     machine_deployment["nodeVolumeDetachTimeout"] = (
         CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT
     )
+    new_failure_domain = node_group.labels.get("availability_zone")
+
     # Anything beyond this point will *NOT* be changed in the machine deployment
     # for update operations (i.e. if the machine deployment already exists).
     if machine_deployment.get("name") == node_group.name:
         current_failure_domain = machine_deployment.get("failureDomain")
-        new_failure_domain = node_group.labels.get("availability_zone")
         if current_failure_domain == "" and (
             new_failure_domain is None or new_failure_domain == ""
         ):
@@ -788,11 +788,14 @@ def mutate_machine_deployment(
     # At this point, this is all code that will be added for brand-new machine
     # deployments.  We can bring any of this code into the above block if we
     # want to change it for existing machine deployments.
+
+    if new_failure_domain:
+        machine_deployment["failureDomain"] = new_failure_domain
+
     machine_deployment.update(
         {
             "class": "default-worker",
             "name": node_group.name,
-            "failureDomain": node_group.labels.get("availability_zone"),
             "machineHealthCheck": {"enable": utils.get_auto_healing_enabled(cluster)},
             "variables": {
                 "overrides": [
