@@ -145,7 +145,7 @@ class TestExistingMutateMachineDeployment:
         self._assert_no_mutations(md)
 
         if auto_scaling_enabled:
-            assert md["replicas"] is None
+            assert "replicas" not in md
             assert md["metadata"]["annotations"][
                 resources.AUTOSCALE_ANNOTATION_MIN
             ] == str(self.node_group.min_node_count)
@@ -218,6 +218,20 @@ def test_new_machine_deployment_omits_unset_failure_domain(context, mocker):
     md = resources.mutate_machine_deployment(context, cluster, node_group)
 
     assert "failureDomain" not in md
+
+
+def test_new_machine_deployment_omits_replicas_when_autoscaling_enabled(
+    context, mocker
+):
+    cluster = utils.get_test_cluster(context, labels={"auto_scaling_enabled": "true"})
+    node_group = utils.get_test_nodegroup(context, labels={})
+    node_group.min_node_count = 1
+    node_group.max_node_count = 3
+    _patch_new_machine_deployment_dependencies(mocker)
+
+    md = resources.mutate_machine_deployment(context, cluster, node_group)
+
+    assert "replicas" not in md
 
 
 def test_new_machine_deployment_sets_failure_domain(context, mocker):

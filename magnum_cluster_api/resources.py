@@ -746,7 +746,9 @@ def mutate_machine_deployment(
         if boot_volume_size == 0:
             boot_volume_size = flavor.disk
 
-        machine_deployment["replicas"] = None
+        # Leave replicas unset so Cluster API and the cluster autoscaler do not
+        # fight over the desired worker count.
+        machine_deployment.pop("replicas", None)
         machine_deployment["metadata"]["annotations"] = {
             AUTOSCALE_ANNOTATION_MIN: str(node_group.min_node_count),
             AUTOSCALE_ANNOTATION_MAX: str(
