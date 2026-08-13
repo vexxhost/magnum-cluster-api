@@ -998,10 +998,20 @@ class Cluster(ClusterBase):
 
         variables = {
             "apiServerLoadBalancer": {"enabled": self.cluster.master_lb_enabled},
+            "apiServerFixedIP": self.cluster.labels.get("api_server_fixed_ip", ""),
+            "apiServerFixedIPManaged": "api_server_fixed_ip" in self.cluster.labels,
         }
         variables = self.rust_driver.resolve_immutable_fields(
             self.cluster.stack_id, dict(self.cluster.labels), variables
         )
+
+        kube_vip_enabled = (
+            str(self.cluster.labels.get("kube_vip_enabled", "false")).lower() == "true"
+        )
+        kube_vip_image = self.cluster.labels.get(
+            "kube_vip_image", "ghcr.io/kube-vip/kube-vip:v0.8.2"
+        )
+        kube_vip_interface = self.cluster.labels.get("kube_vip_interface", "")
 
         return {
             "metadata": {
@@ -1046,6 +1056,26 @@ class Cluster(ClusterBase):
                         {
                             "name": "apiServerLoadBalancer",
                             "value": variables["apiServerLoadBalancer"],
+                        },
+                        {
+                            "name": "apiServerFixedIP",
+                            "value": variables["apiServerFixedIP"],
+                        },
+                        {
+                            "name": "apiServerFixedIPManaged",
+                            "value": variables["apiServerFixedIPManaged"],
+                        },
+                        {
+                            "name": "kubeVip",
+                            "value": kube_vip_enabled,
+                        },
+                        {
+                            "name": "kubeVipImage",
+                            "value": kube_vip_image,
+                        },
+                        {
+                            "name": "kubeVipInterface",
+                            "value": kube_vip_interface,
                         },
                         {
                             "name": "apiServerTLSCipherSuites",

@@ -49,6 +49,7 @@ use schemars::{generate::SchemaGenerator, JsonSchema, Schema};
 use std::sync::LazyLock;
 
 pub mod admission_plugins;
+pub mod api_server_fixed_ip;
 pub mod api_server_floating_ip;
 pub mod api_server_load_balancer;
 pub mod audit_log;
@@ -63,6 +64,7 @@ pub mod flavors;
 pub mod image_repository;
 pub mod images;
 pub mod keystone_auth;
+pub mod kube_vip;
 pub mod networks;
 pub mod openid_connect;
 pub mod operating_system;

@@ -191,6 +191,15 @@ pub const OPENSTACK_CLUSTER_FIELDS: ResourceFieldMappings<OpenStackCluster> =
                 label: "",
                 presence_variable_path: Some("/disableAPIServerFloatingIPManaged"),
             },
+            // CAPO treats the operator-provided API VIP as immutable.  Keep
+            // rendering it for an existing cluster even if a later Magnum
+            // update loses the source label.
+            FieldMapping {
+                resource_path: "/spec/apiServerFixedIP",
+                variable_path: "/apiServerFixedIP",
+                label: "api_server_fixed_ip",
+                presence_variable_path: Some("/apiServerFixedIPManaged"),
+            },
         ],
         _resource: PhantomData,
     };
