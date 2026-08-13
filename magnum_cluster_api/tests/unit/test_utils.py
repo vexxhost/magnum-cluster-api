@@ -366,6 +366,41 @@ class TestUtils(base.BaseTestCase):
         )
 
     @mock.patch("magnum.common.neutron.get_network")
+    def test_get_fixed_network_id_allows_external_for_baremetal(self, mock_get_network):
+        context = mock.Mock()
+        fixed_network = "baremetal-network"
+        network_id = uuidutils.generate_uuid()
+        mock_get_network.side_effect = [
+            exception.FixedNetworkNotFound(network=fixed_network),
+            network_id,
+        ]
+
+        network = utils.get_fixed_network_id(
+            context, fixed_network, allow_external=True
+        )
+
+        self.assertEqual(network_id, network)
+        self.assertEqual(
+            [
+                mock.call(
+                    context,
+                    fixed_network,
+                    source="name",
+                    target="id",
+                    external=False,
+                ),
+                mock.call(
+                    context,
+                    fixed_network,
+                    source="name",
+                    target="id",
+                    external=True,
+                ),
+            ],
+            mock_get_network.call_args_list,
+        )
+
+    @mock.patch("magnum.common.neutron.get_network")
     def test_get_fixed_network_id_with_multiple_networks(self, mock_get_network):
         context = mock.Mock()
         fixed_network = "fake-network"
@@ -590,6 +625,62 @@ class TestGetDefaultBootVolumeSize(base.BaseTestCase):
         cluster = mock.Mock()
         cluster.cluster_template = object()  # no server_type attr
         self.assertEqual(20, utils.get_default_boot_volume_size(cluster, 20))
+
+
+class TestValidateClusterFixedNetwork(base.BaseTestCase):
+    def _cluster(self, server_type):
+        cluster = mock.Mock()
+        cluster.cluster_template = mock.Mock(
+            network_driver="calico", server_type=server_type
+        )
+        cluster.master_count = 1
+        cluster.fixed_network = "provider-network"
+        cluster.fixed_subnet = None
+        return cluster
+
+    @mock.patch("magnum_cluster_api.utils.clients.get_openstack_api")
+    @mock.patch("magnum_cluster_api.utils.validate_baremetal_flavors")
+    @mock.patch("magnum_cluster_api.utils._get_fixed_network")
+    def test_baremetal_cluster_allows_external_fixed_network(
+        self, mock_get_network, mock_validate_flavors, mock_get_openstack_api
+    ):
+        context = mock.Mock()
+        cluster = self._cluster("bm")
+
+        utils.validate_cluster(context, cluster)
+
+        mock_validate_flavors.assert_called_once_with(
+            mock_get_openstack_api.return_value, cluster
+        )
+        mock_get_network.assert_called_once_with(
+            context,
+            "provider-network",
+            source="name",
+            target="id",
+            allow_external=True,
+        )
+
+    @mock.patch("magnum_cluster_api.utils.clients.get_openstack_api")
+    @mock.patch("magnum_cluster_api.utils.validate_baremetal_flavors")
+    @mock.patch("magnum_cluster_api.utils._get_fixed_network")
+    def test_virtual_cluster_requires_non_external_fixed_network(
+        self, mock_get_network, mock_validate_flavors, mock_get_openstack_api
+    ):
+        context = mock.Mock()
+        cluster = self._cluster("vm")
+
+        utils.validate_cluster(context, cluster)
+
+        mock_validate_flavors.assert_called_once_with(
+            mock_get_openstack_api.return_value, cluster
+        )
+        mock_get_network.assert_called_once_with(
+            context,
+            "provider-network",
+            source="name",
+            target="id",
+            allow_external=False,
+        )
 
 
 class TestValidateBaremetalFlavors(base.BaseTestCase):
