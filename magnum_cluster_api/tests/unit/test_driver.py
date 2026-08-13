@@ -466,6 +466,24 @@ class TestDriver:
             "octavia_provider": "ovn",
         }
 
+    def test_delete_cluster_skips_octavia_cleanup_when_disabled(
+        self, context, ubuntu_driver, cluster_template, mocker
+    ):
+        self.cluster.stack_id = "kube-test"
+        self.cluster.labels = {"octavia_enabled": "false"}
+        cluster_template.labels = {}
+        ubuntu_driver._kube_client = mock.MagicMock()
+        ubuntu_driver.rust_driver = mock.MagicMock()
+        delete_loadbalancers = mocker.patch(
+            "magnum_cluster_api.utils.delete_loadbalancers"
+        )
+        mocker.patch("magnum_cluster_api.resources.Cluster")
+        mocker.patch("magnum_cluster_api.resources.ClusterAutoscalerHelmRelease")
+
+        ubuntu_driver.delete_cluster(context, self.cluster)
+
+        delete_loadbalancers.assert_not_called()
+
     def setup_node_group_tests(self, rsps, before, after=None):
         rsps.add(
             self._response_for_cluster_with_machine_deployments(*before),
