@@ -47,7 +47,7 @@ from magnum_cluster_api import (
 from magnum_cluster_api.integrations import cinder, manila
 
 CONF = cfg.CONF
-CALICO_TAG = "v3.31.5"
+CALICO_TAG = "v3.32.1"
 
 CLUSTER_CLASS_NODE_VOLUME_DETACH_TIMEOUT = "300s"  # seconds
 
@@ -263,8 +263,8 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
 
         osc = clients.get_openstack_api(self.context)
         if cinder.is_enabled(self.cluster):
-            volume_types = osc.cinder().volume_types.list()
-            default_volume_type = osc.cinder().volume_types.default()
+            volume_types = osc.list_volume_types()
+            default_volume_type = osc.get_default_volume_type()
             data = {
                 **data,
                 **magnum_cluster_api.Driver.get_cinder_csi_cluster_resource_secret_data(
@@ -700,7 +700,7 @@ class CloudConfigSecret(ClusterBase):
 
 def mutate_machine_deployment(
     context: context.RequestContext,
-    cluster: objects.Cluster,
+    cluster: magnum_objects.Cluster,
     node_group: magnum_objects.NodeGroup,
     machine_deployment: dict = None,
 ):
@@ -746,7 +746,9 @@ def mutate_machine_deployment(
         if boot_volume_size == 0:
             boot_volume_size = flavor.disk
 
-        machine_deployment["replicas"] = None
+        # Leave replicas unset so Cluster API and the cluster autoscaler do not
+        # fight over the desired worker count.
+        machine_deployment.pop("replicas", None)
         machine_deployment["metadata"]["annotations"] = {
             AUTOSCALE_ANNOTATION_MIN: str(node_group.min_node_count),
             AUTOSCALE_ANNOTATION_MAX: str(
@@ -778,7 +780,7 @@ def mutate_machine_deployment(
         if current_failure_domain == "" and (
             new_failure_domain is None or new_failure_domain == ""
         ):
-            machine_deployment["failureDomain"] = None
+            machine_deployment.pop("failureDomain", None)
         if current_failure_domain == "" and new_failure_domain:
             machine_deployment["failureDomain"] = new_failure_domain
 
@@ -792,7 +794,6 @@ def mutate_machine_deployment(
         {
             "class": "default-worker",
             "name": node_group.name,
-            "failureDomain": node_group.labels.get("availability_zone"),
             "machineHealthCheck": {"enable": utils.get_auto_healing_enabled(cluster)},
             "variables": {
                 "overrides": [
@@ -827,7 +828,7 @@ def mutate_machine_deployment(
                     },
                     {
                         "name": "hardwareDiskBus",
-                        "value": image.get("hw_disk_bus", ""),
+                        "value": image.get("hw_disk_bus") or "",
                     },
                     # NOTE(oleks): Override using MachineDeployment-level variables for node groups
                     {
@@ -846,6 +847,9 @@ def mutate_machine_deployment(
             },
         }
     )
+    failure_domain = node_group.labels.get("availability_zone")
+    if failure_domain:
+        machine_deployment["failureDomain"] = failure_domain
     return machine_deployment
 
 
@@ -858,8 +862,8 @@ def migrate_machineset_failure_domain(
     """
     Migrate MachineSet failureDomain fields to fix Cluster API v1.10+ validation issues.
 
-    This function directly patches MachineSet resources to convert empty string
-    failureDomain values to None/null, avoiding rolling updates that would occur
+    This function directly patches MachineSet resources to remove empty string
+    failureDomain values, avoiding rolling updates that would occur
     if we modified the MachineDeployment spec.
     """
     machine_sets = objects.MachineSet.for_node_group(pykube_api, cluster, node_group)
@@ -874,9 +878,9 @@ def migrate_machineset_failure_domain(
         )
 
         if current_failure_domain == "":
-            # Patch the MachineSet to set failureDomain to None
+            # Patch the MachineSet to remove failureDomain.
             # This avoids the validation error without triggering rolling updates
-            ms.obj["spec"]["template"]["spec"]["failureDomain"] = None
+            ms.obj["spec"]["template"]["spec"].pop("failureDomain", None)
             ms.update()
 
 
@@ -887,8 +891,8 @@ def migrate_cluster_failure_domain(
     """
     Migrate Cluster MachineDeployment failureDomain fields to fix Cluster API v1.10+ validation issues.
 
-    This function directly patches the Cluster resource to convert empty string
-    failureDomain values to None/null in MachineDeployment specs, avoiding rolling updates.
+    This function directly patches the Cluster resource to remove empty string
+    failureDomain values from MachineDeployment specs, avoiding rolling updates.
     """
 
     # Get the current machine deployment spec
@@ -898,7 +902,7 @@ def migrate_cluster_failure_domain(
     if current_failure_domain == "":
         # Update the machine deployment spec to remove the failureDomain field
         # We'll use obj.update() which should handle the field removal properly
-        current_md_spec["failureDomain"] = None
+        current_md_spec.pop("failureDomain", None)
         cluster_resource.set_machine_deployment_spec(node_group.name, current_md_spec)
 
         # Use obj.update() to apply the change
@@ -906,7 +910,7 @@ def migrate_cluster_failure_domain(
 
 
 def generate_machine_deployments_for_cluster(
-    context: context.RequestContext, cluster: objects.Cluster
+    context: context.RequestContext, cluster: magnum_objects.Cluster
 ) -> list:
     machine_deployments = []
     for ng in cluster.nodegroups:
@@ -978,7 +982,7 @@ class Cluster(ClusterBase):
 
     def get_object(self) -> dict:
         osc = clients.get_openstack_api(self.context)
-        default_volume_type = osc.cinder().volume_types.default()
+        default_volume_type = osc.get_default_volume_type()
         pod_cidr = DEFAULT_POD_CIDR
         if self.cluster.cluster_template.network_driver == "calico":
             pod_cidr = self.cluster.labels.get(
@@ -1255,7 +1259,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "hardwareDiskBus",
-                            "value": image.get("hw_disk_bus", ""),
+                            "value": image.get("hw_disk_bus") or "",
                         },
                         {
                             "name": "enableDockerVolume",

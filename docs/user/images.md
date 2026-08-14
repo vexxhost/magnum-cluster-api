@@ -14,8 +14,10 @@ The images used by the Cluster API driver for Magnum are built using the
 project. This project provides a comprehensive and flexible framework for
 constructing Kubernetes-specific images.
 
-You can find pre-built images by this projet at
-https://static.atmosphere.dev/artifacts/magnum-cluster-api/.
+You can find pre-built images by this project in the
+[`vexxhost/capo-image-elements` releases](https://github.com/vexxhost/capo-image-elements/releases).
+For Ubuntu 24.04 images, use the `ubuntu-24.04-v<kubernetes-version>.qcow2`
+assets and upload them to Glance with `--property os_distro=ubuntu`.
 
 #### Deprecated legacy builder
 
