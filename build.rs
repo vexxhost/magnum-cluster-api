@@ -3,12 +3,12 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use std::{env, error::Error, fs, path::Path};
 use syn::{parse_file, Ident, Item, Type};
-use vergen_gix::{Emitter, GixBuilder};
+use vergen_gix::{Emitter, Gix};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let gix = GixBuilder::default()
+    let gix = Gix::builder()
         .describe(true, false, None)
-        .build()?;
+        .build();
     Emitter::default()
         .idempotent()
         .add_instructions(&gix)?
