@@ -13,7 +13,7 @@ permissions: {}
 
 jobs:
   cargo:
-    uses: vexxhost/github-actions/.github/workflows/cargo.yml@1a9b39d8b3f28736b3ad19b45cd9493a91aa2519 # main
+    uses: vexxhost/github-actions/.github/workflows/cargo.yml@ee90fdf77bca9a1426af5073b44cae27dc0bdaca # main
 
   build:
     runs-on: ubuntu-24.04${{ matrix.target == 'aarch64' && '-arm' || '' }}
@@ -24,14 +24,14 @@ jobs:
         target: [x86_64, aarch64]
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-      - uses: rui314/setup-mold@725a8794d15fc7563f59595bd9556495c0564878 # v1
+      - uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
       - uses: step-security/rust-cache@851174d9a2fdc03e0896e02844dcc61d81dd7851 # v2.9.1
       - run: rustup show
       - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
@@ -76,13 +76,15 @@ jobs:
             python-version: "3.12"
           - openstack-version: "2023.2"
             python-version: "3.12"
+          - openstack-version: "master"
+            python-version: "3.10"
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: audit
 
-      - uses: step-security/setup-uv@ccf0a26ce9117d9e99292b0ce953ea5d9ffe778e # v7.3.0
+      - uses: step-security/setup-uv@479ad0a90c4286eda3535eb7db396ed723b63fb7 # v8.1.0
         with:
           ignore-empty-workdir: true
           python-version: ${{ matrix.python-version }}
@@ -97,17 +99,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: audit
 
-      - uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         if: github.event_name == 'pull_request' && github.event.pull_request.user.id == 29139614
         id: app-token
         with:
           client-id: ${{ vars.VEXXHOST_CI_APP_CLIENT_ID }}
           private-key: ${{ secrets.VEXXHOST_CI_APP_PRIVATE_KEY }}
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ github.head_ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
@@ -123,11 +125,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: vexxhost/chart-vendor@f62bf18e0b99996662840f277f3ee50ae4567889 # main
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: vexxhost/chart-vendor@c1c3ea98adafbfe137a26ae8045c38bae7ed72dc # main
         with:
           charts-root: magnum_cluster_api/charts

@@ -42,7 +42,7 @@ def get_default_boot_volume_type(context):
         return CONF.cinder.default_boot_volume_type
 
     osc = clients.get_openstack_api(context)
-    default_volume_type = osc.cinder().volume_types.default()
+    default_volume_type = osc.get_default_volume_type()
 
     if default_volume_type is None:
         raise exception.VolumeTypeNotFound()

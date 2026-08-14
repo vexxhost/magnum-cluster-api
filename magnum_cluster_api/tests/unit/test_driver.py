@@ -27,7 +27,19 @@ from oslo_serialization import base64, jsonutils  # type: ignore
 from oslo_utils import uuidutils  # type: ignore
 from responses import matchers
 
-from magnum_cluster_api import objects, resources
+from magnum_cluster_api import driver, objects, resources
+
+
+def test_base_driver_does_not_need_trust():
+    assert driver.BaseDriver.needs_trust is False
+
+
+def test_debian_driver_provides():
+    debian_driver = driver.DebianDriver.__new__(driver.DebianDriver)
+
+    assert debian_driver.provides == [
+        {"server_type": "vm", "os": "debian", "coe": "kubernetes"},
+    ]
 
 
 @pytest.mark.parametrize(

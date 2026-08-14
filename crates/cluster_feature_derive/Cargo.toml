@@ -1,12 +1,12 @@
 [package]
 name = "cluster_feature_derive"
-version = "0.36.6"
+version = "0.38.1"
 edition = "2021"
 
 [dependencies]
 heck = "0.5.0"
 quote = "1.0.38"
-syn = { version = "2.0.100", features = ["full", "parsing"] }
+syn = { version = "3.0.0", features = ["full", "parsing"] }
 
 [lib]
 proc-macro = true
