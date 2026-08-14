@@ -611,7 +611,7 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
         def _list():
             return list(lookup_results.values())
 
-        cli.nova.return_value.flavors.list.side_effect = _list
+        cli.list_flavors.side_effect = _list
         # lookup_flavor matches by name or id
         for name, flavor in lookup_results.items():
             flavor.name = name
@@ -639,7 +639,7 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
         cluster = self._cluster("vm")
         cli = mock.Mock()
         utils.validate_baremetal_flavors(cli, cluster)
-        cli.nova.assert_not_called()
+        cli.list_flavors.assert_not_called()
 
     def test_validator_passes_when_both_flavors_are_baremetal(self):
         cluster = self._cluster("bm")

@@ -326,7 +326,15 @@ def get_default_boot_volume_size(cluster: magnum_objects.Cluster, default: int) 
     Operators can still override explicitly by setting
     ``boot_volume_size`` on the cluster_template/cluster/node_group.
     """
-    server_type = getattr(cluster.cluster_template, "server_type", "vm")
+    server_type = "vm"
+    if hasattr(cluster, "obj_attr_is_set") and cluster.obj_attr_is_set(
+        "cluster_template"
+    ):
+        server_type = getattr(cluster.cluster_template, "server_type", "vm")
+    elif not hasattr(cluster, "obj_attr_is_set"):
+        server_type = getattr(
+            getattr(cluster, "cluster_template", None), "server_type", "vm"
+        )
     if server_type == "bm":
         return 0
     return default

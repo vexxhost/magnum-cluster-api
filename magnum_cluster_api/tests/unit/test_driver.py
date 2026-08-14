@@ -99,6 +99,11 @@ class TestDriver:
             return_value={"id": uuidutils.generate_uuid()},
         )
 
+        mocker.patch(
+            "magnum_cluster_api.objects.MachineSet.for_node_group",
+            return_value=[],
+        )
+
     def _assert_node_group_status(self, expected_status):
         assert self.node_group.status == expected_status
         self.node_group.save.assert_called_once()
