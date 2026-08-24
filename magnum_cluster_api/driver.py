@@ -27,6 +27,7 @@ from magnum_cluster_api import (
     addon_profiles,
     clients,
     exceptions,
+    machine_network_profiles,
     magnum_cluster_api,
     monitor,
     objects,
@@ -67,10 +68,20 @@ class BaseDriver(driver.Driver):
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
-        # Add-on selection is inherited from the immutable cluster template.
-        # With no selector this performs no Kubernetes API lookup and preserves
-        # the existing lifecycle for every OS and Kubernetes version.
+        # Profile selections are inherited from the immutable cluster template.
+        # A missing selector returns before its ConfigMap is read.
+        machine_network_selection = machine_network_profiles.prepare_cluster(
+            self.k8s_api, cluster
+        )
         addon_selection = addon_profiles.prepare_cluster(self.k8s_api, cluster)
+        addon_profiles.validate_capabilities(
+            addon_selection,
+            (
+                machine_network_selection.provides_capabilities
+                if machine_network_selection is not None
+                else ()
+            ),
+        )
 
         # NOTE(mnaser): We want to set the `stack_id` as early as possible to
         #               make sure we can use it in the cluster creation.
@@ -81,7 +92,9 @@ class BaseDriver(driver.Driver):
 
         utils.validate_cluster(context, cluster)
 
-        return self._create_cluster(context, cluster, addon_selection)
+        return self._create_cluster(
+            context, cluster, addon_selection, machine_network_selection
+        )
 
     @cluster_lock_wrapper
     def _create_cluster(
@@ -89,6 +102,9 @@ class BaseDriver(driver.Driver):
         context,
         cluster: magnum_objects.Cluster,
         addon_selection: addon_profiles.AddonSelection | None = None,
+        machine_network_selection: (
+            machine_network_profiles.MachineNetworkSelection | None
+        ) = None,
     ):
         osc = clients.get_openstack_api(context)
 
@@ -133,6 +149,7 @@ class BaseDriver(driver.Driver):
             cluster,
             rust_driver=self.rust_driver,
             addon_selection=addon_selection,
+            machine_network_selection=machine_network_selection,
         ).apply(),
 
     def _get_cluster_status_reason(self, capi_cluster):
@@ -564,9 +581,27 @@ class BaseDriver(driver.Driver):
         )
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
+        machine_deployment = resources.mutate_machine_deployment(
+            context, cluster, nodegroup
+        )
+        machine_network_selection = machine_network_profiles.selection_from_cluster(
+            cluster_resource
+        )
+        machine_ports = None
+        if machine_network_selection is not None:
+            machine_network_profiles.validate_target(machine_network_selection, cluster)
+            machine_ports = resources.render_machine_ports_for_cluster(
+                context, cluster, machine_network_selection
+            )
+        resources.apply_worker_machine_ports(
+            machine_deployment,
+            nodegroup,
+            machine_network_selection,
+            machine_ports,
+        )
         cluster_resource.obj["spec"]["topology"]["workers"][
             "machineDeployments"
-        ].append(resources.mutate_machine_deployment(context, cluster, nodegroup))
+        ].append(machine_deployment)
 
         utils.kube_apply_patch(cluster_resource)
 

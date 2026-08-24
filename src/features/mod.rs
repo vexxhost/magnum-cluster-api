@@ -63,6 +63,7 @@ pub mod flavors;
 pub mod image_repository;
 pub mod images;
 pub mod keystone_auth;
+pub mod machine_ports;
 pub mod networks;
 pub mod openid_connect;
 pub mod operating_system;

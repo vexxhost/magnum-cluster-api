@@ -774,6 +774,21 @@ def migrate_legacy_selection(
     return selection
 
 
+def validate_capabilities(
+    selection: AddonSelection | None, available: typing.Collection[str]
+) -> None:
+    if selection is None:
+        return
+    available_set = set(available)
+    for profile in selection.profiles:
+        missing = set(profile.requires_capabilities) - available_set
+        if missing:
+            raise _invalid(
+                f"Add-on profile {profile.name} requires missing capability "
+                f"{sorted(missing)[0]}."
+            )
+
+
 def _now() -> datetime.datetime:
     return datetime.datetime.now(datetime.timezone.utc)
 

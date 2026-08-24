@@ -118,6 +118,66 @@ profile; 32 capability requirements per profile; a 64 KiB source document; a
 128 KiB resolved snapshot; and positive `s`, `m`, or `h` timeouts no longer
 than 24h.
 
+## Machine network profiles
+
+The optional `machine_network_profile` label selects one operator-approved set
+of additional OpenStack ports for cluster Machines. It must be set on the
+immutable cluster template and cannot be introduced or overridden by a cluster
+create request. Omitting the label preserves the existing Cluster API Provider
+OpenStack networking path without reading the profile ConfigMap or rendering
+the new topology variables.
+
+Profiles are stored in `magnum-system/mcapi-machine-network-profiles` under the
+`profiles.yaml` key. Schema version 1 supports additive ports and explicit
+control-plane, worker, or named node-group scope:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mcapi-machine-network-profiles
+  namespace: magnum-system
+data:
+  profiles.yaml: |
+    schemaVersion: 1
+    profiles:
+      example-secondary-v1-deadbeef:
+        mode: augment
+        appliesTo: all
+        providesCapabilities:
+          - machine-network.example.org/secondary
+        additionalPorts:
+          - role: data
+            networkID: 11111111-1111-4111-8111-111111111111
+            fixedIPs:
+              - subnetID: 22222222-2222-4222-8222-222222222222
+            vnicType: normal
+            portSecurityEnabled: false
+```
+
+`appliesTo` accepts `all`, `control-plane`, `workers`, or
+`nodegroup:<name>`. Port roles are stable DNS labels and must be unique within
+the profile. Version 1 accepts network and optional subnet UUIDs, `vnicType`,
+and `portSecurityEnabled`; it does not accept pre-created port IDs or literal
+addresses. CAPO creates a distinct port and allocation for each applicable
+Machine.
+
+CAPO treats an explicit `OpenStackMachineTemplate.spec.template.spec.ports`
+list as the complete machine-port definition and does not add its normal
+cluster-network port. Therefore, selecting a machine network profile requires
+an existing fixed primary network. The driver renders that primary network and
+optional fixed subnet first, followed by the profile's additional ports. A
+profile that duplicates the primary network and subnet is rejected. Clusters
+that let mCAPI create a managed primary network cannot select a version 1
+machine network profile.
+
+The normalized profile and SHA-256 digest are stored on the initial Cluster API
+`Cluster`. Reconcile, replacement, scale, and later node-group creation use the
+persisted snapshot instead of rereading a changed ConfigMap. The combined
+machine-network and add-on contract identities are also covered by a bundle
+digest. Add-on `requiresCapabilities` values must be supplied by the selected
+machine network profile before infrastructure creation.
+
 ## Volumes
 
 If you require your cluster to have the root filesystem on a volume, you can

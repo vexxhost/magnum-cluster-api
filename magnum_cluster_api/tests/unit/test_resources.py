@@ -17,7 +17,54 @@ from magnum.objects import fields
 from magnum.tests.unit.objects import utils
 from novaclient.v2 import flavors  # type: ignore
 
-from magnum_cluster_api import resources
+from magnum_cluster_api import machine_network_profiles, resources
+
+
+def _machine_network_selection(applies_to="workers"):
+    return machine_network_profiles.MachineNetworkSelection(
+        name="secondary-network-v1",
+        applies_to=applies_to,
+        provides_capabilities=(),
+        additional_ports=(),
+        contract="{}",
+        digest="digest",
+    )
+
+
+def test_apply_worker_machine_ports_is_noop_without_profile(mocker):
+    machine_deployment = {"variables": {"overrides": [{"name": "flavor"}]}}
+
+    resources.apply_worker_machine_ports(
+        machine_deployment, mocker.Mock(name="workers"), None, None
+    )
+
+    assert machine_deployment == {"variables": {"overrides": [{"name": "flavor"}]}}
+
+
+def test_apply_worker_machine_ports_replaces_profile_override(mocker):
+    node_group = mocker.Mock()
+    node_group.name = "workers"
+    machine_deployment = {
+        "variables": {
+            "overrides": [
+                {"name": "flavor", "value": "large"},
+                {"name": "workerMachinePorts", "value": ["old"]},
+            ]
+        }
+    }
+    ports = [{"nameSuffix": "primary"}, {"nameSuffix": "data"}]
+
+    resources.apply_worker_machine_ports(
+        machine_deployment,
+        node_group,
+        _machine_network_selection(),
+        ports,
+    )
+
+    assert machine_deployment["variables"]["overrides"] == [
+        {"name": "flavor", "value": "large"},
+        {"name": "workerMachinePorts", "value": ports},
+    ]
 
 
 def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
