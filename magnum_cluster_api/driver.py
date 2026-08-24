@@ -24,6 +24,7 @@ from magnum.drivers.common import driver  # type: ignore
 from magnum.objects import fields  # type: ignore
 
 from magnum_cluster_api import (
+    addon_profiles,
     clients,
     exceptions,
     magnum_cluster_api,
@@ -66,6 +67,11 @@ class BaseDriver(driver.Driver):
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
+        # Add-on selection is inherited from the immutable cluster template.
+        # With no selector this performs no Kubernetes API lookup and preserves
+        # the existing lifecycle for every OS and Kubernetes version.
+        addon_selection = addon_profiles.prepare_cluster(self.k8s_api, cluster)
+
         # NOTE(mnaser): We want to set the `stack_id` as early as possible to
         #               make sure we can use it in the cluster creation.
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
@@ -75,13 +81,14 @@ class BaseDriver(driver.Driver):
 
         utils.validate_cluster(context, cluster)
 
-        return self._create_cluster(context, cluster)
+        return self._create_cluster(context, cluster, addon_selection)
 
     @cluster_lock_wrapper
     def _create_cluster(
         self,
         context,
         cluster: magnum_objects.Cluster,
+        addon_selection: addon_profiles.AddonSelection | None = None,
     ):
         osc = clients.get_openstack_api(context)
 
@@ -125,6 +132,7 @@ class BaseDriver(driver.Driver):
             self.k8s_api,
             cluster,
             rust_driver=self.rust_driver,
+            addon_selection=addon_selection,
         ).apply(),
 
     def _get_cluster_status_reason(self, capi_cluster):
@@ -259,6 +267,22 @@ class BaseDriver(driver.Driver):
                     continue
 
             if cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS:
+                selection = addon_profiles.selection_from_cluster(capi_cluster)
+                if selection is not None:
+                    gate = addon_profiles.create_gate_status(
+                        self.k8s_api, capi_cluster, selection
+                    )
+                    if gate.state == "waiting":
+                        cluster.status_reason = gate.reason
+                        cluster.save()
+                        return
+                    if gate.state == "failed":
+                        cluster.status = fields.ClusterStatus.CREATE_FAILED
+                        cluster.status_reason = gate.reason
+                        cluster.save()
+                        return
+
+            if cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS:
                 cluster.status_reason = None
                 cluster.status = fields.ClusterStatus.CREATE_COMPLETE
             if cluster.status == fields.ClusterStatus.UPDATE_IN_PROGRESS:
@@ -269,6 +293,24 @@ class BaseDriver(driver.Driver):
 
         if cluster.status == fields.ClusterStatus.DELETE_IN_PROGRESS:
             if capi_cluster and capi_cluster.exists():
+                selection = addon_profiles.selection_from_cluster(capi_cluster)
+                if selection is not None:
+                    gate = addon_profiles.delete_gate_status(
+                        self.k8s_api, capi_cluster, selection
+                    )
+                    if gate.state == "waiting":
+                        cluster.status_reason = gate.reason
+                        cluster.save()
+                        return
+                    if gate.state == "failed":
+                        cluster.status = fields.ClusterStatus.DELETE_FAILED
+                        cluster.status_reason = gate.reason
+                        cluster.save()
+                        return
+                    self._delete_cluster_infrastructure(context, cluster)
+                    cluster.status_reason = "Required add-on release removed; deleting Cluster API resources."
+                    cluster.save()
+                    return
                 cluster.status_reason = self._get_cluster_status_reason(capi_cluster)
                 cluster.save()
                 return
@@ -435,6 +477,30 @@ class BaseDriver(driver.Driver):
         """
         if cluster.stack_id is None:
             return
+        if (cluster.labels or {}).get(addon_profiles.ADDON_PROFILES_LABEL) is not None:
+            capi_cluster = resources.Cluster(
+                context,
+                self.kube_client,
+                self.k8s_api,
+                cluster,
+                rust_driver=self.rust_driver,
+            ).get_or_none()
+            if capi_cluster is not None:
+                selection = addon_profiles.selection_from_cluster(capi_cluster)
+                if selection is not None:
+                    addon_profiles.start_delete(
+                        capi_cluster,
+                        selection,
+                        restart_timeout=True,
+                    )
+                    cluster.status_reason = (
+                        "Waiting for required add-on release removal."
+                    )
+                    cluster.save()
+                    return
+        self._delete_cluster_infrastructure(context, cluster)
+
+    def _delete_cluster_infrastructure(self, context, cluster: magnum_objects.Cluster):
         # NOTE(mnaser): This should be removed when this is fixed:
         #
         #               https://github.com/kubernetes-sigs/cluster-api-provider-openstack/issues/842

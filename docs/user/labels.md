@@ -8,6 +8,90 @@ They can be used to define characteristics such as the operating system,
 networking settings, container runtime, Kubernetes version, or any other custom
 attributes relevant to the cluster deployment.
 
+## Cluster add-on profiles
+
+The optional `addon_profiles` label selects an ordered, `+`-separated set of
+operator-approved add-on lifecycle profiles. It must be set on an immutable
+cluster template; a cluster create request cannot introduce, remove, reorder,
+or override the selection. When omitted, cluster create, update, and delete
+behavior is unchanged. The unsupported singular `addon_profile` spelling is
+rejected.
+
+Profiles are stored in `magnum-system/mcapi-addon-profiles` under the
+`profiles.yaml` key. The document uses explicit schema version 1. Each profile
+may add only labels in the
+`addons.magnum-cluster-api.openstack.org/` domain and identifies one required
+Cluster API Add-on Provider for Helm `HelmChartProxy` and release name. A
+profile can declare selected dependencies and generic capabilities that must
+be supplied by another immutable cluster contract:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mcapi-addon-profiles
+  namespace: magnum-system
+data:
+  profiles.yaml: |
+    schemaVersion: 1
+    profiles:
+      example-foundation-v1-deadbeef:
+        category: platform-foundation
+        dependsOn: []
+        requiresCapabilities: []
+        clusterLabels:
+          addons.magnum-cluster-api.openstack.org/foundation: deadbeef
+        requiredHelmChartProxy: example-foundation-v1-deadbeef
+        releaseName: example-foundation
+        createTimeout: 45m
+        deleteTimeout: 20m
+      example-workload-v1-cafebabe:
+        category: workload-platform
+        dependsOn:
+          - example-foundation-v1-deadbeef
+        requiresCapabilities: []
+        clusterLabels:
+          addons.magnum-cluster-api.openstack.org/workload: cafebabe
+        requiredHelmChartProxy: example-workload-v1-cafebabe
+        releaseName: example-workload
+        createTimeout: 90m
+        deleteTimeout: 30m
+```
+
+For example, an immutable template can select both profiles with
+`addon_profiles=example-foundation-v1-deadbeef+example-workload-v1-cafebabe`.
+Every dependency must be present in the selected list; dependencies are not
+added implicitly. Empty entries, duplicates, cycles, colliding selector labels,
+and reused `HelmChartProxy` identities are rejected.
+
+The driver stores the selected profiles, complete canonical contract, dependency
+waves, and SHA-256 digest on the initial Cluster API `Cluster`. Later reconcile
+and deletion use that snapshot rather than rereading the mutable ConfigMap.
+Profiles in one dependency wave activate together; the next wave activates only
+after every profile in the current wave is ready.
+
+For selected clusters, Magnum remains `CREATE_IN_PROGRESS` until each matching,
+current-generation `HelmReleaseProxy` reports `Ready=True`. Controller-reported
+credential, reachability, and Helm install errors remain pending so CAAPH can
+retry them until that profile's `createTimeout`; a timeout then produces
+`CREATE_FAILED` while retaining the cluster. Contract violations such as an
+unapproved proxy, duplicate match, stale snapshot, or release identity mismatch
+fail immediately. On delete, the driver removes selector labels and waits for
+release proxies in exact reverse dependency-wave order before deleting Cluster
+API resources. With the
+`Continuous` strategy, CAAPH uninstalls the release as part of that deletion.
+CAAPH intentionally retains an orphaned `InstallOnce` proxy, so the driver
+requests deletion of the identity-validated proxy and removes only CAAPH's
+finalizer. This deliberately skips Helm uninstall because the workload cluster
+is being destroyed and preserves `InstallOnce` semantics for the workload
+release.
+
+Profile names and content are an operator contract. Use content-addressed names
+and never change an existing profile in place. Schema version 1 accepts at most
+16 profiles per document and selection, 16 dependencies and labels per profile,
+32 capability requirements per profile, a 64 KiB source document, a 128 KiB
+resolved snapshot, and positive `s`, `m`, or `h` timeouts no longer than 24h.
+
 ## Volumes
 
 If you require your cluster to have the root filesystem on a volume, you can
