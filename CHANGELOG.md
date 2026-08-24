@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.38.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.38.1...v0.38.2) (2026-08-11)
+
+
+### Bug Fixes
+
+* omit unset CAPI topology fields ([#1106](https://github.com/vexxhost/magnum-cluster-api/issues/1106)) ([45f3629](https://github.com/vexxhost/magnum-cluster-api/commit/45f3629ae4d414f8711090d887082df4c8ff783e))
+
 ## [0.38.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.38.0...v0.38.1) (2026-07-24)
 
 
