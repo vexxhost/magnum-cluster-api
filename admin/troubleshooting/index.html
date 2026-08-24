@@ -1,0 +1,730 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../intro/">
+      
+      
+        <link rel="next" href="../../developer/cluster-topology/">
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.15">
+    
+    
+      
+        <title>Troubleshooting - Cluster API driver for Magnum</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.26e3688c.min.css">
+      
+      
+
+    
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&"object"==typeof palette.color)for(var key of Object.keys(palette.color))document.body.setAttribute("data-md-color-"+key,palette.color[key])</script>
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#troubleshooting" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Cluster API driver for Magnum" class="md-header__button md-logo" aria-label="Cluster API driver for Magnum" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Cluster API driver for Magnum
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Troubleshooting
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Cluster API driver for Magnum" class="md-nav__button md-logo" aria-label="Cluster API driver for Magnum" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Cluster API driver for Magnum
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+      
+      
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+      
+      
+      
+        <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+          User Guide
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+        <label class="md-nav__title" for="__nav_1">
+          <span class="md-nav__icon md-icon"></span>
+          User Guide
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user/getting-started/" class="md-nav__link">
+        Getting Started
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user/configs/" class="md-nav__link">
+        Configuration Options
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user/images/" class="md-nav__link">
+        Images
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user/labels/" class="md-nav__link">
+        Labels
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+    
+  
+  
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+      
+      
+      
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+      
+      
+      
+        <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          Administrator Guide
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+        <label class="md-nav__title" for="__nav_2">
+          <span class="md-nav__icon md-icon"></span>
+          Administrator Guide
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../intro/" class="md-nav__link">
+        Introduction
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Troubleshooting
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        Troubleshooting
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#useful-commands" class="md-nav__link">
+    Useful commands
+  </a>
+  
+    <nav class="md-nav" aria-label="Useful commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tracking-cluster-progress-using-clusterctl" class="md-nav__link">
+    Tracking cluster progress using clusterctl
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cluster-stuck-in-create_in_progress-state" class="md-nav__link">
+    Cluster stuck in CREATE_IN_PROGRESS state
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cluster-stuck-in-delete_in_progress-state" class="md-nav__link">
+    Cluster stuck in DELETE_IN_PROGRESS state
+  </a>
+  
+    <nav class="md-nav" aria-label="Cluster stuck in DELETE_IN_PROGRESS state">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#project-deleted" class="md-nav__link">
+    Project deleted
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+      
+      
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+      
+      
+      
+        <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          Developer Guide
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <label class="md-nav__title" for="__nav_3">
+          <span class="md-nav__icon md-icon"></span>
+          Developer Guide
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developer/cluster-topology/" class="md-nav__link">
+        Cluster Topology
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developer/testing-and-development/" class="md-nav__link">
+        Testing & Development
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developer/upgrade-in-atmosphere/" class="md-nav__link">
+        Upgrading in Atmosphere environment
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#useful-commands" class="md-nav__link">
+    Useful commands
+  </a>
+  
+    <nav class="md-nav" aria-label="Useful commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tracking-cluster-progress-using-clusterctl" class="md-nav__link">
+    Tracking cluster progress using clusterctl
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cluster-stuck-in-create_in_progress-state" class="md-nav__link">
+    Cluster stuck in CREATE_IN_PROGRESS state
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cluster-stuck-in-delete_in_progress-state" class="md-nav__link">
+    Cluster stuck in DELETE_IN_PROGRESS state
+  </a>
+  
+    <nav class="md-nav" aria-label="Cluster stuck in DELETE_IN_PROGRESS state">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#project-deleted" class="md-nav__link">
+    Project deleted
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+<h1 id="troubleshooting">Troubleshooting</h1>
+<h2 id="useful-commands">Useful commands</h2>
+<h3 id="tracking-cluster-progress-using-clusterctl">Tracking cluster progress using <code>clusterctl</code></h3>
+<p>If you'd like to track the progress of a specific cluster from the <code>clusterctl</code>
+perspective, you can run the following command to find out the <code>stack_id</code> of the
+cluster and then use <code>clusterctl describe</code> to get the status of the cluster:</p>
+<div class="highlight"><pre><span></span><code>$ export CLUSTER_ID=$(openstack coe cluster show &lt;cluster-name&gt; -f value -c stack_id)
+$ watch -cn1 &#39;clusterctl describe cluster -n magnum-system $CLUSTER_ID --grouping=false --color&#39;
+</code></pre></div>
+<h2 id="cluster-stuck-in-create_in_progress-state">Cluster stuck in <code>CREATE_IN_PROGRESS</code> state</h2>
+<p>With the Cluster API driver for Magnum, the cluster creation process is
+performed by the Cluster API for OpenStack.  Due to the logic of how the
+controller managers work, the process of creating a cluster is performed in
+multiple steps and if a step fails, it will keep retrying until it succeeds.</p>
+<p>Unlike the legacy Heat driver, the Cluster API driver for Magnum does not
+move the state of the cluster to <code>CREATE_FAILED</code> if a step fails.  Instead,
+it will keep the cluster in <code>CREATE_IN_PROGRESS</code> state until the cluster is
+successfully created or the cluster is deleted.</p>
+<p>If you are experiencing issues with the cluster being stuck in <code>CREATE_IN_PROGRESS</code>
+state, you can follow the steps below to troubleshoot the issue:</p>
+<ol>
+<li>
+<p>Check the <code>Cluster</code> name from the <code>stack_id</code> field in Magnum:</p>
+<div class="highlight"><pre><span></span><code>$ openstack coe cluster show &lt;cluster-name&gt; -f value -c stack_id
+</code></pre></div>
+</li>
+<li>
+<p>Check if the <code>Cluster</code> exists in the Kuberentes cluster using the <code>stack_id</code>:</p>
+<div class="highlight"><pre><span></span><code>$ kubectl -n magnum-system get clusters &lt;stack-id&gt;
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If the cluster exists and it is in <code>Provisioned</code> state, you can skip to
+step 3.</p>
+</div>
+</li>
+<li>
+<p>You will need to lookup the <code>OpenStackCluster</code> for the <code>Cluster</code>:</p>
+<div class="highlight"><pre><span></span><code>$ kubectl -n magnum-system get openstackclusters -l cluster.x-k8s.io/cluster-name=&lt;stack-id&gt;
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If the <code>OpenStackCluster</code> shows <code>true</code> for <code>READY</code>, you can skip to
+step 4.</p>
+</div>
+</li>
+<li>
+<p>You will have to look at the <code>KubeadmControlPlane</code> for
+    the <code>OpenStackCluster</code>:</p>
+<div class="highlight"><pre><span></span><code>$ kubectl -n magnum-system get kubeadmcontrolplanes -l cluster.x-k8s.io/cluster-name=&lt;stack-id&gt;
+</code></pre></div>
+</li>
+<li>
+<p>If the number of <code>READY</code> nodes does not match the number of <code>REPLICAS</code>,
+    you will need to investigate if the instances are going up by looking at
+    the <code>OpenStackMachine</code> for the <code>KubeadmControlPlane</code>:</p>
+<div class="highlight"><pre><span></span><code>$ kubectl -n magnum-system describe openstackmachines -l cluster.x-k8s.io/control-plane=,cluster.x-k8s.io/cluster-name=&lt;stack-id&gt;
+</code></pre></div>
+<p>From the output, you will need to look at the <code>Status</code> field and see if
+any of the conditions are <code>False</code>.  If they are, you will need to look at
+the <code>Message</code> field to see what the error is.</p>
+</li>
+</ol>
+<h2 id="cluster-stuck-in-delete_in_progress-state">Cluster stuck in <code>DELETE_IN_PROGRESS</code> state</h2>
+<h3 id="project-deleted">Project deleted</h3>
+<p>If you have a case where a project has been deleted from OpenStack but the
+cluster was not deleted, you will not be able to delete it even as an admin
+user.   You will find log messages such as the following which will indicate
+that the project is missing:</p>
+<div class="highlight"><pre><span></span><code>E0705 17:11:00.333902       1 controller.go:326] &quot;Reconciler error&quot; err=&lt;providerClient authentication err: Resource not found: [POST https://cloud.atmosphere.dev/v3/auth/tokens], error message: {&quot;error&quot;:{&quot;code&quot;:404,&quot;message&quot;:&quot;Could not find project: 1dfcc1f4399948baac7a83a6607f693c.&quot;,&quot;title&quot;:&quot;Not Found&quot;}}
+</code></pre></div>
+<p>In order to work around this issue, you will need to create a new project,
+go into the database and update the <code>id</code> of the new project to match the
+<code>project_id</code> of the cluster.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It is possible to corrupt the database if you do not know what you are
+doing.  Please make sure you have a backup of the database before</p>
+</div>
+<ol>
+<li>
+<p>Create a new project in OpenStack:</p>
+<div class="highlight"><pre><span></span><code>$ export NEW_PROJECT_ID=$(openstack project create cleanup-project -f value -c id)
+</code></pre></div>
+</li>
+<li>
+<p>Get the existing <code>project_id</code> of the cluster:</p>
+<div class="highlight"><pre><span></span><code>$ export CURRENT_PROJECT_ID=$(openstack coe cluster show &lt;cluster-name&gt; -f value -c project_id)
+</code></pre></div>
+</li>
+<li>
+<p>Update the <code>id</code> of the project in Keystone to match the <code>project_id</code> of
+    the cluster:</p>
+<div class="highlight"><pre><span></span><code>$ mysql -B -N -u root -p -e &quot;update project set id=&#39;$CURRENT_PROJECT_ID&#39; where id=&#39;$NEW_PROJECT_ID&#39;;&quot; keystone
+</code></pre></div>
+<p>If you're using Atmosphere, you can run the following:</p>
+<div class="highlight"><pre><span></span><code>$ kubectl -n openstack exec -it sts/percona-xtradb-pxc -- mysql -hlocalhost -uroot -p$(kubectl -n openstack get secret/percona-xtradb -ojson | jq -r &#39;.data.root&#39; | base64 --decode) -e &quot;update project set id=&#39;$CURRENT_PROJECT_ID&#39; where id=&#39;$NEW_PROJECT_ID&#39;;&quot; keystone
+</code></pre></div>
+</li>
+<li>
+<p>Verify that the project now exists under the new <code>id</code>:</p>
+<div class="highlight"><pre><span></span><code>$ openstack project show $CURRENT_PROJECT_ID
+</code></pre></div>
+</li>
+<li>
+<p>Give access to your current admin user to the new project:</p>
+<div class="highlight"><pre><span></span><code>$ openstack role add --user $OS_USERNAME --project $CURRENT_PROJECT_ID member
+</code></pre></div>
+</li>
+<li>
+<p>Switch to the context of that user</p>
+<div class="highlight"><pre><span></span><code>$ export OS_PROJECT_ID=$CURRENT_PROJECT_ID
+</code></pre></div>
+</li>
+<li>
+<p>Create a new set of application credentials and update the existing
+    <code>cloud-config</code> secret for the cluster</p>
+<div class="highlight"><pre><span></span><code>$ export CAPI_CLUSTER_NAME=$(openstack coe cluster show tst1-useg-k8s-1 -f value -c stack_id)
+$ export EXISTING_APPCRED_ID=$(kubectl -n magnum-system get secret/$CAPI_CLUSTER_NAME-cloud-config -ojson | jq -r &#39;.data.&quot;clouds.yaml&quot;&#39; | base64 --decode | grep application_credential_id | awk &#39;{print $2}&#39;)
+$ export EXISTING_APPCRED_SECRET=$(kubectl -n magnum-system get secret/$CAPI_CLUSTER_NAME-cloud-config -ojson | jq -r &#39;.data.&quot;clouds.yaml&quot;&#39; | base64 --decode | grep application_credential_secret | awk &#39;{print $2}&#39;)
+$ export NEW_APPCRED_ID=$(openstack application credential create --secret $EXISTING_APPCRED_SECRET $CAPI_CLUSTER_NAME-cleanup -f value -c id)
+$  &gt; /tmp/clouds.yaml
+$ kubectl -n magnum-system patch secret/$CAPI_CLUSTER_NAME-cloud-config -p &#39;{&quot;data&quot;:{&quot;clouds.yaml&quot;:&quot;&#39;$(kubectl -n magnum-system get secret/$CAPI_CLUSTER_NAME-cloud-config -ojson | jq -r &#39;.data.&quot;clouds.yaml&quot;&#39; | base64 --decode | sed &quot;s/$EXISTING_APPCRED_ID/$NEW_APPCRED_ID/&quot; | base64 --wrap=0)&#39;&quot;}}&#39;
+</code></pre></div>
+</li>
+</ol>
+<p>At this point, the cluster should start progressing on the deletion process, you
+can verify this by running:</p>
+<div class="highlight"><pre><span></span><code>$ kubectl -n capo-system logs deploy/capo-controller-manager -f
+</code></pre></div>
+<p>Once the cluster is gone, you can clean up the project:</p>
+<div class="highlight"><pre><span></span><code>$ unset OS_PROJECT_ID
+$ openstack project delete $CURRENT_PROJECT_ID
+</code></pre></div>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var tab,labels=set.querySelector(".tabbed-labels");for(tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Cluster API driver for Magnum is a community effort led by <a href="https://vexxhost.com">VEXXHOST, Inc.</a>
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["content.tabs.link", "navigation.tracking"], "search": "../../assets/javascripts/workers/search.208ed371.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.b4d07000.min.js"></script>
+      
+    
+  </body>
+</html>
