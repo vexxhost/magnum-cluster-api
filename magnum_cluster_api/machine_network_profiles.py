@@ -136,7 +136,10 @@ def _applies_to(value: typing.Any, profile: str) -> str:
     if value in _TARGETS:
         return typing.cast(str, value)
     if isinstance(value, str) and value.startswith(_NODEGROUP_PREFIX):
-        _dns_label(value[len(_NODEGROUP_PREFIX) :], f"appliesTo in {profile}")
+        _dns_label(
+            value[len(_NODEGROUP_PREFIX) :],  # noqa: E203
+            f"appliesTo in {profile}",
+        )
         return value
     raise _invalid(
         f"Invalid appliesTo in machine network profile {profile}: expected all, "
@@ -386,7 +389,7 @@ def validate_target(
 ) -> None:
     if not selection.applies_to.startswith(_NODEGROUP_PREFIX):
         return
-    target = selection.applies_to[len(_NODEGROUP_PREFIX) :]
+    target = selection.applies_to[len(_NODEGROUP_PREFIX) :]  # noqa: E203
     workers = {
         nodegroup.name
         for nodegroup in cluster.nodegroups
