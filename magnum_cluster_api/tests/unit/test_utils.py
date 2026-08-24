@@ -566,6 +566,8 @@ def test_wait_for_sdk_loadbalancers_deleted_times_out(mocker):
         utils._wait_for_sdk_loadbalancers_deleted(octavia_client, {"lb-id"})
 
     sleep.assert_called_once_with(1)
+
+
 class TestKubeApplyPatch:
     """Verify kube_apply_patch strips read-only/optimistic-concurrency fields
     from the request body before sending the Server-Side Apply.
