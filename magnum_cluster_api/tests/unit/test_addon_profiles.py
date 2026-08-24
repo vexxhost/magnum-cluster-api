@@ -288,7 +288,7 @@ def test_snapshot_is_canonical_and_round_trips(selection, capi_cluster):
 def test_snapshot_rejects_digest_mismatch(capi_cluster):
     capi_cluster.obj["metadata"]["annotations"][
         addon_profiles.PROFILES_CONTRACT_SHA256_ANNOTATION
-    ] = "0" * 64
+    ] = ("0" * 64)
 
     with pytest.raises(exception.Invalid, match="digest"):
         addon_profiles.selection_from_cluster(capi_cluster)
