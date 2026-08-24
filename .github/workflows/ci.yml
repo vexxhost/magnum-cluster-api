@@ -100,7 +100,7 @@ jobs:
           # still imports unconditionally. Without it the driver import
           # blows up before any assertion can run, masking real regressions.
           uv pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} \
-            magnum keystonemiddleware setuptools
+            magnum keystonemiddleware "setuptools<81"
           # Pass 1 — narrow regression guard scoped to magnum_cluster_api itself.
           # Importing only the package must NOT pull in pkg_resources (the
           # legacy resolver does not apply PEP 503 name normalization across
