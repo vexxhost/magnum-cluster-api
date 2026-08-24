@@ -267,7 +267,7 @@ class BaseDriver(driver.Driver):
                     continue
 
             if cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS:
-                selection = addon_profiles.selection_from_cluster(capi_cluster)
+                selection = self._existing_addon_selection(cluster, capi_cluster)
                 if selection is not None:
                     gate = addon_profiles.create_gate_status(
                         self.k8s_api, capi_cluster, selection
@@ -293,7 +293,7 @@ class BaseDriver(driver.Driver):
 
         if cluster.status == fields.ClusterStatus.DELETE_IN_PROGRESS:
             if capi_cluster and capi_cluster.exists():
-                selection = addon_profiles.selection_from_cluster(capi_cluster)
+                selection = self._existing_addon_selection(cluster, capi_cluster)
                 if selection is not None:
                     gate = addon_profiles.delete_gate_status(
                         self.k8s_api, capi_cluster, selection
@@ -477,7 +477,14 @@ class BaseDriver(driver.Driver):
         """
         if cluster.stack_id is None:
             return
-        if (cluster.labels or {}).get(addon_profiles.ADDON_PROFILES_LABEL) is not None:
+        labels = cluster.labels or {}
+        if any(
+            labels.get(key) is not None
+            for key in (
+                addon_profiles.ADDON_PROFILES_LABEL,
+                addon_profiles.LEGACY_ADDON_PROFILE_LABEL,
+            )
+        ):
             capi_cluster = resources.Cluster(
                 context,
                 self.kube_client,
@@ -486,7 +493,7 @@ class BaseDriver(driver.Driver):
                 rust_driver=self.rust_driver,
             ).get_or_none()
             if capi_cluster is not None:
-                selection = addon_profiles.selection_from_cluster(capi_cluster)
+                selection = self._existing_addon_selection(cluster, capi_cluster)
                 if selection is not None:
                     addon_profiles.start_delete(
                         capi_cluster,
@@ -499,6 +506,19 @@ class BaseDriver(driver.Driver):
                     cluster.save()
                     return
         self._delete_cluster_infrastructure(context, cluster)
+
+    def _existing_addon_selection(self, cluster, capi_cluster):
+        selection = addon_profiles.selection_from_cluster(capi_cluster)
+        if selection is not None:
+            return selection
+        legacy = (cluster.labels or {}).get(addon_profiles.LEGACY_ADDON_PROFILE_LABEL)
+        if legacy is None:
+            return None
+        return addon_profiles.migrate_legacy_selection(
+            self.k8s_api,
+            capi_cluster,
+            legacy,
+        )
 
     def _delete_cluster_infrastructure(self, context, cluster: magnum_objects.Cluster):
         # NOTE(mnaser): This should be removed when this is fixed:

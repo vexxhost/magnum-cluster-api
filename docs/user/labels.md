@@ -17,6 +17,13 @@ or override the selection. When omitted, cluster create, update, and delete
 behavior is unchanged. The unsupported singular `addon_profile` spelling is
 rejected.
 
+For upgrade safety only, deletion of an already-provisioned cluster carrying
+the legacy singular label can migrate its existing one-profile lifecycle
+annotations into the immutable plural snapshot. Migration requires the legacy
+profile, HelmChartProxy, release, and selector-label identities to match the
+currently published profile exactly. This compatibility path cannot be used to
+create a new cluster or change the selected profile.
+
 Profiles are stored in `magnum-system/mcapi-addon-profiles` under the
 `profiles.yaml` key. The document uses explicit schema version 1. Each profile
 may add only labels in the

@@ -37,6 +37,10 @@ PROFILES_CONTRACT_ANNOTATION = f"{ADDON_LABEL_PREFIX}profiles-contract"
 PROFILES_CONTRACT_SHA256_ANNOTATION = f"{ADDON_LABEL_PREFIX}profiles-contract-sha256"
 CREATE_STARTED_ANNOTATION = f"{ADDON_LABEL_PREFIX}profiles-create-started"
 DELETE_STARTED_ANNOTATION = f"{ADDON_LABEL_PREFIX}profiles-delete-started"
+LEGACY_ADDON_PROFILE_LABEL = "addon_profile"
+LEGACY_PROFILE_ANNOTATION = f"{ADDON_LABEL_PREFIX}profile"
+LEGACY_HELM_CHART_PROXY_ANNOTATION = f"{ADDON_LABEL_PREFIX}helm-chart-proxy"
+LEGACY_RELEASE_NAME_ANNOTATION = f"{ADDON_LABEL_PREFIX}release-name"
 
 CAPI_CLUSTER_NAME_LABEL = "cluster.x-k8s.io/cluster-name"
 HELM_CHART_PROXY_LABEL = "helmreleaseproxy.addons.cluster.x-k8s.io/helmchartproxy-name"
@@ -51,7 +55,6 @@ MAX_DEPENDENCIES = 16
 MAX_LABELS_PER_PROFILE = 16
 MAX_CAPABILITIES_PER_PROFILE = 32
 
-_UNSUPPORTED_ADDON_PROFILE_LABEL = "addon_profile"
 _DURATION_RE = re.compile(r"^(?P<value>[1-9][0-9]*)(?P<unit>[smh])$")
 _DNS_LABEL_RE = re.compile(r"^[a-z0-9](?:[-a-z0-9]*[a-z0-9])?$")
 _LABEL_NAME_RE = re.compile(r"^[A-Za-z0-9](?:[-_.A-Za-z0-9]*[A-Za-z0-9])?$")
@@ -435,9 +438,9 @@ def _selection(
 
 
 def _reject_unsupported_selector(labels: dict[str, str]) -> None:
-    if _UNSUPPORTED_ADDON_PROFILE_LABEL in labels:
+    if LEGACY_ADDON_PROFILE_LABEL in labels:
         raise _invalid(
-            f"Unsupported label {_UNSUPPORTED_ADDON_PROFILE_LABEL}; use "
+            f"Unsupported label {LEGACY_ADDON_PROFILE_LABEL}; use "
             f"{ADDON_PROFILES_LABEL}."
         )
 
@@ -540,6 +543,53 @@ def cluster_metadata(
         PROFILES_CONTRACT_ANNOTATION: selection.contract,
         PROFILES_CONTRACT_SHA256_ANNOTATION: selection.digest,
     }
+
+
+def migrate_legacy_selection(
+    api: pykube.HTTPClient, capi_cluster, selected: str
+) -> AddonSelection | None:
+    """Snapshot one already-provisioned singular profile for safe lifecycle use."""
+    existing = selection_from_cluster(capi_cluster)
+    if existing is not None:
+        return existing
+
+    _validate_dns_label(selected, LEGACY_ADDON_PROFILE_LABEL, selected)
+    annotations = capi_cluster.obj.get("metadata", {}).get("annotations", {})
+    legacy_profile = annotations.get(LEGACY_PROFILE_ANNOTATION)
+    if legacy_profile != selected:
+        raise _invalid(
+            "Legacy add-on profile label does not match the existing Cluster "
+            "annotation."
+        )
+
+    selection = _selection((selected,), get_profiles(api))
+    profile = selection.profile(selected)
+    if annotations.get(LEGACY_HELM_CHART_PROXY_ANNOTATION) != (
+        profile.required_helm_chart_proxy
+    ):
+        raise _invalid(
+            "Legacy HelmChartProxy annotation does not match the approved profile."
+        )
+    if annotations.get(LEGACY_RELEASE_NAME_ANNOTATION) != profile.release_name:
+        raise _invalid("Legacy release annotation does not match the approved profile.")
+
+    labels = capi_cluster.obj.get("metadata", {}).get("labels", {})
+    if any(labels.get(key) != value for key, value in profile.cluster_labels.items()):
+        raise _invalid(
+            "Legacy Cluster labels do not match the approved add-on profile."
+        )
+
+    _, snapshot = cluster_metadata(selection)
+    if not _patch_lifecycle_metadata(
+        capi_cluster,
+        annotations=snapshot,
+        labels={},
+    ):
+        return None
+    capi_cluster.obj.setdefault("metadata", {}).setdefault("annotations", {}).update(
+        snapshot
+    )
+    return selection
 
 
 def _now() -> datetime.datetime:

@@ -94,6 +94,45 @@ def test_delete_cluster_with_addon_profile_starts_ordered_removal(
     cluster_obj.save.assert_called_once_with()
 
 
+def test_delete_cluster_migrates_legacy_addon_profile(
+    mocker, mock_cluster_lock, context, cluster_obj
+):
+    ubuntu_driver = driver.UbuntuDriver.__new__(driver.UbuntuDriver)
+    ubuntu_driver.k8s_api = mock.sentinel.k8s_api
+    ubuntu_driver._kube_client = mock.sentinel.kube_client
+    ubuntu_driver.rust_driver = mock.sentinel.rust_driver
+    cluster_obj.stack_id = "capi-cluster"
+    cluster_obj.labels[addon_profiles.LEGACY_ADDON_PROFILE_LABEL] = "legacy-addon"
+    capi_cluster = mock.sentinel.capi_cluster
+    selection = mock.sentinel.selection
+    mocker.patch.object(addon_profiles, "selection_from_cluster", return_value=None)
+    migrate = mocker.patch.object(
+        addon_profiles,
+        "migrate_legacy_selection",
+        return_value=selection,
+    )
+    cluster_resource = mocker.patch.object(resources, "Cluster")
+    cluster_resource.return_value.get_or_none.return_value = capi_cluster
+    start_delete = mocker.patch.object(addon_profiles, "start_delete")
+    delete_infrastructure = mocker.patch.object(
+        ubuntu_driver, "_delete_cluster_infrastructure"
+    )
+
+    ubuntu_driver.delete_cluster(context, cluster_obj)
+
+    migrate.assert_called_once_with(
+        mock.sentinel.k8s_api,
+        capi_cluster,
+        "legacy-addon",
+    )
+    start_delete.assert_called_once_with(
+        capi_cluster,
+        selection,
+        restart_timeout=True,
+    )
+    delete_infrastructure.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "auto_scaling_enabled", [True, False], ids=lambda x: f"auto_scaling_enabled={x}"
 )

@@ -288,7 +288,7 @@ def test_snapshot_is_canonical_and_round_trips(selection, capi_cluster):
 def test_snapshot_rejects_digest_mismatch(capi_cluster):
     capi_cluster.obj["metadata"]["annotations"][
         addon_profiles.PROFILES_CONTRACT_SHA256_ANNOTATION
-    ] = ("0" * 64)
+    ] = "0" * 64
 
     with pytest.raises(exception.Invalid, match="digest"):
         addon_profiles.selection_from_cluster(capi_cluster)
@@ -318,6 +318,66 @@ def test_cluster_metadata_does_not_activate_profiles(selection):
     assert (
         annotations[addon_profiles.PROFILES_CONTRACT_ANNOTATION] == selection.contract
     )
+
+
+def test_migrate_legacy_selection_snapshots_existing_cluster(mocker, profile_a):
+    capi_cluster = mock.MagicMock()
+    capi_cluster.obj = {
+        "metadata": {
+            "resourceVersion": "123",
+            "labels": dict(profile_a.cluster_labels),
+            "annotations": {
+                addon_profiles.LEGACY_PROFILE_ANNOTATION: PROFILE_A,
+                addon_profiles.LEGACY_HELM_CHART_PROXY_ANNOTATION: (
+                    profile_a.required_helm_chart_proxy
+                ),
+                addon_profiles.LEGACY_RELEASE_NAME_ANNOTATION: (profile_a.release_name),
+            },
+        }
+    }
+    mocker.patch.object(
+        addon_profiles,
+        "get_profiles",
+        return_value={PROFILE_A: profile_a},
+    )
+
+    selection = addon_profiles.migrate_legacy_selection(
+        mock.sentinel.api,
+        capi_cluster,
+        PROFILE_A,
+    )
+
+    assert selection is not None
+    assert selection.names == (PROFILE_A,)
+    annotations = capi_cluster.obj["metadata"]["annotations"]
+    assert annotations[addon_profiles.SELECTED_PROFILES_ANNOTATION] == PROFILE_A
+    capi_cluster.patch.assert_called_once()
+
+
+def test_migrate_legacy_selection_rejects_identity_mismatch(mocker, profile_a):
+    capi_cluster = mock.MagicMock()
+    capi_cluster.obj = {
+        "metadata": {
+            "labels": dict(profile_a.cluster_labels),
+            "annotations": {
+                addon_profiles.LEGACY_PROFILE_ANNOTATION: PROFILE_A,
+                addon_profiles.LEGACY_HELM_CHART_PROXY_ANNOTATION: "other-proxy",
+                addon_profiles.LEGACY_RELEASE_NAME_ANNOTATION: profile_a.release_name,
+            },
+        }
+    }
+    mocker.patch.object(
+        addon_profiles,
+        "get_profiles",
+        return_value={PROFILE_A: profile_a},
+    )
+
+    with pytest.raises(exception.Invalid, match="HelmChartProxy"):
+        addon_profiles.migrate_legacy_selection(
+            mock.sentinel.api,
+            capi_cluster,
+            PROFILE_A,
+        )
 
 
 def test_create_gate_activates_only_first_wave(selection, capi_cluster):
