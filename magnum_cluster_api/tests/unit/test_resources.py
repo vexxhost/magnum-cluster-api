@@ -67,6 +67,40 @@ def test_apply_worker_machine_ports_replaces_profile_override(mocker):
     ]
 
 
+@pytest.mark.parametrize(
+    ("server_type", "allow_external"), (("bm", True), ("vm", False))
+)
+def test_render_machine_ports_matches_fixed_network_policy(
+    mocker, server_type, allow_external
+):
+    context = mocker.Mock()
+    cluster = mocker.Mock()
+    cluster.fixed_network = "provider"
+    cluster.fixed_subnet = "provider-subnet"
+    cluster.cluster_template.server_type = server_type
+    selection = _machine_network_selection()
+    get_network = mocker.patch.object(
+        resources.utils, "get_fixed_network_id", return_value="network-id"
+    )
+    get_subnet = mocker.patch.object(
+        resources.neutron, "get_fixed_subnet_id", return_value="subnet-id"
+    )
+    render = mocker.patch.object(
+        resources.machine_network_profiles,
+        "render_machine_ports",
+        return_value=[{"nameSuffix": "primary"}],
+    )
+
+    result = resources.render_machine_ports_for_cluster(context, cluster, selection)
+
+    assert result == [{"nameSuffix": "primary"}]
+    get_network.assert_called_once_with(
+        context, "provider", allow_external=allow_external
+    )
+    get_subnet.assert_called_once_with(context, "provider-subnet")
+    render.assert_called_once_with(selection, "network-id", "subnet-id")
+
+
 def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     context, mocker
 ):

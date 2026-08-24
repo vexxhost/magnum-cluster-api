@@ -939,7 +939,16 @@ def render_machine_ports_for_cluster(
     cluster: magnum_objects.Cluster,
     selection: machine_network_profiles.MachineNetworkSelection,
 ) -> list[dict[str, typing.Any]]:
-    fixed_network_id = utils.get_fixed_network_id(context, cluster.fixed_network) or ""
+    fixed_network_id = (
+        utils.get_fixed_network_id(
+            context,
+            cluster.fixed_network,
+            allow_external=(
+                getattr(cluster.cluster_template, "server_type", "vm") == "bm"
+            ),
+        )
+        or ""
+    )
     fixed_subnet_id = neutron.get_fixed_subnet_id(context, cluster.fixed_subnet) or ""
     return machine_network_profiles.render_machine_ports(
         selection, fixed_network_id, fixed_subnet_id
