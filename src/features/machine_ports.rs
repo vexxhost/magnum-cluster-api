@@ -11,10 +11,7 @@ use crate::{
         },
         openstackmachinetemplates::OpenStackMachineTemplate,
     },
-    features::{
-        ClusterClassVariablesSchemaExt, ClusterFeatureEntry, ClusterFeaturePatches,
-        ClusterFeatureVariables,
-    },
+    features::{ClusterFeatureEntry, ClusterFeaturePatches, ClusterFeatureVariables},
 };
 use kube::CustomResourceExt;
 use schemars::JsonSchema;
@@ -56,8 +53,45 @@ pub struct MachinePort {
 pub struct Feature {}
 
 fn machine_ports_variable(name: &str) -> ClusterClassVariables {
-    let mut schema = ClusterClassVariablesSchema::from_object::<Vec<MachinePort>>();
-    schema.open_apiv3_schema.default = Some(json!([]));
+    let schema = ClusterClassVariablesSchema {
+        open_apiv3_schema: serde_json::from_value(json!({
+            "type": "array",
+            "default": [],
+            "items": {
+                "type": "object",
+                "required": ["nameSuffix", "network"],
+                "properties": {
+                    "nameSuffix": {"type": "string"},
+                    "network": {
+                        "type": "object",
+                        "required": ["id"],
+                        "properties": {
+                            "id": {"type": "string"}
+                        }
+                    },
+                    "fixedIPs": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["subnet"],
+                            "properties": {
+                                "subnet": {
+                                    "type": "object",
+                                    "required": ["id"],
+                                    "properties": {
+                                        "id": {"type": "string"}
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "disablePortSecurity": {"type": "boolean"},
+                    "vnicType": {"type": "string"}
+                }
+            }
+        }))
+        .expect("machine port ClusterClass schema must be valid"),
+    };
     ClusterClassVariables {
         name: name.into(),
         metadata: None,
@@ -148,6 +182,7 @@ inventory::submit! {
 mod tests {
     use super::*;
     use crate::features::test::TestClusterResources;
+    use serde_json::Value;
 
     #[derive(Deserialize, Serialize)]
     struct TestValues {
@@ -239,6 +274,47 @@ mod tests {
         for variable in feature.variables() {
             assert!(!variable.required);
             assert_eq!(variable.schema.open_apiv3_schema.default, Some(json!([])));
+
+            let schema = serde_json::to_value(&variable.schema.open_apiv3_schema).unwrap();
+            assert_scalar_schema_types(&schema, "openAPIV3Schema");
+
+            let item = schema.get("items").expect("machine port item schema");
+            let properties = item
+                .get("properties")
+                .and_then(Value::as_object)
+                .expect("machine port properties");
+            for optional in ["fixedIPs", "disablePortSecurity", "vnicType"] {
+                assert!(
+                    !item
+                        .get("required")
+                        .and_then(Value::as_array)
+                        .is_some_and(|required| { required.iter().any(|entry| entry == optional) }),
+                    "{optional} must remain optional"
+                );
+                assert!(properties.contains_key(optional));
+            }
+        }
+    }
+
+    fn assert_scalar_schema_types(value: &Value, path: &str) {
+        match value {
+            Value::Object(object) => {
+                if let Some(schema_type) = object.get("type") {
+                    assert!(
+                        schema_type.is_string(),
+                        "{path}.type must be a scalar string, got {schema_type}"
+                    );
+                }
+                for (key, child) in object {
+                    assert_scalar_schema_types(child, &format!("{path}.{key}"));
+                }
+            }
+            Value::Array(array) => {
+                for (index, child) in array.iter().enumerate() {
+                    assert_scalar_schema_types(child, &format!("{path}[{index}]"));
+                }
+            }
+            _ => {}
         }
     }
 }
