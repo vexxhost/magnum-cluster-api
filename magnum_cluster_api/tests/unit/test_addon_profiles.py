@@ -18,14 +18,16 @@ from magnum_cluster_api import addon_profiles
 
 PROFILE_A = "platform-foundation-v1-deadbeef"
 PROFILE_B = "workload-platform-v1-cafebabe"
+PROFILE_SET_A = "foundation-stack-v1-a11ce001"
+PROFILE_SET_ALL = "platform-stack-v1-feedface"
 LABEL_A = f"{addon_profiles.ADDON_LABEL_PREFIX}foundation"
 LABEL_B = f"{addon_profiles.ADDON_LABEL_PREFIX}workload"
 CAPABILITY = "machine-network.magnum-cluster-api.openstack.org/secondary"
 
 
-def _profile_yaml(*, schema=True):
+def _profile_yaml(*, schema=True, profile_sets=False):
     prefix = "schemaVersion: 1\n" if schema else ""
-    return f"""{prefix}profiles:
+    raw = f"""{prefix}profiles:
   {PROFILE_A}:
     category: platform-foundation
     dependsOn: []
@@ -49,6 +51,17 @@ def _profile_yaml(*, schema=True):
     createTimeout: 90m
     deleteTimeout: 30m
 """
+    if profile_sets:
+        raw += f"""profileSets:
+  {PROFILE_SET_A}:
+    profiles:
+      - {PROFILE_A}
+  {PROFILE_SET_ALL}:
+    profiles:
+      - {PROFILE_A}
+      - {PROFILE_B}
+"""
+    return raw
 
 
 def _profile(name, label, hcp, release, *, depends_on=()):
@@ -86,6 +99,20 @@ def selection(profile_a, profile_b):
     return addon_profiles._selection(
         (PROFILE_A, PROFILE_B), {PROFILE_A: profile_a, PROFILE_B: profile_b}
     )
+
+
+@pytest.fixture
+def profile_set_selection(profile_a, profile_b):
+    catalog = addon_profiles.AddonCatalog(
+        profiles={PROFILE_A: profile_a, PROFILE_B: profile_b},
+        profile_sets={
+            PROFILE_SET_ALL: addon_profiles.AddonProfileSet(
+                name=PROFILE_SET_ALL,
+                profiles=(PROFILE_A, PROFILE_B),
+            )
+        },
+    )
+    return addon_profiles._selection_from_catalog((PROFILE_SET_ALL,), catalog)
 
 
 @pytest.fixture
@@ -174,6 +201,16 @@ def test_get_profiles_parses_schema_v1_contract(mocker):
     )
 
 
+def test_get_catalog_parses_optional_profile_sets(mocker):
+    _config_map(mocker, _profile_yaml(profile_sets=True))
+
+    catalog = addon_profiles.get_catalog(mock.sentinel.api)
+
+    assert tuple(catalog.profiles) == (PROFILE_A, PROFILE_B)
+    assert catalog.profile_sets[PROFILE_SET_A].profiles == (PROFILE_A,)
+    assert catalog.profile_sets[PROFILE_SET_ALL].profiles == (PROFILE_A, PROFILE_B)
+
+
 @pytest.mark.parametrize(
     "raw",
     [
@@ -204,6 +241,51 @@ def test_get_profiles_rejects_dependency_cycle(mocker):
 
     with pytest.raises(exception.Invalid, match="cycle"):
         addon_profiles.get_profiles(mock.sentinel.api)
+
+
+@pytest.mark.parametrize(
+    ("raw", "message"),
+    [
+        (
+            _profile_yaml(profile_sets=True).replace(
+                f"      - {PROFILE_B}\n", "      - missing-profile-v1-deadbeef\n"
+            ),
+            "missing profile",
+        ),
+        (
+            _profile_yaml(profile_sets=True).replace(
+                f"  {PROFILE_SET_A}:\n", f"  {PROFILE_A}:\n"
+            ),
+            "both a profile and a profile set",
+        ),
+        (
+            _profile_yaml(profile_sets=True).replace(
+                f"  {PROFILE_SET_A}:\n    profiles:\n      - {PROFILE_A}\n",
+                f"  {PROFILE_SET_A}:\n    profiles: []\n",
+            ),
+            "must not be empty",
+        ),
+        (
+            _profile_yaml(profile_sets=True).replace(
+                f"  {PROFILE_SET_A}:\n    profiles:\n",
+                f"  {PROFILE_SET_A}:\n    unsupported: true\n    profiles:\n",
+            ),
+            "unsupported field",
+        ),
+        (
+            _profile_yaml(profile_sets=True).replace(
+                f"      - {PROFILE_A}\n  {PROFILE_SET_ALL}:\n",
+                f"      - {PROFILE_B}\n  {PROFILE_SET_ALL}:\n",
+            ),
+            "unselected dependency",
+        ),
+    ],
+)
+def test_get_catalog_rejects_invalid_profile_sets(mocker, raw, message):
+    _config_map(mocker, raw)
+
+    with pytest.raises(exception.Invalid, match=message):
+        addon_profiles.get_catalog(mock.sentinel.api)
 
 
 @pytest.mark.parametrize(
@@ -253,8 +335,11 @@ def test_prepare_cluster_inherits_ordered_selection(mocker, profile_a, profile_b
     cluster.cluster_template.labels = {addon_profiles.ADDON_PROFILES_LABEL: selected}
     mocker.patch.object(
         addon_profiles,
-        "get_profiles",
-        return_value={PROFILE_A: profile_a, PROFILE_B: profile_b},
+        "get_catalog",
+        return_value=addon_profiles.AddonCatalog(
+            profiles={PROFILE_A: profile_a, PROFILE_B: profile_b},
+            profile_sets={},
+        ),
     )
 
     resolved = addon_profiles.prepare_cluster(mock.sentinel.api, cluster)
@@ -262,6 +347,70 @@ def test_prepare_cluster_inherits_ordered_selection(mocker, profile_a, profile_b
     assert resolved.names == (PROFILE_A, PROFILE_B)
     assert resolved.waves == ((PROFILE_A,), (PROFILE_B,))
     assert cluster.labels[addon_profiles.ADDON_PROFILES_LABEL] == selected
+
+
+def test_prepare_cluster_expands_profile_set(mocker, profile_a, profile_b):
+    cluster = mock.MagicMock()
+    cluster.labels = {}
+    cluster.cluster_template.labels = {
+        addon_profiles.ADDON_PROFILES_LABEL: PROFILE_SET_ALL
+    }
+    mocker.patch.object(
+        addon_profiles,
+        "get_catalog",
+        return_value=addon_profiles.AddonCatalog(
+            profiles={PROFILE_A: profile_a, PROFILE_B: profile_b},
+            profile_sets={
+                PROFILE_SET_ALL: addon_profiles.AddonProfileSet(
+                    name=PROFILE_SET_ALL,
+                    profiles=(PROFILE_A, PROFILE_B),
+                )
+            },
+        ),
+    )
+
+    resolved = addon_profiles.prepare_cluster(mock.sentinel.api, cluster)
+
+    assert resolved.names == (PROFILE_A, PROFILE_B)
+    assert resolved.requested_selectors == (PROFILE_SET_ALL,)
+    assert tuple(profile_set.name for profile_set in resolved.profile_sets) == (
+        PROFILE_SET_ALL,
+    )
+    assert cluster.labels[addon_profiles.ADDON_PROFILES_LABEL] == PROFILE_SET_ALL
+
+
+def test_mixed_profile_and_profile_set_selection(profile_a, profile_b):
+    catalog = addon_profiles.AddonCatalog(
+        profiles={PROFILE_A: profile_a, PROFILE_B: profile_b},
+        profile_sets={
+            PROFILE_SET_A: addon_profiles.AddonProfileSet(
+                name=PROFILE_SET_A,
+                profiles=(PROFILE_A,),
+            )
+        },
+    )
+
+    selection = addon_profiles._selection_from_catalog(
+        (PROFILE_SET_A, PROFILE_B), catalog
+    )
+
+    assert selection.names == (PROFILE_A, PROFILE_B)
+    assert selection.requested_selectors == (PROFILE_SET_A, PROFILE_B)
+
+
+def test_overlapping_selectors_are_rejected(profile_a, profile_b):
+    catalog = addon_profiles.AddonCatalog(
+        profiles={PROFILE_A: profile_a, PROFILE_B: profile_b},
+        profile_sets={
+            PROFILE_SET_ALL: addon_profiles.AddonProfileSet(
+                name=PROFILE_SET_ALL,
+                profiles=(PROFILE_A, PROFILE_B),
+            )
+        },
+    )
+
+    with pytest.raises(exception.Invalid, match="selected by both"):
+        addon_profiles._selection_from_catalog((PROFILE_SET_ALL, PROFILE_A), catalog)
 
 
 def test_selection_requires_dependencies_to_be_explicit(profile_a, profile_b):
@@ -273,6 +422,9 @@ def test_selection_requires_dependencies_to_be_explicit(profile_a, profile_b):
 
 def test_snapshot_is_canonical_and_round_trips(selection, capi_cluster):
     assert len(selection.digest) == 64
+    assert selection.digest == (
+        "ec8713a369a08ae663f5b45fcef264b9f7744bf66ef6168837f7799e2aa6b812"
+    )
     assert (
         json.dumps(
             json.loads(selection.contract), sort_keys=True, separators=(",", ":")
@@ -283,6 +435,45 @@ def test_snapshot_is_canonical_and_round_trips(selection, capi_cluster):
     restored = addon_profiles.selection_from_cluster(capi_cluster)
 
     assert restored == selection
+    assert set(json.loads(selection.contract)) == {
+        "profiles",
+        "schemaVersion",
+        "selectedProfiles",
+        "waves",
+    }
+
+
+def test_profile_set_snapshot_is_canonical_and_round_trips(profile_set_selection):
+    capi_cluster = mock.MagicMock()
+    _, annotations = addon_profiles.cluster_metadata(profile_set_selection)
+    capi_cluster.obj = {"metadata": {"annotations": annotations}}
+
+    document = json.loads(profile_set_selection.contract)
+    restored = addon_profiles.selection_from_cluster(capi_cluster)
+
+    assert restored == profile_set_selection
+    assert document["schemaVersion"] == 1
+    assert document["requestedSelectors"] == [PROFILE_SET_ALL]
+    assert document["selectedProfileSets"] == {PROFILE_SET_ALL: [PROFILE_A, PROFILE_B]}
+    assert annotations[addon_profiles.SELECTED_PROFILES_ANNOTATION] == (
+        f"{PROFILE_A}+{PROFILE_B}"
+    )
+
+
+def test_profile_set_snapshot_rejects_expansion_mismatch(profile_set_selection):
+    capi_cluster = mock.MagicMock()
+    _, annotations = addon_profiles.cluster_metadata(profile_set_selection)
+    document = json.loads(profile_set_selection.contract)
+    document["selectedProfileSets"][PROFILE_SET_ALL] = [PROFILE_A]
+    contract = json.dumps(document, sort_keys=True, separators=(",", ":"))
+    annotations[addon_profiles.PROFILES_CONTRACT_ANNOTATION] = contract
+    annotations[addon_profiles.PROFILES_CONTRACT_SHA256_ANNOTATION] = hashlib.sha256(
+        contract.encode("utf-8")
+    ).hexdigest()
+    capi_cluster.obj = {"metadata": {"annotations": annotations}}
+
+    with pytest.raises(exception.Invalid, match="do not match selectedProfiles"):
+        addon_profiles.selection_from_cluster(capi_cluster)
 
 
 def test_snapshot_rejects_digest_mismatch(capi_cluster):

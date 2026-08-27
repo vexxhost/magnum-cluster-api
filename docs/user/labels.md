@@ -11,11 +11,12 @@ attributes relevant to the cluster deployment.
 ## Cluster add-on profiles
 
 The optional `addon_profiles` label selects an ordered, `+`-separated set of
-operator-approved add-on lifecycle profiles. It must be set on an immutable
-cluster template; a cluster create request cannot introduce, remove, reorder,
-or override the selection. When omitted, cluster create, update, and delete
-behavior is unchanged. The unsupported singular `addon_profile` spelling is
-rejected.
+operator-approved add-on selectors. Each selector can name either one
+installable lifecycle profile or one immutable profile set that expands to an
+ordered list of profiles. It must be set on an immutable cluster template; a
+cluster create request cannot introduce, remove, reorder, or override the
+selection. When omitted, cluster create, update, and delete behavior is
+unchanged. The unsupported singular `addon_profile` spelling is rejected.
 
 For upgrade safety only, deletion of an already-provisioned cluster carrying
 the legacy singular label can migrate its existing one-profile lifecycle
@@ -24,9 +25,9 @@ profile, HelmChartProxy, release, and selector-label identities to match the
 currently published profile exactly. This compatibility path cannot be used to
 create a new cluster or change the selected profile.
 
-Profiles are stored in `magnum-system/mcapi-addon-profiles` under the
-`profiles.yaml` key. The document uses explicit schema version 1. Each profile
-may add only labels in the
+Profiles and optional profile sets are stored in
+`magnum-system/mcapi-addon-profiles` under the `profiles.yaml` key. The
+document uses explicit schema version 1. Each profile may add only labels in the
 `addons.magnum-cluster-api.openstack.org/` domain and identifies one required
 Cluster API Add-on Provider for Helm `HelmChartProxy` and release name. A
 profile can declare selected dependencies and generic capabilities that must
@@ -63,19 +64,35 @@ data:
         releaseName: example-workload
         createTimeout: 90m
         deleteTimeout: 30m
+    profileSets:
+      example-platform-stack-v1-01234567:
+        profiles:
+          - example-foundation-v1-deadbeef
+          - example-workload-v1-cafebabe
 ```
 
 For example, an immutable template can select both profiles with
 `addon_profiles=example-foundation-v1-deadbeef+example-workload-v1-cafebabe`.
-Every dependency must be present in the selected list; dependencies are not
-added implicitly. Empty entries, duplicates, cycles, colliding selector labels,
-and reused `HelmChartProxy` identities are rejected.
+The equivalent profile-set selection is
+`addon_profiles=example-platform-stack-v1-01234567`. Ordinary profiles and
+profile sets can be composed in the same label. Profile and profile-set names
+share one selector namespace and cannot collide. A profile set contains only
+ordinary profile names; nested sets are not supported.
 
-The driver stores the selected profiles, complete canonical contract, dependency
-waves, and SHA-256 digest on the initial Cluster API `Cluster`. Later reconcile
-and deletion use that snapshot rather than rereading the mutable ConfigMap.
-Profiles in one dependency wave activate together; the next wave activates only
-after every profile in the current wave is ready.
+Every dependency must be present after expansion; dependencies are not added
+implicitly. Each published profile set must also contain a complete dependency
+selection so it is valid on its own. Empty entries, duplicate selectors,
+overlapping expansions, cycles, colliding selector labels, and reused
+`HelmChartProxy` identities are rejected.
+
+The driver stores the requested selectors, expanded profiles, selected
+profile-set definitions, complete canonical contract, dependency waves, and
+SHA-256 digest on the initial Cluster API `Cluster`. The existing four-field
+schema-version-1 snapshot remains byte-for-byte unchanged when only ordinary
+profiles are selected; the selector and set fields are present only when a set
+was used. Later reconcile and deletion use the snapshot rather than rereading
+the mutable ConfigMap. Profiles in one dependency wave activate together; the
+next wave activates only after every profile in the current wave is ready.
 
 For selected clusters, Magnum remains `CREATE_IN_PROGRESS` until each matching,
 current-generation `HelmReleaseProxy` reports `Ready=True`. Controller-reported
@@ -93,11 +110,13 @@ finalizer. This deliberately skips Helm uninstall because the workload cluster
 is being destroyed and preserves `InstallOnce` semantics for the workload
 release.
 
-Profile names and content are an operator contract. Use content-addressed names
-and never change an existing profile in place. Schema version 1 accepts at most
-16 profiles per document and selection, 16 dependencies and labels per profile,
-32 capability requirements per profile, a 64 KiB source document, a 128 KiB
-resolved snapshot, and positive `s`, `m`, or `h` timeouts no longer than 24h.
+Profile and profile-set names and content are an operator contract. Use
+content-addressed names and never change an existing item in place. Schema
+version 1 accepts at most 16 profiles, 16 profile sets, 16 selectors, and 16
+expanded profiles; at most 16 members per set; 16 dependencies and labels per
+profile; 32 capability requirements per profile; a 64 KiB source document; a
+128 KiB resolved snapshot; and positive `s`, `m`, or `h` timeouts no longer
+than 24h.
 
 ## Volumes
 

@@ -51,6 +51,7 @@ SCHEMA_VERSION = 1
 MAX_DOCUMENT_BYTES = 64 * 1024
 MAX_CONTRACT_BYTES = 128 * 1024
 MAX_PROFILES = 16
+MAX_PROFILE_SETS = 16
 MAX_DEPENDENCIES = 16
 MAX_LABELS_PER_PROFILE = 16
 MAX_CAPABILITIES_PER_PROFILE = 32
@@ -88,11 +89,25 @@ class AddonProfile:
 
 
 @dataclasses.dataclass(frozen=True)
+class AddonProfileSet:
+    name: str
+    profiles: tuple[str, ...]
+
+
+@dataclasses.dataclass(frozen=True)
+class AddonCatalog:
+    profiles: dict[str, AddonProfile]
+    profile_sets: dict[str, AddonProfileSet]
+
+
+@dataclasses.dataclass(frozen=True)
 class AddonSelection:
     profiles: tuple[AddonProfile, ...]
     waves: tuple[tuple[str, ...], ...]
     contract: str
     digest: str
+    requested_selectors: tuple[str, ...]
+    profile_sets: tuple[AddonProfileSet, ...]
 
     @property
     def names(self) -> tuple[str, ...]:
@@ -269,14 +284,36 @@ def _parse_profile(name: str, value: typing.Any) -> AddonProfile:
     )
 
 
-def get_profiles(
+def _parse_profile_set(name: str, value: typing.Any) -> AddonProfileSet:
+    _validate_dns_label(name, "profile set name", name)
+    if not isinstance(value, dict):
+        raise _invalid(f"Invalid add-on profile set {name}: expected a YAML object.")
+    if set(value) != {"profiles"}:
+        unknown = set(value) - {"profiles"}
+        if unknown:
+            raise _invalid(
+                f"Invalid add-on profile set {name}: unsupported field "
+                f"{sorted(unknown)[0]}."
+            )
+        raise _invalid(f"Invalid add-on profile set {name}: missing field profiles.")
+    profiles = _validate_string_list(
+        value["profiles"], "profiles", name, maximum=MAX_PROFILES
+    )
+    if not profiles:
+        raise _invalid(
+            f"Invalid add-on profile set {name}: profiles must not be empty."
+        )
+    return AddonProfileSet(name=name, profiles=profiles)
+
+
+def get_catalog(
     api: pykube.HTTPClient, namespace: str = "magnum-system"
-) -> dict[str, AddonProfile]:
+) -> AddonCatalog:
     config_map = pykube.ConfigMap.objects(api, namespace=namespace).get_or_none(
         name=ADDON_PROFILES_CONFIGMAP
     )
     if config_map is None:
-        return {}
+        return AddonCatalog(profiles={}, profile_sets={})
 
     raw = config_map.obj.get("data", {}).get(ADDON_PROFILES_CONFIGMAP_KEY)
     if raw is None:
@@ -292,12 +329,17 @@ def get_profiles(
         document = yaml.safe_load(raw) or {}
     except yaml.YAMLError as exc:
         raise _invalid(f"Invalid add-on profile YAML: {exc}.")
-    if not isinstance(document, dict) or set(document) != {
-        "schemaVersion",
-        "profiles",
-    }:
+    required_fields = {"schemaVersion", "profiles"}
+    allowed_fields = required_fields | {"profileSets"}
+    if not isinstance(document, dict) or not required_fields <= set(document):
         raise _invalid(
-            "Invalid add-on profile document: expected only schemaVersion and profiles."
+            "Invalid add-on profile document: expected schemaVersion and profiles."
+        )
+    unknown_fields = set(document) - allowed_fields
+    if unknown_fields:
+        raise _invalid(
+            "Invalid add-on profile document: unsupported field "
+            f"{sorted(unknown_fields)[0]}."
         )
     if document["schemaVersion"] != SCHEMA_VERSION:
         raise _invalid(
@@ -314,11 +356,41 @@ def get_profiles(
         name: _parse_profile(name, value)
         for name, value in document["profiles"].items()
     }
-    _validate_catalog(profiles)
-    return profiles
+    profile_set_values = document.get("profileSets", {})
+    if not isinstance(profile_set_values, dict):
+        raise _invalid(
+            "Invalid add-on profile document: profileSets must be a mapping."
+        )
+    if len(profile_set_values) > MAX_PROFILE_SETS:
+        raise _invalid(
+            f"Invalid add-on profile document: maximum is {MAX_PROFILE_SETS} "
+            "profile sets."
+        )
+    profile_sets = {
+        name: _parse_profile_set(name, value)
+        for name, value in profile_set_values.items()
+    }
+    _validate_catalog(profiles, profile_sets)
+    return AddonCatalog(profiles=profiles, profile_sets=profile_sets)
 
 
-def _validate_catalog(profiles: dict[str, AddonProfile]) -> None:
+def get_profiles(
+    api: pykube.HTTPClient, namespace: str = "magnum-system"
+) -> dict[str, AddonProfile]:
+    """Return ordinary profiles for legacy one-profile lifecycle migration."""
+    return get_catalog(api, namespace).profiles
+
+
+def _validate_catalog(
+    profiles: dict[str, AddonProfile],
+    profile_sets: dict[str, AddonProfileSet] | None = None,
+) -> None:
+    profile_sets = profile_sets or {}
+    collisions = set(profiles) & set(profile_sets)
+    if collisions:
+        name = sorted(collisions)[0]
+        raise _invalid(f"Add-on selector {name} is both a profile and a profile set.")
+
     label_owners: dict[str, str] = {}
     hcp_owners: dict[str, str] = {}
     for profile in profiles.values():
@@ -345,11 +417,25 @@ def _validate_catalog(profiles: dict[str, AddonProfile]) -> None:
         hcp_owners[hcp] = profile.name
 
     _dependency_waves(tuple(profiles), profiles)
+    for profile_set in profile_sets.values():
+        missing = set(profile_set.profiles) - set(profiles)
+        if missing:
+            raise _invalid(
+                f"Add-on profile set {profile_set.name} contains missing profile "
+                f"{sorted(missing)[0]}."
+            )
+        try:
+            _dependency_waves(profile_set.profiles, profiles)
+        except exception.Invalid as exc:
+            raise _invalid(f"Invalid add-on profile set {profile_set.name}: {exc}")
 
 
 def _parse_selector(value: str) -> tuple[str, ...]:
     if not isinstance(value, str) or not value:
-        raise _invalid(f"Invalid value for {ADDON_PROFILES_LABEL}: expected profiles.")
+        raise _invalid(
+            f"Invalid value for {ADDON_PROFILES_LABEL}: expected profiles or "
+            "profile sets."
+        )
     names = value.split("+")
     if len(names) > MAX_PROFILES:
         raise _invalid(
@@ -361,10 +447,43 @@ def _parse_selector(value: str) -> tuple[str, ...]:
             "are not allowed."
         )
     if len(set(names)) != len(names):
-        raise _invalid(f"Invalid value for {ADDON_PROFILES_LABEL}: duplicate profile.")
+        raise _invalid(f"Invalid value for {ADDON_PROFILES_LABEL}: duplicate selector.")
     for name in names:
         _validate_dns_label(name, ADDON_PROFILES_LABEL, name)
     return tuple(names)
+
+
+def _resolve_selectors(
+    selectors: tuple[str, ...], catalog: AddonCatalog
+) -> tuple[tuple[str, ...], tuple[AddonProfileSet, ...]]:
+    names: list[str] = []
+    selected_sets: list[AddonProfileSet] = []
+    owners: dict[str, str] = {}
+    for selector in selectors:
+        if selector in catalog.profiles:
+            members = (selector,)
+        elif selector in catalog.profile_sets:
+            profile_set = catalog.profile_sets[selector]
+            selected_sets.append(profile_set)
+            members = profile_set.profiles
+        else:
+            raise _invalid(f"Add-on profile or profile set {selector} does not exist.")
+
+        for name in members:
+            if name in owners:
+                raise _invalid(
+                    f"Add-on profile {name} is selected by both {owners[name]} and "
+                    f"{selector}."
+                )
+            owners[name] = selector
+            names.append(name)
+
+    if len(names) > MAX_PROFILES:
+        raise _invalid(
+            f"Invalid value for {ADDON_PROFILES_LABEL}: expansion exceeds "
+            f"{MAX_PROFILES} profiles."
+        )
+    return tuple(names), tuple(selected_sets)
 
 
 def _dependency_waves(
@@ -411,8 +530,13 @@ def _canonical_profile(profile: AddonProfile) -> dict[str, typing.Any]:
 
 
 def _selection(
-    names: tuple[str, ...], profiles: dict[str, AddonProfile]
+    names: tuple[str, ...],
+    profiles: dict[str, AddonProfile],
+    *,
+    requested_selectors: tuple[str, ...] | None = None,
+    profile_sets: tuple[AddonProfileSet, ...] = (),
 ) -> AddonSelection:
+    requested_selectors = requested_selectors or names
     missing = [name for name in names if name not in profiles]
     if missing:
         raise _invalid(f"Add-on profile {missing[0]} does not exist.")
@@ -426,6 +550,13 @@ def _selection(
         "selectedProfiles": list(names),
         "waves": [list(wave) for wave in waves],
     }
+    if profile_sets:
+        contract_object["requestedSelectors"] = list(requested_selectors)
+        contract_object["selectedProfileSets"] = {
+            profile_set.name: list(profile_set.profiles) for profile_set in profile_sets
+        }
+    elif requested_selectors != names:
+        raise _invalid("Direct add-on profile selectors do not match the selection.")
     contract = json.dumps(
         contract_object, sort_keys=True, separators=(",", ":"), ensure_ascii=True
     )
@@ -434,7 +565,26 @@ def _selection(
             f"Resolved add-on profile contract exceeds {MAX_CONTRACT_BYTES} bytes."
         )
     digest = hashlib.sha256(contract.encode("utf-8")).hexdigest()
-    return AddonSelection(selected_profiles, waves, contract, digest)
+    return AddonSelection(
+        selected_profiles,
+        waves,
+        contract,
+        digest,
+        requested_selectors,
+        profile_sets,
+    )
+
+
+def _selection_from_catalog(
+    selectors: tuple[str, ...], catalog: AddonCatalog
+) -> AddonSelection:
+    names, profile_sets = _resolve_selectors(selectors, catalog)
+    return _selection(
+        names,
+        catalog.profiles,
+        requested_selectors=selectors,
+        profile_sets=profile_sets,
+    )
 
 
 def _reject_unsupported_selector(labels: dict[str, str]) -> None:
@@ -467,9 +617,8 @@ def prepare_cluster(
             cluster.labels.pop(ADDON_PROFILES_LABEL, None)
         return None
 
-    names = _parse_selector(selected)
-    profiles = get_profiles(api)
-    selection = _selection(names, profiles)
+    selectors = _parse_selector(selected)
+    selection = _selection_from_catalog(selectors, get_catalog(api))
     if cluster.labels is None:
         cluster.labels = {}
     cluster.labels[ADDON_PROFILES_LABEL] = selected
@@ -482,7 +631,7 @@ def resolve_selection(
     selected = (cluster.labels or {}).get(ADDON_PROFILES_LABEL)
     if selected is None:
         return None
-    return _selection(_parse_selector(selected), get_profiles(api))
+    return _selection_from_catalog(_parse_selector(selected), get_catalog(api))
 
 
 def selection_from_cluster(capi_cluster) -> AddonSelection | None:
@@ -501,12 +650,20 @@ def selection_from_cluster(capi_cluster) -> AddonSelection | None:
         document = json.loads(raw)
     except (TypeError, json.JSONDecodeError) as exc:
         raise _invalid(f"Invalid add-on profile snapshot: {exc}.")
-    if not isinstance(document, dict) or set(document) != {
+    if not isinstance(document, dict):
+        raise _invalid("Invalid add-on profile snapshot fields.")
+    direct_fields = {
         "profiles",
         "schemaVersion",
         "selectedProfiles",
         "waves",
-    }:
+    }
+    profile_set_fields = direct_fields | {
+        "requestedSelectors",
+        "selectedProfileSets",
+    }
+    document_fields = set(document)
+    if document_fields not in (direct_fields, profile_set_fields):
         raise _invalid("Invalid add-on profile snapshot fields.")
     if document["schemaVersion"] != SCHEMA_VERSION:
         raise _invalid("Unsupported add-on profile snapshot schemaVersion.")
@@ -518,6 +675,8 @@ def selection_from_cluster(capi_cluster) -> AddonSelection | None:
     names = tuple(selected_profiles)
     if not names:
         raise _invalid("Invalid selectedProfiles in add-on profile snapshot.")
+    if _parse_selector("+".join(names)) != names:
+        raise _invalid("Invalid selectedProfiles in add-on profile snapshot.")
     if "+".join(names) != selected:
         raise _invalid("Selected add-on profiles do not match the snapshot.")
     profile_values = document["profiles"]
@@ -526,8 +685,31 @@ def selection_from_cluster(capi_cluster) -> AddonSelection | None:
     profiles = {
         name: _parse_profile(name, value) for name, value in profile_values.items()
     }
-    _validate_catalog(profiles)
-    restored = _selection(names, profiles)
+    if document_fields == profile_set_fields:
+        requested_values = document["requestedSelectors"]
+        if not isinstance(requested_values, list) or not requested_values:
+            raise _invalid("Invalid requestedSelectors in add-on profile snapshot.")
+        if not all(isinstance(name, str) for name in requested_values):
+            raise _invalid("Invalid requestedSelectors in add-on profile snapshot.")
+        selectors = _parse_selector("+".join(requested_values))
+        profile_set_values = document["selectedProfileSets"]
+        if not isinstance(profile_set_values, dict) or not profile_set_values:
+            raise _invalid("Invalid selectedProfileSets in add-on profile snapshot.")
+        profile_sets = {
+            name: _parse_profile_set(name, {"profiles": value})
+            for name, value in profile_set_values.items()
+        }
+        catalog = AddonCatalog(profiles=profiles, profile_sets=profile_sets)
+        _validate_catalog(profiles, profile_sets)
+        restored = _selection_from_catalog(selectors, catalog)
+        if restored.names != names:
+            raise _invalid(
+                "Requested add-on selectors do not match selectedProfiles in the "
+                "snapshot."
+            )
+    else:
+        _validate_catalog(profiles)
+        restored = _selection(names, profiles)
     if restored.contract != raw or restored.digest != digest:
         raise _invalid("Add-on profile snapshot is not canonical.")
     return restored
