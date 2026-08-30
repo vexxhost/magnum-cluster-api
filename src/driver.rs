@@ -234,6 +234,11 @@ impl Driver {
                 self.client
                     .create_or_update_namespaced_resource(&self.namespace, cluster_class)
                     .await?;
+                crate::legacy_cluster_class::repair_legacy_proxy_file_patches(
+                    self.client.clone(),
+                    &self.namespace,
+                )
+                .await?;
 
                 Ok(())
             })
