@@ -41,6 +41,7 @@ from magnum_cluster_api import clients
 from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import image_utils, images, objects
 from magnum_cluster_api.cache import ServerGroupCache
+from magnum_cluster_api.resources import DEFAULT_NODE_CIDR
 
 AVAILABLE_OPERATING_SYSTEMS = ["ubuntu", "debian", "flatcar", "rockylinux"]
 DEFAULT_SERVER_GROUP_POLICIES = ["soft-anti-affinity"]
@@ -136,6 +137,8 @@ def generate_cloud_controller_manager_config(
             octavia_lb_algorithm=octavia_lb_algorithm
         )
 
+    node_cidr = cluster.labels.get("fixed_subnet_cidr", DEFAULT_NODE_CIDR)
+
     return textwrap.dedent(
         f"""\
         [Global]
@@ -149,6 +152,8 @@ def generate_cloud_controller_manager_config(
         lb-provider={octavia_provider}
         lb-method={octavia_lb_algorithm}
         create-monitor={octavia_lb_healthcheck}
+        [Networking]
+        address-sort-order={node_cidr}
         """
     )
 
