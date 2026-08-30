@@ -1,5 +1,5 @@
 use crate::{
-    addons::{cilium, ClusterAddon},
+    addons::{cilium, kubelet_csr_approver, ClusterAddon},
     cluster_api::clusterresourcesets::{
         ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
         ClusterResourceSetResourcesKind, ClusterResourceSetSpec, ClusterResourceSetStrategy,
@@ -108,6 +108,17 @@ pub struct ClusterLabels {
     /// The Kubernetes version to use for the cluster.
     #[builder(default="v1.30.0".to_owned())]
     pub kube_tag: String,
+
+    /// Enable kubelet serving TLS (serverTLSBootstrap) for the cluster.
+    /// Note: OpenStack labels are always strings, so this accepts "true"/"false".
+    #[builder(default="false".to_owned())]
+    #[pyo3(default="false".to_owned())]
+    pub kubelet_serving_tls_enabled: String,
+
+    /// CIDR of the fixed subnet used for cluster nodes.
+    #[builder(default="10.0.0.0/24".to_owned())]
+    #[pyo3(default="10.0.0.0/24".to_owned())]
+    pub fixed_subnet_cidr: String,
 }
 
 impl ClusterLabels {
@@ -117,6 +128,11 @@ impl ClusterLabels {
     /// Parses the string label value "true"/"false" to a boolean.
     pub fn is_cilium_hubble_ui_enabled(&self) -> bool {
         self.cilium_hubble_ui_enabled.eq_ignore_ascii_case("true")
+    }
+
+    pub fn is_kubelet_serving_tls_enabled(&self) -> bool {
+        self.kubelet_serving_tls_enabled
+            .eq_ignore_ascii_case("true")
     }
 
     pub fn get_cloud_provider_tag(&self) -> String {
@@ -359,6 +375,19 @@ impl From<Cluster> for Secret {
                     .manifests()
                     .unwrap()
                     .get("cilium.yaml")
+                    .unwrap()
+                    .to_owned(),
+            );
+        }
+
+        let kubelet_csr_approver = kubelet_csr_approver::Addon::new(cluster.clone());
+        if kubelet_csr_approver.enabled() {
+            data.insert(
+                "kubelet-csr-approver.yaml".to_owned(),
+                kubelet_csr_approver
+                    .manifests()
+                    .unwrap()
+                    .get("kubelet-csr-approver.yaml")
                     .unwrap()
                     .to_owned(),
             );
