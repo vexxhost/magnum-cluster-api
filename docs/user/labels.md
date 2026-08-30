@@ -231,6 +231,52 @@ is often accomplished by deploying a driver on each node.
 
    Default value: `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305`
 
+* `config_profile`
+
+   Select an operator-defined configuration profile rendered through CAPI
+   kubeadm config fields.  Supported values depend on the
+   `mcapi-config-profiles` ConfigMap in the management cluster.  Profiles can
+   include `kubeletConfig`, `files`, `preKubeadmCommands`, and
+   `postKubeadmCommands`.  Magnum adds `apiVersion` and `kind` when rendering
+   the kubelet patch.  Each of those profile keys can be used on its own.
+   String-typed kubelet fields must be quoted in profile YAML when they look
+   numeric, for example `reservedSystemCPUs: "0"`.
+   Users cannot create new profiles through Magnum labels.  Unknown profile
+   names are rejected during cluster validation.  Magnum's cluster update API
+   does not currently allow changing `labels`, so change this value after
+   creation by upgrading to a cluster template that selects a different profile.
+   Passing this label directly to `openstack coe cluster create --labels`
+   is rejected unless the value matches the selected cluster template.
+
+   Default value: unset
+
+* `nodegroup_config_profile_set`
+
+   Select an operator-defined nodegroup layout profile from the same
+   `mcapi-config-profiles` ConfigMap.  The layout maps nodegroup names to
+   profiles and renders MachineDeployment-level `configProfile` overrides.
+   Unknown layout profiles or layouts that reference unknown profiles are
+   rejected during cluster validation.  Passing this label directly to
+   `openstack coe cluster create --labels` is rejected unless the value matches
+   the selected cluster template.
+
+   Default value: unset
+
+   Example:
+
+   ```bash
+   openstack coe cluster template create k8s-bm-gpu \
+     ...same base template options... \
+     --labels config_profile=profile-standard \
+     --labels nodegroup_config_profile_set=profile-bm-gpu-layout
+
+   openstack coe cluster create bm-gpu \
+     --cluster-template k8s-bm-gpu
+   ```
+
+   See [Use Cases](use-cases.md#gpu-and-numa-aware-kubelet-tuning) for a
+   complete GPU and NUMA-aware cluster example.
+
 * `kube_tag`
 
    The version of Kubernetes to use.
