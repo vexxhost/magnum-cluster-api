@@ -45,8 +45,6 @@ def cluster_lock_wrapper(func):
 
 
 class BaseDriver(driver.Driver):
-    needs_trust = False
-
     def __init__(self):
         self.k8s_api = clients.get_pykube_api()
         self.rust_driver = tpool.Proxy(magnum_cluster_api.Driver("magnum-system"))
@@ -56,6 +54,53 @@ class BaseDriver(driver.Driver):
         if not hasattr(self, "_kube_client"):
             self._kube_client = tpool.Proxy(magnum_cluster_api.KubeClient())
         return self._kube_client
+
+    def _get_nodegroup_instance_uuids(
+        self,
+        cluster: magnum_objects.Cluster,
+        nodegroup: magnum_objects.NodeGroup,
+    ) -> list[str]:
+        """Return Nova instance UUIDs for a Magnum node group.
+
+        Cluster API stores the backing Nova server UUID in Machine.spec.providerID
+        in the form ``openstack:///UUID``.  Magnum's node_addresses field is then
+        populated with those UUIDs so API consumers can resolve the corresponding
+        Nova instances.
+        """
+        machines = objects.Machine.objects(self.k8s_api).filter(
+            namespace="magnum-system",
+            selector={
+                "cluster.x-k8s.io/cluster-name": cluster.stack_id,
+            },
+        )
+
+        instance_uuids = []
+
+        for machine in machines:
+            labels = machine.obj.get("metadata", {}).get("labels", {})
+
+            if nodegroup.role == "master":
+                # Control-plane Machines do not belong to a worker deployment.
+                if "cluster.x-k8s.io/control-plane" not in labels:
+                    continue
+            else:
+                # Select only Machines belonging to this Magnum worker node group.
+                deployment_name = labels.get(
+                    "topology.cluster.x-k8s.io/deployment-name"
+                )
+                if deployment_name != nodegroup.name:
+                    continue
+
+            provider_id = machine.obj.get("spec", {}).get("providerID")
+            if not provider_id:
+                # The Machine may exist before the Nova server has been created.
+                continue
+
+            instance_uuid = provider_id.rsplit("/", 1)[-1]
+            if instance_uuid:
+                instance_uuids.append(instance_uuid)
+
+        return sorted(instance_uuids)
 
     def create_cluster(
         self, context, cluster: magnum_objects.Cluster, cluster_create_timeout: int
@@ -175,13 +220,23 @@ class BaseDriver(driver.Driver):
         updated_replicas = kcp.obj.get("status", {}).get("updatedReplicas")
         replicas = kcp.obj.get("status", {}).get("replicas")
 
+        node_addresses = self._get_nodegroup_instance_uuids(cluster, nodegroup)
+        addresses_ready = len(node_addresses) == nodegroup.node_count
+
         if updated_replicas != replicas:
             nodegroup.status = f"{action}_IN_PROGRESS"
         elif (
-            updated_replicas == replicas and nodegroup.node_count == replicas and ready
+            updated_replicas == replicas
+            and nodegroup.node_count == replicas
+            and ready
+            and addresses_ready
         ):
             nodegroup.status = f"{action}_COMPLETE"
+
         nodegroup.status_reason = failure_message
+
+        if nodegroup.node_addresses != node_addresses:
+            nodegroup.node_addresses = node_addresses
 
         nodegroup.save()
 
@@ -220,9 +275,11 @@ class BaseDriver(driver.Driver):
                 return
 
             capi_cluster.reload()
-            status_map = {
-                c["type"]: c["status"] for c in capi_cluster.obj["status"]["conditions"]
-            }
+            conditions = capi_cluster.obj.get("status", {}).get("conditions", [])
+            if not conditions:
+                return
+
+            status_map = {c["type"]: c["status"] for c in conditions}
 
             for condition in ("ControlPlaneReady", "InfrastructureReady", "Ready"):
                 if status_map.get(condition) != "True":
@@ -509,6 +566,15 @@ class BaseDriver(driver.Driver):
                     node_group.destroy()
                 continue
 
+            # Keep Magnum's node_addresses in sync with the Nova instances
+            # represented by the CAPI Machines for this worker node group.
+            node_addresses = self._get_nodegroup_instance_uuids(cluster, node_group)
+            if node_group.node_addresses != node_addresses:
+                node_group.node_addresses = node_addresses
+                node_group.save()
+
+            addresses_ready = len(node_addresses) == node_group.node_count
+
             node_groups.append(node_group)
 
             md = objects.MachineDeployment.for_node_group_or_none(
@@ -539,6 +605,7 @@ class BaseDriver(driver.Driver):
             if (
                 node_group.status == fields.ClusterStatus.CREATE_IN_PROGRESS
                 and md_is_running
+                and addresses_ready
             ):
                 node_group.status = fields.ClusterStatus.CREATE_COMPLETE
                 node_group.save()
@@ -583,6 +650,7 @@ class BaseDriver(driver.Driver):
             if (
                 node_group.status == fields.ClusterStatus.UPDATE_IN_PROGRESS
                 and md_is_running
+                and addresses_ready
                 and md.equals_spec(
                     cluster_resource.get_machine_deployment_spec(node_group.name)
                 )
