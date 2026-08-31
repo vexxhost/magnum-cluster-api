@@ -14,41 +14,7 @@ use crate::{
     features::{ClusterFeatureEntry, ClusterFeaturePatches, ClusterFeatureVariables},
 };
 use kube::CustomResourceExt;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::json;
-
-#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
-pub struct MachinePortNetwork {
-    pub id: String,
-}
-
-#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
-pub struct MachinePortSubnet {
-    pub id: String,
-}
-
-#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
-pub struct MachinePortFixedIp {
-    pub subnet: MachinePortSubnet,
-}
-
-#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
-pub struct MachinePort {
-    #[serde(rename = "nameSuffix")]
-    pub name_suffix: String,
-    pub network: MachinePortNetwork,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "fixedIPs")]
-    pub fixed_ips: Option<Vec<MachinePortFixedIp>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        rename = "disablePortSecurity"
-    )]
-    pub disable_port_security: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "vnicType")]
-    pub vnic_type: Option<String>,
-}
 
 pub struct Feature {}
 
@@ -182,7 +148,40 @@ inventory::submit! {
 mod tests {
     use super::*;
     use crate::features::test::TestClusterResources;
+    use serde::{Deserialize, Serialize};
     use serde_json::Value;
+
+    #[derive(Clone, Deserialize, Serialize)]
+    struct MachinePortNetwork {
+        id: String,
+    }
+
+    #[derive(Clone, Deserialize, Serialize)]
+    struct MachinePortSubnet {
+        id: String,
+    }
+
+    #[derive(Clone, Deserialize, Serialize)]
+    struct MachinePortFixedIp {
+        subnet: MachinePortSubnet,
+    }
+
+    #[derive(Clone, Deserialize, Serialize)]
+    struct MachinePort {
+        #[serde(rename = "nameSuffix")]
+        name_suffix: String,
+        network: MachinePortNetwork,
+        #[serde(default, skip_serializing_if = "Option::is_none", rename = "fixedIPs")]
+        fixed_ips: Option<Vec<MachinePortFixedIp>>,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            rename = "disablePortSecurity"
+        )]
+        disable_port_security: Option<bool>,
+        #[serde(default, skip_serializing_if = "Option::is_none", rename = "vnicType")]
+        vnic_type: Option<String>,
+    }
 
     #[derive(Deserialize, Serialize)]
     struct TestValues {
