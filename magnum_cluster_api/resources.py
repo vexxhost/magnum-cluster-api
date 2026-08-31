@@ -36,6 +36,7 @@ from oslo_serialization import base64  # type: ignore
 from oslo_utils import encodeutils  # type: ignore
 
 from magnum_cluster_api import (
+    addon_profiles,
     clients,
     helm,
     image_utils,
@@ -932,6 +933,7 @@ class Cluster(ClusterBase):
         cluster: magnum_objects.Cluster,
         rust_driver: magnum_cluster_api.Driver,
         namespace: str = "magnum-system",
+        addon_selection: addon_profiles.AddonSelection | None = None,
     ):
         self.context = context
         self.api = api
@@ -939,6 +941,7 @@ class Cluster(ClusterBase):
         self.cluster = cluster
         self.namespace = namespace
         self.rust_driver = rust_driver
+        self.addon_selection = addon_selection
 
     @property
     def api_version(self) -> str:
@@ -1007,10 +1010,26 @@ class Cluster(ClusterBase):
             self.cluster.stack_id, dict(self.cluster.labels), variables
         )
 
+        selection = self.addon_selection
+        if (
+            selection is None
+            and (self.cluster.labels or {}).get(addon_profiles.ADDON_PROFILES_LABEL)
+            is not None
+        ):
+            existing = self.get_or_none()
+            if existing is not None:
+                selection = addon_profiles.selection_from_cluster(existing)
+            else:
+                selection = addon_profiles.resolve_selection(
+                    self.pykube_api, self.cluster
+                )
+        _, profile_annotations = addon_profiles.cluster_metadata(selection)
+        metadata = {"labels": self.labels}
+        if profile_annotations:
+            metadata["annotations"] = profile_annotations
+
         return {
-            "metadata": {
-                "labels": self.labels,
-            },
+            "metadata": metadata,
             "spec": {
                 "clusterNetwork": {
                     "serviceDomain": self.cluster.labels.get(
