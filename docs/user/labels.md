@@ -17,7 +17,11 @@ specify the volume size and type using the following labels:
 
 :   The size in gigabytes of the boot volume.  If you set this value, it will
     enable boot from volume.
-    **Default value**: Unset
+    **Default value**: Unset for `server_type=vm` clusters; automatically
+    `0` for `server_type=bm` clusters (baremetal nodes boot from local disk
+    via Ironic and cannot use a Cinder root volume). Operators can still
+    override explicitly on `server_type=bm` by setting this label on the
+    cluster_template, cluster, or node_group.
 
 `boot_volume_type`
 
@@ -64,6 +68,16 @@ deployment process.
 The way containers talk to each other and the outside world is defined by the networking setup.
 This setup decides how information is shared among containers inside and outside the cluster, and
 is often accomplished by deploying a driver on each node.
+
+`managed_security_groups_enabled`
+
+:   Whether the Cluster API OpenStack provider creates and attaches managed
+    security groups for the cluster. The default is `true` for `server_type=vm`
+    and `false` for `server_type=bm`. Baremetal clusters default to disabled so
+    they can use networks with Neutron port security disabled. Set this to
+    `true` for baremetal networks that support port security and security
+    groups, or to `false` for virtual-machine networks where security groups
+    must not be attached.
 
 `calico_ipv4pool`
 

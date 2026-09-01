@@ -210,6 +210,17 @@ def get_cluster_floating_ip_disabled(cluster: magnum_objects.Cluster) -> bool:
     return not get_cluster_label_as_bool(cluster, "master_lb_floating_ip_enabled", True)
 
 
+def get_cluster_managed_security_groups_enabled(
+    cluster: magnum_objects.Cluster,
+) -> bool:
+    server_type = getattr(cluster.cluster_template, "server_type", "vm")
+    return get_cluster_label_as_bool(
+        cluster,
+        "managed_security_groups_enabled",
+        server_type != "bm",
+    )
+
+
 def generate_containerd_config(
     cluster: magnum_objects.Cluster,
 ):
@@ -312,6 +323,32 @@ def get_cluster_label_as_int(
 ) -> int:
     value = cluster.labels.get(key, default)
     return strutils.validate_integer(value, key)
+
+
+def get_default_boot_volume_size(cluster: magnum_objects.Cluster, default: int) -> int:
+    """Return the boot_volume_size default appropriate for the cluster.
+
+    Baremetal nodes (server_type=bm) boot from the local disk via Ironic
+    and cannot use a Cinder root volume; defaulting to a non-zero size
+    causes the OpenStackMachineTemplate to request a Cinder volume that
+    Ironic refuses to attach. Default to 0 in that case so the chart
+    omits ``rootVolume`` and the machine boots from local disk.
+
+    Operators can still override explicitly by setting
+    ``boot_volume_size`` on the cluster_template/cluster/node_group.
+    """
+    server_type = "vm"
+    if hasattr(cluster, "obj_attr_is_set") and cluster.obj_attr_is_set(
+        "cluster_template"
+    ):
+        server_type = getattr(cluster.cluster_template, "server_type", "vm")
+    elif not hasattr(cluster, "obj_attr_is_set"):
+        server_type = getattr(
+            getattr(cluster, "cluster_template", None), "server_type", "vm"
+        )
+    if server_type == "bm":
+        return 0
+    return default
 
 
 def get_cluster_label_as_bool(
@@ -449,6 +486,92 @@ def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
     raise exception.FlavorNotFound(flavor=flavor)
 
 
+def _is_baremetal_flavor(flavor: flavors.Flavor) -> bool:
+    """Return True if ``flavor`` satisfies Nova's Ironic flavor contract.
+
+    Ironic flavors must request exactly one unit of a custom Placement
+    resource class and suppress the standard VCPU, memory, and disk
+    inventories.  Without the zero-valued standard resources, Placement
+    can reject the request or incorrectly consider non-Ironic providers.
+    """
+    try:
+        extra_specs = flavor.get_keys()
+    except Exception:
+        # Fall back to the cached attribute when the flavor object was
+        # built from a list response that did not eagerly resolve keys.
+        extra_specs = getattr(flavor, "extra_specs", {}) or {}
+    has_custom_resource = any(
+        key.startswith("resources:CUSTOM_") and str(value) == "1"
+        for key, value in extra_specs.items()
+    )
+    standard_resources_disabled = all(
+        str(extra_specs.get(key)) == "0"
+        for key in (
+            "resources:VCPU",
+            "resources:MEMORY_MB",
+            "resources:DISK_GB",
+        )
+    )
+    return has_custom_resource and standard_resources_disabled
+
+
+def validate_baremetal_flavor(
+    cli: clients.OpenStackClients,
+    cluster: magnum_objects.Cluster,
+    role: str,
+    flavor_ref: str,
+) -> None:
+    """Validate one flavor used by a bare-metal cluster or node group."""
+    server_type = getattr(cluster.cluster_template, "server_type", "vm")
+    if server_type != "bm" or not flavor_ref:
+        return
+
+    flavor = lookup_flavor(cli, flavor_ref)
+    if flavor is None or not _is_baremetal_flavor(flavor):
+        raise exception.InvalidParameterValue(
+            err=(
+                f"server_type=bm requires {role}={flavor_ref!r} to be "
+                "backed by Ironic (Nova flavor extra-specs must contain "
+                "resources:CUSTOM_<RESOURCE_CLASS>=1 and set "
+                "resources:VCPU=0, resources:MEMORY_MB=0, and "
+                "resources:DISK_GB=0)."
+            )
+        )
+
+
+def validate_baremetal_flavors(
+    cli: clients.OpenStackClients,
+    cluster: magnum_objects.Cluster,
+) -> None:
+    """Reject ``server_type=bm`` clusters whose flavors are not Ironic-backed.
+
+    When the cluster_template advertises ``server_type=bm`` (PR #1014), the
+    operator's intent is to provision both the master and worker nodes on
+    Ironic.  However, Magnum does not enforce that ``master_flavor_id`` /
+    ``flavor_id`` actually resolve to an Ironic-backed Nova flavor, so a
+    user that forgets ``--master-flavor`` (or overrides it with a virtual
+    flavor) silently gets a Nova KVM master.  The cluster reaches
+    ``CREATE_COMPLETE`` and looks healthy, but the ``server_type=bm``
+    code paths (boot_volume_size auto-zero, network-interface=flat, etc.)
+    are bypassed and operators believe they are testing the BM control
+    plane when they are not.
+
+    This validator looks up both flavors and raises
+    ``InvalidParameterValue`` when either one is missing the
+    complete Nova/Ironic Placement contract.  It is a no-op for
+    ``server_type=vm`` templates.
+    """
+    server_type = getattr(cluster.cluster_template, "server_type", "vm")
+    if server_type != "bm":
+        return
+
+    for role, flavor_ref in (
+        ("master_flavor_id", cluster.master_flavor_id),
+        ("flavor_id", cluster.flavor_id),
+    ):
+        validate_baremetal_flavor(cli, cluster, role, flavor_ref)
+
+
 def lookup_image(cli: clients.OpenStackClients, image_ref: str) -> dict:
     """
     Get image object from image ref
@@ -466,6 +589,9 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
     # Check master count
     if (cluster.master_count % 2) == 0:
         raise mcapi_exceptions.ClusterMasterCountEven
+
+    # Reject server_type=bm clusters whose flavors are not Ironic-backed.
+    validate_baremetal_flavors(clients.get_openstack_api(ctx), cluster)
 
     # Check if fixed_network exists
     if cluster.fixed_network:
@@ -501,8 +627,24 @@ def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
         raise mcapi_exceptions.MachineInvalidName(name=nodegroup.name)
 
 
-def validate_nodegroup(nodegroup: magnum_objects.NodeGroup):
+def validate_nodegroup(
+    nodegroup: magnum_objects.NodeGroup,
+    ctx: context.RequestContext | None = None,
+    cluster: magnum_objects.Cluster | None = None,
+):
     validate_nodegroup_name(nodegroup)
+
+    if (
+        ctx is not None
+        and cluster is not None
+        and getattr(cluster.cluster_template, "server_type", "vm") == "bm"
+    ):
+        validate_baremetal_flavor(
+            clients.get_openstack_api(ctx),
+            cluster,
+            f"nodegroup {nodegroup.name!r} flavor_id",
+            nodegroup.flavor_id,
+        )
 
 
 def get_operating_system(cluster: magnum_objects.Cluster):

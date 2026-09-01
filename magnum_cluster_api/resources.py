@@ -741,7 +741,9 @@ def mutate_machine_deployment(
         boot_volume_size = utils.get_node_group_label_as_int(
             node_group,
             "boot_volume_size",
-            CONF.cinder.default_boot_volume_size,
+            utils.get_default_boot_volume_size(
+                cluster, CONF.cinder.default_boot_volume_size
+            ),
         )
         if boot_volume_size == 0:
             boot_volume_size = flavor.disk
@@ -749,21 +751,30 @@ def mutate_machine_deployment(
         # Leave replicas unset so Cluster API and the cluster autoscaler do not
         # fight over the desired worker count.
         machine_deployment.pop("replicas", None)
-        machine_deployment["metadata"]["annotations"] = {
+        annotations = {
             AUTOSCALE_ANNOTATION_MIN: str(node_group.min_node_count),
             AUTOSCALE_ANNOTATION_MAX: str(
                 utils.get_node_group_max_node_count(node_group)
             ),
             "capacity.cluster-autoscaler.kubernetes.io/memory": f"{math.ceil(flavor.ram / 1024)}G",
             "capacity.cluster-autoscaler.kubernetes.io/cpu": str(flavor.vcpus),
-            "capacity.cluster-autoscaler.kubernetes.io/ephemeral-disk": str(
-                boot_volume_size
-            ),
             "capacity.cluster-autoscaler.kubernetes.io/labels": (
                 f"node-role.kubernetes.io/{node_group.role}=,"
                 f"node.cluster.x-k8s.io/nodegroup={node_group.name}"
             ),
         }
+        # Only emit the ephemeral-disk capacity hint when we can resolve a
+        # non-zero value. For server_type=bm the flavor.disk is typically
+        # 0 (root_gb lives on the Ironic node, not the Nova flavor) and
+        # the Cinder root volume default is also 0; advertising "0" here
+        # would mislead the autoscaler into rejecting pods that request
+        # ephemeral-storage. Omitting the annotation lets the autoscaler
+        # fall back to scheduling on cpu/memory only.
+        if boot_volume_size > 0:
+            annotations["capacity.cluster-autoscaler.kubernetes.io/ephemeral-disk"] = (
+                str(boot_volume_size)
+            )
+        machine_deployment["metadata"]["annotations"] = annotations
     else:
         machine_deployment["replicas"] = node_group.node_count
         machine_deployment["metadata"]["annotations"] = {}
@@ -803,7 +814,10 @@ def mutate_machine_deployment(
                             "size": utils.get_node_group_label_as_int(
                                 node_group,
                                 "boot_volume_size",
-                                CONF.cinder.default_boot_volume_size,
+                                utils.get_default_boot_volume_size(
+                                    cluster,
+                                    CONF.cinder.default_boot_volume_size,
+                                ),
                             ),
                             "type": node_group.labels.get(
                                 "boot_volume_type",
@@ -1110,7 +1124,10 @@ class Cluster(ClusterBase):
                                 "size": utils.get_cluster_label_as_int(
                                     self.cluster,
                                     "boot_volume_size",
-                                    CONF.cinder.default_boot_volume_size,
+                                    utils.get_default_boot_volume_size(
+                                        self.cluster,
+                                        CONF.cinder.default_boot_volume_size,
+                                    ),
                                 ),
                                 "type": self.cluster.labels.get(
                                     "boot_volume_type",
@@ -1182,6 +1199,12 @@ class Cluster(ClusterBase):
                             "value": variables.get(
                                 "disableAPIServerFloatingIPManaged",
                                 utils.get_cluster_floating_ip_disabled(self.cluster),
+                            ),
+                        },
+                        {
+                            "name": "disableManagedSecurityGroups",
+                            "value": not utils.get_cluster_managed_security_groups_enabled(
+                                self.cluster
                             ),
                         },
                         {
