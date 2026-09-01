@@ -78,8 +78,7 @@ volumeMounts: []
 #   mountPath: "/etc/foo"
 #   readOnly: true
 
-nodeSelector:
-  node-role.kubernetes.io/master: ""
+nodeSelector: {}
 
 tolerations:
   # Make sure the pod can be scheduled on master kubelet.
@@ -91,4 +90,13 @@ tolerations:
   - effect: NoExecute
     operator: Exists
 
-affinity: {}
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+        - matchExpressions:
+            - key: node-role.kubernetes.io/master
+              operator: Exists
