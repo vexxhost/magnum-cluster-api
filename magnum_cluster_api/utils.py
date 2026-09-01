@@ -210,6 +210,17 @@ def get_cluster_floating_ip_disabled(cluster: magnum_objects.Cluster) -> bool:
     return not get_cluster_label_as_bool(cluster, "master_lb_floating_ip_enabled", True)
 
 
+def get_cluster_managed_security_groups_enabled(
+    cluster: magnum_objects.Cluster,
+) -> bool:
+    server_type = getattr(cluster.cluster_template, "server_type", "vm")
+    return get_cluster_label_as_bool(
+        cluster,
+        "managed_security_groups_enabled",
+        server_type != "bm",
+    )
+
+
 def generate_containerd_config(
     cluster: magnum_objects.Cluster,
 ):

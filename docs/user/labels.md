@@ -69,6 +69,16 @@ The way containers talk to each other and the outside world is defined by the ne
 This setup decides how information is shared among containers inside and outside the cluster, and
 is often accomplished by deploying a driver on each node.
 
+`managed_security_groups_enabled`
+
+:   Whether the Cluster API OpenStack provider creates and attaches managed
+    security groups for the cluster. The default is `true` for `server_type=vm`
+    and `false` for `server_type=bm`. Baremetal clusters default to disabled so
+    they can use networks with Neutron port security disabled. Set this to
+    `true` for baremetal networks that support port security and security
+    groups, or to `false` for virtual-machine networks where security groups
+    must not be attached.
+
 `calico_ipv4pool`
 
 :   IPv4 network in CIDR format.

@@ -1203,10 +1203,9 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "disableManagedSecurityGroups",
-                            "value": getattr(
-                                self.cluster.cluster_template, "server_type", "vm"
-                            )
-                            == "bm",
+                            "value": not utils.get_cluster_managed_security_groups_enabled(
+                                self.cluster
+                            ),
                         },
                         {
                             "name": "dnsNameservers",

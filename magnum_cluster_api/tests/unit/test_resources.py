@@ -84,13 +84,38 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     assert len(mds) == 2
 
 
-def test_cluster_variables_disable_managed_security_groups_for_bm(context, mocker):
+@pytest.mark.parametrize(
+    "server_type,labels,expected_disabled",
+    [
+        pytest.param("vm", {}, False, id="vm-default-enabled"),
+        pytest.param("bm", {}, True, id="bm-default-disabled"),
+        pytest.param(
+            "vm",
+            {"managed_security_groups_enabled": "false"},
+            True,
+            id="vm-explicitly-disabled",
+        ),
+        pytest.param(
+            "bm",
+            {"managed_security_groups_enabled": "true"},
+            False,
+            id="bm-explicitly-enabled",
+        ),
+    ],
+)
+def test_cluster_variables_managed_security_groups(
+    context,
+    mocker,
+    server_type,
+    labels,
+    expected_disabled,
+):
     cluster = mocker.Mock()
     cluster.cluster_template = mocker.Mock(
         network_driver="calico",
         dns_nameserver="1.1.1.1",
         external_network_id="public",
-        server_type="vm",
+        server_type=server_type,
     )
     cluster.default_ng_master = mocker.Mock(image_id="image")
     cluster.docker_volume_size = None
@@ -98,7 +123,7 @@ def test_cluster_variables_disable_managed_security_groups_for_bm(context, mocke
     cluster.fixed_subnet = None
     cluster.flavor_id = "worker"
     cluster.keypair = None
-    cluster.labels = {}
+    cluster.labels = labels
     cluster.master_count = 1
     cluster.master_flavor_id = "control-plane"
     cluster.master_lb_enabled = True
@@ -196,21 +221,7 @@ def test_cluster_variables_disable_managed_security_groups_for_bm(context, mocke
         variable["name"]: variable["value"]
         for variable in resource["spec"]["topology"]["variables"]
     }
-    assert variables["disableManagedSecurityGroups"] is False
-
-    cluster.cluster_template.server_type = "bm"
-    resource = resources.Cluster(
-        context,
-        mocker.Mock(),
-        mocker.Mock(),
-        cluster,
-        rust_driver,
-    ).get_object()
-    variables = {
-        variable["name"]: variable["value"]
-        for variable in resource["spec"]["topology"]["variables"]
-    }
-    assert variables["disableManagedSecurityGroups"] is True
+    assert variables["disableManagedSecurityGroups"] is expected_disabled
 
 
 @pytest.mark.parametrize(
