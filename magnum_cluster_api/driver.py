@@ -15,6 +15,8 @@
 
 from __future__ import annotations
 
+import pykube  # type: ignore
+import requests
 from eventlet import tpool  # type: ignore
 from heatclient import exc  # type: ignore
 from magnum import objects as magnum_objects  # type: ignore
@@ -22,6 +24,7 @@ from magnum.common import exception as magnum_exception  # type: ignore
 from magnum.conductor import scale_manager  # type: ignore
 from magnum.drivers.common import driver  # type: ignore
 from magnum.objects import fields  # type: ignore
+from oslo_log import log as logging  # type: ignore
 
 from magnum_cluster_api import (
     clients,
@@ -33,6 +36,11 @@ from magnum_cluster_api import (
     sync,
     utils,
 )
+
+LOG = logging.getLogger(__name__)
+
+MAX_MACHINE_STATUS_REASONS = 5
+MAX_STATUS_REASON_DETAIL_LENGTH = 512
 
 
 def cluster_lock_wrapper(func):
@@ -138,6 +146,8 @@ class BaseDriver(driver.Driver):
         detail = reason
         if message:
             detail += f" ({message})" if detail else message
+        if len(detail) > MAX_STATUS_REASON_DETAIL_LENGTH:
+            detail = detail[: MAX_STATUS_REASON_DETAIL_LENGTH - 3] + "..."
         return f"{subject}/{condition_type}: {detail}"
 
     def _get_capi_machine_conditions_reason(self, capi_cluster):
@@ -169,7 +179,11 @@ class BaseDriver(driver.Driver):
 
         for conditions in (v1beta2_conditions, legacy_conditions):
             ready = next(
-                (condition for condition in conditions if condition.get("type") == "Ready"),
+                (
+                    condition
+                    for condition in conditions
+                    if condition.get("type") == "Ready"
+                ),
                 None,
             )
             if ready is not None:
@@ -232,9 +246,22 @@ class BaseDriver(driver.Driver):
                 name = machine.obj.get("metadata", {}).get("name", "<unknown>")
                 message = self._format_status_condition(name, condition)
                 if message:
-                    messages.append(message)
-            return "; ".join(messages)
-        except Exception:  # noqa: BLE001 — defensive: missing CRD, RBAC, etc.
+                    messages.append((name, message))
+
+            messages.sort(key=lambda item: item[0])
+            omitted = max(0, len(messages) - MAX_MACHINE_STATUS_REASONS)
+            output = [message for _, message in messages[:MAX_MACHINE_STATUS_REASONS]]
+            if omitted:
+                output.append(f"{omitted} additional unready Machines omitted")
+            return "; ".join(output)
+        except (pykube.exceptions.PyKubeError, requests.RequestException) as error:
+            LOG.warning(
+                "Unable to collect Machine status for cluster %(cluster)s: %(error)s",
+                {
+                    "cluster": getattr(cluster, "stack_id", "<unknown>"),
+                    "error": error,
+                },
+            )
             return ""
 
     def _get_cluster_status_reason(self, capi_cluster, cluster=None):
@@ -387,9 +414,7 @@ class BaseDriver(driver.Driver):
 
         if cluster.status == fields.ClusterStatus.DELETE_IN_PROGRESS:
             if capi_cluster and capi_cluster.exists():
-                cluster.status_reason = self._get_cluster_status_reason(
-                    capi_cluster, cluster=cluster
-                )
+                cluster.status_reason = self._get_cluster_status_reason(capi_cluster)
                 cluster.save()
                 return
 

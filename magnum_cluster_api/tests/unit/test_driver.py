@@ -746,25 +746,58 @@ class TestMachineConditionsAggregation:
         )
 
         assert ubuntu_driver._get_machine_conditions_reason(cluster) == (
-            "m1/InfrastructureReady: FloatingIPError "
-            "(floating ip pool not found)"
+            "m1/InfrastructureReady: FloatingIPError (floating ip pool not found)"
         )
 
-    def test_swallows_listing_errors(self, ubuntu_driver, mocker):
+    def test_sorts_caps_and_truncates_machine_reasons(self, ubuntu_driver, mocker):
         cluster = mock.MagicMock(stack_id="abc")
+        machines = [
+            self._make_machine(
+                f"m{index}",
+                conditions=[
+                    {
+                        "type": "Ready",
+                        "status": "False",
+                        "reason": "NotReady",
+                        "message": "x" * (driver.MAX_STATUS_REASON_DETAIL_LENGTH + 100),
+                    }
+                ],
+            )
+            for index in reversed(range(driver.MAX_MACHINE_STATUS_REASONS + 2))
+        ]
         mocker.patch.object(
             objects.Machine,
             "objects",
-            side_effect=RuntimeError("CRD missing"),
+            return_value=mock.MagicMock(filter=mock.MagicMock(return_value=machines)),
+        )
+
+        output = ubuntu_driver._get_machine_conditions_reason(cluster)
+
+        assert output.index("m0/Ready") < output.index("m1/Ready")
+        assert f"m{driver.MAX_MACHINE_STATUS_REASONS}/Ready" not in output
+        assert "2 additional unready Machines omitted" in output
+        details = output.split("; ")[0].split(": ", maxsplit=1)[1]
+        assert len(details) == driver.MAX_STATUS_REASON_DETAIL_LENGTH
+        assert details.endswith("...")
+
+    def test_logs_and_swallows_listing_errors(self, ubuntu_driver, mocker):
+        cluster = mock.MagicMock(stack_id="abc")
+        warning = mocker.patch.object(driver.LOG, "warning")
+        mocker.patch.object(
+            objects.Machine,
+            "objects",
+            side_effect=pykube.exceptions.HTTPError(404, "CRD missing"),
         )
         assert ubuntu_driver._get_machine_conditions_reason(cluster) == ""
+        warning.assert_called_once()
 
-    def test_swallows_iteration_errors(self, ubuntu_driver, mocker):
+    def test_logs_and_swallows_iteration_errors(self, ubuntu_driver, mocker):
         class ExplodingIterable:
             def __iter__(self):
-                raise RuntimeError("RBAC denied")
+                raise pykube.exceptions.HTTPError(403, "RBAC denied")
 
         cluster = mock.MagicMock(stack_id="abc")
+        warning = mocker.patch.object(driver.LOG, "warning")
         mocker.patch.object(
             objects.Machine,
             "objects",
@@ -773,3 +806,28 @@ class TestMachineConditionsAggregation:
             ),
         )
         assert ubuntu_driver._get_machine_conditions_reason(cluster) == ""
+        warning.assert_called_once()
+
+    def test_does_not_hide_programming_errors(self, ubuntu_driver, mocker):
+        cluster = mock.MagicMock(stack_id="abc")
+        mocker.patch.object(
+            objects.Machine,
+            "objects",
+            side_effect=RuntimeError("unexpected bug"),
+        )
+
+        with pytest.raises(RuntimeError, match="unexpected bug"):
+            ubuntu_driver._get_machine_conditions_reason(cluster)
+
+    def test_skips_direct_machine_lookup_without_cluster(self, ubuntu_driver, mocker):
+        capi_cluster = mock.MagicMock()
+        capi_cluster.obj = {"status": {}}
+        capi_cluster.events = []
+        capi_cluster.openstack_cluster = None
+        machine_reason = mocker.patch.object(
+            ubuntu_driver, "_get_machine_conditions_reason"
+        )
+
+        ubuntu_driver._get_cluster_status_reason(capi_cluster)
+
+        machine_reason.assert_not_called()
