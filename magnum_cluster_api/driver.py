@@ -15,6 +15,8 @@
 
 from __future__ import annotations
 
+import pykube  # type: ignore
+import requests
 from eventlet import tpool  # type: ignore
 from heatclient import exc  # type: ignore
 from magnum import objects as magnum_objects  # type: ignore
@@ -22,6 +24,7 @@ from magnum.common import exception as magnum_exception  # type: ignore
 from magnum.conductor import scale_manager  # type: ignore
 from magnum.drivers.common import driver  # type: ignore
 from magnum.objects import fields  # type: ignore
+from oslo_log import log as logging  # type: ignore
 
 from magnum_cluster_api import (
     clients,
@@ -33,6 +36,11 @@ from magnum_cluster_api import (
     sync,
     utils,
 )
+
+LOG = logging.getLogger(__name__)
+
+MAX_MACHINE_STATUS_REASONS = 5
+MAX_STATUS_REASON_DETAIL_LENGTH = 512
 
 
 def cluster_lock_wrapper(func):
@@ -127,7 +135,136 @@ class BaseDriver(driver.Driver):
             rust_driver=self.rust_driver,
         ).apply(),
 
-    def _get_cluster_status_reason(self, capi_cluster):
+    @staticmethod
+    def _format_status_condition(subject, condition):
+        reason = condition.get("reason") or ""
+        message = condition.get("message") or ""
+        if not reason and not message:
+            return ""
+
+        condition_type = condition.get("type") or "Ready"
+        detail = reason
+        if message:
+            detail += f" ({message})" if detail else message
+        if len(detail) > MAX_STATUS_REASON_DETAIL_LENGTH:
+            detail = detail[: MAX_STATUS_REASON_DETAIL_LENGTH - 3] + "..."
+        return f"{subject}/{condition_type}: {detail}"
+
+    def _get_capi_machine_conditions_reason(self, capi_cluster):
+        """Return CAPI's aggregate control-plane and worker Machine status."""
+        status = capi_cluster.obj.get("status") or {}
+        conditions = (status.get("v1beta2") or {}).get("conditions") or []
+        machine_condition_types = {
+            "ControlPlaneMachinesReady",
+            "WorkerMachinesReady",
+        }
+
+        messages = []
+        for condition in conditions:
+            if (
+                condition.get("type") in machine_condition_types
+                and condition.get("status") != "True"
+            ):
+                message = self._format_status_condition("Cluster", condition)
+                if message:
+                    messages.append(message)
+        return "; ".join(messages)
+
+    @staticmethod
+    def _get_machine_summary_condition(machine):
+        """Select CAPI's Machine Ready summary with compatibility fallbacks."""
+        status = machine.obj.get("status") or {}
+        v1beta2_conditions = (status.get("v1beta2") or {}).get("conditions") or []
+        legacy_conditions = status.get("conditions") or []
+
+        for conditions in (v1beta2_conditions, legacy_conditions):
+            ready = next(
+                (
+                    condition
+                    for condition in conditions
+                    if condition.get("type") == "Ready"
+                ),
+                None,
+            )
+            if ready is not None:
+                return ready
+
+        failure_reason = status.get("failureReason")
+        failure_message = status.get("failureMessage")
+        if failure_reason or failure_message:
+            return {
+                "type": "Failure",
+                "status": "False",
+                "reason": failure_reason,
+                "message": failure_message,
+            }
+
+        fallback_types = (
+            "InfrastructureReady",
+            "BootstrapConfigReady",
+            "BootstrapReady",
+            "NodeHealthy",
+        )
+        for condition_type in fallback_types:
+            for conditions in (v1beta2_conditions, legacy_conditions):
+                condition = next(
+                    (
+                        condition
+                        for condition in conditions
+                        if condition.get("type") == condition_type
+                        and condition.get("status") != "True"
+                    ),
+                    None,
+                )
+                if condition is not None:
+                    return condition
+        return None
+
+    def _get_machine_conditions_reason(self, cluster):
+        """Return one canonical status summary for each unready CAPI Machine.
+
+        CAPO reports API ingress failures on OpenStackMachine. CAPI mirrors the
+        provider's Ready condition onto Machine InfrastructureReady and folds it
+        into Machine Ready. Consuming the Ready summary preserves that controller
+        prioritisation and avoids reporting the same provider failure through
+        every False leaf condition.
+        """
+        try:
+            machines = objects.Machine.objects(self.k8s_api).filter(
+                namespace="magnum-system",
+                selector={
+                    "cluster.x-k8s.io/cluster-name": cluster.stack_id,
+                },
+            )
+
+            messages = []
+            for machine in machines:
+                condition = self._get_machine_summary_condition(machine)
+                if condition is None or condition.get("status") == "True":
+                    continue
+
+                name = machine.obj.get("metadata", {}).get("name", "<unknown>")
+                message = self._format_status_condition(name, condition)
+                if message:
+                    messages.append((name, message))
+
+            messages.sort(key=lambda item: item[0])
+            omitted = max(0, len(messages) - MAX_MACHINE_STATUS_REASONS)
+            output = [message for _, message in messages[:MAX_MACHINE_STATUS_REASONS]]
+            if omitted:
+                output.append(f"{omitted} additional unready Machines omitted")
+            return "; ".join(output)
+        except (pykube.exceptions.PyKubeError, requests.RequestException) as error:
+            LOG.warning(
+                "Unable to collect Machine status for cluster %(cluster)s: %(error)s",
+                {
+                    "cluster": getattr(cluster, "stack_id", "<unknown>"),
+                    "error": error,
+                },
+            )
+            return ""
+
+    def _get_cluster_status_reason(self, capi_cluster, cluster=None):
         capi_cluster_status_reason = ""
         capi_ops_cluster_status_reason = ""
 
@@ -148,10 +285,18 @@ class BaseDriver(driver.Driver):
                 list(capi_ops_cluster_events)[-1]
             )
 
-        return "CAPI Cluster status: %s. CAPI OpenstackCluster status reason: %s" % (
-            capi_cluster_status_reason,
-            capi_ops_cluster_status_reason,
-        )
+        parts = [
+            "CAPI Cluster status: %s" % capi_cluster_status_reason,
+            "CAPI OpenstackCluster status reason: %s" % capi_ops_cluster_status_reason,
+        ]
+        # Prefer the durable CAPI v1beta2 aggregate over Kubernetes events and
+        # use a direct Machine lookup only for older CAPI objects.
+        machine_reason = self._get_capi_machine_conditions_reason(capi_cluster)
+        if not machine_reason and cluster is not None:
+            machine_reason = self._get_machine_conditions_reason(cluster)
+        if machine_reason:
+            parts.append("Machine conditions: %s" % machine_reason)
+        return ". ".join(parts)
 
     def update_cluster_control_plane_status(
         self,
@@ -227,7 +372,7 @@ class BaseDriver(driver.Driver):
             for condition in ("ControlPlaneReady", "InfrastructureReady", "Ready"):
                 if status_map.get(condition) != "True":
                     cluster.status_reason = self._get_cluster_status_reason(
-                        capi_cluster
+                        capi_cluster, cluster=cluster
                     )
                     cluster.save()
                     return
