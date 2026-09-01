@@ -19,7 +19,9 @@ use crate::{
     },
 };
 use cluster_feature_derive::ClusterFeatureValues;
-use json_patch::{jsonptr::PointerBuf, AddOperation, PatchOperation, ReplaceOperation};
+use json_patch::{
+    jsonptr::PointerBuf, AddOperation, PatchOperation, ReplaceOperation, TestOperation,
+};
 use kube::CustomResourceExt;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -69,7 +71,13 @@ impl ClusterFeaturePatches for Feature {
                                 }),
                                 // Keep Node/RBAC as fallbacks while enabling the webhook authorizer.
                                 // Replacing kubeadm's default flag avoids pflag StringSliceVar
-                                // duplicate-mode startup failures.
+                                // duplicate-mode startup failures. Test the expected value first so
+                                // a future kubeadm command-order change fails instead of replacing
+                                // an unrelated argument.
+                                PatchOperation::Test(TestOperation {
+                                    path: PointerBuf::parse("/spec/containers/0/command/3").unwrap(),
+                                    value: "--authorization-mode=Node,RBAC".into(),
+                                }),
                                 PatchOperation::Replace(ReplaceOperation {
                                     path: PointerBuf::parse("/spec/containers/0/command/3").unwrap(),
                                     value: "--authorization-mode=Node,RBAC,Webhook".into(),
@@ -179,6 +187,13 @@ mod tests {
         let mut pod: Pod = serde_yaml::from_reader(fd).expect("pod should be set");
         let patch: json_patch::Patch =
             serde_yaml::from_str(file.content.as_ref().unwrap()).expect("patch should be set");
+        assert_eq!(
+            patch.0.get(2),
+            Some(&PatchOperation::Test(TestOperation {
+                path: PointerBuf::parse("/spec/containers/0/command/3").unwrap(),
+                value: "--authorization-mode=Node,RBAC".into(),
+            }))
+        );
         pod.apply_patch(&patch);
 
         let args = pod.spec.expect("pod to have spec").containers[0]

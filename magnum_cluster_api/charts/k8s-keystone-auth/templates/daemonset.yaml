@@ -59,9 +59,11 @@ spec:
               protocol: TCP
           readinessProbe:
             tcpSocket:
+              host: 127.0.0.1
               port: https
           livenessProbe:
             tcpSocket:
+              host: 127.0.0.1
               port: https
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
