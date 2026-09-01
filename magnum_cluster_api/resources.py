@@ -41,8 +41,10 @@ from magnum_cluster_api import (
     helm,
     image_utils,
     images,
+    machine_network_profiles,
     magnum_cluster_api,
     objects,
+    profile_contracts,
     utils,
 )
 from magnum_cluster_api.integrations import cinder, manila
@@ -911,7 +913,12 @@ def migrate_cluster_failure_domain(
 
 
 def generate_machine_deployments_for_cluster(
-    context: context.RequestContext, cluster: magnum_objects.Cluster
+    context: context.RequestContext,
+    cluster: magnum_objects.Cluster,
+    machine_network_selection: (
+        machine_network_profiles.MachineNetworkSelection | None
+    ) = None,
+    machine_ports: list[dict[str, typing.Any]] | None = None,
 ) -> list:
     machine_deployments = []
     for ng in cluster.nodegroups:
@@ -919,9 +926,54 @@ def generate_machine_deployments_for_cluster(
             continue
 
         machine_deployment = mutate_machine_deployment(context, cluster, ng)
+        apply_worker_machine_ports(
+            machine_deployment, ng, machine_network_selection, machine_ports
+        )
         machine_deployments.append(machine_deployment)
 
     return machine_deployments
+
+
+def render_machine_ports_for_cluster(
+    context: context.RequestContext,
+    cluster: magnum_objects.Cluster,
+    selection: machine_network_profiles.MachineNetworkSelection,
+) -> list[dict[str, typing.Any]]:
+    fixed_network_id = (
+        utils.get_fixed_network_id(
+            context,
+            cluster.fixed_network,
+            allow_external=(
+                getattr(cluster.cluster_template, "server_type", "vm") == "bm"
+            ),
+        )
+        or ""
+    )
+    fixed_subnet_id = neutron.get_fixed_subnet_id(context, cluster.fixed_subnet) or ""
+    return machine_network_profiles.render_machine_ports(
+        selection, fixed_network_id, fixed_subnet_id
+    )
+
+
+def apply_worker_machine_ports(
+    machine_deployment: dict[str, typing.Any],
+    node_group: magnum_objects.NodeGroup,
+    selection: machine_network_profiles.MachineNetworkSelection | None,
+    machine_ports: list[dict[str, typing.Any]] | None,
+) -> None:
+    if (
+        selection is None
+        or machine_ports is None
+        or not selection.applies_to_nodegroup(node_group.name)
+    ):
+        return
+    overrides = machine_deployment.setdefault("variables", {}).setdefault(
+        "overrides", []
+    )
+    overrides[:] = [
+        item for item in overrides if item.get("name") != "workerMachinePorts"
+    ]
+    overrides.append({"name": "workerMachinePorts", "value": machine_ports})
 
 
 class Cluster(ClusterBase):
@@ -934,6 +986,9 @@ class Cluster(ClusterBase):
         rust_driver: magnum_cluster_api.Driver,
         namespace: str = "magnum-system",
         addon_selection: addon_profiles.AddonSelection | None = None,
+        machine_network_selection: (
+            machine_network_profiles.MachineNetworkSelection | None
+        ) = None,
     ):
         self.context = context
         self.api = api
@@ -942,6 +997,7 @@ class Cluster(ClusterBase):
         self.namespace = namespace
         self.rust_driver = rust_driver
         self.addon_selection = addon_selection
+        self.machine_network_selection = machine_network_selection
 
     @property
     def api_version(self) -> str:
@@ -1010,6 +1066,36 @@ class Cluster(ClusterBase):
             self.cluster.stack_id, dict(self.cluster.labels), variables
         )
 
+        machine_network_selection = self.machine_network_selection
+        if (
+            machine_network_selection is None
+            and (self.cluster.labels or {}).get(
+                machine_network_profiles.MACHINE_NETWORK_PROFILE_LABEL
+            )
+            is not None
+        ):
+            existing = self.get_or_none()
+            if existing is not None:
+                machine_network_selection = (
+                    machine_network_profiles.selection_from_cluster(existing)
+                )
+            else:
+                machine_network_selection = machine_network_profiles.resolve_selection(
+                    self.pykube_api, self.cluster
+                )
+
+        fixed_network_id = (
+            utils.get_fixed_network_id(self.context, self.cluster.fixed_network) or ""
+        )
+        fixed_subnet_id = (
+            neutron.get_fixed_subnet_id(self.context, self.cluster.fixed_subnet) or ""
+        )
+        machine_ports = None
+        if machine_network_selection is not None:
+            machine_ports = render_machine_ports_for_cluster(
+                self.context, self.cluster, machine_network_selection
+            )
+
         selection = self.addon_selection
         if (
             selection is None
@@ -1024,6 +1110,12 @@ class Cluster(ClusterBase):
                     self.pykube_api, self.cluster
                 )
         _, profile_annotations = addon_profiles.cluster_metadata(selection)
+        profile_annotations.update(
+            machine_network_profiles.cluster_metadata(machine_network_selection)
+        )
+        profile_annotations.update(
+            profile_contracts.cluster_metadata(selection, machine_network_selection)
+        )
         metadata = {"labels": self.labels}
         if profile_annotations:
             metadata["annotations"] = profile_annotations
@@ -1059,10 +1151,29 @@ class Cluster(ClusterBase):
                         "machineHealthCheck": {
                             "enable": utils.get_auto_healing_enabled(self.cluster)
                         },
+                        **(
+                            {
+                                "variables": {
+                                    "overrides": [
+                                        {
+                                            "name": "controlPlaneMachinePorts",
+                                            "value": machine_ports,
+                                        }
+                                    ]
+                                }
+                            }
+                            if machine_network_selection is not None
+                            and machine_ports is not None
+                            and machine_network_selection.applies_to_control_plane()
+                            else {}
+                        ),
                     },
                     "workers": {
                         "machineDeployments": generate_machine_deployments_for_cluster(
-                            self.context, self.cluster
+                            self.context,
+                            self.cluster,
+                            machine_network_selection,
+                            machine_ports,
                         ),
                     },
                     "variables": [
@@ -1218,17 +1329,11 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "fixedNetworkId",
-                            "value": utils.get_fixed_network_id(
-                                self.context, self.cluster.fixed_network
-                            )
-                            or "",
+                            "value": fixed_network_id,
                         },
                         {
                             "name": "fixedSubnetId",
-                            "value": neutron.get_fixed_subnet_id(
-                                self.context, self.cluster.fixed_subnet
-                            )
-                            or "",
+                            "value": fixed_subnet_id,
                         },
                         {
                             "name": "flavor",
