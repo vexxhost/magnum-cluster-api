@@ -593,6 +593,14 @@ class TestGetDefaultBootVolumeSize(base.BaseTestCase):
 
 
 class TestValidateBaremetalFlavors(base.BaseTestCase):
+    def _baremetal_extra_specs(self, resource_class="BAREMETAL"):
+        return {
+            f"resources:CUSTOM_{resource_class}": "1",
+            "resources:VCPU": "0",
+            "resources:MEMORY_MB": "0",
+            "resources:DISK_GB": "0",
+        }
+
     def _flavor(self, extra_specs):
         flavor = mock.Mock()
         flavor.get_keys.return_value = extra_specs
@@ -619,8 +627,18 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
         return cli
 
     def test_is_baremetal_flavor_true_for_custom_resource_class(self):
-        flavor = self._flavor({"resources:CUSTOM_BAREMETAL": "1"})
+        flavor = self._flavor(self._baremetal_extra_specs())
         self.assertTrue(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_false_without_standard_resource_zeros(self):
+        flavor = self._flavor({"resources:CUSTOM_BAREMETAL": "1"})
+        self.assertFalse(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_false_with_standard_resource_request(self):
+        extra_specs = self._baremetal_extra_specs()
+        extra_specs["resources:VCPU"] = "1"
+        flavor = self._flavor(extra_specs)
+        self.assertFalse(utils._is_baremetal_flavor(flavor))
 
     def test_is_baremetal_flavor_false_for_empty_extra_specs(self):
         flavor = self._flavor({})
@@ -631,7 +649,7 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
         self.assertFalse(utils._is_baremetal_flavor(flavor))
 
     def test_is_baremetal_flavor_falls_back_to_extra_specs_attr(self):
-        flavor = mock.Mock(extra_specs={"resources:CUSTOM_GPU": "1"})
+        flavor = mock.Mock(extra_specs=self._baremetal_extra_specs("BM_GPU"))
         flavor.get_keys.side_effect = RuntimeError("not loaded")
         self.assertTrue(utils._is_baremetal_flavor(flavor))
 
@@ -645,8 +663,8 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
         cluster = self._cluster("bm")
         cli = self._client(
             {
-                "bm-master": self._flavor({"resources:CUSTOM_BAREMETAL": "1"}),
-                "bm-worker": self._flavor({"resources:CUSTOM_BM_GPU": "1"}),
+                "bm-master": self._flavor(self._baremetal_extra_specs()),
+                "bm-worker": self._flavor(self._baremetal_extra_specs("BM_GPU")),
             }
         )
         utils.validate_baremetal_flavors(cli, cluster)
@@ -656,7 +674,7 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
         cli = self._client(
             {
                 "m1.small": self._flavor({}),
-                "bm-worker": self._flavor({"resources:CUSTOM_BAREMETAL": "1"}),
+                "bm-worker": self._flavor(self._baremetal_extra_specs()),
             }
         )
         with pytest.raises(exception.InvalidParameterValue) as excinfo:
@@ -668,10 +686,29 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
         cluster = self._cluster("bm", master="bm-master", worker="m1.small")
         cli = self._client(
             {
-                "bm-master": self._flavor({"resources:CUSTOM_BAREMETAL": "1"}),
+                "bm-master": self._flavor(self._baremetal_extra_specs()),
                 "m1.small": self._flavor({}),
             }
         )
         with pytest.raises(exception.InvalidParameterValue) as excinfo:
             utils.validate_baremetal_flavors(cli, cluster)
         assert "flavor_id" in str(excinfo.value)
+
+    def test_nodegroup_validator_rejects_virtual_flavor_override(self):
+        cluster = self._cluster("bm")
+        nodegroup = mock.Mock(name="gpu", flavor_id="m1.small")
+        nodegroup.name = "gpu"
+        cli = self._client({"m1.small": self._flavor({})})
+
+        with mock.patch(
+            "magnum_cluster_api.utils.clients.get_openstack_api",
+            return_value=cli,
+        ):
+            with pytest.raises(exception.InvalidParameterValue) as excinfo:
+                utils.validate_nodegroup(
+                    nodegroup,
+                    ctx=mock.sentinel.context,
+                    cluster=cluster,
+                )
+
+        assert "nodegroup 'gpu' flavor_id" in str(excinfo.value)

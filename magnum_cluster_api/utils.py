@@ -476,15 +476,12 @@ def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
 
 
 def _is_baremetal_flavor(flavor: flavors.Flavor) -> bool:
-    """Return True if ``flavor`` is backed by an Ironic resource class.
+    """Return True if ``flavor`` satisfies Nova's Ironic flavor contract.
 
-    A flavor is considered baremetal-backed when it advertises a custom
-    Placement resource class through its extra-specs, i.e. a key of the
-    form ``resources:CUSTOM_<NAME>`` set to ``"1"``.  Nova's Ironic
-    driver requires this convention so the scheduler routes the request
-    to the Ironic compute service rather than to a libvirt/KVM
-    hypervisor.  Standard virtual flavors (``m1.small``, etc.) typically
-    have empty extra-specs and will return False.
+    Ironic flavors must request exactly one unit of a custom Placement
+    resource class and suppress the standard VCPU, memory, and disk
+    inventories.  Without the zero-valued standard resources, Placement
+    can reject the request or incorrectly consider non-Ironic providers.
     """
     try:
         extra_specs = flavor.get_keys()
@@ -492,10 +489,43 @@ def _is_baremetal_flavor(flavor: flavors.Flavor) -> bool:
         # Fall back to the cached attribute when the flavor object was
         # built from a list response that did not eagerly resolve keys.
         extra_specs = getattr(flavor, "extra_specs", {}) or {}
-    for key, value in extra_specs.items():
-        if key.startswith("resources:CUSTOM_") and str(value) == "1":
-            return True
-    return False
+    has_custom_resource = any(
+        key.startswith("resources:CUSTOM_") and str(value) == "1"
+        for key, value in extra_specs.items()
+    )
+    standard_resources_disabled = all(
+        str(extra_specs.get(key)) == "0"
+        for key in (
+            "resources:VCPU",
+            "resources:MEMORY_MB",
+            "resources:DISK_GB",
+        )
+    )
+    return has_custom_resource and standard_resources_disabled
+
+
+def validate_baremetal_flavor(
+    cli: clients.OpenStackClients,
+    cluster: magnum_objects.Cluster,
+    role: str,
+    flavor_ref: str,
+) -> None:
+    """Validate one flavor used by a bare-metal cluster or node group."""
+    server_type = getattr(cluster.cluster_template, "server_type", "vm")
+    if server_type != "bm" or not flavor_ref:
+        return
+
+    flavor = lookup_flavor(cli, flavor_ref)
+    if flavor is None or not _is_baremetal_flavor(flavor):
+        raise exception.InvalidParameterValue(
+            err=(
+                f"server_type=bm requires {role}={flavor_ref!r} to be "
+                "backed by Ironic (Nova flavor extra-specs must contain "
+                "resources:CUSTOM_<RESOURCE_CLASS>=1 and set "
+                "resources:VCPU=0, resources:MEMORY_MB=0, and "
+                "resources:DISK_GB=0)."
+            )
+        )
 
 
 def validate_baremetal_flavors(
@@ -517,8 +547,8 @@ def validate_baremetal_flavors(
 
     This validator looks up both flavors and raises
     ``InvalidParameterValue`` when either one is missing the
-    ``resources:CUSTOM_*=1`` extra-spec that Nova's Ironic driver
-    requires.  It is a no-op for ``server_type=vm`` templates.
+    complete Nova/Ironic Placement contract.  It is a no-op for
+    ``server_type=vm`` templates.
     """
     server_type = getattr(cluster.cluster_template, "server_type", "vm")
     if server_type != "bm":
@@ -528,19 +558,7 @@ def validate_baremetal_flavors(
         ("master_flavor_id", cluster.master_flavor_id),
         ("flavor_id", cluster.flavor_id),
     ):
-        if not flavor_ref:
-            continue
-        flavor = lookup_flavor(cli, flavor_ref)
-        if flavor is None or not _is_baremetal_flavor(flavor):
-            raise exception.InvalidParameterValue(
-                err=(
-                    f"server_type=bm requires {role}={flavor_ref!r} to be "
-                    "backed by Ironic (Nova flavor extra-specs must contain "
-                    "a resources:CUSTOM_<RESOURCE_CLASS>=1 entry); the "
-                    "resolved flavor advertises no custom resource class, "
-                    "which would route the server to a virtual hypervisor."
-                )
-            )
+        validate_baremetal_flavor(cli, cluster, role, flavor_ref)
 
 
 def lookup_image(cli: clients.OpenStackClients, image_ref: str) -> dict:
@@ -598,8 +616,24 @@ def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
         raise mcapi_exceptions.MachineInvalidName(name=nodegroup.name)
 
 
-def validate_nodegroup(nodegroup: magnum_objects.NodeGroup):
+def validate_nodegroup(
+    nodegroup: magnum_objects.NodeGroup,
+    ctx: context.RequestContext | None = None,
+    cluster: magnum_objects.Cluster | None = None,
+):
     validate_nodegroup_name(nodegroup)
+
+    if (
+        ctx is not None
+        and cluster is not None
+        and getattr(cluster.cluster_template, "server_type", "vm") == "bm"
+    ):
+        validate_baremetal_flavor(
+            clients.get_openstack_api(ctx),
+            cluster,
+            f"nodegroup {nodegroup.name!r} flavor_id",
+            nodegroup.flavor_id,
+        )
 
 
 def get_operating_system(cluster: magnum_objects.Cluster):
