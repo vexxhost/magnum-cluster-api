@@ -589,7 +589,6 @@ class BaseDriver(driver.Driver):
         )
         machine_ports = None
         if machine_network_selection is not None:
-            machine_network_profiles.validate_target(machine_network_selection, cluster)
             machine_ports = resources.render_machine_ports_for_cluster(
                 context, cluster, machine_network_selection
             )

@@ -25,14 +25,18 @@ SUBNET_B = "44444444-4444-4444-8444-444444444444"
 CAPABILITY = "machine-network.magnum-cluster-api.openstack.org/secondary"
 
 
-def _profile_yaml(*, applies_to="all", schema=True):
+def _profile_yaml(*, applies_to="all", capabilities=(CAPABILITY,), schema=True):
     prefix = "schemaVersion: 1\n" if schema else ""
+    capability_lines = " []"
+    if capabilities:
+        capability_lines = "\n" + "\n".join(
+            f"      - {capability}" for capability in capabilities
+        )
     return f"""{prefix}profiles:
   {PROFILE}:
     mode: augment
     appliesTo: {applies_to}
-    providesCapabilities:
-      - {CAPABILITY}
+    providesCapabilities:{capability_lines}
     additionalPorts:
       - role: data
         networkID: {NETWORK_B}
@@ -69,8 +73,8 @@ def _cluster(*, template_profile=None, cluster_profile=None, nodegroups=()):
     return cluster
 
 
-def _selection(*, applies_to="all"):
-    document = _profile_yaml(applies_to=applies_to)
+def _selection(*, applies_to="all", capabilities=(CAPABILITY,)):
+    document = _profile_yaml(applies_to=applies_to, capabilities=capabilities)
     profile = json.loads(json.dumps(yaml.safe_load(document)))["profiles"][PROFILE]
     return machine_network_profiles._selection(PROFILE, profile)
 
@@ -219,14 +223,30 @@ def test_render_rejects_duplicate_primary_network_and_subnet():
         machine_network_profiles.render_machine_ports(selection, NETWORK_A, SUBNET_A)
 
 
-def test_named_nodegroup_target_must_exist():
-    nodegroup = mock.MagicMock(name="nodegroup")
-    nodegroup.name = "workers-a"
-    nodegroup.role = "worker"
-    nodegroup.status = "CREATE_COMPLETE"
-    selection = _selection(applies_to="nodegroup:workers-b")
+def test_named_nodegroup_target_is_rejected_in_v1(mocker):
+    _config_map(mocker, _profile_yaml(applies_to="nodegroup:workers-b"))
 
-    with pytest.raises(exception.Invalid, match="unknown worker"):
-        machine_network_profiles.validate_target(
-            selection, _cluster(nodegroups=(nodegroup,))
-        )
+    with pytest.raises(
+        exception.Invalid, match="expected all, control-plane, or workers"
+    ):
+        machine_network_profiles.get_profiles(mock.sentinel.api)
+
+
+def test_scoped_profile_cannot_provide_cluster_capabilities(mocker):
+    _config_map(mocker, _profile_yaml(applies_to="workers"))
+
+    with pytest.raises(exception.Invalid, match="appliesTo must be all"):
+        machine_network_profiles.get_profiles(mock.sentinel.api)
+
+
+def test_scoped_profile_without_capabilities_is_supported(mocker):
+    _config_map(
+        mocker,
+        _profile_yaml(applies_to="workers", capabilities=()),
+    )
+
+    profiles = machine_network_profiles.get_profiles(mock.sentinel.api)
+    selection = machine_network_profiles._selection(PROFILE, profiles[PROFILE])
+
+    assert selection.applies_to == "workers"
+    assert selection.provides_capabilities == ()

@@ -129,7 +129,7 @@ the new topology variables.
 
 Profiles are stored in `magnum-system/mcapi-machine-network-profiles` under the
 `profiles.yaml` key. Schema version 1 supports additive ports and explicit
-control-plane, worker, or named node-group scope:
+control-plane or worker scope:
 
 ```yaml
 apiVersion: v1
@@ -155,12 +155,18 @@ data:
             portSecurityEnabled: false
 ```
 
-`appliesTo` accepts `all`, `control-plane`, `workers`, or
-`nodegroup:<name>`. Port roles are stable DNS labels and must be unique within
-the profile. Version 1 accepts network and optional subnet UUIDs, `vnicType`,
-and `portSecurityEnabled`; it does not accept pre-created port IDs or literal
-addresses. CAPO creates a distinct port and allocation for each applicable
-Machine.
+`appliesTo` accepts `all`, `control-plane`, or `workers`. Port roles are stable
+DNS labels and must be unique within the profile. Version 1 accepts network and
+optional subnet UUIDs, `vnicType`, and `portSecurityEnabled`; it does not accept
+pre-created port IDs, literal addresses, or named node-group targets. CAPO
+creates a distinct port and allocation for each applicable Machine.
+
+Capabilities are cluster-wide guarantees in schema version 1. A profile with a
+non-empty `providesCapabilities` list must therefore use `appliesTo: all`.
+Control-plane-only and worker-only profiles may attach ports but must leave
+`providesCapabilities` empty. Target-aware capabilities and named node-group
+bindings require a later schema version so add-on requirements cannot be
+satisfied by a network that is absent from the Machines where the add-on runs.
 
 CAPO treats an explicit `OpenStackMachineTemplate.spec.template.spec.ports`
 list as the complete machine-port definition and does not add its normal

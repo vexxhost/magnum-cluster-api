@@ -50,7 +50,6 @@ _QUALIFIED_NAME_RE = re.compile(
     r"[A-Za-z0-9](?:[-_.A-Za-z0-9]*[A-Za-z0-9])?$"
 )
 _TARGETS = {"all", "control-plane", "workers"}
-_NODEGROUP_PREFIX = "nodegroup:"
 _PRIMARY_ROLE = "primary"
 
 
@@ -80,10 +79,8 @@ class MachineNetworkSelection:
     def applies_to_control_plane(self) -> bool:
         return self.applies_to in {"all", "control-plane"}
 
-    def applies_to_nodegroup(self, name: str) -> bool:
-        return self.applies_to in {"all", "workers"} or self.applies_to == (
-            f"{_NODEGROUP_PREFIX}{name}"
-        )
+    def applies_to_nodegroup(self, _name: str) -> bool:
+        return self.applies_to in {"all", "workers"}
 
 
 def _invalid(message: str) -> exception.Invalid:
@@ -135,15 +132,9 @@ def _capabilities(value: typing.Any, profile: str) -> tuple[str, ...]:
 def _applies_to(value: typing.Any, profile: str) -> str:
     if value in _TARGETS:
         return typing.cast(str, value)
-    if isinstance(value, str) and value.startswith(_NODEGROUP_PREFIX):
-        _dns_label(
-            value[len(_NODEGROUP_PREFIX) :],  # noqa: E203
-            f"appliesTo in {profile}",
-        )
-        return value
     raise _invalid(
         f"Invalid appliesTo in machine network profile {profile}: expected all, "
-        "control-plane, workers, or nodegroup:<name>."
+        "control-plane, or workers."
     )
 
 
@@ -253,10 +244,18 @@ def _parse_profile(name: str, value: typing.Any) -> dict[str, typing.Any]:
     ]
     if len(set(identities)) != len(identities):
         raise _invalid(f"Duplicate network and subnet selection in profile {name}.")
+    applies_to = _applies_to(value["appliesTo"], name)
+    provides_capabilities = _capabilities(value["providesCapabilities"], name)
+    if provides_capabilities and applies_to != "all":
+        raise _invalid(
+            f"Invalid providesCapabilities in machine network profile {name}: "
+            "schema version 1 exposes only cluster-wide capabilities, so "
+            "appliesTo must be all."
+        )
     return {
         "name": name,
-        "applies_to": _applies_to(value["appliesTo"], name),
-        "provides_capabilities": _capabilities(value["providesCapabilities"], name),
+        "applies_to": applies_to,
+        "provides_capabilities": provides_capabilities,
         "additional_ports": ports,
     }
 
@@ -366,7 +365,6 @@ def prepare_cluster(
     if cluster.labels is None:
         cluster.labels = {}
     cluster.labels[MACHINE_NETWORK_PROFILE_LABEL] = selected
-    validate_target(selection, cluster)
     return selection
 
 
@@ -379,28 +377,7 @@ def resolve_selection(
     profiles = get_profiles(api)
     if selected not in profiles:
         raise _invalid(f"Machine network profile {selected} does not exist.")
-    selection = _selection(selected, profiles[selected])
-    validate_target(selection, cluster)
-    return selection
-
-
-def validate_target(
-    selection: MachineNetworkSelection, cluster: magnum_objects.Cluster
-) -> None:
-    if not selection.applies_to.startswith(_NODEGROUP_PREFIX):
-        return
-    target = selection.applies_to[len(_NODEGROUP_PREFIX) :]  # noqa: E203
-    workers = {
-        nodegroup.name
-        for nodegroup in cluster.nodegroups
-        if nodegroup.role != "master"
-        and not str(nodegroup.status or "").startswith("DELETE")
-    }
-    if target not in workers:
-        raise _invalid(
-            f"Machine network profile {selection.name} targets unknown worker "
-            f"node group {target}."
-        )
+    return _selection(selected, profiles[selected])
 
 
 def selection_from_cluster(capi_cluster) -> MachineNetworkSelection | None:
