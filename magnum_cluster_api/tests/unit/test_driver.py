@@ -584,19 +584,54 @@ class TestDriver:
 
 
 class TestMachineConditionsAggregation:
-    """Driver should surface CAPI Machine.Status.Conditions in cluster status_reason."""
+    """Driver should surface canonical CAPI Machine readiness summaries."""
 
     @pytest.fixture(autouse=True)
     def _mock_kube(self, requests_mock, mock_rust_driver):  # patch pykube + Rust driver
         yield
 
-    def _make_machine(self, name, conditions):
+    def _make_machine(self, name, conditions=None, v1beta2_conditions=None, **status):
         m = mock.MagicMock()
         m.obj = {
             "metadata": {"name": name},
-            "status": {"conditions": conditions},
+            "status": {
+                "conditions": conditions or [],
+                "v1beta2": {"conditions": v1beta2_conditions or []},
+                **status,
+            },
         }
         return m
+
+    def test_uses_capi_cluster_machine_aggregates(self, ubuntu_driver):
+        capi_cluster = mock.MagicMock()
+        capi_cluster.obj = {
+            "status": {
+                "v1beta2": {
+                    "conditions": [
+                        {
+                            "type": "ControlPlaneMachinesReady",
+                            "status": "False",
+                            "reason": "NotReady",
+                            "message": (
+                                "* Machine cp-0: InfrastructureReady: "
+                                "Floating IP cannot be obtained"
+                            ),
+                        },
+                        {
+                            "type": "WorkerMachinesReady",
+                            "status": "True",
+                            "reason": "Ready",
+                        },
+                    ]
+                }
+            }
+        }
+
+        assert ubuntu_driver._get_capi_machine_conditions_reason(capi_cluster) == (
+            "Cluster/ControlPlaneMachinesReady: NotReady "
+            "(* Machine cp-0: InfrastructureReady: "
+            "Floating IP cannot be obtained)"
+        )
 
     def test_returns_empty_when_no_machines(self, ubuntu_driver, mocker):
         cluster = mock.MagicMock(stack_id="abc")
@@ -625,30 +660,26 @@ class TestMachineConditionsAggregation:
         )
         assert ubuntu_driver._get_machine_conditions_reason(cluster) == ""
 
-    def test_aggregates_false_conditions_with_reason(self, ubuntu_driver, mocker):
+    def test_uses_ready_summary_without_duplicate_leaf_conditions(
+        self, ubuntu_driver, mocker
+    ):
         cluster = mock.MagicMock(stack_id="abc")
         machines = [
             self._make_machine(
                 "m1",
                 [
                     {
-                        "type": "APIServerIngressReady",
-                        "status": "False",
-                        "reason": "FloatingIPErrorReason",
-                        "message": "floating ip pool not found",
-                    },
-                ],
-            ),
-            self._make_machine(
-                "m2",
-                [
-                    {
                         "type": "Ready",
                         "status": "False",
-                        "reason": "BootstrapFailed",
+                        "reason": "FloatingIPError",
+                        "message": "floating ip pool not found",
                     },
-                    # No-reason rows should be ignored.
-                    {"type": "InfrastructureReady", "status": "False"},
+                    {
+                        "type": "InfrastructureReady",
+                        "status": "False",
+                        "reason": "FloatingIPError",
+                        "message": "floating ip pool not found",
+                    },
                 ],
             ),
         ]
@@ -658,10 +689,66 @@ class TestMachineConditionsAggregation:
             return_value=mock.MagicMock(filter=mock.MagicMock(return_value=machines)),
         )
         out = ubuntu_driver._get_machine_conditions_reason(cluster)
-        assert "m1/APIServerIngressReady: FloatingIPErrorReason" in out
-        assert "floating ip pool not found" in out
-        assert "m2/Ready: BootstrapFailed" in out
+        assert out == "m1/Ready: FloatingIPError (floating ip pool not found)"
         assert "InfrastructureReady" not in out
+
+    def test_prefers_v1beta2_ready_summary(self, ubuntu_driver, mocker):
+        cluster = mock.MagicMock(stack_id="abc")
+        machines = [
+            self._make_machine(
+                "m1",
+                conditions=[
+                    {
+                        "type": "Ready",
+                        "status": "False",
+                        "reason": "LegacyReason",
+                    }
+                ],
+                v1beta2_conditions=[
+                    {
+                        "type": "Ready",
+                        "status": "False",
+                        "reason": "NotReady",
+                        "message": "* InfrastructureReady: floating IP failed",
+                    }
+                ],
+            )
+        ]
+        mocker.patch.object(
+            objects.Machine,
+            "objects",
+            return_value=mock.MagicMock(filter=mock.MagicMock(return_value=machines)),
+        )
+
+        assert ubuntu_driver._get_machine_conditions_reason(cluster) == (
+            "m1/Ready: NotReady (* InfrastructureReady: floating IP failed)"
+        )
+
+    def test_falls_back_to_infrastructure_ready(self, ubuntu_driver, mocker):
+        cluster = mock.MagicMock(stack_id="abc")
+        machines = [
+            self._make_machine(
+                "m1",
+                conditions=[
+                    {
+                        "type": "InfrastructureReady",
+                        "status": "False",
+                        "reason": "FloatingIPError",
+                        "message": "floating ip pool not found",
+                    }
+                ],
+            )
+        ]
+        mocker.patch.object(
+            objects.Machine,
+            "objects",
+            return_value=mock.MagicMock(filter=mock.MagicMock(return_value=machines)),
+        )
+
+        assert ubuntu_driver._get_machine_conditions_reason(cluster) == (
+            "m1/InfrastructureReady: FloatingIPError "
+            "(floating ip pool not found)"
+        )
 
     def test_swallows_listing_errors(self, ubuntu_driver, mocker):
         cluster = mock.MagicMock(stack_id="abc")
