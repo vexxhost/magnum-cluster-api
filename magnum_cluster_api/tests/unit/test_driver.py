@@ -216,6 +216,81 @@ class TestDriver:
             json=json,
         )
 
+    def test_upgrade_cluster_uses_flavors_from_target_template(
+        self,
+        context,
+        requests_mock,
+        mock_rust_driver,
+        mock_osc,
+        ubuntu_driver,
+        cluster_template,
+        mocker,
+    ):
+        self.cluster.master_flavor_id = "old-control-plane-flavor-id"
+        self.cluster.flavor_id = "old-worker-flavor-id"
+        for node_group in self.cluster.nodegroups:
+            node_group.flavor_id = "old-flavor-id"
+
+        cluster_template.master_flavor_id = "new-control-plane-flavor-id"
+        cluster_template.flavor_id = "new-worker-flavor-id"
+
+        mocker.patch("magnum_cluster_api.resources.apply_cluster_from_magnum_cluster")
+        mocker.patch(
+            "magnum_cluster_api.utils.lookup_flavor",
+            side_effect=lambda _osc, flavor_id: flavors.Flavor(
+                None,
+                {
+                    "name": f"flavor-{flavor_id}",
+                    "disk": 10,
+                    "ram": 1024,
+                    "vcpus": 1,
+                },
+            ),
+        )
+        mocker.patch(
+            "magnum_cluster_api.utils.ensure_worker_server_group",
+            return_value="worker-server-group",
+        )
+        mocker.patch(
+            "magnum_cluster_api.utils.ensure_controlplane_server_group",
+            return_value="control-plane-server-group",
+        )
+        ubuntu_driver._kube_client = mocker.MagicMock()
+        ubuntu_driver.rust_driver = mocker.MagicMock()
+
+        ubuntu_driver.upgrade_cluster(
+            context, self.cluster, cluster_template, None, None
+        )
+
+        assert self.cluster.master_flavor_id == "new-control-plane-flavor-id"
+        assert self.cluster.flavor_id == "new-worker-flavor-id"
+        assert self.cluster.default_ng_master.flavor_id == "new-control-plane-flavor-id"
+        assert all(
+            node_group.flavor_id == "new-worker-flavor-id"
+            for node_group in self.cluster.nodegroups
+            if node_group.role == "worker"
+        )
+
+        cluster_object = ubuntu_driver.kube_client.update_cluster.call_args.args[2]
+        topology_variables = {
+            variable["name"]: variable["value"]
+            for variable in cluster_object["spec"]["topology"]["variables"]
+        }
+        assert (
+            topology_variables["controlPlaneFlavor"]
+            == "flavor-new-control-plane-flavor-id"
+        )
+
+        machine_deployment = cluster_object["spec"]["topology"]["workers"][
+            "machineDeployments"
+        ][0]
+        flavor_override = next(
+            variable
+            for variable in machine_deployment["variables"]["overrides"]
+            if variable["name"] == "flavor"
+        )
+        assert flavor_override["value"] == "flavor-new-worker-flavor-id"
+
     def test_create_cluster(
         self,
         requests_mock,

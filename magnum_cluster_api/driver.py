@@ -374,6 +374,9 @@ class BaseDriver(driver.Driver):
         Upgrade a cluster to a new version of Kubernetes.
 
         The only label that we change during the upgrade is the `kube_tag` label.
+        The target ClusterTemplate's flavors are also copied to the cluster and
+        its node groups so Cluster API can roll existing nodes onto the new
+        flavors.
 
         Historically, the upgrade cluster has been a "hammer" that was used to sync the
         Kubernetes Cluster API objects with the Magnum objects.  However, by doing this,
@@ -395,11 +398,18 @@ class BaseDriver(driver.Driver):
         #              we ignore the `nodegroup` parameter and upgrade the entire cluster
         #              at once.
         cluster.cluster_template_id = cluster_template.uuid
+        cluster.master_flavor_id = cluster_template.master_flavor_id
+        cluster.flavor_id = cluster_template.flavor_id
         cluster.labels["kube_tag"] = cluster_template.labels["kube_tag"]
 
         for ng in cluster.nodegroups:
             ng.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
             ng.image_id = cluster_template.image_id
+            ng.flavor_id = (
+                cluster_template.master_flavor_id
+                if ng.role == "master"
+                else cluster_template.flavor_id
+            )
             ng.labels["kube_tag"] = cluster_template.labels["kube_tag"]
             ng.save()
 
