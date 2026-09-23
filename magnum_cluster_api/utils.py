@@ -139,7 +139,7 @@ def generate_cloud_controller_manager_config(
     return textwrap.dedent(
         f"""\
         [Global]
-        auth-url={osc.url_for(service_type="identity", interface="public")}
+        auth-url={osc.url_for(service_type="identity", interface=CONF.capi_client.endpoint_type.replace("URL", ""))}
         region={cloud_config["clouds"]["default"]["region_name"]}
         application-credential-id={cloud_config["clouds"]["default"]["auth"]["application_credential_id"]}
         application-credential-secret={cloud_config["clouds"]["default"]["auth"]["application_credential_secret"]}
@@ -169,7 +169,10 @@ def generate_manila_csi_cloud_config(
     cloud_config = yaml.safe_load(clouds_yaml)
 
     config = {
-        "os-authURL": osc.url_for(service_type="identity", interface="public"),
+        "os-authURL": osc.url_for(
+            service_type="identity",
+            interface=CONF.capi_client.endpoint_type.replace("URL", ""),
+        ),
         "os-region": cloud_config["clouds"]["default"]["region_name"],
         "os-applicationCredentialID": cloud_config["clouds"]["default"]["auth"][
             "application_credential_id"
