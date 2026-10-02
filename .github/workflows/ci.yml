@@ -130,6 +130,6 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: vexxhost/chart-vendor@c1c3ea98adafbfe137a26ae8045c38bae7ed72dc # main
+      - uses: vexxhost/chart-vendor@d7b85526262c8bbe5e42056934665f1dddeecb57 # main
         with:
           charts-root: magnum_cluster_api/charts
