@@ -28,7 +28,6 @@ from magnum import objects as magnum_objects  # type: ignore
 from magnum.api import attr_validator  # type: ignore
 from magnum.common import context, exception, neutron, octavia  # type: ignore
 from magnum.common import utils as magnum_utils
-from novaclient.v2 import flavors  # type: ignore
 from openstack.load_balancer.v2 import (
     load_balancer as sdk_load_balancer,  # type: ignore
 )
@@ -54,6 +53,26 @@ CONF = cfg.CONF
 
 
 g_server_group_cache = ServerGroupCache()
+
+
+def offload_blocking_calls(obj):
+    """Keep calls into the Rust extension from blocking the conductor.
+
+    Under eventlet (Magnum 2026.1 and older monkey-patch the conductor), a
+    blocking call made on the hub stops every green thread, so calls are
+    pushed to eventlet's native thread pool. Magnum 2026.2 dropped eventlet:
+    the conductor runs on native threads and there is no hub to protect. There
+    tpool must not be used at all, because its results are delivered through
+    the hub of the thread that first used the pool, and a call from any other
+    native thread never returns.
+    """
+    from eventlet import patcher  # type: ignore
+
+    if patcher.is_monkey_patched("thread"):
+        from eventlet import tpool  # type: ignore
+
+        return tpool.Proxy(obj)
+    return obj
 
 
 def get_cluster_api_cloud_config_secret_name(cluster: magnum_objects.Cluster) -> str:
@@ -437,7 +456,7 @@ def format_event_message(event: pykube.Event):
     )
 
 
-def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
+def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> typing.Any:
     """Lookup a flavor either by name or id."""
 
     if flavor is None:
