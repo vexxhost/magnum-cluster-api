@@ -12,7 +12,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from eventlet import tpool  # type: ignore
 from magnum.conductor import monitors  # type: ignore
 from oslo_log import log as logging  # type: ignore
 
@@ -46,7 +45,7 @@ class Monitor(monitors.MonitorBase):
             node_group.save()
 
     def poll_health_status(self):
-        rust_monitor = tpool.Proxy(RustMonitor(self.cluster))
+        rust_monitor = utils.offload_blocking_calls(RustMonitor(self.cluster))
         self.data = rust_monitor.poll_health_status()
 
         self.poll_nodegroup_replicas()

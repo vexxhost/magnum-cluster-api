@@ -19,7 +19,14 @@ import openstack.exceptions as sdk_exceptions  # type: ignore
 import pykube  # type: ignore
 from magnum.common import clients, exception  # type: ignore
 from manilaclient.v2 import client as manilaclient  # type: ignore
-from novaclient import exceptions as nova_exception  # type: ignore
+
+try:
+    from novaclient import exceptions as nova_exception  # type: ignore
+
+    NOVA_NOT_FOUND: tuple = (nova_exception.NotFound, sdk_exceptions.NotFoundException)
+except ImportError:
+    # Magnum 2026.2 moved to openstacksdk and no longer installs novaclient.
+    NOVA_NOT_FOUND = (sdk_exceptions.NotFoundException,)
 
 
 class OpenStackClients(clients.OpenStackClients):
@@ -137,7 +144,7 @@ class OpenStackClients(clients.OpenStackClients):
                 return
 
             nova.server_groups.delete(server_group_id)
-        except (nova_exception.NotFound, sdk_exceptions.NotFoundException):
+        except NOVA_NOT_FOUND:
             return
 
     def list_load_balancers(self):

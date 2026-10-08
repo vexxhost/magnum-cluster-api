@@ -56,6 +56,7 @@ dev = [
   "oslotest>=5.0.0",
   "pytest-mock>=3.6.1",
   "pytest<10",
+  "python-novaclient",
   "responses>=0.25.0",
   "stestr",
   "types-PyYAML",

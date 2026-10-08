@@ -13,6 +13,7 @@
 # under the License.
 
 import textwrap
+import threading
 import types
 from unittest import mock
 
@@ -566,3 +567,39 @@ def test_wait_for_sdk_loadbalancers_deleted_times_out(mocker):
         utils._wait_for_sdk_loadbalancers_deleted(octavia_client, {"lb-id"})
 
     sleep.assert_called_once_with(1)
+
+
+class _Blocking:
+    def work(self, n):
+        return n * 2
+
+
+def test_offload_blocking_calls_uses_tpool_under_eventlet(mocker):
+    mocker.patch("eventlet.patcher.is_monkey_patched", return_value=True)
+    proxy = mocker.patch("eventlet.tpool.Proxy")
+    obj = _Blocking()
+
+    assert utils.offload_blocking_calls(obj) is proxy.return_value
+    proxy.assert_called_once_with(obj)
+
+
+def test_offload_blocking_calls_native_threads():
+    # Magnum 2026.2 does not monkey-patch. A tpool.Proxy there hangs on every
+    # call made from a native thread other than the first caller, which is
+    # how the conductor serves RPC.
+    obj = _Blocking()
+    wrapped = utils.offload_blocking_calls(obj)
+    assert wrapped is obj
+
+    results = []
+    threads = [
+        threading.Thread(target=lambda: results.append(wrapped.work(3)), daemon=True)
+        for _ in range(4)
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(10)
+
+    assert not any(thread.is_alive() for thread in threads)
+    assert results == [6] * 4
