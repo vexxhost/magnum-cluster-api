@@ -1,5 +1,5 @@
 use crate::{
-    addons::{cilium, ClusterAddon},
+    addons::{ClusterAddon, cilium},
     cluster_api::clusterresourcesets::{
         ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
         ClusterResourceSetResourcesKind, ClusterResourceSetSpec, ClusterResourceSetStrategy,
@@ -7,9 +7,9 @@ use crate::{
 };
 use k8s_openapi::api::core::v1::Secret;
 use kube::{
+    Api, Client, Config,
     api::ObjectMeta,
     config::{KubeConfigOptions, Kubeconfig},
-    Api, Client, Config,
 };
 use maplit::btreemap;
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
@@ -23,91 +23,89 @@ pub struct ClusterTemplate {
     pub network_driver: String,
 }
 
-#[derive(Clone, Default, Deserialize, FromPyObject, TypedBuilder)]
-#[pyo3(from_item_all)]
+#[derive(Clone, Default, Deserialize, TypedBuilder)]
 pub struct ClusterLabels {
     /// The tag of the Cilium container image to use for the cluster.
     #[builder(default="v1.15.3".to_owned())]
-    #[pyo3(default="v1.15.3".to_owned())]
     pub cilium_tag: String,
 
     /// The IP address range to use for the Cilium IPAM pool.
     #[builder(default="10.100.0.0/16".to_owned())]
-    #[pyo3(default="10.100.0.0/16".to_owned())]
     pub cilium_ipv4pool: String,
 
     /// Enable the Cilium Hubble UI for network observability.
     /// Note: OpenStack labels are always strings, so this accepts "true"/"false".
     #[builder(default="false".to_owned())]
-    #[pyo3(default="false".to_owned())]
     pub cilium_hubble_ui_enabled: String,
 
     /// Enable the use of the Cinder CSI driver for the cluster.
     #[builder(default="true".to_owned())]
-    #[pyo3(default="true".to_owned())]
     pub cinder_csi_enabled: String,
 
     /// The tag of the Cinder CSI container image to use for the cluster.
     #[builder(default="v1.32.0".to_owned())]
-    #[pyo3(default="v1.32.0".to_owned())]
     pub cinder_csi_plugin_tag: String,
 
     /// Enable the use of the Manila CSI driver for the cluster.
     #[builder(default="true".to_owned())]
-    #[pyo3(default="true".to_owned())]
     pub manila_csi_enabled: String,
 
     /// The tag of the Manila CSI container image to use for the cluster.
     #[builder(default="v1.32.0".to_owned())]
-    #[pyo3(default="v1.32.0".to_owned())]
     pub manila_csi_plugin_tag: String,
 
     /// The tag to use for the OpenStack cloud controller provider
     /// when bootstrapping the cluster. If not specified, it will be
     /// automatically selected based on the Kubernetes version.
     #[builder(default)]
-    #[pyo3(default)]
     pub cloud_provider_tag: Option<String>,
 
     /// The prefix of the container images to use for the cluster, which
     /// defaults to the upstream images if not set.
     #[builder(default)]
-    #[pyo3(default)]
     pub container_infra_prefix: Option<String>,
 
     /// CSI attacher tag to use for the cluster.
     #[builder(default="v4.7.0".to_owned())]
-    #[pyo3(default="v4.7.0".to_owned())]
     pub csi_attacher_tag: String,
 
     /// CSI liveness probe tag to use for the cluster.
     #[builder(default="v2.14.0".to_owned())]
-    #[pyo3(default="v2.14.0".to_owned())]
     pub csi_liveness_probe_tag: String,
 
     /// CSI Node Driver Registrar tag to use for the cluster.
     #[builder(default="v2.12.0".to_owned())]
-    #[pyo3(default="v2.12.0".to_owned())]
     pub csi_node_driver_registrar_tag: String,
 
     // CSI Provisioner tag to use for the cluster.
     #[builder(default="v5.1.0".to_owned())]
-    #[pyo3(default="v5.1.0".to_owned())]
     pub csi_provisioner_tag: String,
 
     /// CSI Resizer tag to use for the cluster.
     #[builder(default="v1.12.0".to_owned())]
-    #[pyo3(default="v1.12.0".to_owned())]
     pub csi_resizer_tag: String,
 
     /// CSI Snapshotter tag to use for the cluster.
     #[builder(default="v8.1.0".to_owned())]
-    #[pyo3(default="v8.1.0".to_owned())]
     pub csi_snapshotter_tag: String,
+
+    /// The tag of the Calico container image to use for the cluster.
+    /// This is only used when the cluster's network_driver is "calico".
+    #[builder(default="v3.31.3".to_owned())]
+    pub calico_tag: String,
 
     /// The Kubernetes version to use for the cluster.
     #[builder(default="v1.30.0".to_owned())]
     pub kube_tag: String,
+
+    /// Enable automatic CNI (Calico/Cilium) upgrades during cluster upgrade.
+    /// When set to "true", the CNI version labels are copied from the new
+    /// cluster template during upgrade and the CNI addon ClusterResourceSet
+    /// is re-applied using Reconcile strategy.
+    /// Default: "false" (opt-in, CNI upgrade remains admin responsibility).
+    /// See: https://github.com/vexxhost/magnum-cluster-api/issues/919
+    #[builder(default="false".to_owned())]
+    pub auto_upgrade_cni: String,
 }
 
 impl ClusterLabels {
@@ -117,6 +115,14 @@ impl ClusterLabels {
     /// Parses the string label value "true"/"false" to a boolean.
     pub fn is_cilium_hubble_ui_enabled(&self) -> bool {
         self.cilium_hubble_ui_enabled.eq_ignore_ascii_case("true")
+    }
+
+    /// Returns true if automatic CNI upgrades are enabled.
+    /// When true, calico_tag/cilium_tag are copied from the new template
+    /// during cluster upgrade and the CNI addon ClusterResourceSet is
+    /// re-applied with Reconcile strategy.
+    pub fn is_auto_upgrade_cni_enabled(&self) -> bool {
+        self.auto_upgrade_cni.eq_ignore_ascii_case("true")
     }
 
     pub fn get_cloud_provider_tag(&self) -> String {
@@ -147,6 +153,62 @@ impl ClusterLabels {
             (1, 35) => "v1.35.0".to_owned(),
             _ => Self::DEFAULT_CLOUD_PROVIDER_TAG.to_owned(),
         }
+    }
+}
+
+impl<'a, 'py> pyo3::FromPyObject<'a, 'py> for ClusterLabels {
+    type Error = pyo3::PyErr;
+
+    fn extract(obj: pyo3::Borrowed<'a, 'py, pyo3::PyAny>) -> pyo3::PyResult<Self> {
+        use pyo3::types::PyDictMethods;
+
+        let dict = obj.cast::<pyo3::types::PyDict>()?;
+
+        fn get_string(
+            dict: &pyo3::Bound<pyo3::types::PyDict>,
+            key: &str,
+            default: &str,
+        ) -> pyo3::PyResult<String> {
+            match dict.get_item(key)? {
+                Some(value) => value.extract::<String>(),
+                None => Ok(default.to_owned()),
+            }
+        }
+
+        fn get_optional_string(
+            dict: &pyo3::Bound<pyo3::types::PyDict>,
+            key: &str,
+        ) -> pyo3::PyResult<Option<String>> {
+            match dict.get_item(key)? {
+                Some(value) => Ok(Some(value.extract::<String>()?)),
+                None => Ok(None),
+            }
+        }
+
+        Ok(ClusterLabels {
+            cilium_tag: get_string(&dict, "cilium_tag", "v1.15.3")?,
+            cilium_ipv4pool: get_string(&dict, "cilium_ipv4pool", "10.100.0.0/16")?,
+            cilium_hubble_ui_enabled: get_string(&dict, "cilium_hubble_ui_enabled", "false")?,
+            cinder_csi_enabled: get_string(&dict, "cinder_csi_enabled", "true")?,
+            cinder_csi_plugin_tag: get_string(&dict, "cinder_csi_plugin_tag", "v1.32.0")?,
+            manila_csi_enabled: get_string(&dict, "manila_csi_enabled", "true")?,
+            manila_csi_plugin_tag: get_string(&dict, "manila_csi_plugin_tag", "v1.32.0")?,
+            cloud_provider_tag: get_optional_string(&dict, "cloud_provider_tag")?,
+            container_infra_prefix: get_optional_string(&dict, "container_infra_prefix")?,
+            csi_attacher_tag: get_string(&dict, "csi_attacher_tag", "v4.7.0")?,
+            csi_liveness_probe_tag: get_string(&dict, "csi_liveness_probe_tag", "v2.14.0")?,
+            csi_node_driver_registrar_tag: get_string(
+                &dict,
+                "csi_node_driver_registrar_tag",
+                "v2.12.0",
+            )?,
+            csi_provisioner_tag: get_string(&dict, "csi_provisioner_tag", "v5.1.0")?,
+            csi_resizer_tag: get_string(&dict, "csi_resizer_tag", "v1.12.0")?,
+            csi_snapshotter_tag: get_string(&dict, "csi_snapshotter_tag", "v8.1.0")?,
+            calico_tag: get_string(&dict, "calico_tag", "v3.31.3")?,
+            kube_tag: get_string(&dict, "kube_tag", "v1.30.0")?,
+            auto_upgrade_cni: get_string(&dict, "auto_upgrade_cni", "false")?,
+        })
     }
 }
 
@@ -414,6 +476,93 @@ mod tests {
             let result: Result<ClusterStatus, _> = py_status.extract();
             assert!(result.is_err());
         });
+    }
+
+    #[test]
+    fn test_cluster_labels_from_py_empty_dict_uses_defaults() {
+        // When a cluster has no labels (empty dict), FromPyObject should
+        // use defaults for all fields.  This was the root cause of issue #919
+        // where `KeyError: 'kube_tag'` occurred.
+        let _ = Python::initialize();
+        Python::attach(|py| {
+            use pyo3::types::PyDict;
+            let dict = PyDict::new(py);
+            let labels: ClusterLabels = dict
+                .extract()
+                .expect("empty dict should produce default ClusterLabels");
+            assert_eq!(labels.kube_tag, "v1.30.0");
+            assert_eq!(labels.calico_tag, "v3.31.3");
+            assert_eq!(labels.auto_upgrade_cni, "false");
+            assert_eq!(labels.cinder_csi_enabled, "true");
+            assert_eq!(labels.manila_csi_enabled, "true");
+            assert!(labels.cloud_provider_tag.is_none());
+            assert!(labels.container_infra_prefix.is_none());
+        });
+    }
+
+    #[test]
+    fn test_cluster_labels_from_py_partial_labels_uses_defaults_for_missing() {
+        // Cluster with only auto_upgrade_cni; all other fields should default.
+        let _ = Python::initialize();
+        Python::attach(|py| {
+            use pyo3::types::PyDict;
+            let dict = PyDict::new(py);
+            dict.set_item("auto_upgrade_cni", "true")
+                .expect("set_item failed");
+            let labels: ClusterLabels = dict
+                .extract()
+                .expect("partial dict should produce ClusterLabels");
+            assert_eq!(labels.auto_upgrade_cni, "true");
+            assert_eq!(labels.kube_tag, "v1.30.0", "kube_tag should default");
+            assert_eq!(labels.calico_tag, "v3.31.3", "calico_tag should default");
+        });
+    }
+
+    #[test]
+    fn test_cluster_labels_from_py_bool_fields_from_string() {
+        // cinder_csi_enabled and manila_csi_enabled accept string "true"/"false"
+        let _ = Python::initialize();
+        Python::attach(|py| {
+            use pyo3::types::PyDict;
+            let dict = PyDict::new(py);
+            dict.set_item("cinder_csi_enabled", "false")
+                .expect("set_item failed");
+            dict.set_item("manila_csi_enabled", "true")
+                .expect("set_item failed");
+            let labels: ClusterLabels = dict.extract().expect("should parse");
+            assert_eq!(labels.cinder_csi_enabled, "false");
+            assert_eq!(labels.manila_csi_enabled, "true");
+        });
+    }
+
+    #[test]
+    fn test_is_auto_upgrade_cni_enabled_default() {
+        let labels = ClusterLabels::default();
+        assert!(!labels.is_auto_upgrade_cni_enabled());
+    }
+
+    #[test]
+    fn test_is_auto_upgrade_cni_enabled_true() {
+        let labels = ClusterLabels::builder()
+            .auto_upgrade_cni("true".to_owned())
+            .build();
+        assert!(labels.is_auto_upgrade_cni_enabled());
+    }
+
+    #[test]
+    fn test_is_auto_upgrade_cni_enabled_uppercase_true() {
+        let labels = ClusterLabels::builder()
+            .auto_upgrade_cni("TRUE".to_owned())
+            .build();
+        assert!(labels.is_auto_upgrade_cni_enabled());
+    }
+
+    #[test]
+    fn test_is_auto_upgrade_cni_enabled_false() {
+        let labels = ClusterLabels::builder()
+            .auto_upgrade_cni("false".to_owned())
+            .build();
+        assert!(!labels.is_auto_upgrade_cni_enabled());
     }
 
     #[test]

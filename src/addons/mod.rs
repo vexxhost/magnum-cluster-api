@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;
 
+pub mod calico;
 pub mod cilium;
 pub mod cinder_csi;
 pub mod cloud_controller_manager;
