@@ -106,6 +106,20 @@ def get_capi_client_ca_cert() -> str:
         return ""
 
 
+def get_workload_endpoint_interface() -> str:
+    """
+    Get the service catalog interface (e.g. "public" or "internal") that
+    components running inside the workload cluster should use.
+
+    This falls back to the management plane endpoint type when no workload
+    specific endpoint type is configured.
+    """
+    endpoint_type = (
+        CONF.capi_client.workload_endpoint_type or CONF.capi_client.endpoint_type
+    )
+    return endpoint_type.replace("URL", "")
+
+
 def generate_cloud_controller_manager_config(
     ctx: context.RequestContext,
     api: pykube.HTTPClient,
@@ -136,10 +150,13 @@ def generate_cloud_controller_manager_config(
             octavia_lb_algorithm=octavia_lb_algorithm
         )
 
+    interface = get_workload_endpoint_interface()
+
     return textwrap.dedent(
         f"""\
         [Global]
-        auth-url={osc.url_for(service_type="identity", interface=CONF.capi_client.endpoint_type.replace("URL", ""))}
+        auth-url={osc.url_for(service_type="identity", interface=interface)}
+        os-endpoint-type={interface}
         region={cloud_config["clouds"]["default"]["region_name"]}
         application-credential-id={cloud_config["clouds"]["default"]["auth"]["application_credential_id"]}
         application-credential-secret={cloud_config["clouds"]["default"]["auth"]["application_credential_secret"]}
@@ -168,11 +185,11 @@ def generate_manila_csi_cloud_config(
     clouds_yaml = base64.decode_as_text(data.obj["data"]["clouds.yaml"])
     cloud_config = yaml.safe_load(clouds_yaml)
 
+    interface = get_workload_endpoint_interface()
+
     config = {
-        "os-authURL": osc.url_for(
-            service_type="identity",
-            interface=CONF.capi_client.endpoint_type.replace("URL", ""),
-        ),
+        "os-authURL": osc.url_for(service_type="identity", interface=interface),
+        "os-endpointType": interface,
         "os-region": cloud_config["clouds"]["default"]["region_name"],
         "os-applicationCredentialID": cloud_config["clouds"]["default"]["auth"][
             "application_credential_id"

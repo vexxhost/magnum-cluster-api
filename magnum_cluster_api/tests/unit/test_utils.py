@@ -22,6 +22,7 @@ import responses
 from magnum.common import exception
 from magnum.tests.unit.objects import utils as magnum_test_utils  # type: ignore
 from openstack.load_balancer.v2 import load_balancer as sdk_load_balancer
+from oslo_config import cfg
 from oslo_serialization import base64, jsonutils
 from oslo_utils import uuidutils
 from oslotest import base
@@ -57,10 +58,10 @@ class TestGenerateCloudControllerManagerConfig:
             self.context
         )
 
-        mock_get_openstack_api = mocker.patch(
+        self.mock_osc = mocker.patch(
             "magnum_cluster_api.clients.get_openstack_api"
         ).return_value
-        mock_get_openstack_api.url_for.return_value = "http://localhost/v3"
+        self.mock_osc.url_for.return_value = "http://localhost/v3"
 
     def _response_for_cloud_config_secret(self):
         return responses.Response(
@@ -105,6 +106,7 @@ class TestGenerateCloudControllerManagerConfig:
             """\
             [Global]
             auth-url=http://localhost/v3
+            os-endpoint-type=public
             region=RegionOne
             application-credential-id=fake_application_credential_id
             application-credential-secret=fake_application_credential_secret
@@ -131,6 +133,7 @@ class TestGenerateCloudControllerManagerConfig:
             """\
             [Global]
             auth-url=http://localhost/v3
+            os-endpoint-type=public
             region=RegionOne
             application-credential-id=fake_application_credential_id
             application-credential-secret=fake_application_credential_secret
@@ -162,6 +165,7 @@ class TestGenerateCloudControllerManagerConfig:
             """\
             [Global]
             auth-url=http://localhost/v3
+            os-endpoint-type=public
             region=RegionOne
             application-credential-id=fake_application_credential_id
             application-credential-secret=fake_application_credential_secret
@@ -188,6 +192,7 @@ class TestGenerateCloudControllerManagerConfig:
             """\
             [Global]
             auth-url=http://localhost/v3
+            os-endpoint-type=public
             region=RegionOne
             application-credential-id=fake_application_credential_id
             application-credential-secret=fake_application_credential_secret
@@ -219,6 +224,7 @@ class TestGenerateCloudControllerManagerConfig:
             """\
             [Global]
             auth-url=http://localhost/v3
+            os-endpoint-type=public
             region=RegionOne
             application-credential-id=fake_application_credential_id
             application-credential-secret=fake_application_credential_secret
@@ -246,6 +252,180 @@ class TestGenerateCloudControllerManagerConfig:
                 utils.generate_cloud_controller_manager_config(
                     self.context, self.pykube_api, self.cluster
                 )
+
+    @pytest.mark.parametrize(
+        "endpoint_type,workload_endpoint_type,interface",
+        [
+            ("publicURL", None, "public"),
+            ("internalURL", None, "internal"),
+            ("publicURL", "internalURL", "internal"),
+            ("internalURL", "publicURL", "public"),
+        ],
+    )
+    def test_generate_cloud_controller_manager_config_endpoint_type(
+        self,
+        requests_mock,
+        capi_client_endpoint_type,
+        endpoint_type,
+        workload_endpoint_type,
+        interface,
+    ):
+        capi_client_endpoint_type(endpoint_type, workload_endpoint_type)
+        self.mock_osc.url_for.side_effect = (
+            lambda service_type, interface: f"http://{interface}.localhost/v3"
+        )
+
+        with requests_mock as rsps:
+            rsps.add(self._response_for_cloud_config_secret())
+
+            config = utils.generate_cloud_controller_manager_config(
+                self.context, self.pykube_api, self.cluster
+            )
+
+        self.mock_osc.url_for.assert_called_once_with(
+            service_type="identity", interface=interface
+        )
+        assert config == textwrap.dedent(
+            f"""\
+            [Global]
+            auth-url=http://{interface}.localhost/v3
+            os-endpoint-type={interface}
+            region=RegionOne
+            application-credential-id=fake_application_credential_id
+            application-credential-secret=fake_application_credential_secret
+            tls-insecure=false
+
+            [LoadBalancer]
+            lb-provider=amphorav2
+            lb-method=ROUND_ROBIN
+            create-monitor=True
+            """
+        )
+
+
+@pytest.fixture
+def capi_client_endpoint_type():
+    def _set(endpoint_type, workload_endpoint_type=None):
+        cfg.CONF.set_override("endpoint_type", endpoint_type, group="capi_client")
+        cfg.CONF.set_override(
+            "workload_endpoint_type", workload_endpoint_type, group="capi_client"
+        )
+
+    yield _set
+
+    cfg.CONF.clear_override("endpoint_type", group="capi_client")
+    cfg.CONF.clear_override("workload_endpoint_type", group="capi_client")
+
+
+@pytest.mark.parametrize(
+    "endpoint_type,workload_endpoint_type,interface",
+    [
+        ("publicURL", None, "public"),
+        ("internalURL", None, "internal"),
+        ("publicURL", "internalURL", "internal"),
+        ("internalURL", "publicURL", "public"),
+        ("internalURL", "internal", "internal"),
+    ],
+)
+def test_get_workload_endpoint_interface(
+    capi_client_endpoint_type, endpoint_type, workload_endpoint_type, interface
+):
+    capi_client_endpoint_type(endpoint_type, workload_endpoint_type)
+
+    assert utils.get_workload_endpoint_interface() == interface
+
+
+class TestGenerateManilaCSICloudConfig:
+    @pytest.fixture(autouse=True)
+    def setup(self, context, pykube_api, mocker):
+        self.context = context
+        self.pykube_api = pykube_api
+
+        self.cluster = magnum_test_utils.get_test_cluster(context, labels={})
+        self.cluster.cluster_template = magnum_test_utils.get_test_cluster_template(
+            self.context
+        )
+
+        self.mock_osc = mocker.patch(
+            "magnum_cluster_api.clients.get_openstack_api"
+        ).return_value
+        self.mock_osc.url_for.side_effect = (
+            lambda service_type, interface: f"http://{interface}.localhost/v3"
+        )
+        mocker.patch(
+            "magnum_cluster_api.utils.magnum_utils.get_openstack_ca",
+            return_value="",
+        )
+
+    def _response_for_cloud_config_secret(self):
+        return responses.Response(
+            responses.GET,
+            "http://localhost/api/%s/namespaces/%s/%s/%s"
+            % (
+                pykube.Secret.version,
+                "magnum-system",
+                pykube.Secret.endpoint,
+                utils.get_cluster_api_cloud_config_secret_name(self.cluster),
+            ),
+            json={
+                "data": {
+                    "clouds.yaml": base64.encode_as_text(
+                        jsonutils.dumps(
+                            {
+                                "clouds": {
+                                    "default": {
+                                        "region_name": "RegionOne",
+                                        "verify": True,
+                                        "auth": {
+                                            "application_credential_id": "fake_application_credential_id",
+                                            "application_credential_secret": "fake_application_credential_secret",
+                                        },
+                                    }
+                                }
+                            }
+                        )
+                    ),
+                }
+            },
+        )
+
+    @pytest.mark.parametrize(
+        "endpoint_type,workload_endpoint_type,interface",
+        [
+            ("publicURL", None, "public"),
+            ("internalURL", None, "internal"),
+            ("publicURL", "internalURL", "internal"),
+            ("internalURL", "publicURL", "public"),
+        ],
+    )
+    def test_generate_manila_csi_cloud_config_endpoint_type(
+        self,
+        requests_mock,
+        capi_client_endpoint_type,
+        endpoint_type,
+        workload_endpoint_type,
+        interface,
+    ):
+        capi_client_endpoint_type(endpoint_type, workload_endpoint_type)
+
+        with requests_mock as rsps:
+            rsps.add(self._response_for_cloud_config_secret())
+
+            config = utils.generate_manila_csi_cloud_config(
+                self.context, self.pykube_api, self.cluster
+            )
+
+        self.mock_osc.url_for.assert_called_once_with(
+            service_type="identity", interface=interface
+        )
+        assert config == {
+            "os-authURL": f"http://{interface}.localhost/v3",
+            "os-endpointType": interface,
+            "os-region": "RegionOne",
+            "os-applicationCredentialID": "fake_application_credential_id",
+            "os-applicationCredentialSecret": "fake_application_credential_secret",
+            "os-TLSInsecure": "false",
+        }
 
 
 class TestGenerateSystemdProxyConfig:

@@ -46,6 +46,15 @@ capi_client_opts = [
             "for communication with the OpenStack service."
         ),
     ),
+    cfg.StrOpt(
+        "workload_endpoint_type",
+        help=_(
+            "Type of endpoint in Identity service catalog to be used by "
+            "components running inside the workload clusters, such as the "
+            "OpenStack cloud controller manager and the Manila CSI driver. "
+            "If not set, the value of endpoint_type is used."
+        ),
+    ),
 ]
 
 
