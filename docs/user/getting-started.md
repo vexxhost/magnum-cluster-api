@@ -23,14 +23,10 @@ section.
 
     * **Network connectivity**
       When the cluster goes up, it needs to pull all the container images from the
-      container registry.  By default, it will pull all the images from the upstream
-      registries.  If you have a slow network connection, you can use a local
-      registry to speed up the deployment process and read more about pointing to
-      it in the [Labels](labels.md#images) section.
-
-    [Atmosphere](https://github.com/vexxhost/atmosphere) deploys a local
-    registry by default as well as includes several speed optimizations to
-    improve the deployment speed down to 5 minutes.
+      container registry.  By default, it pulls images from upstream registries.
+      If you have a slow network connection, you can configure an externally
+      managed mirror with `container_infra_prefix`; read more in the
+      [Labels](labels.md#images) section.
 
 You can create clusters using several different methods which all end up using
 the Magnum API.  You can either use the OpenStack CLI, OpenStack Horizon
@@ -47,10 +43,11 @@ dashboard, Terraform, Ansible or the Magnum API directly.
     them using the OpenStack CLI:
 
     ```bash
-    export OS_DISTRO=ubuntu # you can change this to "flatcar" if you want to use Flatcar
-    for version in v1.24.16 v1.25.12 v1.26.7 v1.27.4; do \
-      [[ "${OS_DISTRO}" == "ubuntu" ]] && IMAGE_NAME="ubuntu-2204-kube-${version}" || IMAGE_NAME="flatcar-kube-${version}"; \
-      curl -LO https://object-storage.public.mtl1.vexxhost.net/swift/v1/a91f106f55e64246babde7402c21b87a/magnum-capi/${IMAGE_NAME}.qcow2; \
+    export OS_DISTRO=ubuntu
+    export IMAGE_FAMILY=ubuntu-24.04
+    for version in v1.33.12 v1.34.8 v1.35.5 v1.36.1; do \
+      IMAGE_NAME="${IMAGE_FAMILY}-${version}"; \
+      curl -LO https://github.com/vexxhost/capo-image-elements/releases/download/2026.05-7/${IMAGE_NAME}.qcow2; \
       openstack image create ${IMAGE_NAME} --disk-format=qcow2 --container-format=bare --property os_distro=${OS_DISTRO} --file=${IMAGE_NAME}.qcow2; \
       openstack coe cluster template create \
           --image $(openstack image show ${IMAGE_NAME} -c id -f value) \

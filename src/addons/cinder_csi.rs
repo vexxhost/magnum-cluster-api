@@ -201,7 +201,7 @@ impl ClusterAddon for Addon {
     }
 
     fn enabled(&self) -> bool {
-        self.cluster.labels.cinder_csi_enabled
+        self.cluster.labels.cinder_csi_enabled.eq_ignore_ascii_case("true")
     }
 
     fn secret_name(&self) -> Result<String, ClusterError> {

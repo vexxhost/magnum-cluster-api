@@ -24,6 +24,18 @@ use serde::{Deserialize, Serialize};
 pub struct FeatureValues {
     #[serde(rename = "disableAPIServerFloatingIP")]
     pub disable_api_server_floating_ip: bool,
+
+    /// Gates the `disableAPIServerFloatingIP` patch. Set to `true` when the
+    /// user has asked to disable the API server floating IP, or — by the
+    /// `immutable_fields` resolver — when the existing OpenStackCluster spec
+    /// already has this field set.
+    ///
+    /// This prevents CAPO's immutability webhook from rejecting topology
+    /// updates on clusters created by magnum-cluster-api versions prior to
+    /// the introduction of the `enabledIf` guard (see PR #486), which had
+    /// always patched this field on the spec.
+    #[serde(rename = "disableAPIServerFloatingIPManaged")]
+    pub disable_api_server_floating_ip_managed: bool,
 }
 
 pub struct Feature {}
@@ -32,7 +44,9 @@ impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
             name: "disableAPIServerFloatingIP".into(),
-            enabled_if: Some("{{ if .disableAPIServerFloatingIP }}true{{end}}".into()),
+            enabled_if: Some(
+                "{{ if .disableAPIServerFloatingIPManaged }}true{{end}}".into(),
+            ),
             definitions: Some(vec![ClusterClassPatchesDefinitions {
                 selector: ClusterClassPatchesDefinitionsSelector {
                     api_version: OpenStackClusterTemplate::api_resource().api_version,
@@ -74,6 +88,7 @@ mod tests {
 
         let mut values = default_values();
         values.disable_api_server_floating_ip = true;
+        values.disable_api_server_floating_ip_managed = true;
 
         let patches = feature.patches();
 
@@ -97,6 +112,7 @@ mod tests {
 
         let mut values = default_values();
         values.disable_api_server_floating_ip = false;
+        values.disable_api_server_floating_ip_managed = false;
 
         let patches = feature.patches();
 
@@ -111,6 +127,37 @@ mod tests {
                 .spec
                 .disable_api_server_floating_ip,
             None
+        );
+    }
+
+    /// Regression: upgrades of clusters created by old magnum-cluster-api
+    /// versions (pre-v0.25.x) that unconditionally patched
+    /// `disableAPIServerFloatingIP: false` onto the spec. The
+    /// `immutable_fields` resolver flips `disable_api_server_floating_ip_managed`
+    /// to `true` so the patch still fires with the preserved `false` value,
+    /// keeping the generated spec identical to the stored one and avoiding
+    /// CAPO's immutability webhook.
+    #[test]
+    fn test_patches_if_managed_even_when_value_is_false() {
+        let feature = Feature {};
+
+        let mut values = default_values();
+        values.disable_api_server_floating_ip = false;
+        values.disable_api_server_floating_ip_managed = true;
+
+        let patches = feature.patches();
+
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
+
+        assert_eq!(
+            resources
+                .openstack_cluster_template
+                .spec
+                .template
+                .spec
+                .disable_api_server_floating_ip,
+            Some(false)
         );
     }
 }

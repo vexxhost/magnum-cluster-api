@@ -235,6 +235,7 @@ pub mod fixtures {
             )
             .control_plane_availability_zones(vec!["zone1".into(), "zone2".into()])
             .disable_api_server_floating_ip(true)
+            .disable_api_server_floating_ip_managed(true)
             .external_network_id("external-network-id".into())
             .control_plane_flavor("control-plane".into())
             .flavor("worker".into())
@@ -309,7 +310,7 @@ mod tests {
         let values = default_values();
         let variables: Vec<ClusterTopologyVariables> = values.into();
 
-        assert_eq!(variables.len(), 38);
+        assert_eq!(variables.len(), 39);
 
         for var in &variables {
             match var.name.as_str() {
@@ -347,6 +348,12 @@ mod tests {
                     assert_eq!(
                         var.value,
                         json!(default_values().disable_api_server_floating_ip)
+                    );
+                }
+                "disableAPIServerFloatingIPManaged" => {
+                    assert_eq!(
+                        var.value,
+                        json!(default_values().disable_api_server_floating_ip_managed)
                     );
                 }
                 "externalNetworkId" => {

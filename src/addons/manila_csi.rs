@@ -129,7 +129,7 @@ impl ClusterAddon for Addon {
     }
 
     fn enabled(&self) -> bool {
-        self.cluster.labels.manila_csi_enabled
+        self.cluster.labels.manila_csi_enabled.eq_ignore_ascii_case("true")
     }
 
     fn secret_name(&self) -> Result<String, ClusterError> {

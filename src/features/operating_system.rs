@@ -40,6 +40,7 @@ use serde_json::json;
 #[serde(rename_all = "lowercase")]
 pub enum OperatingSystem {
     Ubuntu,
+    Debian,
     Flatcar,
     RockyLinux,
 }
@@ -61,7 +62,7 @@ impl ClusterFeaturePatches for Feature {
         vec![
             ClusterClassPatches {
                 name: "aptProxyConfig".into(),
-                enabled_if: Some(r#"{{ if and (eq .operatingSystem "ubuntu") (ne .aptProxyConfig "") }}true{{end}}"#.into()),
+                enabled_if: Some(r#"{{ if and (or (eq .operatingSystem "ubuntu") (eq .operatingSystem "debian")) (ne .aptProxyConfig "") }}true{{end}}"#.into()),
                 definitions: Some(vec![
                     ClusterClassPatchesDefinitions {
                         selector: ClusterClassPatchesDefinitionsSelector {
@@ -419,11 +420,120 @@ mod tests {
             );
         }
 
-        let kct_spec = resources
+        let kct_spec = resources.kubeadm_config_template.spec.template.spec;
+
+        if let Some(spec) = kct_spec {
+            if let Some(files) = spec.files {
+                assert!(
+                    files
+                        .iter()
+                        .find(|f| f.path == "/etc/apt/apt.conf.d/90proxy")
+                        .is_none(),
+                    "proxy file should not be set when proxy is empty"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_apply_patches_for_debian_with_proxy() {
+        let feature = Feature {};
+
+        let mut values = default_values();
+        values.operating_system = OperatingSystem::Debian;
+        values.apt_proxy_config = BASE64_STANDARD.encode(indoc!(
+            "
+            Acquire::http::Proxy \"http://proxy.example.com\";
+            Acquire::https::Proxy \"http://proxy.example.com\";
+            "
+        ));
+
+        let patches = feature.patches();
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
+
+        let kcpt_files = resources
+            .kubeadm_control_plane_template
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .files
+            .expect("files should be set");
+
+        let kcpt_proxy_file = kcpt_files
+            .iter()
+            .find(|f| f.path == "/etc/apt/apt.conf.d/90proxy")
+            .expect("proxy file should be set when proxy is configured");
+        assert_eq!(kcpt_proxy_file.path, "/etc/apt/apt.conf.d/90proxy");
+        assert_eq!(kcpt_proxy_file.owner.as_deref(), Some("root:root"));
+        assert_eq!(kcpt_proxy_file.permissions.as_deref(), Some("0644"));
+        assert_eq!(
+            kcpt_proxy_file.encoding,
+            Some(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFilesEncoding::Base64)
+        );
+        assert_eq!(
+            kcpt_proxy_file.content,
+            Some(values.apt_proxy_config.clone())
+        );
+
+        let kct_files = resources
             .kubeadm_config_template
             .spec
             .template
-            .spec;
+            .spec
+            .expect("spec should be set")
+            .files
+            .expect("files should be set");
+
+        let kct_proxy_file = kct_files
+            .iter()
+            .find(|f| f.path == "/etc/apt/apt.conf.d/90proxy")
+            .expect("proxy file should be set when proxy is configured");
+        assert_eq!(kct_proxy_file.path, "/etc/apt/apt.conf.d/90proxy");
+        assert_eq!(kct_proxy_file.owner.as_deref(), Some("root:root"));
+        assert_eq!(kct_proxy_file.permissions.as_deref(), Some("0644"));
+        assert_eq!(
+            kct_proxy_file.encoding,
+            Some(KubeadmConfigTemplateTemplateSpecFilesEncoding::Base64)
+        );
+        assert_eq!(
+            kct_proxy_file.content,
+            Some(values.apt_proxy_config.clone())
+        );
+    }
+
+    #[test]
+    fn test_apply_patches_for_debian_without_proxy() {
+        let feature = Feature {};
+
+        let mut values = default_values();
+        values.operating_system = OperatingSystem::Debian;
+        values.apt_proxy_config = "".to_string();
+
+        let patches = feature.patches();
+        let mut resources = TestClusterResources::new();
+        resources.apply_patches(&patches, &values);
+
+        let kcpt_files = resources
+            .kubeadm_control_plane_template
+            .spec
+            .template
+            .spec
+            .kubeadm_config_spec
+            .files;
+
+        if let Some(files) = kcpt_files {
+            assert!(
+                files
+                    .iter()
+                    .find(|f| f.path == "/etc/apt/apt.conf.d/90proxy")
+                    .is_none(),
+                "proxy file should not be set when proxy is empty"
+            );
+        }
+
+        let kct_spec = resources.kubeadm_config_template.spec.template.spec;
 
         if let Some(spec) = kct_spec {
             if let Some(files) = spec.files {

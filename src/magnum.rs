@@ -1,5 +1,5 @@
 use crate::{
-    addons::{cilium, ClusterAddon},
+    addons::{ClusterAddon, cilium},
     cluster_api::clusterresourcesets::{
         ClusterResourceSet, ClusterResourceSetClusterSelector, ClusterResourceSetResources,
         ClusterResourceSetResourcesKind, ClusterResourceSetSpec, ClusterResourceSetStrategy,
@@ -7,9 +7,9 @@ use crate::{
 };
 use k8s_openapi::api::core::v1::Secret;
 use kube::{
+    Api, Client, Config,
     api::ObjectMeta,
     config::{KubeConfigOptions, Kubeconfig},
-    Api, Client, Config,
 };
 use maplit::btreemap;
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
@@ -39,16 +39,16 @@ pub struct ClusterLabels {
     pub cilium_hubble_ui_enabled: String,
 
     /// Enable the use of the Cinder CSI driver for the cluster.
-    #[builder(default = true)]
-    pub cinder_csi_enabled: bool,
+    #[builder(default="true".to_owned())]
+    pub cinder_csi_enabled: String,
 
     /// The tag of the Cinder CSI container image to use for the cluster.
     #[builder(default="v1.32.0".to_owned())]
     pub cinder_csi_plugin_tag: String,
 
     /// Enable the use of the Manila CSI driver for the cluster.
-    #[builder(default = true)]
-    pub manila_csi_enabled: bool,
+    #[builder(default="true".to_owned())]
+    pub manila_csi_enabled: String,
 
     /// The tag of the Manila CSI container image to use for the cluster.
     #[builder(default="v1.32.0".to_owned())]
@@ -102,7 +102,7 @@ pub struct ClusterLabels {
     /// When set to "true", the CNI version labels are copied from the new
     /// cluster template during upgrade and the CNI addon ClusterResourceSet
     /// is re-applied using Reconcile strategy.
-    /// Default: "false" (opt-in — CNI upgrade remains admin responsibility).
+    /// Default: "false" (opt-in, CNI upgrade remains admin responsibility).
     /// See: https://github.com/vexxhost/magnum-cluster-api/issues/919
     #[builder(default="false".to_owned())]
     pub auto_upgrade_cni: String,
@@ -158,50 +158,56 @@ impl ClusterLabels {
 
 impl<'a, 'py> pyo3::FromPyObject<'a, 'py> for ClusterLabels {
     type Error = pyo3::PyErr;
+
     fn extract(obj: pyo3::Borrowed<'a, 'py, pyo3::PyAny>) -> pyo3::PyResult<Self> {
-        let dict_borrowed = obj.cast::<pyo3::types::PyDict>()?;
-        let dict: &pyo3::Bound<pyo3::types::PyDict> = &dict_borrowed;
         use pyo3::types::PyDictMethods;
-        fn gs(d: &pyo3::Bound<pyo3::types::PyDict>, k: &str, def: &str) -> pyo3::PyResult<String> {
-            match d.get_item(k)? {
-                Some(v) => v.extract::<String>(),
-                None => Ok(def.to_owned()),
+
+        let dict = obj.cast::<pyo3::types::PyDict>()?;
+
+        fn get_string(
+            dict: &pyo3::Bound<pyo3::types::PyDict>,
+            key: &str,
+            default: &str,
+        ) -> pyo3::PyResult<String> {
+            match dict.get_item(key)? {
+                Some(value) => value.extract::<String>(),
+                None => Ok(default.to_owned()),
             }
         }
-        fn gb(d: &pyo3::Bound<pyo3::types::PyDict>, k: &str, def: bool) -> pyo3::PyResult<bool> {
-            match d.get_item(k)? {
-                Some(v) => {
-                    if let Ok(b) = v.extract::<bool>() { return Ok(b); }
-                    Ok(v.extract::<String>()?.eq_ignore_ascii_case("true"))
-                }
-                None => Ok(def),
-            }
-        }
-        fn go(d: &pyo3::Bound<pyo3::types::PyDict>, k: &str) -> pyo3::PyResult<Option<String>> {
-            match d.get_item(k)? {
-                Some(v) => Ok(Some(v.extract::<String>()?)),
+
+        fn get_optional_string(
+            dict: &pyo3::Bound<pyo3::types::PyDict>,
+            key: &str,
+        ) -> pyo3::PyResult<Option<String>> {
+            match dict.get_item(key)? {
+                Some(value) => Ok(Some(value.extract::<String>()?)),
                 None => Ok(None),
             }
         }
+
         Ok(ClusterLabels {
-            cilium_tag: gs(dict, "cilium_tag", "v1.15.3")?,
-            cilium_ipv4pool: gs(dict, "cilium_ipv4pool", "10.100.0.0/16")?,
-            cilium_hubble_ui_enabled: gs(dict, "cilium_hubble_ui_enabled", "false")?,
-            cinder_csi_enabled: gb(dict, "cinder_csi_enabled", true)?,
-            cinder_csi_plugin_tag: gs(dict, "cinder_csi_plugin_tag", "v1.32.0")?,
-            manila_csi_enabled: gb(dict, "manila_csi_enabled", true)?,
-            manila_csi_plugin_tag: gs(dict, "manila_csi_plugin_tag", "v1.32.0")?,
-            cloud_provider_tag: go(dict, "cloud_provider_tag")?,
-            container_infra_prefix: go(dict, "container_infra_prefix")?,
-            csi_attacher_tag: gs(dict, "csi_attacher_tag", "v4.7.0")?,
-            csi_liveness_probe_tag: gs(dict, "csi_liveness_probe_tag", "v2.14.0")?,
-            csi_node_driver_registrar_tag: gs(dict, "csi_node_driver_registrar_tag", "v2.12.0")?,
-            csi_provisioner_tag: gs(dict, "csi_provisioner_tag", "v5.1.0")?,
-            csi_resizer_tag: gs(dict, "csi_resizer_tag", "v1.12.0")?,
-            csi_snapshotter_tag: gs(dict, "csi_snapshotter_tag", "v8.1.0")?,
-            calico_tag: gs(dict, "calico_tag", "v3.31.3")?,
-            kube_tag: gs(dict, "kube_tag", "v1.30.0")?,
-            auto_upgrade_cni: gs(dict, "auto_upgrade_cni", "false")?,
+            cilium_tag: get_string(&dict, "cilium_tag", "v1.15.3")?,
+            cilium_ipv4pool: get_string(&dict, "cilium_ipv4pool", "10.100.0.0/16")?,
+            cilium_hubble_ui_enabled: get_string(&dict, "cilium_hubble_ui_enabled", "false")?,
+            cinder_csi_enabled: get_string(&dict, "cinder_csi_enabled", "true")?,
+            cinder_csi_plugin_tag: get_string(&dict, "cinder_csi_plugin_tag", "v1.32.0")?,
+            manila_csi_enabled: get_string(&dict, "manila_csi_enabled", "true")?,
+            manila_csi_plugin_tag: get_string(&dict, "manila_csi_plugin_tag", "v1.32.0")?,
+            cloud_provider_tag: get_optional_string(&dict, "cloud_provider_tag")?,
+            container_infra_prefix: get_optional_string(&dict, "container_infra_prefix")?,
+            csi_attacher_tag: get_string(&dict, "csi_attacher_tag", "v4.7.0")?,
+            csi_liveness_probe_tag: get_string(&dict, "csi_liveness_probe_tag", "v2.14.0")?,
+            csi_node_driver_registrar_tag: get_string(
+                &dict,
+                "csi_node_driver_registrar_tag",
+                "v2.12.0",
+            )?,
+            csi_provisioner_tag: get_string(&dict, "csi_provisioner_tag", "v5.1.0")?,
+            csi_resizer_tag: get_string(&dict, "csi_resizer_tag", "v1.12.0")?,
+            csi_snapshotter_tag: get_string(&dict, "csi_snapshotter_tag", "v8.1.0")?,
+            calico_tag: get_string(&dict, "calico_tag", "v3.31.3")?,
+            kube_tag: get_string(&dict, "kube_tag", "v1.30.0")?,
+            auto_upgrade_cni: get_string(&dict, "auto_upgrade_cni", "false")?,
         })
     }
 }
@@ -225,6 +231,9 @@ pub enum ClusterError {
 
     #[error("failed to load kubeconfig: {0}")]
     KubeconfigLoad(#[from] kube::config::KubeconfigError),
+
+    #[error("failed to build shared kube client")]
+    SharedClient(#[source] kube::Error),
 }
 
 impl From<ClusterError> for PyErr {
@@ -304,7 +313,9 @@ impl Cluster {
     }
 
     async fn kubeconfig(&self) -> Result<Kubeconfig, ClusterError> {
-        let client = Client::try_default().await?;
+        let client = crate::clients::kubernetes::shared_client_async()
+            .await
+            .map_err(|e| ClusterError::SharedClient(e.into_inner()))?;
         let api: Api<Secret> = Api::namespaced(client, "magnum-system");
         let secret_name = self.kubeconfig_secret_name()?;
 
@@ -474,7 +485,7 @@ mod tests {
         // where `KeyError: 'kube_tag'` occurred.
         let _ = Python::initialize();
         Python::attach(|py| {
-            use pyo3::types::{PyDict, PyDictMethods};
+            use pyo3::types::PyDict;
             let dict = PyDict::new(py);
             let labels: ClusterLabels = dict
                 .extract()
@@ -482,8 +493,8 @@ mod tests {
             assert_eq!(labels.kube_tag, "v1.30.0");
             assert_eq!(labels.calico_tag, "v3.31.3");
             assert_eq!(labels.auto_upgrade_cni, "false");
-            assert!(labels.cinder_csi_enabled);
-            assert!(labels.manila_csi_enabled);
+            assert_eq!(labels.cinder_csi_enabled, "true");
+            assert_eq!(labels.manila_csi_enabled, "true");
             assert!(labels.cloud_provider_tag.is_none());
             assert!(labels.container_infra_prefix.is_none());
         });
@@ -494,7 +505,7 @@ mod tests {
         // Cluster with only auto_upgrade_cni; all other fields should default.
         let _ = Python::initialize();
         Python::attach(|py| {
-            use pyo3::types::{PyDict, PyDictMethods};
+            use pyo3::types::PyDict;
             let dict = PyDict::new(py);
             dict.set_item("auto_upgrade_cni", "true")
                 .expect("set_item failed");
@@ -512,15 +523,15 @@ mod tests {
         // cinder_csi_enabled and manila_csi_enabled accept string "true"/"false"
         let _ = Python::initialize();
         Python::attach(|py| {
-            use pyo3::types::{PyDict, PyDictMethods};
+            use pyo3::types::PyDict;
             let dict = PyDict::new(py);
             dict.set_item("cinder_csi_enabled", "false")
                 .expect("set_item failed");
             dict.set_item("manila_csi_enabled", "true")
                 .expect("set_item failed");
             let labels: ClusterLabels = dict.extract().expect("should parse");
-            assert!(!labels.cinder_csi_enabled);
-            assert!(labels.manila_csi_enabled);
+            assert_eq!(labels.cinder_csi_enabled, "false");
+            assert_eq!(labels.manila_csi_enabled, "true");
         });
     }
 

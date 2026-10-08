@@ -4,7 +4,7 @@ use crate::{
     magnum,
 };
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
-use kube::{api::ListParams, Api, Client};
+use kube::{api::ListParams, Api};
 use maplit::btreemap;
 use pyo3::{create_exception, exceptions::PyException, prelude::*, types::PyDict};
 use pyo3_async_runtimes::tokio::get_runtime;
@@ -123,9 +123,7 @@ impl Monitor {
     #[new]
     #[pyo3(signature = (cluster))]
     fn new(py: Python<'_>, cluster: Py<PyAny>) -> PyResult<Self> {
-        let client = get_runtime()
-            .block_on(async { Client::try_default().await })
-            .map_err(kubernetes::Error::from)?;
+        let client = kubernetes::shared_client()?;
         let cluster: magnum::Cluster = cluster.extract(py)?;
         Ok(Self { client, cluster })
     }
