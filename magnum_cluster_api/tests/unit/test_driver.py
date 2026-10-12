@@ -41,6 +41,40 @@ def test_debian_driver_provides():
         {"server_type": "vm", "os": "debian", "coe": "kubernetes"},
     ]
 
+def test_update_cluster_status_without_capi_conditions(
+    mocker, context, cluster_obj, mock_cluster_lock
+):
+    cluster_obj.status = fields.ClusterStatus.CREATE_IN_PROGRESS
+    cluster_obj.refresh = mocker.MagicMock()
+    cluster_obj.save.reset_mock()
+
+    ubuntu_driver = driver.UbuntuDriver.__new__(driver.UbuntuDriver)
+    ubuntu_driver.k8s_api = mocker.Mock()
+    ubuntu_driver.rust_driver = mocker.Mock()
+    ubuntu_driver._kube_client = mocker.Mock()
+
+    mocker.patch.object(
+        ubuntu_driver,
+        "update_cluster_control_plane_status",
+        return_value=cluster_obj.default_ng_master,
+    )
+    mocker.patch.object(ubuntu_driver, "update_nodegroups_status", return_value=[])
+    mocker.patch("magnum_cluster_api.clients.get_openstack_api")
+    capi_cluster = mocker.Mock(obj={"status": {}})
+    mocker.patch(
+        "magnum_cluster_api.resources.Cluster"
+    ).return_value.get_or_none.return_value = capi_cluster
+    mocker.patch.object(
+        ubuntu_driver, "_get_cluster_status_reason", return_value="CAPI pending"
+    )
+
+    ubuntu_driver.update_cluster_status(context, cluster_obj)
+
+    capi_cluster.reload.assert_called_once_with()
+    assert cluster_obj.status == fields.ClusterStatus.CREATE_IN_PROGRESS
+    assert cluster_obj.status_reason == "CAPI pending"
+    cluster_obj.save.assert_called_once_with()
+
 
 @pytest.mark.parametrize(
     "auto_scaling_enabled", [True, False], ids=lambda x: f"auto_scaling_enabled={x}"
