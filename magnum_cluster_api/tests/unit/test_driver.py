@@ -41,6 +41,7 @@ def test_debian_driver_provides():
         {"server_type": "vm", "os": "debian", "coe": "kubernetes"},
     ]
 
+
 def test_update_cluster_status_without_capi_conditions(
     mocker, context, cluster_obj, mock_cluster_lock
 ):
