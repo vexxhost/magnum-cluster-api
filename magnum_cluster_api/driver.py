@@ -48,16 +48,12 @@ class BaseDriver(driver.Driver):
 
     def __init__(self):
         self.k8s_api = clients.get_pykube_api()
-        self.rust_driver = utils.offload_blocking_calls(
-            magnum_cluster_api.Driver("magnum-system")
-        )
+        self.rust_driver = utils.tpool_wrap(magnum_cluster_api.Driver("magnum-system"))
 
     @property
     def kube_client(self):
         if not hasattr(self, "_kube_client"):
-            self._kube_client = utils.offload_blocking_calls(
-                magnum_cluster_api.KubeClient()
-            )
+            self._kube_client = utils.tpool_wrap(magnum_cluster_api.KubeClient())
         return self._kube_client
 
     def create_cluster(

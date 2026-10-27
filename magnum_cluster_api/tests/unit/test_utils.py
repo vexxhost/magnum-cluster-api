@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import sys
 import textwrap
 import types
 from unittest import mock
@@ -19,6 +20,7 @@ from unittest import mock
 import pykube
 import pytest
 import responses
+from eventlet import tpool  # type: ignore
 from magnum.common import exception
 from magnum.tests.unit.objects import utils as magnum_test_utils  # type: ignore
 from openstack.load_balancer.v2 import load_balancer as sdk_load_balancer
@@ -568,27 +570,25 @@ def test_wait_for_sdk_loadbalancers_deleted_times_out(mocker):
     sleep.assert_called_once_with(1)
 
 
-class _Blocking:
-    def work(self, n):
-        return n * 2
-
-
-def test_offload_blocking_calls_uses_tpool_under_eventlet(mocker):
+def test_tpool_wrap_under_eventlet(mocker):
     mocker.patch("eventlet.patcher.is_monkey_patched", return_value=True)
-    proxy = mocker.patch("eventlet.tpool.Proxy")
-    obj = _Blocking()
 
-    assert utils.offload_blocking_calls(obj) is proxy.return_value
-    proxy.assert_called_once_with(obj)
+    wrapped = utils.tpool_wrap(mock.sentinel.obj)
+
+    assert isinstance(wrapped, tpool.Proxy)
+    assert wrapped._obj is mock.sentinel.obj
 
 
-def test_offload_blocking_calls_without_eventlet(mocker):
-    # Magnum 2026.2 does not monkey-patch. A tpool.Proxy there hangs on every
-    # call made from a native thread other than the first caller, which is
-    # how the conductor serves RPC, so the object must be returned unwrapped.
+def test_tpool_wrap_eventlet_not_patched(mocker):
+    # A tpool.Proxy without monkey-patching hangs on calls from every native
+    # thread but the first caller, which is how the conductor serves RPC.
     mocker.patch("eventlet.patcher.is_monkey_patched", return_value=False)
-    proxy = mocker.patch("eventlet.tpool.Proxy")
-    obj = _Blocking()
 
-    assert utils.offload_blocking_calls(obj) is obj
-    proxy.assert_not_called()
+    assert utils.tpool_wrap(mock.sentinel.obj) is mock.sentinel.obj
+
+
+def test_tpool_wrap_eventlet_not_imported(mocker):
+    mocker.patch.dict(sys.modules)
+    sys.modules.pop("eventlet.patcher", None)
+
+    assert utils.tpool_wrap(mock.sentinel.obj) is mock.sentinel.obj

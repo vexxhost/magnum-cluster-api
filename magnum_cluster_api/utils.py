@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 import string
+import sys
 import textwrap
 import time
 import typing
@@ -28,6 +29,7 @@ from magnum import objects as magnum_objects  # type: ignore
 from magnum.api import attr_validator  # type: ignore
 from magnum.common import context, exception, neutron, octavia  # type: ignore
 from magnum.common import utils as magnum_utils
+from openstack.compute.v2 import flavor as sdk_flavor  # type: ignore
 from openstack.load_balancer.v2 import (
     load_balancer as sdk_load_balancer,  # type: ignore
 )
@@ -55,24 +57,38 @@ CONF = cfg.CONF
 g_server_group_cache = ServerGroupCache()
 
 
-def offload_blocking_calls(obj):
-    """Keep calls into the Rust extension from blocking the conductor.
+_T = typing.TypeVar("_T")
 
-    Under eventlet (Magnum 2026.1 and older monkey-patch the conductor), a
-    blocking call made on the hub stops every green thread, so calls are
-    pushed to eventlet's native thread pool. Magnum 2026.2 dropped eventlet:
-    the conductor runs on native threads and there is no hub to protect. There
-    tpool must not be used at all, because its results are delivered through
-    the hub of the thread that first used the pool, and a call from any other
-    native thread never returns.
+
+def concurrency_mode_threading() -> bool:
+    """Return True when Magnum runs on native threads instead of eventlet.
+
+    Magnum 2026.1 and older monkey-patch their services with eventlet, while
+    2026.2 dropped eventlet and runs on native threads. This driver supports
+    both, and it does not own the patching, so it reads eventlet's patcher
+    state. If eventlet was never imported, nothing has been patched, and
+    eventlet is not imported here either.
     """
-    from eventlet import patcher  # type: ignore
+    patcher = sys.modules.get("eventlet.patcher")
+    return patcher is None or not patcher.is_monkey_patched("thread")
 
-    if patcher.is_monkey_patched("thread"):
-        from eventlet import tpool  # type: ignore
 
-        return tpool.Proxy(obj)
-    return obj
+def tpool_wrap(obj: _T) -> _T:
+    """Keep blocking calls on obj from stalling the conductor.
+
+    Under eventlet, a blocking call made on the hub stops every green thread,
+    so obj is wrapped in tpool.Proxy and its methods run on eventlet's native
+    thread pool. On native threads obj is returned unchanged: tpool delivers
+    results through the hub of the thread that first used the pool, so a call
+    from any other native thread would never return. This matches
+    nova.utils.tpool_wrap and cinder.utils.tpool_wrap.
+    """
+    if concurrency_mode_threading():
+        return obj
+
+    from eventlet import tpool  # type: ignore
+
+    return typing.cast(_T, tpool.Proxy(obj))
 
 
 def get_cluster_api_cloud_config_secret_name(cluster: magnum_objects.Cluster) -> str:
@@ -456,7 +472,9 @@ def format_event_message(event: pykube.Event):
     )
 
 
-def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> typing.Any:
+def lookup_flavor(
+    cli: clients.OpenStackClients, flavor: str | None
+) -> sdk_flavor.Flavor | None:
     """Lookup a flavor either by name or id."""
 
     if flavor is None:

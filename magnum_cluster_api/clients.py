@@ -19,6 +19,7 @@ import openstack.exceptions as sdk_exceptions  # type: ignore
 import pykube  # type: ignore
 from magnum.common import clients, exception  # type: ignore
 from manilaclient.v2 import client as manilaclient  # type: ignore
+from openstack.compute.v2 import flavor as sdk_flavor  # type: ignore
 
 try:
     from novaclient import exceptions as nova_exception  # type: ignore
@@ -123,7 +124,9 @@ class OpenStackClients(clients.OpenStackClients):
         if self._is_callable(nova, "flavors"):
             return list(nova.flavors())
 
-        return nova.flavors.list()
+        # Magnum 2026.1 and older hand out novaclient, so convert its flavors
+        # to openstacksdk resources; callers always get the same type.
+        return [sdk_flavor.Flavor.existing(**f.to_dict()) for f in nova.flavors.list()]
 
     def list_server_groups(self, all_projects=False):
         nova = self.nova()

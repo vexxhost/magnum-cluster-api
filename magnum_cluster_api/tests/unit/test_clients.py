@@ -14,6 +14,8 @@
 
 import types
 
+from openstack.compute.v2 import flavor as sdk_flavor  # type: ignore
+
 from magnum_cluster_api import clients
 
 
@@ -215,11 +217,19 @@ def test_default_volume_type_raises_unexpected_sdk_response(mocker):
     response.raise_for_status.assert_called_once_with()
 
 
-def test_flavors_legacy_and_sdk(mocker):
-    legacy_flavor = types.SimpleNamespace(id="legacy", name="legacy")
-    sdk_flavor = types.SimpleNamespace(id="sdk", name="sdk")
-
-    legacy_osc = make_openstack_clients(
+def test_flavors_legacy(mocker):
+    # novaclient resources expose the raw API body through to_dict().
+    legacy_flavor = types.SimpleNamespace(
+        to_dict=lambda: {
+            "id": "legacy",
+            "name": "m1.small",
+            "ram": 2048,
+            "vcpus": 2,
+            "disk": 20,
+            "OS-FLV-EXT-DATA:ephemeral": 5,
+        }
+    )
+    osc = make_openstack_clients(
         mocker,
         nova=types.SimpleNamespace(
             flavors=types.SimpleNamespace(
@@ -227,13 +237,28 @@ def test_flavors_legacy_and_sdk(mocker):
             )
         ),
     )
-    sdk_osc = make_openstack_clients(
+
+    [flavor] = osc.list_flavors()
+
+    assert isinstance(flavor, sdk_flavor.Flavor)
+    assert (flavor.id, flavor.name, flavor.ram, flavor.vcpus, flavor.disk) == (
+        "legacy",
+        "m1.small",
+        2048,
+        2,
+        20,
+    )
+    assert flavor.ephemeral == 5
+
+
+def test_flavors_sdk(mocker):
+    flavor = sdk_flavor.Flavor(id="sdk", name="sdk")
+    osc = make_openstack_clients(
         mocker,
-        nova=types.SimpleNamespace(flavors=mocker.Mock(return_value=[sdk_flavor])),
+        nova=types.SimpleNamespace(flavors=mocker.Mock(return_value=[flavor])),
     )
 
-    assert legacy_osc.list_flavors() == [legacy_flavor]
-    assert sdk_osc.list_flavors() == [sdk_flavor]
+    assert osc.list_flavors() == [flavor]
 
 
 def test_server_groups_legacy(mocker):

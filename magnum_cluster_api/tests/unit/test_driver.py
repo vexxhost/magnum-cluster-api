@@ -22,7 +22,7 @@ import responses
 from heatclient import exc  # type: ignore
 from magnum.objects import fields  # type: ignore
 from magnum.tests.unit.objects import utils  # type: ignore
-from novaclient.v2 import flavors  # type: ignore
+from openstack.compute.v2 import flavor as sdk_flavor  # type: ignore
 from oslo_serialization import base64, jsonutils  # type: ignore
 from oslo_utils import uuidutils  # type: ignore
 from responses import matchers
@@ -83,9 +83,8 @@ class TestDriver:
 
         mocker.patch(
             "magnum_cluster_api.utils.lookup_flavor",
-            return_value=flavors.Flavor(
-                None,
-                {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
+            return_value=sdk_flavor.Flavor(
+                name="fake-flavor", disk=10, ram=1024, vcpus=1
             ),
         )
 

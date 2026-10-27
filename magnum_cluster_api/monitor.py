@@ -45,7 +45,7 @@ class Monitor(monitors.MonitorBase):
             node_group.save()
 
     def poll_health_status(self):
-        rust_monitor = utils.offload_blocking_calls(RustMonitor(self.cluster))
+        rust_monitor = utils.tpool_wrap(RustMonitor(self.cluster))
         self.data = rust_monitor.poll_health_status()
 
         self.poll_nodegroup_replicas()
