@@ -5,14 +5,19 @@
 // serverTLSBootstrap is applied *before* kubelet starts — no post-kubeadm
 // sed hacks or kubelet restarts needed.
 //
+// The serving CSRs are approved from the management cluster by
+// cluster-api-csr-approver (https://github.com/vexxhost/cluster-api-csr-approver),
+// which checks every requested name and IP against the Machine's addresses.
+// The Python driver labels the Cluster so the approver picks it up. It also
+// refuses to create, resize or upgrade the cluster when no approver is running.
+//
 // See: https://github.com/vexxhost/magnum-cluster-api/issues/365
 
 use crate::{
     cluster_api::{
         clusterclasses::{
             ClusterClassPatches, ClusterClassPatchesDefinitions,
-            ClusterClassPatchesDefinitionsJsonPatches,
-            ClusterClassPatchesDefinitionsSelector,
+            ClusterClassPatchesDefinitionsJsonPatches, ClusterClassPatchesDefinitionsSelector,
             ClusterClassPatchesDefinitionsSelectorMatchResources,
             ClusterClassPatchesDefinitionsSelectorMatchResourcesMachineDeploymentClass,
             ClusterClassVariables, ClusterClassVariablesSchema,
@@ -78,7 +83,6 @@ impl ClusterFeaturePatches for Feature {
                             ..Default::default()
                         },
                         // Inject the kubelet config strategic-merge patch file.
-                        // kubelet-csr-approver is installed via the Rust ClusterAddon path.
                         ClusterClassPatchesDefinitionsJsonPatches {
                             op: "add".into(),
                             path: "/spec/template/spec/kubeadmConfigSpec/files/-".into(),

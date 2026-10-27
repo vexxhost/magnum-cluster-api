@@ -566,3 +566,105 @@ def test_wait_for_sdk_loadbalancers_deleted_times_out(mocker):
         utils._wait_for_sdk_loadbalancers_deleted(octavia_client, {"lb-id"})
 
     sleep.assert_called_once_with(1)
+
+
+@pytest.mark.parametrize(
+    "labels,expected",
+    [
+        ({}, {"csr-approver.vexxhost.com/disabled": "true"}),
+        (
+            {"kubelet_serving_tls_enabled": "false"},
+            {"csr-approver.vexxhost.com/disabled": "true"},
+        ),
+        (
+            {"kubelet_serving_tls_enabled": "true"},
+            {"csr-approver.vexxhost.com/enabled": "true"},
+        ),
+        (
+            {"kubelet_serving_tls_enabled": "True"},
+            {"csr-approver.vexxhost.com/enabled": "true"},
+        ),
+    ],
+)
+def test_get_csr_approver_labels(labels, expected):
+    cluster = types.SimpleNamespace(labels=labels)
+
+    assert utils.get_csr_approver_labels(cluster) == expected
+
+
+class TestValidateKubeletServingTLS:
+    @staticmethod
+    def _response_for_approver_deployments(*deployments):
+        return responses.Response(
+            responses.GET,
+            "http://localhost/apis/apps/v1/deployments",
+            match=[
+                responses.matchers.query_param_matcher(
+                    {"labelSelector": "cluster.x-k8s.io/provider=addon-csr-approver"}
+                ),
+            ],
+            json={"items": list(deployments)},
+        )
+
+    @pytest.mark.parametrize("labels", [{}, {"kubelet_serving_tls_enabled": "false"}])
+    def test_disabled_does_not_query_management_cluster(
+        self, pykube_api, requests_mock, labels
+    ):
+        cluster = types.SimpleNamespace(labels=labels)
+
+        # No responses are registered, so any API call would fail the test.
+        with requests_mock:
+            utils.validate_kubelet_serving_tls(pykube_api, cluster)
+
+    def test_enabled_with_available_approver(self, pykube_api, requests_mock):
+        cluster = types.SimpleNamespace(labels={"kubelet_serving_tls_enabled": "true"})
+
+        with requests_mock as rsps:
+            rsps.add(
+                self._response_for_approver_deployments(
+                    {
+                        "metadata": {
+                            "name": "capi-csr-approver-controller-manager",
+                            "namespace": "capi-csr-approver-system",
+                        },
+                        "status": {"availableReplicas": 1},
+                    }
+                )
+            )
+
+            utils.validate_kubelet_serving_tls(pykube_api, cluster)
+
+    @pytest.mark.parametrize(
+        "deployments",
+        [
+            [],
+            [{"metadata": {"name": "x", "namespace": "y"}}],
+            [
+                {
+                    "metadata": {"name": "x", "namespace": "y"},
+                    "status": {"availableReplicas": 0},
+                }
+            ],
+        ],
+        ids=["missing", "no-status", "unavailable"],
+    )
+    def test_enabled_without_available_approver(
+        self, pykube_api, requests_mock, deployments
+    ):
+        cluster = types.SimpleNamespace(labels={"kubelet_serving_tls_enabled": "true"})
+
+        with requests_mock as rsps:
+            rsps.add(self._response_for_approver_deployments(*deployments))
+
+            with pytest.raises(
+                exceptions.KubeletServingCertificateApproverNotAvailable,
+                match="clusterctl init --addon csr-approver",
+            ):
+                utils.validate_kubelet_serving_tls(pykube_api, cluster)
+
+    def test_invalid_label_value(self, pykube_api, requests_mock):
+        cluster = types.SimpleNamespace(labels={"kubelet_serving_tls_enabled": "maybe"})
+
+        with requests_mock:
+            with pytest.raises(ValueError):
+                utils.validate_kubelet_serving_tls(pykube_api, cluster)

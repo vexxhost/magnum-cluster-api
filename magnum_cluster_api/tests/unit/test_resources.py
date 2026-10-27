@@ -161,3 +161,29 @@ class TestExistingMutateMachineDeployment:
         else:
             assert md["replicas"] == self.node_group.node_count
             assert md["metadata"]["annotations"] == {}
+
+
+@pytest.mark.parametrize(
+    "kubelet_serving_tls_enabled,expected_label",
+    [
+        (None, "csr-approver.vexxhost.com/disabled"),
+        ("false", "csr-approver.vexxhost.com/disabled"),
+        ("true", "csr-approver.vexxhost.com/enabled"),
+    ],
+)
+def test_cluster_labels_for_csr_approver(
+    context, cluster_obj, kubelet_serving_tls_enabled, expected_label
+):
+    if kubelet_serving_tls_enabled is not None:
+        cluster_obj.labels["kubelet_serving_tls_enabled"] = kubelet_serving_tls_enabled
+
+    labels = resources.Cluster(context, None, None, cluster_obj, None).labels
+
+    approver_labels = {
+        "csr-approver.vexxhost.com/enabled",
+        "csr-approver.vexxhost.com/disabled",
+    }
+
+    assert labels["cluster-uuid"] == cluster_obj.uuid
+    assert labels[expected_label] == "true"
+    assert approver_labels & labels.keys() == {expected_label}

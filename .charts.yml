@@ -19,7 +19,3 @@ charts:
     version: 2.32.0
     repository:
       url: https://kubernetes.github.io/cloud-provider-openstack
-  - name: kubelet-csr-approver
-    version: 1.2.13
-    repository:
-      url: https://postfinance.github.io/kubelet-csr-approver/

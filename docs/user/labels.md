@@ -233,16 +233,22 @@ is often accomplished by deploying a driver on each node.
 
 * `kubelet_serving_tls_enabled`
 
-   Enable kubelet serving TLS by setting `serverTLSBootstrap: true` in the
-   kubelet config. The kubelet will request a cluster CA–signed serving
-   certificate (TLS bootstrap) and the API server is configured to verify
-   kubelet serving certificates when connecting to nodes (e.g. for logs, exec,
-   metrics). Communication between kubelet and apiserver is already TLS; this
-   option enables CA-signed kubelet *serving* certs instead of self-signed.
-   The [postfinance/kubelet-csr-approver](https://github.com/postfinance/kubelet-csr-approver)
-   chart is installed via the Rust ClusterAddon path (like Cilium, CCM, and CSI)
-   to approve kubelet-serving CSRs automatically. The chart is vendored under
-   `magnum_cluster_api/charts/kubelet-csr-approver/`.
+   Give every kubelet a serving certificate signed by the cluster CA and make
+   the Kubernetes API server verify it whenever it connects to a kubelet, for
+   example for `kubectl logs`, `exec`, `port-forward` and metrics.  Without this
+   label, kubelets serve a self-signed certificate that the API server doesn't
+   verify.
+
+   Each certificate request is approved by
+   [cluster-api-csr-approver](https://github.com/vexxhost/cluster-api-csr-approver),
+   which runs in the management cluster and only approves names and IP
+   addresses that OpenStack reports for that node's server, including floating
+   IPs.  Nothing extra is installed inside the cluster.  The cloud operator has
+   to install the approver first, otherwise creating the cluster fails right
+   away.  See [Kubelet serving certificates](../admin/kubelet-serving-certificates.md)
+   for details.
+
+   This label can only be set when the cluster is created.
 
    Default value: `false`
 

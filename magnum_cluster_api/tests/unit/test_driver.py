@@ -27,7 +27,9 @@ from oslo_serialization import base64, jsonutils  # type: ignore
 from oslo_utils import uuidutils  # type: ignore
 from responses import matchers
 
-from magnum_cluster_api import driver, objects, resources
+from magnum_cluster_api import driver
+from magnum_cluster_api import exceptions as mcapi_exceptions
+from magnum_cluster_api import objects, resources
 
 
 def test_debian_driver_provides():
@@ -36,6 +38,31 @@ def test_debian_driver_provides():
     assert debian_driver.provides == [
         {"server_type": "vm", "os": "debian", "coe": "kubernetes"},
     ]
+
+
+def test_create_cluster_fails_early_without_csr_approver(
+    mocker, requests_mock, context, mock_rust_driver, ubuntu_driver, cluster_obj
+):
+    cluster_obj.labels["kubelet_serving_tls_enabled"] = "true"
+    mocker.patch(
+        "magnum_cluster_api.utils.generate_cluster_api_name",
+        return_value="kube-abcde",
+    )
+    ubuntu_driver.rust_driver = mocker.MagicMock()
+
+    with requests_mock as rsps:
+        rsps.add(
+            responses.GET,
+            "http://localhost/apis/apps/v1/deployments",
+            json={"items": []},
+        )
+
+        with pytest.raises(
+            mcapi_exceptions.KubeletServingCertificateApproverNotAvailable
+        ):
+            ubuntu_driver.create_cluster(context, cluster_obj, 60)
+
+    ubuntu_driver.rust_driver.create_cluster.assert_not_called()
 
 
 @pytest.mark.parametrize(

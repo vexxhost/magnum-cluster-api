@@ -950,12 +950,10 @@ class Cluster(ClusterBase):
 
     @property
     def labels(self) -> dict:
-        labels = {}
+        labels = utils.get_csr_approver_labels(self.cluster)
         if self.cluster.cluster_template.network_driver == "calico":
             cni_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
-            labels = {
-                "cni": f"calico-{cni_version}",
-            }
+            labels["cni"] = f"calico-{cni_version}"
 
         return {**super().labels, **labels}
 
@@ -1302,9 +1300,7 @@ class Cluster(ClusterBase):
                         },
                         {
                             "name": "enableKubeletServingTLS",
-                            "value": utils.get_cluster_label_as_bool(
-                                self.cluster, "kubelet_serving_tls_enabled", False
-                            ),
+                            "value": utils.is_kubelet_serving_tls_enabled(self.cluster),
                         },
                         {
                             "name": "controlPlaneAvailabilityZones",

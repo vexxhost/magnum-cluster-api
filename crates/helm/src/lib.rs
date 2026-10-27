@@ -54,44 +54,14 @@ pub fn template<T: Serialize>(
     namespace: &str,
     values: &T,
 ) -> Result<String, HelmTemplateError> {
-    template_with_options(
-        chart,
-        name,
-        namespace,
-        values,
-        TemplateOptions::default(),
-    )
-}
-
-/// Options for `helm template` invocations.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct TemplateOptions {
-    pub skip_tests: bool,
-}
-
-/// Runs `helm template` with the given options.
-pub fn template_with_options<T: Serialize>(
-    chart: &PathBuf,
-    name: &str,
-    namespace: &str,
-    values: &T,
-    options: TemplateOptions,
-) -> Result<String, HelmTemplateError> {
     let yaml_values = serde_yaml::to_string(values)?;
 
-    let mut command = Command::new("helm");
-    command
+    let mut child = Command::new("helm")
         .arg("template")
         .arg("--namespace")
         .arg(namespace)
         .arg("--values")
-        .arg("-");
-
-    if options.skip_tests {
-        command.arg("--skip-tests");
-    }
-
-    let mut child = command
+        .arg("-")
         .arg(name)
         .arg(chart)
         .stdin(Stdio::piped())
@@ -128,28 +98,12 @@ pub fn template_using_include_dir<T: Serialize>(
     namespace: &str,
     values: &T,
 ) -> Result<String, HelmTemplateError> {
-    template_using_include_dir_with_options(
-        chart,
-        name,
-        namespace,
-        values,
-        TemplateOptions::default(),
-    )
-}
-
-pub fn template_using_include_dir_with_options<T: Serialize>(
-    chart: Dir,
-    name: &str,
-    namespace: &str,
-    values: &T,
-    options: TemplateOptions,
-) -> Result<String, HelmTemplateError> {
     let tmp_dir = TempDir::new().map_err(HelmTemplateError::TempDir)?;
     chart
         .extract(tmp_dir.path())
         .map_err(HelmTemplateError::Extract)?;
 
-    template_with_options(&tmp_dir.path().to_path_buf(), name, namespace, values, options)
+    template(&tmp_dir.path().to_path_buf(), name, namespace, values)
 }
 
 #[cfg(test)]
