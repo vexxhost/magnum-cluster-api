@@ -954,12 +954,18 @@ class Cluster(ClusterBase):
 
     @property
     def labels(self) -> dict:
-        labels = dict(magnum_cluster_api.Driver.get_cluster_labels(self.cluster))
+        labels = {}
         if self.cluster.cluster_template.network_driver == "calico":
             cni_version = self.cluster.labels.get("calico_tag", CALICO_TAG)
-            labels["cni"] = f"calico-{cni_version}"
+            labels = {
+                "cni": f"calico-{cni_version}",
+            }
 
-        return {**super().labels, **labels}
+        return {
+            **super().labels,
+            **magnum_cluster_api.Driver.get_cluster_labels(self.cluster),
+            **labels,
+        }
 
     def get_or_none(self) -> objects.Cluster:
         return objects.Cluster.objects(
