@@ -42,17 +42,31 @@ def test_debian_driver_provides():
     ]
 
 
+@pytest.mark.parametrize(
+    "cluster_status",
+    [
+        fields.ClusterStatus.CREATE_IN_PROGRESS,
+        fields.ClusterStatus.UPDATE_IN_PROGRESS,
+    ],
+)
+@pytest.mark.parametrize(
+    "capi_cluster_obj",
+    [{}, {"status": {}}],
+    ids=["without-status", "with-empty-status"],
+)
 def test_update_cluster_status_without_capi_conditions(
-    mocker, context, cluster_obj, mock_cluster_lock
+    mocker,
+    context,
+    requests_mock,
+    mock_rust_driver,
+    ubuntu_driver,
+    cluster_obj,
+    cluster_status,
+    capi_cluster_obj,
 ):
-    cluster_obj.status = fields.ClusterStatus.CREATE_IN_PROGRESS
+    cluster_obj.status = cluster_status
     cluster_obj.refresh = mocker.MagicMock()
-    cluster_obj.save.reset_mock()
-
-    ubuntu_driver = driver.UbuntuDriver.__new__(driver.UbuntuDriver)
-    ubuntu_driver.k8s_api = mocker.Mock()
-    ubuntu_driver.rust_driver = mocker.Mock()
-    ubuntu_driver._kube_client = mocker.Mock()
+    ubuntu_driver._kube_client = mocker.MagicMock()
 
     mocker.patch.object(
         ubuntu_driver,
@@ -61,7 +75,7 @@ def test_update_cluster_status_without_capi_conditions(
     )
     mocker.patch.object(ubuntu_driver, "update_nodegroups_status", return_value=[])
     mocker.patch("magnum_cluster_api.clients.get_openstack_api")
-    capi_cluster = mocker.Mock(obj={"status": {}})
+    capi_cluster = mocker.Mock(obj=capi_cluster_obj)
     mocker.patch(
         "magnum_cluster_api.resources.Cluster"
     ).return_value.get_or_none.return_value = capi_cluster
@@ -72,7 +86,7 @@ def test_update_cluster_status_without_capi_conditions(
     ubuntu_driver.update_cluster_status(context, cluster_obj)
 
     capi_cluster.reload.assert_called_once_with()
-    assert cluster_obj.status == fields.ClusterStatus.CREATE_IN_PROGRESS
+    assert cluster_obj.status == cluster_status
     assert cluster_obj.status_reason == "CAPI pending"
     cluster_obj.save.assert_called_once_with()
 
