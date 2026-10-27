@@ -15,7 +15,7 @@
 import pytest
 from magnum.objects import fields
 from magnum.tests.unit.objects import utils
-from novaclient.v2 import flavors  # type: ignore
+from openstack.compute.v2 import flavor as sdk_flavor  # type: ignore
 
 from magnum_cluster_api import resources
 
@@ -64,9 +64,8 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     mock_lookup_image.return_value = {"id": "foo"}
 
     mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
-    mock_lookup_flavor.return_value = flavors.Flavor(
-        None,
-        {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
+    mock_lookup_flavor.return_value = sdk_flavor.Flavor(
+        name="fake-flavor", disk=10, ram=1024, vcpus=1
     )
 
     mock_ensure_worker_server_group = mocker.patch(
@@ -111,9 +110,8 @@ class TestExistingMutateMachineDeployment:
         mock_lookup_image.return_value = {"id": "foo"}
 
         mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
-        mock_lookup_flavor.return_value = flavors.Flavor(
-            None,
-            {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
+        mock_lookup_flavor.return_value = sdk_flavor.Flavor(
+            name="fake-flavor", disk=10, ram=1024, vcpus=1
         )
 
     def _assert_no_mutations(self, md):
@@ -195,10 +193,7 @@ def _patch_new_machine_deployment_dependencies(mocker):
     mocker.patch("magnum_cluster_api.utils.lookup_image", return_value={"id": "foo"})
     mocker.patch(
         "magnum_cluster_api.utils.lookup_flavor",
-        return_value=flavors.Flavor(
-            None,
-            {"name": "bm-flavor", "disk": 0, "ram": 4096, "vcpus": 4},
-        ),
+        return_value=sdk_flavor.Flavor(name="bm-flavor", disk=0, ram=4096, vcpus=4),
     )
     mocker.patch(
         "magnum_cluster_api.integrations.cinder.get_default_boot_volume_type",
