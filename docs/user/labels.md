@@ -231,7 +231,7 @@ is often accomplished by deploying a driver on each node.
 
    Default value: `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305`
 
-* `kubelet_serving_tls_enabled`
+* `kubelet_serving_cert_verification_enabled`
 
    Give every kubelet a serving certificate signed by the cluster CA and make
    the Kubernetes API server verify it whenever it connects to a kubelet, for
@@ -239,13 +239,9 @@ is often accomplished by deploying a driver on each node.
    label, kubelets serve a self-signed certificate that the API server doesn't
    verify.
 
-   Each certificate request is approved by
-   [cluster-api-csr-approver](https://github.com/vexxhost/cluster-api-csr-approver),
-   which runs in the management cluster and only approves names and IP
-   addresses that OpenStack reports for that node's server, including floating
-   IPs.  Nothing extra is installed inside the cluster.  The cloud operator has
-   to install the approver first, otherwise creating the cluster fails right
-   away.  See [Kubelet serving certificates](../admin/kubelet-serving-certificates.md)
+   This needs [cluster-api-csr-approver](https://github.com/vexxhost/cluster-api-csr-approver)
+   running in the management cluster, otherwise creating the cluster fails
+   right away.  See [Kubelet serving certificate verification](../admin/kubelet-serving-certificates.md)
    for details.
 
    This label can only be set when the cluster is created.

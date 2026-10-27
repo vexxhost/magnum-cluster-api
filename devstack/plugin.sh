@@ -20,7 +20,8 @@ function ensure_kind_cluster {
 }
 
 # Register `cluster-api-csr-approver` as a clusterctl add-on provider, it
-# approves kubelet serving certificates for `kubelet_serving_tls_enabled=true`.
+# approves kubelet serving certificates for clusters created with
+# `kubelet_serving_cert_verification_enabled=true`.
 function write_clusterctl_config {
   cat <<EOF > $1
 providers:

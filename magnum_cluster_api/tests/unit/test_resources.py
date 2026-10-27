@@ -298,27 +298,18 @@ def test_migrate_cluster_failure_domain_removes_empty_value(context, mocker):
     cluster_resource.update.assert_called_once_with()
 
 
-@pytest.mark.parametrize(
-    "kubelet_serving_tls_enabled,expected_label",
-    [
-        (None, "csr-approver.vexxhost.com/disabled"),
-        ("false", "csr-approver.vexxhost.com/disabled"),
-        ("true", "csr-approver.vexxhost.com/enabled"),
-    ],
-)
-def test_cluster_labels_for_csr_approver(
-    context, cluster_obj, kubelet_serving_tls_enabled, expected_label
-):
-    if kubelet_serving_tls_enabled is not None:
-        cluster_obj.labels["kubelet_serving_tls_enabled"] = kubelet_serving_tls_enabled
+def test_cluster_labels_include_rust_labels(context, mocker, cluster_obj):
+    rust_driver = mocker.patch("magnum_cluster_api.resources.magnum_cluster_api.Driver")
+    rust_driver.get_cluster_labels.return_value = {
+        "csr-approver.vexxhost.com/enabled": "true"
+    }
+    cluster_obj.cluster_template.network_driver = "calico"
 
     labels = resources.Cluster(context, None, None, cluster_obj, None).labels
 
-    approver_labels = {
-        "csr-approver.vexxhost.com/enabled",
-        "csr-approver.vexxhost.com/disabled",
+    rust_driver.get_cluster_labels.assert_called_once_with(cluster_obj)
+    assert labels == {
+        "cluster-uuid": cluster_obj.uuid,
+        "cni": f"calico-{resources.CALICO_TAG}",
+        "csr-approver.vexxhost.com/enabled": "true",
     }
-
-    assert labels["cluster-uuid"] == cluster_obj.uuid
-    assert labels[expected_label] == "true"
-    assert approver_labels & labels.keys() == {expected_label}

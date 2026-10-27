@@ -52,19 +52,6 @@ AVAILABLE_SERVER_GROUP_POLICIES = [
 ]
 CONF = cfg.CONF
 
-# Labels understood by cluster-api-csr-approver
-# (https://github.com/vexxhost/cluster-api-csr-approver).  Its default cluster
-# selector handles every Cluster except those labeled `disabled=true`, and the
-# documented opt-in selector only handles Clusters labeled `enabled=true`.
-# Setting exactly one of them on every Cluster works with either selector.
-CSR_APPROVER_ENABLED_LABEL = "csr-approver.vexxhost.com/enabled"
-CSR_APPROVER_DISABLED_LABEL = "csr-approver.vexxhost.com/disabled"
-
-# The approver's release manifests put this label on all of their objects, so
-# it is present whether it was installed with `clusterctl init --addon` or by
-# applying `addon-components.yaml` directly.
-CSR_APPROVER_PROVIDER_SELECTOR = {"cluster.x-k8s.io/provider": "addon-csr-approver"}
-
 
 g_server_group_cache = ServerGroupCache()
 
@@ -334,22 +321,6 @@ def get_cluster_label_as_bool(
     return strutils.bool_from_string(value, strict=True)
 
 
-def is_kubelet_serving_tls_enabled(cluster: magnum_objects.Cluster) -> bool:
-    return get_cluster_label_as_bool(cluster, "kubelet_serving_tls_enabled", False)
-
-
-def get_csr_approver_labels(cluster: magnum_objects.Cluster) -> dict:
-    """
-    Labels that tell cluster-api-csr-approver whether to handle a cluster.
-
-    Clusters without kubelet serving certificates are opted out, so the
-    approver never opens a connection to them.
-    """
-    if is_kubelet_serving_tls_enabled(cluster):
-        return {CSR_APPROVER_ENABLED_LABEL: "true"}
-    return {CSR_APPROVER_DISABLED_LABEL: "true"}
-
-
 def delete_loadbalancers(ctx, cluster):
     # NOTE(mnaser): This code is duplicated from magnum.common.octavia
     #               since the original code is very Heat-specific.
@@ -521,32 +492,6 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
             neutron.get_subnet(ctx, cluster.fixed_subnet, source="id", target="name")
         else:
             neutron.get_subnet(ctx, cluster.fixed_subnet, source="name", target="id")
-
-
-def validate_kubelet_serving_tls(
-    api: pykube.HTTPClient, cluster: magnum_objects.Cluster
-):
-    """
-    Make sure kubelet serving certificates can be approved before adding nodes
-    to a cluster that requests them.
-
-    With `kubelet-certificate-authority` set, kube-apiserver can only reach a
-    kubelet once its serving certificate is approved, and the KubeadmControlPlane
-    etcd health checks go through the kubelet.  Without a running approver, new
-    control plane nodes never become ready and the operation would hang until
-    it times out, so fail early with a clear reason instead.
-    """
-    if not is_kubelet_serving_tls_enabled(cluster):
-        return
-
-    deployments = pykube.Deployment.objects(api, namespace=pykube.all).filter(
-        selector=CSR_APPROVER_PROVIDER_SELECTOR
-    )
-    for deployment in deployments:
-        if deployment.obj.get("status", {}).get("availableReplicas", 0) > 0:
-            return
-
-    raise mcapi_exceptions.KubeletServingCertificateApproverNotAvailable()
 
 
 def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):

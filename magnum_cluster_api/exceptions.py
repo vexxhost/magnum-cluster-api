@@ -69,14 +69,5 @@ class MachineDeploymentNotFound(exception.ObjectNotFound):
     message = _("MachineDeployment %(name)s not found.")
 
 
-class KubeletServingCertificateApproverNotAvailable(exception.Invalid):
-    message = _(
-        "The kubelet_serving_tls_enabled label requires cluster-api-csr-approver "
-        "to be running in the Cluster API management cluster, but no available "
-        "Deployment labeled cluster.x-k8s.io/provider=addon-csr-approver was "
-        "found. Install it with 'clusterctl init --addon csr-approver'."
-    )
-
-
 class InvalidOctaviaLoadBalancerAlgorithm(exception.Invalid):
     message = _("Invalid value for octavia_lb_algorithm: %(octavia_lb_algorithm)s.")

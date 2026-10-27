@@ -32,7 +32,8 @@ sudo curl -Lo /usr/local/bin/clusterctl https://github.com/kubernetes-sigs/clust
 sudo chmod +x /usr/local/bin/clusterctl
 
 # Register `cluster-api-csr-approver` as a clusterctl add-on provider, it
-# approves kubelet serving certificates for `kubelet_serving_tls_enabled=true`.
+# approves kubelet serving certificates for clusters created with
+# `kubelet_serving_cert_verification_enabled=true`.
 CLUSTERCTL_CONFIG=$(mktemp --suffix=.yaml)
 cat <<EOF > ${CLUSTERCTL_CONFIG}
 providers:

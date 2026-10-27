@@ -71,10 +71,9 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
-        # NOTE: This runs before anything is created, so a cluster whose kubelet
-        #       serving certificates can't be approved fails right away instead
-        #       of waiting for a control plane that will never become ready.
-        utils.validate_kubelet_serving_tls(self.k8s_api, cluster)
+        # NOTE: Validate before anything is created, so a cluster that can't
+        #       come up fails right away instead of timing out.
+        self.rust_driver.validate_cluster(cluster)
 
         self.rust_driver.create_cluster(cluster)
 
@@ -343,7 +342,7 @@ class BaseDriver(driver.Driver):
         blocking the Magnum API.
         """
         utils.validate_cluster(context, cluster)
-        utils.validate_kubelet_serving_tls(self.k8s_api, cluster)
+        self.rust_driver.validate_cluster(cluster)
 
         if nodes_to_remove:
             machines = objects.Machine.objects(self.k8s_api).filter(
@@ -400,9 +399,9 @@ class BaseDriver(driver.Driver):
         #              The Magnum Cluster API does not have this limitation in this case
         #              we ignore the `nodegroup` parameter and upgrade the entire cluster
         #              at once.
-        # NOTE: Upgrades replace every node, and new control plane nodes can't
-        #       become ready until their kubelet serving certificate is approved.
-        utils.validate_kubelet_serving_tls(self.k8s_api, cluster)
+        # NOTE: Upgrades replace every node, so validate before touching the
+        #       node groups to leave them unchanged if the check fails.
+        self.rust_driver.validate_cluster(cluster)
 
         cluster.cluster_template_id = cluster_template.uuid
         cluster.labels["kube_tag"] = cluster_template.labels["kube_tag"]

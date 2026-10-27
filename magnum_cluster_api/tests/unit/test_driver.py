@@ -27,9 +27,7 @@ from oslo_serialization import base64, jsonutils  # type: ignore
 from oslo_utils import uuidutils  # type: ignore
 from responses import matchers
 
-from magnum_cluster_api import driver
-from magnum_cluster_api import exceptions as mcapi_exceptions
-from magnum_cluster_api import objects, resources
+from magnum_cluster_api import driver, objects, resources
 
 
 def test_base_driver_does_not_need_trust():
@@ -44,28 +42,20 @@ def test_debian_driver_provides():
     ]
 
 
-def test_create_cluster_fails_early_without_csr_approver(
+def test_create_cluster_validates_before_creating_resources(
     mocker, requests_mock, context, mock_rust_driver, ubuntu_driver, cluster_obj
 ):
-    cluster_obj.labels["kubelet_serving_tls_enabled"] = "true"
     mocker.patch(
         "magnum_cluster_api.utils.generate_cluster_api_name",
         return_value="kube-abcde",
     )
     ubuntu_driver.rust_driver = mocker.MagicMock()
+    ubuntu_driver.rust_driver.validate_cluster.side_effect = RuntimeError("invalid")
 
-    with requests_mock as rsps:
-        rsps.add(
-            responses.GET,
-            "http://localhost/apis/apps/v1/deployments",
-            json={"items": []},
-        )
+    with pytest.raises(RuntimeError, match="invalid"):
+        ubuntu_driver.create_cluster(context, cluster_obj, 60)
 
-        with pytest.raises(
-            mcapi_exceptions.KubeletServingCertificateApproverNotAvailable
-        ):
-            ubuntu_driver.create_cluster(context, cluster_obj, 60)
-
+    ubuntu_driver.rust_driver.validate_cluster.assert_called_once_with(cluster_obj)
     ubuntu_driver.rust_driver.create_cluster.assert_not_called()
 
 

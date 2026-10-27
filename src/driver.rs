@@ -4,7 +4,7 @@ use crate::{
     addons::{self, ClusterAddon},
     clients::kubernetes::{self, ClientHelpers},
     cluster_api::clusterresourcesets::ClusterResourceSet,
-    features,
+    csr_approver, features,
     magnum::{self},
     resources::ClusterClassBuilder,
 };
@@ -20,10 +20,28 @@ use pyo3::{create_exception, exceptions::PyException, prelude::*, types::PyType}
 use pyo3_async_runtimes::tokio::get_runtime;
 
 create_exception!(magnum_cluster_api, ImmutableFieldError, PyException);
+create_exception!(magnum_cluster_api, ClusterValidationError, PyException);
 
 impl From<crate::immutable_fields::Error> for PyErr {
     fn from(err: crate::immutable_fields::Error) -> PyErr {
         PyErr::new::<ImmutableFieldError, _>(err.to_string())
+    }
+}
+
+impl From<magnum::LabelError> for PyErr {
+    fn from(err: magnum::LabelError) -> PyErr {
+        PyErr::new::<ClusterValidationError, _>(err.to_string())
+    }
+}
+
+impl From<csr_approver::Error> for PyErr {
+    fn from(err: csr_approver::Error) -> PyErr {
+        match err {
+            csr_approver::Error::NotAvailable => {
+                PyErr::new::<ClusterValidationError, _>(err.to_string())
+            }
+            csr_approver::Error::Kubernetes(err) => kubernetes::Error::from(err).into(),
+        }
     }
 }
 
@@ -297,6 +315,43 @@ impl Driver {
 
         let addon = addons::manila_csi::Addon::new(cluster.clone());
         Ok(cluster.cluster_addon_secret(&addon)?.string_data)
+    }
+
+    /// Labels for the Cluster API `Cluster` object that are owned by Rust.
+    // TODO(mnaser): We should move this out of the Python-facing implementation once we have
+    //               migrated all the code to Rust.
+    #[classmethod]
+    #[pyo3(signature = (cluster))]
+    fn get_cluster_labels(
+        _cls: &Bound<'_, PyType>,
+        cluster: Py<PyAny>,
+        py: Python<'_>,
+    ) -> PyResult<BTreeMap<String, String>> {
+        let cluster: magnum::Cluster = cluster.extract(py)?;
+
+        Ok(csr_approver::cluster_labels(
+            cluster
+                .labels
+                .is_kubelet_serving_cert_verification_enabled()?,
+        ))
+    }
+
+    /// Checks that must pass before the driver creates, resizes or upgrades
+    /// a cluster.  Raises `ClusterValidationError` with a reason otherwise.
+    fn validate_cluster(&self, py: Python<'_>, cluster: Py<PyAny>) -> PyResult<()> {
+        let cluster: magnum::Cluster = cluster.extract(py)?;
+
+        if cluster
+            .labels
+            .is_kubelet_serving_cert_verification_enabled()?
+        {
+            let client = self.client.clone();
+            Python::detach(py, || {
+                get_runtime().block_on(csr_approver::ensure_available(client))
+            })?;
+        }
+
+        Ok(())
     }
 
     fn create_cluster(&self, py: Python<'_>, cluster: Py<PyAny>) -> PyResult<()> {

@@ -1,15 +1,14 @@
-// Enable kubelet serving TLS (serverTLSBootstrap): kubelet requests a cluster CA–signed
-// serving certificate; API server verifies it when connecting to the kubelet.
+// Kubelet serving certificate verification: each kubelet requests a serving
+// certificate signed by the cluster CA (serverTLSBootstrap), and the API server
+// verifies it when connecting to the kubelet.
 //
 // Uses kubeadm's native patch mechanism (patches.directory) so that
 // serverTLSBootstrap is applied *before* kubelet starts — no post-kubeadm
 // sed hacks or kubelet restarts needed.
 //
 // The serving CSRs are approved from the management cluster by
-// cluster-api-csr-approver (https://github.com/vexxhost/cluster-api-csr-approver),
-// which checks every requested name and IP against the Machine's addresses.
-// The Python driver labels the Cluster so the approver picks it up. It also
-// refuses to create, resize or upgrade the cluster when no approver is running.
+// cluster-api-csr-approver, see `crate::csr_approver` for the Cluster labels
+// it uses and the availability check the driver runs before adding nodes.
 //
 // See: https://github.com/vexxhost/magnum-cluster-api/issues/365
 
@@ -42,9 +41,9 @@ use serde_json::json;
 #[allow(dead_code)]
 pub struct FeatureValues {
     /// Optional so pre-existing clusters without this variable continue to reconcile.
-    #[serde(rename = "enableKubeletServingTLS")]
+    #[serde(rename = "enableKubeletServingCertificateVerification")]
     #[cluster_feature(required = false)]
-    pub enable_kubelet_serving_tls: bool,
+    pub enable_kubelet_serving_certificate_verification: bool,
 }
 
 pub struct Feature {}
@@ -61,8 +60,8 @@ const PATCH_FILE: &str = "/etc/kubernetes/patches/kubeletconfiguration0+strategi
 impl ClusterFeaturePatches for Feature {
     fn patches(&self) -> Vec<ClusterClassPatches> {
         vec![ClusterClassPatches {
-            name: "kubeletServingTLS".into(),
-            enabled_if: Some("{{ if .enableKubeletServingTLS }}true{{end}}".into()),
+            name: "kubeletServingCertificateVerification".into(),
+            enabled_if: Some("{{ if .enableKubeletServingCertificateVerification }}true{{end}}".into()),
             definitions: Some(vec![
                 // ── Control-plane nodes ──────────────────────────────────────
                 ClusterClassPatchesDefinitions {
@@ -170,7 +169,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.enable_kubelet_serving_tls = true;
+        values.enable_kubelet_serving_certificate_verification = true;
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -280,7 +279,7 @@ mod tests {
         let feature = Feature {};
 
         let mut values = default_values();
-        values.enable_kubelet_serving_tls = false;
+        values.enable_kubelet_serving_certificate_verification = false;
 
         let patches = feature.patches();
         let mut resources = TestClusterResources::new();
@@ -310,7 +309,10 @@ mod tests {
         let variables = feature.variables();
 
         assert_eq!(variables.len(), 1);
-        assert_eq!(variables[0].name, "enableKubeletServingTLS");
+        assert_eq!(
+            variables[0].name,
+            "enableKubeletServingCertificateVerification"
+        );
         // Optional so pre-existing clusters without this variable continue to reconcile.
         assert_eq!(variables[0].required, false);
     }
