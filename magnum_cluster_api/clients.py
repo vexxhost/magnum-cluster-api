@@ -23,7 +23,10 @@ from manilaclient.v2 import client as manilaclient  # type: ignore
 try:
     from novaclient import exceptions as nova_exception  # type: ignore
 
-    NOVA_NOT_FOUND: tuple = (nova_exception.NotFound, sdk_exceptions.NotFoundException)
+    NOVA_NOT_FOUND: tuple[type[Exception], ...] = (
+        nova_exception.NotFound,
+        sdk_exceptions.NotFoundException,
+    )
 except ImportError:
     # Magnum 2026.2 moved to openstacksdk and no longer installs novaclient.
     NOVA_NOT_FOUND = (sdk_exceptions.NotFoundException,)

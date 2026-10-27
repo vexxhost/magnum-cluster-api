@@ -13,7 +13,6 @@
 # under the License.
 
 import textwrap
-import threading
 import types
 from unittest import mock
 
@@ -583,23 +582,13 @@ def test_offload_blocking_calls_uses_tpool_under_eventlet(mocker):
     proxy.assert_called_once_with(obj)
 
 
-def test_offload_blocking_calls_native_threads():
+def test_offload_blocking_calls_without_eventlet(mocker):
     # Magnum 2026.2 does not monkey-patch. A tpool.Proxy there hangs on every
     # call made from a native thread other than the first caller, which is
-    # how the conductor serves RPC.
+    # how the conductor serves RPC, so the object must be returned unwrapped.
+    mocker.patch("eventlet.patcher.is_monkey_patched", return_value=False)
+    proxy = mocker.patch("eventlet.tpool.Proxy")
     obj = _Blocking()
-    wrapped = utils.offload_blocking_calls(obj)
-    assert wrapped is obj
 
-    results = []
-    threads = [
-        threading.Thread(target=lambda: results.append(wrapped.work(3)), daemon=True)
-        for _ in range(4)
-    ]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join(10)
-
-    assert not any(thread.is_alive() for thread in threads)
-    assert results == [6] * 4
+    assert utils.offload_blocking_calls(obj) is obj
+    proxy.assert_not_called()
