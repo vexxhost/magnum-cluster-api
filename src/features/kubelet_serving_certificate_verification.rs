@@ -40,9 +40,7 @@ use serde_json::json;
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 #[allow(dead_code)]
 pub struct FeatureValues {
-    /// Optional so pre-existing clusters without this variable continue to reconcile.
     #[serde(rename = "enableKubeletServingCertificateVerification")]
-    #[cluster_feature(required = false)]
     pub enable_kubelet_serving_certificate_verification: bool,
 }
 
@@ -313,7 +311,6 @@ mod tests {
             variables[0].name,
             "enableKubeletServingCertificateVerification"
         );
-        // Optional so pre-existing clusters without this variable continue to reconcile.
-        assert_eq!(variables[0].required, false);
+        assert_eq!(variables[0].required, true);
     }
 }
