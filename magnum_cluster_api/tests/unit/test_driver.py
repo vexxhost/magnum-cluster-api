@@ -32,6 +32,10 @@ from magnum_cluster_api import exceptions as mcapi_exceptions
 from magnum_cluster_api import objects, resources
 
 
+def test_base_driver_does_not_need_trust():
+    assert driver.BaseDriver.needs_trust is False
+
+
 def test_debian_driver_provides():
     debian_driver = driver.DebianDriver.__new__(driver.DebianDriver)
 

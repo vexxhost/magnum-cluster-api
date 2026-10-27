@@ -1,12 +1,12 @@
 [package]
 name = "magnum-cluster-api"
-version = "0.37.0"
+version = "0.38.2"
 edition = "2021"
 rust-version = "1.95"
 
 [build-dependencies]
 glob = "0.3"
-syn = { version = "2.0.100", features = ["full", "parsing"] }
+syn = { version = "3.0.0", features = ["full", "parsing"] }
 quote = "1.0"
 proc-macro2 = "1.0"
 heck = "0.5"

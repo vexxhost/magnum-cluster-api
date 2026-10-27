@@ -82,6 +82,11 @@ if is_service_enabled magnum-cluster-api; then
   elif [[ "$1" == "stack" && "$2" == "install" ]]; then
     git_clone $MAGNUM_CLUSTER_API_REPO $MAGNUM_CLUSTER_API_DIR $MAGNUM_CLUSTER_API_DIR
     setup_develop $MAGNUM_CLUSTER_API_DIR
+    # stack.sh points the requests CA bundle at the system store, which
+    # holds the tls-proxy CA, before plugins install. Installing the driver
+    # can pull a newer certifi into the venv and replace that bundle, so
+    # redo the fix or services fail to verify each other over TLS.
+    fix_system_ca_bundle_path
 
   elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
     # Configure

@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.38.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.38.1...v0.38.2) (2026-08-11)
+
+
+### Bug Fixes
+
+* omit unset CAPI topology fields ([#1106](https://github.com/vexxhost/magnum-cluster-api/issues/1106)) ([45f3629](https://github.com/vexxhost/magnum-cluster-api/commit/45f3629ae4d414f8711090d887082df4c8ff783e))
+
+## [0.38.1](https://github.com/vexxhost/magnum-cluster-api/compare/v0.38.0...v0.38.1) (2026-07-24)
+
+
+### Bug Fixes
+
+* disable Keystone trust creation ([#1128](https://github.com/vexxhost/magnum-cluster-api/issues/1128)) ([f7c3901](https://github.com/vexxhost/magnum-cluster-api/commit/f7c3901e2207cf9108a3a18e505a506bd6e219c7))
+
+## [0.38.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.37.0...v0.38.0) (2026-07-23)
+
+
+### Features
+
+* **ci:** add Ubuntu 24.04 hydrophone canaries ([#1087](https://github.com/vexxhost/magnum-cluster-api/issues/1087)) ([e77609d](https://github.com/vexxhost/magnum-cluster-api/commit/e77609d995adbfe99d3d4da9b78a3f9df50c61a3))
+
+
+### Bug Fixes
+
+* **deps:** update kube-rs to v4 ([#1089](https://github.com/vexxhost/magnum-cluster-api/issues/1089)) ([078baba](https://github.com/vexxhost/magnum-cluster-api/commit/078baba11b8c29c5737bf5ac080b1c2a8624015c))
+* **deps:** update rust crate pyo3 to 0.29.0 [security] ([#1067](https://github.com/vexxhost/magnum-cluster-api/issues/1067)) ([db2ddda](https://github.com/vexxhost/magnum-cluster-api/commit/db2ddda09a971a2a94b5d1b525a9aadbb174cb92))
+* Update DevStack sample config file to main branch ([#1110](https://github.com/vexxhost/magnum-cluster-api/issues/1110)) ([85a2d82](https://github.com/vexxhost/magnum-cluster-api/commit/85a2d82aa92e0f827202216c1b491db248f08a65))
+* **volumes:** initialize disk setup for docker volumes ([#1030](https://github.com/vexxhost/magnum-cluster-api/issues/1030)) ([c6d59b0](https://github.com/vexxhost/magnum-cluster-api/commit/c6d59b0ac2cf6923b416dfd3a2e0468250958831))
+
 ## [0.37.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.36.6...v0.37.0) (2026-06-18)
 
 

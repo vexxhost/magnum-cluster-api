@@ -45,6 +45,8 @@ def cluster_lock_wrapper(func):
 
 
 class BaseDriver(driver.Driver):
+    needs_trust = False
+
     def __init__(self):
         self.k8s_api = clients.get_pykube_api()
         self.rust_driver = tpool.Proxy(magnum_cluster_api.Driver("magnum-system"))

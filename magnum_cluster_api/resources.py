@@ -746,7 +746,9 @@ def mutate_machine_deployment(
         if boot_volume_size == 0:
             boot_volume_size = flavor.disk
 
-        machine_deployment["replicas"] = None
+        # Leave replicas unset so Cluster API and the cluster autoscaler do not
+        # fight over the desired worker count.
+        machine_deployment.pop("replicas", None)
         machine_deployment["metadata"]["annotations"] = {
             AUTOSCALE_ANNOTATION_MIN: str(node_group.min_node_count),
             AUTOSCALE_ANNOTATION_MAX: str(
@@ -778,7 +780,7 @@ def mutate_machine_deployment(
         if current_failure_domain == "" and (
             new_failure_domain is None or new_failure_domain == ""
         ):
-            machine_deployment["failureDomain"] = None
+            machine_deployment.pop("failureDomain", None)
         if current_failure_domain == "" and new_failure_domain:
             machine_deployment["failureDomain"] = new_failure_domain
 
@@ -792,7 +794,6 @@ def mutate_machine_deployment(
         {
             "class": "default-worker",
             "name": node_group.name,
-            "failureDomain": node_group.labels.get("availability_zone"),
             "machineHealthCheck": {"enable": utils.get_auto_healing_enabled(cluster)},
             "variables": {
                 "overrides": [
@@ -846,6 +847,9 @@ def mutate_machine_deployment(
             },
         }
     )
+    failure_domain = node_group.labels.get("availability_zone")
+    if failure_domain:
+        machine_deployment["failureDomain"] = failure_domain
     return machine_deployment
 
 
@@ -858,8 +862,8 @@ def migrate_machineset_failure_domain(
     """
     Migrate MachineSet failureDomain fields to fix Cluster API v1.10+ validation issues.
 
-    This function directly patches MachineSet resources to convert empty string
-    failureDomain values to None/null, avoiding rolling updates that would occur
+    This function directly patches MachineSet resources to remove empty string
+    failureDomain values, avoiding rolling updates that would occur
     if we modified the MachineDeployment spec.
     """
     machine_sets = objects.MachineSet.for_node_group(pykube_api, cluster, node_group)
@@ -874,9 +878,9 @@ def migrate_machineset_failure_domain(
         )
 
         if current_failure_domain == "":
-            # Patch the MachineSet to set failureDomain to None
+            # Patch the MachineSet to remove failureDomain.
             # This avoids the validation error without triggering rolling updates
-            ms.obj["spec"]["template"]["spec"]["failureDomain"] = None
+            ms.obj["spec"]["template"]["spec"].pop("failureDomain", None)
             ms.update()
 
 
@@ -887,8 +891,8 @@ def migrate_cluster_failure_domain(
     """
     Migrate Cluster MachineDeployment failureDomain fields to fix Cluster API v1.10+ validation issues.
 
-    This function directly patches the Cluster resource to convert empty string
-    failureDomain values to None/null in MachineDeployment specs, avoiding rolling updates.
+    This function directly patches the Cluster resource to remove empty string
+    failureDomain values from MachineDeployment specs, avoiding rolling updates.
     """
 
     # Get the current machine deployment spec
@@ -898,7 +902,7 @@ def migrate_cluster_failure_domain(
     if current_failure_domain == "":
         # Update the machine deployment spec to remove the failureDomain field
         # We'll use obj.update() which should handle the field removal properly
-        current_md_spec["failureDomain"] = None
+        current_md_spec.pop("failureDomain", None)
         cluster_resource.set_machine_deployment_spec(node_group.name, current_md_spec)
 
         # Use obj.update() to apply the change
