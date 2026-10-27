@@ -317,25 +317,6 @@ impl Driver {
         Ok(cluster.cluster_addon_secret(&addon)?.string_data)
     }
 
-    /// Labels for the Cluster API `Cluster` object that are owned by Rust.
-    // TODO(mnaser): We should move this out of the Python-facing implementation once we have
-    //               migrated all the code to Rust.
-    #[classmethod]
-    #[pyo3(signature = (cluster))]
-    fn get_cluster_labels(
-        _cls: &Bound<'_, PyType>,
-        cluster: Py<PyAny>,
-        py: Python<'_>,
-    ) -> PyResult<BTreeMap<String, String>> {
-        let cluster: magnum::Cluster = cluster.extract(py)?;
-
-        Ok(csr_approver::cluster_labels(
-            cluster
-                .labels
-                .is_kubelet_serving_cert_verification_enabled()?,
-        ))
-    }
-
     /// Checks that must pass before the driver creates, resizes or upgrades
     /// a cluster.  Raises `ClusterValidationError` with a reason otherwise.
     fn validate_cluster(&self, py: Python<'_>, cluster: Py<PyAny>) -> PyResult<()> {

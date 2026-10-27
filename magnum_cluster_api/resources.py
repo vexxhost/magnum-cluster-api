@@ -961,11 +961,7 @@ class Cluster(ClusterBase):
                 "cni": f"calico-{cni_version}",
             }
 
-        return {
-            **super().labels,
-            **magnum_cluster_api.Driver.get_cluster_labels(self.cluster),
-            **labels,
-        }
+        return {**super().labels, **labels}
 
     def get_or_none(self) -> objects.Cluster:
         return objects.Cluster.objects(

@@ -7,8 +7,7 @@
 // sed hacks or kubelet restarts needed.
 //
 // The serving CSRs are approved from the management cluster by
-// cluster-api-csr-approver, see `crate::csr_approver` for the Cluster labels
-// it uses and the availability check the driver runs before adding nodes.
+// cluster-api-csr-approver, see `crate::csr_approver`.
 //
 // See: https://github.com/vexxhost/magnum-cluster-api/issues/365
 

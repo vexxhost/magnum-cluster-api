@@ -296,20 +296,3 @@ def test_migrate_cluster_failure_domain_removes_empty_value(context, mocker):
         machine_deployment,
     )
     cluster_resource.update.assert_called_once_with()
-
-
-def test_cluster_labels_include_rust_labels(context, mocker, cluster_obj):
-    rust_driver = mocker.patch("magnum_cluster_api.resources.magnum_cluster_api.Driver")
-    rust_driver.get_cluster_labels.return_value = {
-        "csr-approver.vexxhost.com/enabled": "true"
-    }
-    cluster_obj.cluster_template.network_driver = "calico"
-
-    labels = resources.Cluster(context, None, None, cluster_obj, None).labels
-
-    rust_driver.get_cluster_labels.assert_called_once_with(cluster_obj)
-    assert labels == {
-        "cluster-uuid": cluster_obj.uuid,
-        "cni": f"calico-{resources.CALICO_TAG}",
-        "csr-approver.vexxhost.com/enabled": "true",
-    }

@@ -31,18 +31,9 @@ When the label is set, every node gets a kubeadm patch that sets
 `serverTLSBootstrap: true` before the kubelet starts, and `kube-apiserver` runs
 with `--kubelet-certificate-authority=/etc/kubernetes/pki/ca.crt`.
 
-The driver also puts exactly one of these labels on the Cluster API `Cluster`,
-so the approver handles the clusters that need it and leaves the others alone:
-
-| Magnum label | Cluster API `Cluster` label |
-|---|---|
-| `kubelet_serving_cert_verification_enabled=true` | `csr-approver.vexxhost.com/enabled: "true"` |
-| unset or `false` | `csr-approver.vexxhost.com/disabled: "true"` |
-
-These match both the approver's default cluster selector and its opt-in one.
-If you [configure][approver-config] a different selector, make sure it still
-matches `csr-approver.vexxhost.com/enabled=true`.  Clusters created before this
-change get their label the next time they're upgraded.
+The approver's default cluster selector handles every cluster.  If you
+[configure][approver-config] a narrower one, make sure it still matches the
+Magnum clusters that use this label.
 
 Once the API server verifies kubelets, a new control plane node only becomes
 ready after its serving certificate is approved.  So before it creates, resizes

@@ -8,14 +8,7 @@ use kube::{
     api::{Api, ListParams},
     Client,
 };
-use std::collections::BTreeMap;
 use thiserror::Error;
-
-/// The approver's documented opt-in selector handles Clusters with this label.
-pub const ENABLED_LABEL: &str = "csr-approver.vexxhost.com/enabled";
-
-/// The approver's default selector handles every Cluster without this label.
-pub const DISABLED_LABEL: &str = "csr-approver.vexxhost.com/disabled";
 
 /// The approver's release manifests put this label on all of their objects,
 /// whether they were installed with `clusterctl init --addon` or applied
@@ -34,20 +27,6 @@ pub enum Error {
 
     #[error(transparent)]
     Kubernetes(#[from] kube::Error),
-}
-
-/// Labels for the Cluster API `Cluster` that tell the approver whether to
-/// handle it.  Exactly one of them is set, so it works with both the default
-/// and the opt-in selector, and the approver never connects to clusters that
-/// don't use kubelet serving certificates.
-pub fn cluster_labels(enabled: bool) -> BTreeMap<String, String> {
-    let label = if enabled {
-        ENABLED_LABEL
-    } else {
-        DISABLED_LABEL
-    };
-
-    BTreeMap::from([(label.to_owned(), "true".to_owned())])
 }
 
 /// Fails unless the approver is running in the management cluster.
@@ -87,16 +66,6 @@ mod tests {
     use pretty_assertions::assert_eq;
     use rstest::rstest;
     use serde_json::{json, Value};
-
-    #[rstest]
-    #[case(true, ENABLED_LABEL)]
-    #[case(false, DISABLED_LABEL)]
-    fn test_cluster_labels(#[case] enabled: bool, #[case] label: &str) {
-        assert_eq!(
-            cluster_labels(enabled),
-            BTreeMap::from([(label.to_owned(), "true".to_owned())])
-        );
-    }
 
     /// Runs `ensure_available` against a fake API server that answers the
     /// Deployment list with `items`, and checks the request it received.
