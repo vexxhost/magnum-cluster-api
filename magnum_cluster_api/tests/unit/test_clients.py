@@ -14,8 +14,6 @@
 
 import types
 
-from openstack.compute.v2 import flavor as sdk_flavor  # type: ignore
-
 from magnum_cluster_api import clients
 
 
@@ -217,88 +215,55 @@ def test_default_volume_type_raises_unexpected_sdk_response(mocker):
     response.raise_for_status.assert_called_once_with()
 
 
-def test_flavors_legacy(mocker):
-    # novaclient resources expose the raw API body through to_dict().
-    legacy_flavor = types.SimpleNamespace(
-        to_dict=lambda: {
-            "id": "legacy",
-            "name": "m1.small",
-            "ram": 2048,
-            "vcpus": 2,
-            "disk": 20,
-            "OS-FLV-EXT-DATA:ephemeral": 5,
-        }
-    )
+def test_compute_builds_sdk_proxy_from_nova_options(mocker):
+    connection = mocker.patch("openstack.connection.Connection")
     osc = make_openstack_clients(
-        mocker,
-        nova=types.SimpleNamespace(
-            flavors=types.SimpleNamespace(
-                list=mocker.Mock(return_value=[legacy_flavor])
-            )
-        ),
+        mocker, keystone=types.SimpleNamespace(session=mocker.sentinel.session)
+    )
+    osc._compute = None
+    osc.url_for = mocker.Mock(return_value="https://nova.example.com/v2.1")
+    mocker.patch.object(
+        osc,
+        "_get_client_option",
+        side_effect=lambda client, option: f"{client}-{option}",
     )
 
-    [flavor] = osc.list_flavors()
+    assert osc.compute() is connection.return_value.compute
+    assert osc.compute() is connection.return_value.compute
 
-    assert isinstance(flavor, sdk_flavor.Flavor)
-    assert (flavor.id, flavor.name, flavor.ram, flavor.vcpus, flavor.disk) == (
-        "legacy",
-        "m1.small",
-        2048,
-        2,
-        20,
+    osc.url_for.assert_called_once_with(
+        service_type="compute",
+        interface="nova-endpoint_type",
+        region_name="nova-region_name",
     )
-    assert flavor.ephemeral == 5
-
-
-def test_flavors_sdk(mocker):
-    flavor = sdk_flavor.Flavor(id="sdk", name="sdk")
-    osc = make_openstack_clients(
-        mocker,
-        nova=types.SimpleNamespace(flavors=mocker.Mock(return_value=[flavor])),
+    connection.assert_called_once_with(
+        session=mocker.sentinel.session,
+        compute_endpoint_override="https://nova.example.com/v2.1",
     )
 
-    assert osc.list_flavors() == [flavor]
 
-
-def test_server_groups_legacy(mocker):
-    server_group = types.SimpleNamespace(id="server-group")
-    manager = types.SimpleNamespace(
-        list=mocker.Mock(return_value=[server_group]),
-        create=mocker.Mock(return_value=server_group),
-        delete=mocker.Mock(),
+def test_compute_ignores_magnum_nova_client(mocker):
+    # On Magnum 2026.1 and older, nova() returns novaclient.
+    compute = mocker.Mock(
+        flavors=mocker.Mock(return_value=iter([mocker.sentinel.flavor])),
+        server_groups=mocker.Mock(return_value=iter([mocker.sentinel.server_group])),
     )
-    osc = make_openstack_clients(
-        mocker, nova=types.SimpleNamespace(server_groups=manager)
-    )
+    osc = make_openstack_clients(mocker, compute=compute, nova=mocker.sentinel.nova)
 
-    assert osc.list_server_groups(all_projects=True) == [server_group]
-    assert osc.create_server_group("name", ["soft-anti-affinity"]) == server_group
+    assert osc.list_flavors() == [mocker.sentinel.flavor]
+    assert osc.list_server_groups(all_projects=True) == [mocker.sentinel.server_group]
+    osc.create_server_group("name", ["soft-anti-affinity"])
     osc.delete_server_group("server-group")
 
-    manager.list.assert_called_once_with(all_projects=True)
-    manager.create.assert_called_once_with(name="name", policies=["soft-anti-affinity"])
-    manager.delete.assert_called_once_with("server-group")
-
-
-def test_server_groups_sdk(mocker):
-    server_group = types.SimpleNamespace(id="server-group")
-    nova = types.SimpleNamespace(
-        server_groups=mocker.Mock(return_value=[server_group]),
-        create_server_group=mocker.Mock(return_value=server_group),
-        delete_server_group=mocker.Mock(),
-    )
-    osc = make_openstack_clients(mocker, nova=nova)
-
-    assert osc.list_server_groups(all_projects=True) == [server_group]
-    assert osc.create_server_group("name", ["soft-anti-affinity"]) == server_group
-    osc.delete_server_group("server-group")
-
-    nova.server_groups.assert_called_once_with(all_projects=True)
-    nova.create_server_group.assert_called_once_with(
+    osc.nova.assert_not_called()
+    compute.flavors.assert_called_once_with()
+    compute.server_groups.assert_called_once_with(all_projects=True)
+    compute.create_server_group.assert_called_once_with(
         name="name", policies=["soft-anti-affinity"]
     )
-    nova.delete_server_group.assert_called_once_with("server-group")
+    compute.delete_server_group.assert_called_once_with(
+        "server-group", ignore_missing=True
+    )
 
 
 def test_load_balancers_legacy(mocker):
