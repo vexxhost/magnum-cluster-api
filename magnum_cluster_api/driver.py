@@ -56,6 +56,17 @@ class BaseDriver(driver.Driver):
             self._kube_client = utils.tpool_wrap(magnum_cluster_api.KubeClient())
         return self._kube_client
 
+    def _clear_empty_failure_domains(self, cluster: magnum_objects.Cluster):
+        """
+        Remove `failureDomain: ""` from the Cluster API objects of a cluster.
+
+        Clusters created by older releases carry it, and Cluster API v1.10+
+        rejects it. On management clusters without CRD validation ratcheting
+        (Kubernetes < 1.30) every update to those objects fails until it is
+        removed, so call this before reading or updating them.
+        """
+        self.rust_driver.clear_empty_failure_domains(cluster.stack_id)
+
     def create_cluster(
         self, context, cluster: magnum_objects.Cluster, cluster_create_timeout: int
     ):
@@ -338,6 +349,7 @@ class BaseDriver(driver.Driver):
         blocking the Magnum API.
         """
         utils.validate_cluster(context, cluster)
+        self._clear_empty_failure_domains(cluster)
 
         if nodes_to_remove:
             machines = objects.Machine.objects(self.k8s_api).filter(
@@ -406,6 +418,7 @@ class BaseDriver(driver.Driver):
         # NOTE(mnaser): We run a full apply on the cluster regardless of the changes, since
         #               the expectation is that running an upgrade operation will change
         #               the cluster in some way.
+        self._clear_empty_failure_domains(cluster)
         self.rust_driver.upgrade_cluster(cluster)
         resources.apply_cluster_from_magnum_cluster(
             context, self.kube_client, self.k8s_api, cluster
@@ -476,6 +489,7 @@ class BaseDriver(driver.Driver):
         utils.ensure_worker_server_group(
             ctx=context, cluster=cluster, node_group=nodegroup
         )
+        self._clear_empty_failure_domains(cluster)
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
         cluster_resource.obj["spec"]["topology"]["workers"][
@@ -612,6 +626,7 @@ class BaseDriver(driver.Driver):
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
+        self._clear_empty_failure_domains(cluster)
         self._update_nodegroup(context, cluster, nodegroup)
 
     def _update_nodegroup(
@@ -638,14 +653,6 @@ class BaseDriver(driver.Driver):
             utils.ensure_worker_server_group(
                 ctx=context, cluster=cluster, node_group=nodegroup
             )
-
-            # Migrate failureDomain fields to fix Cluster API v1.10+ validation issues
-            # This handles the case where empty string failureDomain values are no longer allowed
-            # Order: MachineSet → Cluster → MachineDeployment
-            resources.migrate_machineset_failure_domain(
-                context, cluster, nodegroup, self.k8s_api
-            )
-            resources.migrate_cluster_failure_domain(nodegroup, cluster_resource)
 
             current_md_spec = cluster_resource.get_machine_deployment_spec(
                 nodegroup.name
@@ -695,6 +702,7 @@ class BaseDriver(driver.Driver):
         nodegroup.status = fields.ClusterStatus.DELETE_IN_PROGRESS
         nodegroup.save()
 
+        self._clear_empty_failure_domains(cluster)
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
 
         try:

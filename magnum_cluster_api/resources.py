@@ -854,62 +854,6 @@ def mutate_machine_deployment(
     return machine_deployment
 
 
-def migrate_machineset_failure_domain(
-    context: context.RequestContext,
-    cluster: magnum_objects.Cluster,
-    node_group: magnum_objects.NodeGroup,
-    pykube_api: pykube.HTTPClient,
-) -> bool:
-    """
-    Migrate MachineSet failureDomain fields to fix Cluster API v1.10+ validation issues.
-
-    This function directly patches MachineSet resources to remove empty string
-    failureDomain values, avoiding rolling updates that would occur
-    if we modified the MachineDeployment spec.
-    """
-    machine_sets = objects.MachineSet.for_node_group(pykube_api, cluster, node_group)
-
-    for ms in machine_sets:
-        # Check if this MachineSet has an empty string failureDomain
-        current_failure_domain = (
-            ms.obj.get("spec", {})
-            .get("template", {})
-            .get("spec", {})
-            .get("failureDomain")
-        )
-
-        if current_failure_domain == "":
-            # Patch the MachineSet to remove failureDomain.
-            # This avoids the validation error without triggering rolling updates
-            ms.obj["spec"]["template"]["spec"].pop("failureDomain", None)
-            ms.update()
-
-
-def migrate_cluster_failure_domain(
-    node_group: magnum_objects.NodeGroup,
-    cluster_resource: objects.Cluster,
-) -> bool:
-    """
-    Migrate Cluster MachineDeployment failureDomain fields to fix Cluster API v1.10+ validation issues.
-
-    This function directly patches the Cluster resource to remove empty string
-    failureDomain values from MachineDeployment specs, avoiding rolling updates.
-    """
-
-    # Get the current machine deployment spec
-    current_md_spec = cluster_resource.get_machine_deployment_spec(node_group.name)
-    current_failure_domain = current_md_spec.get("failureDomain")
-
-    if current_failure_domain == "":
-        # Update the machine deployment spec to remove the failureDomain field
-        # We'll use obj.update() which should handle the field removal properly
-        current_md_spec.pop("failureDomain", None)
-        cluster_resource.set_machine_deployment_spec(node_group.name, current_md_spec)
-
-        # Use obj.update() to apply the change
-        cluster_resource.update()
-
-
 def generate_machine_deployments_for_cluster(
     context: context.RequestContext, cluster: magnum_objects.Cluster
 ) -> list:
