@@ -23,6 +23,13 @@ pub struct CloudControllerManagerValues {
     extra_volume_mounts: Vec<VolumeMount>,
 
     cluster: CloudControllerManagerClusterValues,
+
+    /// List of OCCM controllers to enable (overrides chart default).
+    /// When `octavia_enabled=false`, the `service` controller is omitted
+    /// so OCCM does not crash-loop trying to reach a non-existent Octavia
+    /// during its load-balancer cache warm-up.
+    #[serde(rename = "enabledControllers")]
+    enabled_controllers: Vec<String>,
 }
 
 impl ClusterAddonValues for CloudControllerManagerValues {
@@ -72,9 +79,9 @@ impl TryFrom<magnum::Cluster> for CloudControllerManagerValues {
     type Error = ClusterAddonValuesError;
 
     fn try_from(cluster: magnum::Cluster) -> Result<Self, ClusterAddonValuesError> {
-        let values = Self::defaults()?;
+        let default_values = Self::defaults()?;
 
-        let image = DockerImage::parse(&values.image.repository)?;
+        let image = DockerImage::parse(&default_values.image.repository)?;
         let values = Self::builder()
             .image(
                 CloudControllerManagerImageValues::builder()
@@ -127,6 +134,13 @@ impl TryFrom<magnum::Cluster> for CloudControllerManagerValues {
                     .name(cluster.uuid)
                     .build(),
             )
+            .enabled_controllers({
+                let mut controllers = default_values.enabled_controllers.clone();
+                if !cluster.labels.is_octavia_enabled() {
+                    controllers.retain(|controller| controller != "service");
+                }
+                controllers
+            })
             .build();
 
         Ok(values)
@@ -289,6 +303,41 @@ mod tests {
             ]
         );
         assert_eq!(values.cluster.name, cluster.uuid,);
+        // Default: octavia_enabled=true → all 4 controllers present.
+        let default_values = CloudControllerManagerValues::defaults().expect("failed to load defaults");
+        assert_eq!(
+            values.enabled_controllers,
+            default_values.enabled_controllers
+        );
+    }
+
+    #[test]
+    fn test_occm_values_octavia_disabled_omits_service_controller() {
+        let cluster = magnum::Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: magnum::ClusterLabels::builder()
+                .octavia_enabled("false".to_string())
+                .build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let values: CloudControllerManagerValues =
+            cluster.clone().try_into().expect("failed to create values");
+
+        let mut expected_controllers = CloudControllerManagerValues::defaults()
+            .expect("failed to load defaults")
+            .enabled_controllers;
+        expected_controllers.retain(|controller| controller != "service");
+
+        assert_eq!(
+            values.enabled_controllers,
+            expected_controllers
+        );
+        assert!(!values.enabled_controllers.contains(&"service".to_string()));
     }
 
     #[test]
