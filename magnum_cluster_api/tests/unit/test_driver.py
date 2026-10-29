@@ -226,10 +226,8 @@ class TestDriver:
             json=json,
         )
 
-    def _response_for_machine_sets(self, node_group_name, machine_sets=None):
+    def _response_for_machine_sets(self, node_group_name, machine_sets):
         """Helper method to create a mock response for MachineSet.for_node_group."""
-        items = list(machine_sets) if machine_sets else []
-
         return responses.Response(
             responses.GET,
             "http://localhost/apis/%s/namespaces/%s/%s"
@@ -246,7 +244,7 @@ class TestDriver:
                     }
                 ),
             ],
-            json={"items": items},
+            json={"items": machine_sets},
         )
 
     def _response_for_openstack_machines(self, deployment_name, machine_specs=None):
@@ -414,16 +412,17 @@ class TestDriver:
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
 
-    def setup_node_group_tests(self, rsps, before, after=None, migrate_node_group=None):
+    def setup_node_group_tests(self, rsps, before, after=None, machine_sets=None):
         rsps.add(
             self._response_for_cluster_with_machine_deployments(*before),
         )
-        if migrate_node_group is not None:
-            # _update_nodegroup() invokes resources.migrate_machineset_failure_domain()
-            # which performs MachineSet.for_node_group() → GET on /machinesets.
-            # Register an empty list so no PATCH is issued (no empty-string
-            # failureDomain values to migrate in test fixtures).
-            rsps.add(self._response_for_machine_sets(migrate_node_group))
+        if machine_sets is not None:
+            # Updating a worker node group lists its MachineSets to migrate
+            # empty failureDomain values, see
+            # resources.migrate_machineset_failure_domain().
+            rsps.add(
+                self._response_for_machine_sets(self.node_group.name, machine_sets)
+            )
         if after:
             rsps.add(
                 self._response_for_cluster_with_machine_deployments(
@@ -470,7 +469,7 @@ class TestDriver:
                         },
                     ),
                 ],
-                migrate_node_group=self.node_group.name,
+                machine_sets=[],
             )
 
             ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
@@ -516,7 +515,7 @@ class TestDriver:
                         },
                     ),
                 ],
-                migrate_node_group=self.node_group.name,
+                machine_sets=[],
             )
 
             ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
