@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.39.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.38.2...v0.39.0) (2026-10-29)
+
+
+### Features
+
+* verify kubelet serving certificates, approved by cluster-api-csr-approver ([#889](https://github.com/vexxhost/magnum-cluster-api/issues/889)) ([4b47661](https://github.com/vexxhost/magnum-cluster-api/commit/4b47661f338376f7a7e8d8aa00889787fcd8c876))
+
+
+### Bug Fixes
+
+* actually remove empty failureDomain values left by old releases ([#1159](https://github.com/vexxhost/magnum-cluster-api/issues/1159)) ([2c06c2c](https://github.com/vexxhost/magnum-cluster-api/commit/2c06c2c4134cee1371c2342b44e7c7e1cd7647c0))
+* **devstack:** redo CA bundle fix after install. ([#1157](https://github.com/vexxhost/magnum-cluster-api/issues/1157)) ([b553206](https://github.com/vexxhost/magnum-cluster-api/commit/b553206aa30831f46f0ea8d31af75e891174a4bb))
+* Handle missing CAPI conditions during status updates ([#1155](https://github.com/vexxhost/magnum-cluster-api/issues/1155)) ([415dddf](https://github.com/vexxhost/magnum-cluster-api/commit/415dddf6eb8d70abba79e6548526f3d42a886673))
+* replace pkg_resources with importlib.resources. ([#1156](https://github.com/vexxhost/magnum-cluster-api/issues/1156)) ([fa52031](https://github.com/vexxhost/magnum-cluster-api/commit/fa520313d57baa06f433b6a49bbcf43eb9da4ad1))
+* run under Magnum 2026.2, which dropped eventlet and novaclient ([#1153](https://github.com/vexxhost/magnum-cluster-api/issues/1153)) ([58590bc](https://github.com/vexxhost/magnum-cluster-api/commit/58590bc86b5985faca1008c47ea46a0b4f634e5b))
+
 ## [0.38.2](https://github.com/vexxhost/magnum-cluster-api/compare/v0.38.1...v0.38.2) (2026-08-11)
 
 
