@@ -29,6 +29,9 @@ k8s-openapi = { version = "0.28.0", features = ["schemars", "earliest"] }
 kube = { version = "4.0.0", features = ["runtime", "derive", "http-proxy", "jsonpatch"] }
 log = "0.4.27"
 env_logger = { version = "0.11.6", default-features = false, features = ["auto-color", "humantime"] }
+# Test-only (see the `envtest` feature); building it needs Go and clang.
+# Its `kube` feature pins k8s-openapi to `latest`, which conflicts with ours.
+envtest = { version = "0.3.0", optional = true, default-features = false, features = ["r2g"] }
 maplit = "1.0.2"
 pyo3-async-runtimes = { version = "0.29.0", features = ["tokio-runtime"] }
 pythonize = "0.29.0"
@@ -48,6 +51,9 @@ features = ["abi3-py38", "serde"]
 
 [features]
 extension-module = ["pyo3/extension-module"]
+# Runs tests against a real kube-apiserver and etcd, downloaded on first use:
+# `cargo test --features envtest envtest`
+envtest = ["dep:envtest"]
 default = []
 
 [dev-dependencies]
