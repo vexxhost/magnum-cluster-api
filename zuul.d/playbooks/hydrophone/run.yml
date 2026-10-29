@@ -24,7 +24,9 @@
       args:
         chdir: "{{ zuul.project.src_dir }}"
       environment:
+        HYDROPHONE_FOCUS: "{{ hydrophone_focus | default('') }}"
         IMAGE_NAME: "{{ image_url.split('/')[-1].rsplit('.', 1)[0] }}"
         KUBE_TAG: "{{ kube_tag }}"
+        KUBELET_SERVING_CERT_VERIFICATION: "{{ kubelet_serving_cert_verification | default(false) }}"
         NETWORK_DRIVER: "{{ network_driver }}"
         OS_CLOUD: devstack

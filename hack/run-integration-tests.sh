@@ -17,12 +17,24 @@
 # This script will run the full functional tests for a given `KUBE_TAG`.  It
 # will download the image, create a cluster, wait for it to hit `CREATE_COMPLETE`
 # and then run `hydrophone` against it.
+#
+# Set `HYDROPHONE_FOCUS` to a regular expression to run only the matching tests
+# instead of the full conformance suite, and set
+# `KUBELET_SERVING_CERT_VERIFICATION=true` to create the cluster with
+# `kubelet_serving_cert_verification_enabled=true` and check every kubelet.
 
 NODE_COUNT=${NODE_COUNT:-2}
 NETWORK_DRIVER=${NETWORK_DRIVER:-calico}
 HYDROPHONE_VERSION=${HYDROPHONE_VERSION:-v0.7.0}
 HYDROPHONE_ARCH=${HYDROPHONE_ARCH:-x86_64}
+HYDROPHONE_FOCUS=${HYDROPHONE_FOCUS:-}
 DNS_NAMESERVER=${DNS_NAMESERVER:-1.1.1.1}
+KUBELET_SERVING_CERT_VERIFICATION=${KUBELET_SERVING_CERT_VERIFICATION:-false}
+
+CLUSTER_LABELS=(--label audit_log_enabled=true)
+if [[ "${KUBELET_SERVING_CERT_VERIFICATION,,}" == "true" ]]; then
+  CLUSTER_LABELS+=(--label kubelet_serving_cert_verification_enabled=true)
+fi
 
 # Create cluster template
 openstack coe cluster template create \
@@ -46,7 +58,7 @@ openstack coe cluster create \
   --master-count 1 \
   --node-count ${NODE_COUNT} \
   --merge-labels \
-  --label audit_log_enabled=true \
+  "${CLUSTER_LABELS[@]}" \
   k8s-cluster
 
 # Wait for cluster creation to be queued
@@ -81,13 +93,33 @@ done
 # Get the cluster configuration file
 eval $(openstack coe cluster config k8s-cluster)
 
+# With kubelet serving certificate verification, kube-apiserver only talks to a
+# kubelet whose serving certificate is signed by the cluster CA, so reading logs
+# from a pod on every node proves each kubelet's certificate was approved.
+if [[ "${KUBELET_SERVING_CERT_VERIFICATION,,}" == "true" ]]; then
+  kubectl get csr --field-selector spec.signerName=kubernetes.io/kubelet-serving
+
+  for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
+    read -r namespace pod < <(kubectl get pods -A \
+      --field-selector spec.nodeName=${node},status.phase=Running \
+      -o jsonpath='{.items[0].metadata.namespace} {.items[0].metadata.name}')
+    echo "Reading logs from ${namespace}/${pod} through the kubelet on ${node}"
+    kubectl -n ${namespace} logs ${pod} --all-containers --tail=1
+  done
+fi
+
 # Download hydrophone
 curl -LO https://github.com/kubernetes-sigs/hydrophone/releases/download/${HYDROPHONE_VERSION}/hydrophone_Linux_${HYDROPHONE_ARCH}.tar.gz
 tar -xzf hydrophone_Linux_${HYDROPHONE_ARCH}.tar.gz
 
-# Run hydrophone conformance tests
+# Run hydrophone conformance tests, or only the ones matching `HYDROPHONE_FOCUS`
 # Note: Conformance tests typically take 1-2 hours to complete
-./hydrophone --conformance --output-dir=./hydrophone-results --parallel $(nproc)
+if [[ -n "${HYDROPHONE_FOCUS}" ]]; then
+  HYDROPHONE_ARGS=(--focus "${HYDROPHONE_FOCUS}")
+else
+  HYDROPHONE_ARGS=(--conformance)
+fi
+./hydrophone "${HYDROPHONE_ARGS[@]}" --output-dir=./hydrophone-results --parallel $(nproc)
 
 # Check if tests passed by examining the junit file
 # Verify that:
