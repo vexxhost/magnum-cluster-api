@@ -216,14 +216,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "boolstr"
-version = "0.1.0"
-dependencies = [
- "rstest",
- "thiserror 2.0.18",
-]
-
-[[package]]
 name = "bstr"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2236,7 +2228,6 @@ version = "0.38.2"
 dependencies = [
  "backon",
  "base64",
- "boolstr",
  "cluster_feature_derive",
  "docker-image",
  "env_logger",

@@ -2,7 +2,6 @@ mod addons;
 mod client;
 mod clients;
 mod cluster_api;
-mod csr_approver;
 mod driver;
 mod features;
 pub mod immutable_fields;

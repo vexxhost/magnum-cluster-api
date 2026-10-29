@@ -15,7 +15,6 @@ vergen-gix = "10"
 [dependencies]
 backon = "1.5.0"
 base64 = "0.22.1"
-boolstr = { path = "crates/boolstr" }
 cluster_feature_derive = { path = "crates/cluster_feature_derive" }
 docker-image = "0.2.1"
 futures = "0.3.31"
@@ -63,7 +62,4 @@ serde_gtmpl = { path = "crates/serde_gtmpl" }
 tower-test = "0.4.0"
 
 [workspace]
-# These crates share the driver's version, release-please bumps every crate
-# listed here.  crates/boolstr is versioned on its own, so it is left out; it
-# is still a workspace member because it is a path dependency.
 members = ["crates/cluster_feature_derive", "crates/helm", "crates/serde_gtmpl"]

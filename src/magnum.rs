@@ -108,36 +108,10 @@ pub struct ClusterLabels {
     /// The Kubernetes version to use for the cluster.
     #[builder(default="v1.30.0".to_owned())]
     pub kube_tag: String,
-
-    /// Give kubelets serving certificates signed by the cluster CA and make
-    /// kube-apiserver verify them.  Defaults to off when unset.
-    #[builder(default)]
-    #[pyo3(default)]
-    pub kubelet_serving_cert_verification_enabled: Option<String>,
-}
-
-#[derive(Debug, Error, PartialEq)]
-#[error("invalid value for the {name} label: {source}")]
-pub struct LabelError {
-    name: &'static str,
-    source: boolstr::Error,
 }
 
 impl ClusterLabels {
     const DEFAULT_CLOUD_PROVIDER_TAG: &'static str = "v1.35.0";
-
-    /// `boolstr` accepts the same strings as the Python driver's
-    /// `utils.get_cluster_label_as_bool`, so both sides agree on whether the
-    /// label is enabled.
-    pub fn is_kubelet_serving_cert_verification_enabled(&self) -> Result<bool, LabelError> {
-        self.kubelet_serving_cert_verification_enabled
-            .as_deref()
-            .map_or(Ok(false), boolstr::parse)
-            .map_err(|source| LabelError {
-                name: "kubelet_serving_cert_verification_enabled",
-                source,
-            })
-    }
 
     /// Returns true if Cilium Hubble UI is enabled.
     /// Parses the string label value "true"/"false" to a boolean.
@@ -496,32 +470,6 @@ mod tests {
             .build();
 
         assert_eq!(labels.get_cloud_provider_tag(), expected_cloud_provider_tag);
-    }
-
-    #[rstest]
-    #[case(None, Ok(false))]
-    #[case(Some("yes"), Ok(true))]
-    #[case(Some("false"), Ok(false))]
-    #[case(
-        Some("maybe"),
-        Err("invalid value for the kubelet_serving_cert_verification_enabled label: \
-             unrecognized boolean value 'maybe', expected one of \
-             1, t, true, on, y, yes, 0, f, false, off, n or no")
-    )]
-    fn test_kubelet_serving_cert_verification_enabled(
-        #[case] value: Option<&str>,
-        #[case] expected: Result<bool, &str>,
-    ) {
-        let labels = ClusterLabels::builder()
-            .kubelet_serving_cert_verification_enabled(value.map(str::to_owned))
-            .build();
-
-        assert_eq!(
-            labels
-                .is_kubelet_serving_cert_verification_enabled()
-                .map_err(|err| err.to_string()),
-            expected.map_err(str::to_owned)
-        );
     }
 
     #[test]

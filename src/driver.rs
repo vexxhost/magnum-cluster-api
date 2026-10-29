@@ -4,7 +4,7 @@ use crate::{
     addons::{self, ClusterAddon},
     clients::kubernetes::{self, ClientHelpers},
     cluster_api::clusterresourcesets::ClusterResourceSet,
-    csr_approver, features,
+    features,
     magnum::{self},
     resources::ClusterClassBuilder,
 };
@@ -16,12 +16,7 @@ use kube::{
     Client,
 };
 use log::debug;
-use pyo3::{
-    create_exception,
-    exceptions::{PyException, PyValueError},
-    prelude::*,
-    types::PyType,
-};
+use pyo3::{create_exception, exceptions::PyException, prelude::*, types::PyType};
 use pyo3_async_runtimes::tokio::get_runtime;
 
 create_exception!(magnum_cluster_api, ImmutableFieldError, PyException);
@@ -29,13 +24,6 @@ create_exception!(magnum_cluster_api, ImmutableFieldError, PyException);
 impl From<crate::immutable_fields::Error> for PyErr {
     fn from(err: crate::immutable_fields::Error) -> PyErr {
         PyErr::new::<ImmutableFieldError, _>(err.to_string())
-    }
-}
-
-/// Matches the `ValueError` the Python driver raises for the same label.
-impl From<magnum::LabelError> for PyErr {
-    fn from(err: magnum::LabelError) -> PyErr {
-        PyValueError::new_err(err.to_string())
     }
 }
 
@@ -128,28 +116,6 @@ impl Driver {
                 Ok(())
             })
         })
-    }
-
-    fn warn_if_csr_approver_unavailable(
-        &self,
-        py: Python<'_>,
-        cluster: &magnum::Cluster,
-    ) -> PyResult<()> {
-        if !cluster
-            .labels
-            .is_kubelet_serving_cert_verification_enabled()?
-        {
-            return Ok(());
-        }
-
-        Python::detach(py, || {
-            get_runtime().block_on(csr_approver::warn_if_unavailable(
-                self.client.clone(),
-                &cluster.uuid,
-            ))
-        });
-
-        Ok(())
     }
 
     fn delete_legacy_cluster_resource_set(
@@ -336,7 +302,6 @@ impl Driver {
     fn create_cluster(&self, py: Python<'_>, cluster: Py<PyAny>) -> PyResult<()> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
-        self.warn_if_csr_approver_unavailable(py, &cluster)?;
         self.apply_cluster_class(py)?;
         self.create_legacy_cluster_resource_set(py, &cluster)?;
         self.apply_cloud_provider_cluster_resource_set(py, &cluster, false)?;
@@ -347,7 +312,6 @@ impl Driver {
     fn upgrade_cluster(&self, py: Python<'_>, cluster: Py<PyAny>) -> PyResult<()> {
         let cluster: magnum::Cluster = cluster.extract(py)?;
 
-        self.warn_if_csr_approver_unavailable(py, &cluster)?;
         self.apply_cluster_class(py)?;
         self.apply_cloud_provider_cluster_resource_set(py, &cluster, true)?;
 
