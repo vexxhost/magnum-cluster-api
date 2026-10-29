@@ -71,10 +71,6 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
-        # NOTE: Validate before anything is created, so a cluster that can't
-        #       come up fails right away instead of timing out.
-        self.rust_driver.validate_cluster(cluster)
-
         self.rust_driver.create_cluster(cluster)
 
         utils.validate_cluster(context, cluster)
@@ -342,7 +338,6 @@ class BaseDriver(driver.Driver):
         blocking the Magnum API.
         """
         utils.validate_cluster(context, cluster)
-        self.rust_driver.validate_cluster(cluster)
 
         if nodes_to_remove:
             machines = objects.Machine.objects(self.k8s_api).filter(
@@ -399,10 +394,6 @@ class BaseDriver(driver.Driver):
         #              The Magnum Cluster API does not have this limitation in this case
         #              we ignore the `nodegroup` parameter and upgrade the entire cluster
         #              at once.
-        # NOTE: Upgrades replace every node, so validate before touching the
-        #       node groups to leave them unchanged if the check fails.
-        self.rust_driver.validate_cluster(cluster)
-
         cluster.cluster_template_id = cluster_template.uuid
         cluster.labels["kube_tag"] = cluster_template.labels["kube_tag"]
 

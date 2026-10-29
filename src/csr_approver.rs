@@ -8,53 +8,52 @@ use kube::{
     api::{Api, ListParams},
     Client,
 };
-use thiserror::Error;
+use log::warn;
 
 /// The approver's release manifests put this label on all of their objects,
 /// whether they were installed with `clusterctl init --addon` or applied
 /// directly.
 const PROVIDER_SELECTOR: &str = "cluster.x-k8s.io/provider=addon-csr-approver";
 
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error(
-        "kubelet_serving_cert_verification_enabled requires cluster-api-csr-approver \
-         to be running in the Cluster API management cluster, but no available \
-         Deployment labeled {PROVIDER_SELECTOR} was found, see \
-         https://github.com/vexxhost/cluster-api-csr-approver#installing"
-    )]
-    NotAvailable,
-
-    #[error(transparent)]
-    Kubernetes(#[from] kube::Error),
-}
-
-/// Fails unless the approver is running in the management cluster.
-///
-/// With `kubelet-certificate-authority` set, kube-apiserver can only reach a
-/// kubelet once its serving certificate is approved, and the
-/// KubeadmControlPlane etcd health checks go through the kubelet.  Without a
-/// running approver, new control plane nodes never become ready, so the
-/// driver checks this before it adds nodes to a cluster.
-pub async fn ensure_available(client: Client) -> Result<(), Error> {
+/// Returns whether an approver Deployment is available in the management
+/// cluster.
+async fn is_available(client: Client) -> Result<bool, kube::Error> {
     let api: Api<Deployment> = Api::all(client);
     let deployments = api
         .list(&ListParams::default().labels(PROVIDER_SELECTOR))
         .await?;
 
-    let available = deployments.items.iter().any(|deployment| {
+    Ok(deployments.items.iter().any(|deployment| {
         deployment
             .status
             .as_ref()
             .and_then(|status| status.available_replicas)
             .unwrap_or(0)
             > 0
-    });
+    }))
+}
 
-    if available {
-        Ok(())
-    } else {
-        Err(Error::NotAvailable)
+/// Warns the operator when the approver isn't running.
+///
+/// With `kubelet-certificate-authority` set, kube-apiserver can only reach a
+/// kubelet once its serving certificate is approved, and the
+/// KubeadmControlPlane etcd health checks go through the kubelet.  Without a
+/// running approver, new control plane nodes never become ready.  The Magnum
+/// user can't fix that, so the operation goes ahead and the operator gets a
+/// log entry explaining why the cluster is stuck.
+pub async fn warn_if_unavailable(client: Client, cluster: &str) {
+    match is_available(client).await {
+        Ok(true) => {}
+        Ok(false) => warn!(
+            "cluster {cluster} has kubelet_serving_cert_verification_enabled=true, but \
+             cluster-api-csr-approver isn't running in the management cluster (no available \
+             Deployment labeled {PROVIDER_SELECTOR}), so its nodes won't become ready until it \
+             is installed: https://github.com/vexxhost/cluster-api-csr-approver#installing"
+        ),
+        Err(err) => warn!(
+            "cluster {cluster} has kubelet_serving_cert_verification_enabled=true, but checking \
+             for cluster-api-csr-approver failed: {err}"
+        ),
     }
 }
 
@@ -67,9 +66,9 @@ mod tests {
     use rstest::rstest;
     use serde_json::{json, Value};
 
-    /// Runs `ensure_available` against a fake API server that answers the
+    /// Runs `is_available` against a fake API server that answers the
     /// Deployment list with `items`, and checks the request it received.
-    async fn ensure_available_with(items: Vec<Value>) -> Result<(), Error> {
+    async fn is_available_with(items: Vec<Value>) -> bool {
         let (service, mut handle) = tower_test::mock::pair::<Request<Body>, Response<Body>>();
         let client = Client::new(service, "default");
 
@@ -102,7 +101,7 @@ mod tests {
             );
         });
 
-        let result = ensure_available(client).await;
+        let result = is_available(client).await.expect("list failed");
         server.await.unwrap();
         result
     }
@@ -117,21 +116,13 @@ mod tests {
         })
     }
 
-    #[tokio::test]
-    async fn test_ensure_available_with_available_approver() {
-        let result = ensure_available_with(vec![deployment(json!({"availableReplicas": 1}))]).await;
-
-        assert!(result.is_ok(), "{:?}", result);
-    }
-
     #[rstest]
-    #[case::missing(vec![])]
-    #[case::no_status(vec![deployment(json!({}))])]
-    #[case::unavailable(vec![deployment(json!({"availableReplicas": 0}))])]
+    #[case::available(vec![deployment(json!({"availableReplicas": 1}))], true)]
+    #[case::missing(vec![], false)]
+    #[case::no_status(vec![deployment(json!({}))], false)]
+    #[case::unavailable(vec![deployment(json!({"availableReplicas": 0}))], false)]
     #[tokio::test]
-    async fn test_ensure_available_without_available_approver(#[case] items: Vec<Value>) {
-        let result = ensure_available_with(items).await;
-
-        assert!(matches!(result, Err(Error::NotAvailable)), "{:?}", result);
+    async fn test_is_available(#[case] items: Vec<Value>, #[case] expected: bool) {
+        assert_eq!(is_available_with(items).await, expected);
     }
 }

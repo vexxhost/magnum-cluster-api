@@ -36,11 +36,12 @@ The approver's default cluster selector handles every cluster.  If you
 Magnum clusters that use this label.
 
 Once the API server verifies kubelets, a new control plane node only becomes
-ready after its serving certificate is approved.  So before it creates, resizes
-or upgrades a cluster with the label, the driver checks that an approver
-Deployment (labeled `cluster.x-k8s.io/provider=addon-csr-approver`) is
-available.  If not, the operation fails right away instead of hanging until it
-times out.
+ready after its serving certificate is approved.  When it creates or upgrades
+a cluster with the label, the driver checks for an available approver
+Deployment (labeled `cluster.x-k8s.io/provider=addon-csr-approver`).  If there
+isn't one, the operation still goes ahead, and `magnum-conductor` logs a
+warning naming the cluster, because the cluster won't finish until the
+approver is installed.
 
 [approver-config]: https://github.com/vexxhost/cluster-api-csr-approver#configuration
 

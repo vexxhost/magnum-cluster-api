@@ -42,23 +42,6 @@ def test_debian_driver_provides():
     ]
 
 
-def test_create_cluster_validates_before_creating_resources(
-    mocker, requests_mock, context, mock_rust_driver, ubuntu_driver, cluster_obj
-):
-    mocker.patch(
-        "magnum_cluster_api.utils.generate_cluster_api_name",
-        return_value="kube-abcde",
-    )
-    ubuntu_driver.rust_driver = mocker.MagicMock()
-    ubuntu_driver.rust_driver.validate_cluster.side_effect = RuntimeError("invalid")
-
-    with pytest.raises(RuntimeError, match="invalid"):
-        ubuntu_driver.create_cluster(context, cluster_obj, 60)
-
-    ubuntu_driver.rust_driver.validate_cluster.assert_called_once_with(cluster_obj)
-    ubuntu_driver.rust_driver.create_cluster.assert_not_called()
-
-
 @pytest.mark.parametrize(
     "auto_scaling_enabled", [True, False], ids=lambda x: f"auto_scaling_enabled={x}"
 )

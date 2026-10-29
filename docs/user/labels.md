@@ -239,10 +239,8 @@ is often accomplished by deploying a driver on each node.
    label, kubelets serve a self-signed certificate that the API server doesn't
    verify.
 
-   This needs [cluster-api-csr-approver](https://github.com/vexxhost/cluster-api-csr-approver)
-   running in the management cluster, otherwise creating the cluster fails
-   right away.  See [Kubelet serving certificate verification](../admin/kubelet-serving-certificates.md)
-   for details.
+   The cloud needs a certificate approver set up by its operator, see
+   [Kubelet serving certificate verification](../admin/kubelet-serving-certificates.md).
 
    This label can only be set when the cluster is created.
 
