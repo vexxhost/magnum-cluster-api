@@ -4,6 +4,12 @@
     - ensure-uv
 
   tasks:
+    - name: Install build dependencies
+      ansible.builtin.apt:
+        name: build-essential
+        state: present
+      become: true
+
     - name: Run no-op command to build module
       ansible.builtin.command: uv run python3 --version
       args:

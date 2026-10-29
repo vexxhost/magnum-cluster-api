@@ -1,3 +1,9 @@
 - project:
     templates:
       - magnum-cluster-api-hydrophone-jobs
+    check:
+      jobs:
+        - magnum-cluster-api-tox-unit
+    gate:
+      jobs:
+        - magnum-cluster-api-tox-unit
