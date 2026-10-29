@@ -124,6 +124,20 @@ is often accomplished by deploying a driver on each node.
 
    Default value: Octavia default
 
+* `octavia_enabled`
+
+   Controls whether the OpenStack Cloud Controller Manager runs the `service`
+   controller, which reconciles `Service.type=LoadBalancer` against Octavia LBaaS.
+
+   When set to `false`, the `service` controller is omitted from the OCCM
+   `--controllers` flag.  Use this on bare-metal / edge / no-Octavia
+   deployments to avoid OCCM crash-looping on Octavia warm-up — the rest
+   of OCCM (`cloud-node`, `cloud-node-lifecycle`, `route`) keeps running
+   so node `ProviderID` is set and kubelet reaches `Ready`.  The only
+   feature lost is `Service.type=LoadBalancer` reconciliation.
+
+   Default value: `true`
+
 * `octavia_lb_algorithm`
 
    The Octavia load balancer algorithm to configure for the load balancers
@@ -246,6 +260,22 @@ is often accomplished by deploying a driver on each node.
    Default value: `true`
 
 ## OIDC
+
+* `enable_keystone_auth`
+
+   Enable the [k8s-keystone-auth](https://github.com/kubernetes/cloud-provider-openstack/tree/master/cmd/k8s-keystone-auth)
+   webhook for translating Keystone tokens into Kubernetes user/group identities.
+
+   When enabled, the kube-apiserver static-pod manifest is patched (via a
+   `kubectl kustomize` step in `postKubeadmCommands`) to add
+   `--authentication-token-webhook-config-file`,
+   `--authorization-webhook-config-file`, and to set
+   `--authorization-mode=Node,RBAC,Webhook`.  `Node` and `RBAC` are kept
+   in the authorizer chain so the cluster remains functional for system
+   requests even if the keystone-auth backend Pod is unreachable; only
+   Keystone-token-bearing requests depend on the webhook.
+
+   Default value: `false`
 
 * `oidc_issuer_url`
 
