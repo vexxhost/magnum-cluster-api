@@ -30,6 +30,7 @@ kube = { version = "4.0.0", features = ["runtime", "derive", "http-proxy"] }
 log = "0.4.27"
 env_logger = { version = "0.11.6", default-features = false, features = ["auto-color", "humantime"] }
 maplit = "1.0.2"
+oslo_strutils = { path = "crates/oslo_strutils" }
 pyo3-async-runtimes = { version = "0.29.0", features = ["tokio-runtime"] }
 pythonize = "0.29.0"
 schemars = "1.0"
@@ -62,4 +63,4 @@ serde_gtmpl = { path = "crates/serde_gtmpl" }
 tower-test = "0.4.0"
 
 [workspace]
-members = ["crates/cluster_feature_derive", "crates/helm", "crates/serde_gtmpl"]
+members = ["crates/cluster_feature_derive", "crates/helm", "crates/oslo_strutils", "crates/serde_gtmpl"]
