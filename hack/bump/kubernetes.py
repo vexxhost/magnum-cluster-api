@@ -41,15 +41,13 @@ IMAGE_URL = (
 KUBELET_SERVING_CERT_VERIFICATION_JOB = (
     f"{BASE_JOB_NAME}-kubelet-serving-cert-verification"
 )
-KUBELET_SERVING_CERT_VERIFICATION_FOCUS = "|".join(
-    [
-        "Kubectl logs logs should be able to retrieve and filter logs",
-        "Pods should support remote command execution over websockets",
-        "Pods should support retrieving logs from the container over websockets",
-        "Kubectl Port forwarding With a server listening on localhost "
-        "should support forwarding over websockets",
-    ]
-)
+KUBELET_SERVING_CERT_VERIFICATION_FOCUS = [
+    "Kubectl logs logs should be able to retrieve and filter logs",
+    "Pods should support remote command execution over websockets",
+    "Pods should support retrieving logs from the container over websockets",
+    "Kubectl Port forwarding With a server listening on localhost "
+    "should support forwarding over websockets",
+]
 
 KUBERNETES_IMAGE_RE = re.compile(r"^.+-v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\.qcow2$")
 
@@ -233,7 +231,7 @@ def hydrophone_jobs(release: Release) -> list[dict[str, Any]]:
                 "parent": f"{VERSIONED_JOB_PREFIX}{release.versions[-1]}-{NETWORK_DRIVERS[0]}",
                 "vars": {
                     "kubelet_serving_cert_verification": True,
-                    "hydrophone_focus": KUBELET_SERVING_CERT_VERIFICATION_FOCUS,
+                    "hydrophone_focus": list(KUBELET_SERVING_CERT_VERIFICATION_FOCUS),
                 },
             }
         }

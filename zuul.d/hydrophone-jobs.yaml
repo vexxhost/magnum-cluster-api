@@ -103,4 +103,8 @@
     parent: magnum-cluster-api-hydrophone-v1.36.1-calico
     vars:
       kubelet_serving_cert_verification: true
-      hydrophone_focus: Kubectl logs logs should be able to retrieve and filter logs|Pods should support remote command execution over websockets|Pods should support retrieving logs from the container over websockets|Kubectl Port forwarding With a server listening on localhost should support forwarding over websockets
+      hydrophone_focus:
+        - Kubectl logs logs should be able to retrieve and filter logs
+        - Pods should support remote command execution over websockets
+        - Pods should support retrieving logs from the container over websockets
+        - Kubectl Port forwarding With a server listening on localhost should support forwarding over websockets
