@@ -100,11 +100,17 @@ if [[ "${KUBELET_SERVING_CERT_VERIFICATION,,}" == "true" ]]; then
   kubectl get csr --field-selector spec.signerName=kubernetes.io/kubelet-serving
 
   for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
-    read -r namespace pod < <(kubectl get pods -A \
-      --field-selector spec.nodeName=${node},status.phase=Running \
-      -o jsonpath='{.items[0].metadata.namespace} {.items[0].metadata.name}')
-    echo "Reading logs from ${namespace}/${pod} through the kubelet on ${node}"
-    kubectl -n ${namespace} logs ${pod} --all-containers --tail=1
+    # Nodes can join moments before the cluster is marked complete, so wait
+    # for a pod to be running on each one.
+    for i in {1..60}; do
+      pod=$(kubectl get pods -A \
+        --field-selector spec.nodeName=${node},status.phase=Running \
+        -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{"\n"}{end}' | head -n1)
+      [[ -n "${pod}" ]] && break
+      sleep 5
+    done
+    echo "Reading logs from ${pod} through the kubelet on ${node}"
+    kubectl -n ${pod%/*} logs ${pod#*/} --all-containers --tail=1
   done
 fi
 
