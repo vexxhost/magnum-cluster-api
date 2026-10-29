@@ -1250,6 +1250,14 @@ class Cluster(ClusterBase):
                             ),
                         },
                         {
+                            "name": "enableKubeletServingCertificateVerification",
+                            "value": utils.get_cluster_label_as_bool(
+                                self.cluster,
+                                "kubelet_serving_cert_verification_enabled",
+                                False,
+                            ),
+                        },
+                        {
                             "name": "controlPlaneAvailabilityZones",
                             "value": self.cluster.labels.get(
                                 "control_plane_availability_zones", ""

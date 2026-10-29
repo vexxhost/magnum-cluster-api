@@ -231,6 +231,21 @@ is often accomplished by deploying a driver on each node.
 
    Default value: `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305`
 
+* `kubelet_serving_cert_verification_enabled`
+
+   Give every kubelet a serving certificate signed by the cluster CA and make
+   the Kubernetes API server verify it whenever it connects to a kubelet, for
+   example for `kubectl logs`, `exec`, `port-forward` and metrics.  Without this
+   label, kubelets serve a self-signed certificate that the API server doesn't
+   verify.
+
+   The cloud needs a certificate approver set up by its operator, see
+   [Kubelet serving certificate verification](../admin/kubelet-serving-certificates.md).
+
+   This label can only be set when the cluster is created.
+
+   Default value: `false`
+
 * `kube_tag`
 
    The version of Kubernetes to use.
