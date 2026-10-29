@@ -120,18 +120,19 @@ pub struct ClusterLabels {
 #[error("invalid value for the {name} label: {source}")]
 pub struct LabelError {
     name: &'static str,
-    source: oslo_strutils::UnrecognizedBool,
+    source: boolstr::Error,
 }
 
 impl ClusterLabels {
     const DEFAULT_CLOUD_PROVIDER_TAG: &'static str = "v1.35.0";
 
-    /// Parsed like the Python driver's `utils.get_cluster_label_as_bool`, so
-    /// both sides agree on whether the label is enabled.
+    /// `boolstr` accepts the same strings as the Python driver's
+    /// `utils.get_cluster_label_as_bool`, so both sides agree on whether the
+    /// label is enabled.
     pub fn is_kubelet_serving_cert_verification_enabled(&self) -> Result<bool, LabelError> {
         self.kubelet_serving_cert_verification_enabled
             .as_deref()
-            .map_or(Ok(false), oslo_strutils::bool_from_string)
+            .map_or(Ok(false), boolstr::parse)
             .map_err(|source| LabelError {
                 name: "kubelet_serving_cert_verification_enabled",
                 source,
@@ -504,8 +505,8 @@ mod tests {
     #[case(
         Some("maybe"),
         Err("invalid value for the kubelet_serving_cert_verification_enabled label: \
-             Unrecognized value 'maybe', acceptable values are: \
-             '0', '1', 'f', 'false', 'n', 'no', 'off', 'on', 't', 'true', 'y', 'yes'")
+             unrecognized boolean value 'maybe', expected one of \
+             1, t, true, on, y, yes, 0, f, false, off, n or no")
     )]
     fn test_kubelet_serving_cert_verification_enabled(
         #[case] value: Option<&str>,

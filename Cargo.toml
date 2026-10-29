@@ -15,6 +15,7 @@ vergen-gix = "10"
 [dependencies]
 backon = "1.5.0"
 base64 = "0.22.1"
+boolstr = { path = "crates/boolstr" }
 cluster_feature_derive = { path = "crates/cluster_feature_derive" }
 docker-image = "0.2.1"
 futures = "0.3.31"
@@ -30,7 +31,6 @@ kube = { version = "4.0.0", features = ["runtime", "derive", "http-proxy"] }
 log = "0.4.27"
 env_logger = { version = "0.11.6", default-features = false, features = ["auto-color", "humantime"] }
 maplit = "1.0.2"
-oslo_strutils = { path = "crates/oslo_strutils" }
 pyo3-async-runtimes = { version = "0.29.0", features = ["tokio-runtime"] }
 pythonize = "0.29.0"
 schemars = "1.0"
@@ -63,4 +63,7 @@ serde_gtmpl = { path = "crates/serde_gtmpl" }
 tower-test = "0.4.0"
 
 [workspace]
-members = ["crates/cluster_feature_derive", "crates/helm", "crates/oslo_strutils", "crates/serde_gtmpl"]
+# These crates share the driver's version, release-please bumps every crate
+# listed here.  crates/boolstr is versioned on its own, so it is left out; it
+# is still a workspace member because it is a path dependency.
+members = ["crates/cluster_feature_derive", "crates/helm", "crates/serde_gtmpl"]

@@ -216,6 +216,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "boolstr"
+version = "0.1.0"
+dependencies = [
+ "rstest",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "bstr"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2228,6 +2236,7 @@ version = "0.38.2"
 dependencies = [
  "backon",
  "base64",
+ "boolstr",
  "cluster_feature_derive",
  "docker-image",
  "env_logger",
@@ -2248,7 +2257,6 @@ dependencies = [
  "log",
  "maplit",
  "mockall",
- "oslo_strutils",
  "pretty_assertions",
  "proc-macro2",
  "pyo3",
@@ -2408,14 +2416,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68f19d67e5a2795c94e73e0bb1cc1a7edeb2e28efd39e2e1c9b7a40c1108b11c"
 dependencies = [
  "num-traits",
-]
-
-[[package]]
-name = "oslo_strutils"
-version = "0.38.2"
-dependencies = [
- "rstest",
- "thiserror 2.0.18",
 ]
 
 [[package]]
