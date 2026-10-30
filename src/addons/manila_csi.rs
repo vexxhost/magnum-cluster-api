@@ -3,11 +3,14 @@ use crate::{
     magnum::{self, ClusterError},
 };
 use docker_image::DockerImage;
-use include_dir::include_dir;
+use include_dir::{include_dir, Dir};
 use k8s_openapi::api::core::v1::Toleration;
 use maplit::btreemap;
 use serde::{Deserialize, Serialize};
+use serde_yaml::Value;
 use std::collections::BTreeMap;
+
+static NFS_CSI_MANIFESTS: Dir<'_> = include_dir!("magnum_cluster_api/manifests/nfs-csi");
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct CSIValues {
@@ -123,6 +126,81 @@ pub struct Addon {
 
 impl Addon {}
 
+fn mapping_get_mut<'a>(value: &'a mut Value, key: &str) -> Option<&'a mut Value> {
+    value
+        .as_mapping_mut()?
+        .get_mut(Value::String(key.to_owned()))
+}
+
+fn mirror_nfs_csi_image(image: &str, registry: &Option<String>) -> String {
+    let Some(registry) = registry else {
+        return image.to_owned();
+    };
+
+    let Some(name) = image.strip_prefix("registry.k8s.io/sig-storage/") else {
+        return image.to_owned();
+    };
+
+    let name = match name.strip_prefix("livenessprobe:") {
+        Some(tag) => format!("csi-livenessprobe:{tag}"),
+        None => name.to_owned(),
+    };
+
+    format!("{}/{}", registry.trim_end_matches('/'), name)
+}
+
+fn rewrite_workload_images(doc: &mut Value, registry: &Option<String>) {
+    let kind = doc
+        .as_mapping()
+        .and_then(|mapping| mapping.get(Value::String("kind".to_owned())))
+        .and_then(Value::as_str);
+
+    if !matches!(kind, Some("DaemonSet" | "Deployment" | "StatefulSet")) {
+        return;
+    }
+
+    let Some(spec) = mapping_get_mut(doc, "spec")
+        .and_then(|value| mapping_get_mut(value, "template"))
+        .and_then(|value| mapping_get_mut(value, "spec"))
+    else {
+        return;
+    };
+
+    for key in ["initContainers", "containers"] {
+        let Some(Value::Sequence(containers)) = mapping_get_mut(spec, key) else {
+            continue;
+        };
+
+        for container in containers {
+            let Some(Value::String(image)) = mapping_get_mut(container, "image") else {
+                continue;
+            };
+
+            *image = mirror_nfs_csi_image(image, registry);
+        }
+    }
+}
+
+fn render_nfs_csi_manifest(
+    manifest: &str,
+    registry: &Option<String>,
+) -> Result<String, helm::HelmTemplateError> {
+    let mut docs = serde_yaml::Deserializer::from_str(manifest)
+        .map(Value::deserialize)
+        .collect::<Result<Vec<_>, _>>()?;
+
+    for doc in &mut docs {
+        rewrite_workload_images(doc, registry);
+    }
+
+    let docs = docs
+        .into_iter()
+        .map(|doc| serde_yaml::to_string(&doc))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(docs.join("---\n"))
+}
+
 impl ClusterAddon for Addon {
     fn new(cluster: magnum::Cluster) -> Self {
         Self { cluster }
@@ -139,14 +217,31 @@ impl ClusterAddon for Addon {
     fn manifests(&self) -> Result<BTreeMap<String, String>, helm::HelmTemplateError> {
         let values = &CSIValues::try_from(self.cluster.clone()).expect("failed to create values");
 
-        Ok(btreemap! {
+        let mut manifests = btreemap! {
             "manila-csi.yaml".to_owned() => helm::template_using_include_dir(
                 include_dir!("magnum_cluster_api/charts/openstack-manila-csi"),
                 "manila-csi",
                 "kube-system",
                 values,
             )?,
-        })
+        };
+
+        for file in NFS_CSI_MANIFESTS.files() {
+            let Some(filename) = file.path().file_name().and_then(|name| name.to_str()) else {
+                continue;
+            };
+
+            let Some(contents) = file.contents_utf8() else {
+                continue;
+            };
+
+            manifests.insert(
+                filename.to_owned(),
+                render_nfs_csi_manifest(contents, &self.cluster.labels.container_infra_prefix)?,
+            );
+        }
+
+        Ok(manifests)
     }
 }
 
@@ -322,5 +417,56 @@ mod tests {
 
         let addon = Addon::new(cluster.clone());
         addon.manifests().expect("failed to get manifests");
+    }
+
+    #[test]
+    fn test_get_manifests_includes_nfs_csi_dependency() {
+        let cluster = magnum::Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: magnum::ClusterLabels::builder().build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let addon = Addon::new(cluster.clone());
+        let manifests = addon.manifests().expect("failed to get manifests");
+
+        assert!(manifests.contains_key("manila-csi.yaml"));
+        assert!(manifests.contains_key("csi-nfs-controller.yaml"));
+        assert!(manifests.contains_key("csi-nfs-driverinfo.yaml"));
+        assert!(manifests.contains_key("csi-nfs-node.yaml"));
+        assert!(manifests.contains_key("rbac-csi-nfs.yaml"));
+        assert!(
+            manifests["csi-nfs-node.yaml"].contains("registry.k8s.io/sig-storage/nfsplugin:v4.2.0")
+        );
+    }
+
+    #[test]
+    fn test_get_manifests_mirrors_nfs_csi_images() {
+        let cluster = magnum::Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: magnum::ClusterLabels::builder()
+                .container_infra_prefix(Some("registry.example.com".to_string()))
+                .build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let addon = Addon::new(cluster.clone());
+        let manifests = addon.manifests().expect("failed to get manifests");
+
+        assert!(manifests["csi-nfs-node.yaml"].contains("registry.example.com/nfsplugin:v4.2.0"));
+        assert!(manifests["csi-nfs-node.yaml"]
+            .contains("registry.example.com/csi-livenessprobe:v2.8.0"));
+        assert!(manifests["csi-nfs-node.yaml"]
+            .contains("registry.example.com/csi-node-driver-registrar:v2.6.2"));
+        assert!(manifests["csi-nfs-controller.yaml"]
+            .contains("registry.example.com/csi-provisioner:v3.3.0"));
     }
 }
