@@ -19,7 +19,7 @@ import openstack.exceptions as sdk_exceptions  # type: ignore
 import pykube  # type: ignore
 from magnum.common import clients, exception  # type: ignore
 from manilaclient.v2 import client as manilaclient  # type: ignore
-from novaclient import exceptions as nova_exception  # type: ignore
+from openstack import connection as sdk_connection  # type: ignore
 
 
 class OpenStackClients(clients.OpenStackClients):
@@ -27,6 +27,7 @@ class OpenStackClients(clients.OpenStackClients):
 
     def __init__(self, context):
         super(OpenStackClients, self).__init__(context)
+        self._compute = None
         self._manila = None
 
     @staticmethod
@@ -108,37 +109,37 @@ class OpenStackClients(clients.OpenStackClients):
 
         return next(iter(cinder.types()), None)
 
-    def list_flavors(self):
-        nova = self.nova()
-        if self._is_callable(nova, "flavors"):
-            return list(nova.flavors())
+    @exception.wrap_keystone_exception
+    def compute(self):
+        """Return an openstacksdk compute proxy on every Magnum release.
 
-        return nova.flavors.list()
+        Magnum 2026.2 builds nova() this way, while older releases return
+        novaclient from it, so the driver builds its own to use one API.
+        """
+        if self._compute:
+            return self._compute
+        endpoint = self.url_for(
+            service_type="compute",
+            interface=self._get_client_option("nova", "endpoint_type"),
+            region_name=self._get_client_option("nova", "region_name"),
+        )
+        self._compute = sdk_connection.Connection(
+            session=self.keystone().session,
+            compute_endpoint_override=endpoint,
+        ).compute
+        return self._compute
+
+    def list_flavors(self):
+        return list(self.compute().flavors())
 
     def list_server_groups(self, all_projects=False):
-        nova = self.nova()
-        if self._is_callable(nova, "server_groups"):
-            return list(nova.server_groups(all_projects=all_projects))
-
-        return nova.server_groups.list(all_projects=all_projects)
+        return list(self.compute().server_groups(all_projects=all_projects))
 
     def create_server_group(self, name, policies):
-        nova = self.nova()
-        if self._is_callable(nova, "create_server_group"):
-            return nova.create_server_group(name=name, policies=policies)
-
-        return nova.server_groups.create(name=name, policies=policies)
+        return self.compute().create_server_group(name=name, policies=policies)
 
     def delete_server_group(self, server_group_id):
-        nova = self.nova()
-        try:
-            if self._is_callable(nova, "delete_server_group"):
-                nova.delete_server_group(server_group_id)
-                return
-
-            nova.server_groups.delete(server_group_id)
-        except (nova_exception.NotFound, sdk_exceptions.NotFoundException):
-            return
+        self.compute().delete_server_group(server_group_id, ignore_missing=True)
 
     def list_load_balancers(self):
         octavia = self.octavia()

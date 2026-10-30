@@ -3,6 +3,7 @@ mod client;
 mod clients;
 mod cluster_api;
 mod driver;
+mod failure_domains;
 mod features;
 pub mod immutable_fields;
 mod logging;

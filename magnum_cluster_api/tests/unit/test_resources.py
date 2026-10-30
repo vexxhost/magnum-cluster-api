@@ -15,7 +15,7 @@
 import pytest
 from magnum.objects import fields
 from magnum.tests.unit.objects import utils
-from novaclient.v2 import flavors  # type: ignore
+from openstack.compute.v2 import flavor as sdk_flavor  # type: ignore
 
 from magnum_cluster_api import resources
 
@@ -64,9 +64,8 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     mock_lookup_image.return_value = {"id": "foo"}
 
     mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
-    mock_lookup_flavor.return_value = flavors.Flavor(
-        None,
-        {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
+    mock_lookup_flavor.return_value = sdk_flavor.Flavor(
+        name="fake-flavor", disk=10, ram=1024, vcpus=1
     )
 
     mock_ensure_worker_server_group = mocker.patch(
@@ -111,9 +110,8 @@ class TestExistingMutateMachineDeployment:
         mock_lookup_image.return_value = {"id": "foo"}
 
         mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
-        mock_lookup_flavor.return_value = flavors.Flavor(
-            None,
-            {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
+        mock_lookup_flavor.return_value = sdk_flavor.Flavor(
+            name="fake-flavor", disk=10, ram=1024, vcpus=1
         )
 
     def _assert_no_mutations(self, md):
@@ -195,10 +193,7 @@ def _patch_new_machine_deployment_dependencies(mocker):
     mocker.patch("magnum_cluster_api.utils.lookup_image", return_value={"id": "foo"})
     mocker.patch(
         "magnum_cluster_api.utils.lookup_flavor",
-        return_value=flavors.Flavor(
-            None,
-            {"name": "bm-flavor", "disk": 0, "ram": 4096, "vcpus": 4},
-        ),
+        return_value=sdk_flavor.Flavor(name="bm-flavor", disk=0, ram=4096, vcpus=4),
     )
     mocker.patch(
         "magnum_cluster_api.integrations.cinder.get_default_boot_volume_type",
@@ -245,54 +240,3 @@ def test_new_machine_deployment_sets_failure_domain(context, mocker):
     md = resources.mutate_machine_deployment(context, cluster, node_group)
 
     assert md["failureDomain"] == "nova"
-
-
-def test_migrate_machineset_failure_domain_removes_empty_value(
-    context,
-    mocker,
-):
-    cluster = utils.get_test_cluster(context, labels={})
-    node_group = utils.get_test_nodegroup(context, labels={})
-    machine_set = mocker.Mock()
-    machine_set.obj = {
-        "spec": {
-            "template": {
-                "spec": {
-                    "failureDomain": "",
-                },
-            },
-        },
-    }
-    mocker.patch(
-        "magnum_cluster_api.objects.MachineSet.for_node_group",
-        return_value=[machine_set],
-    )
-
-    resources.migrate_machineset_failure_domain(
-        context,
-        cluster,
-        node_group,
-        mocker.Mock(),
-    )
-
-    assert "failureDomain" not in machine_set.obj["spec"]["template"]["spec"]
-    machine_set.update.assert_called_once_with()
-
-
-def test_migrate_cluster_failure_domain_removes_empty_value(context, mocker):
-    node_group = utils.get_test_nodegroup(context, labels={})
-    machine_deployment = {
-        "name": node_group.name,
-        "failureDomain": "",
-    }
-    cluster_resource = mocker.Mock()
-    cluster_resource.get_machine_deployment_spec.return_value = machine_deployment
-
-    resources.migrate_cluster_failure_domain(node_group, cluster_resource)
-
-    assert "failureDomain" not in machine_deployment
-    cluster_resource.set_machine_deployment_spec.assert_called_once_with(
-        node_group.name,
-        machine_deployment,
-    )
-    cluster_resource.update.assert_called_once_with()
