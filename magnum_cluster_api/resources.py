@@ -87,9 +87,7 @@ class ClusterAutoscalerHelmRelease:
                     "repository": image_repo,
                     "tag": image_tag,
                 },
-                "nodeSelector": {
-                    "openstack-control-plane": "enabled",
-                },
+                "nodeSelector": CONF.auto_scaling.node_selector,
                 "extraArgs": {
                     "logtostderr": True,
                     "stderrthreshold": "info",
