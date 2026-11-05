@@ -2,9 +2,9 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: {{ include "openstack-manila-csi.nodeplugin.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "openstack-manila-csi.nodeplugin.labels" .  | nindent 4 }}
-  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:
@@ -14,6 +14,7 @@ spec:
       labels:
         {{- include "openstack-manila-csi.nodeplugin.labels" .  | nindent 8 }}
     spec:
+      securityContext: {{ toYaml .Values.nodeplugin.podSecurityContext | nindent 8 }}
       serviceAccountName: {{ include "openstack-manila-csi.serviceAccountName.nodeplugin" . }}
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
@@ -86,6 +87,9 @@ spec:
               mountPath: /runtimeconfig
               readOnly: true
             {{- end }}
+            {{- with $.Values.nodeplugin.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           resources:
 {{ toYaml $.Values.nodeplugin.nodeplugin.resources | indent 12 }}
         {{- end }}
@@ -108,6 +112,9 @@ spec:
           configMap:
             name: manila-csi-runtimeconf-cm
         {{- end }}
+        {{- end }}
+        {{- with .Values.nodeplugin.volumes }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
     {{- if .Values.nodeplugin.affinity }}
       affinity: {{ toYaml .Values.nodeplugin.affinity | nindent 8 }}

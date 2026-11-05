@@ -12,6 +12,20 @@ env:
 permissions: {}
 
 jobs:
+  bump-scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: step-security/setup-uv@479ad0a90c4286eda3535eb7db396ed723b63fb7 # v8.1.0
+      - run: ./hack/bump/kubernetes.sh --self-test
+      - run: ./hack/bump/cloud-provider-openstack.sh --self-test
+      - run: ./hack/bump/cloud-provider-openstack.sh --check
+
   cargo:
     uses: vexxhost/github-actions/.github/workflows/cargo.yml@ee90fdf77bca9a1426af5073b44cae27dc0bdaca # main
 
