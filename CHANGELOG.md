@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.40.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.39.0...v0.40.0) (2026-11-05)
+
+
+### Features
+
+* **cinder-csi:** expose topology and volumeBindingMode as cluster labels ([#1049](https://github.com/vexxhost/magnum-cluster-api/issues/1049)) ([8345959](https://github.com/vexxhost/magnum-cluster-api/commit/8345959931ba784aedee52dfdc7fdc54501bb04e))
+
 ## [0.39.0](https://github.com/vexxhost/magnum-cluster-api/compare/v0.38.2...v0.39.0) (2026-10-29)
 
 
