@@ -265,6 +265,15 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
         if cinder.is_enabled(self.cluster):
             volume_types = osc.list_volume_types()
             default_volume_type = osc.get_default_volume_type()
+            # NOTE: Only an explicit "WaitForFirstConsumer" changes the binding
+            #       mode, so an unexpected value keeps the default behaviour
+            #       instead of producing a StorageClass that gets rejected.
+            volume_binding_mode = (
+                "WaitForFirstConsumer"
+                if self.cluster.labels.get("cinder_csi_volume_binding_mode", "").lower()
+                == "waitforfirstconsumer"
+                else "Immediate"
+            )
             data = {
                 **data,
                 **magnum_cluster_api.Driver.get_cinder_csi_cluster_resource_secret_data(
@@ -291,7 +300,7 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
                                 "type": vt.name,
                             },
                             "reclaimPolicy": "Delete",
-                            "volumeBindingMode": "Immediate",
+                            "volumeBindingMode": volume_binding_mode,
                         }
                     )
                     for vt in volume_types
