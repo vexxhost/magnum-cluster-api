@@ -71,9 +71,3 @@ class MachineDeploymentNotFound(exception.ObjectNotFound):
 
 class InvalidOctaviaLoadBalancerAlgorithm(exception.Invalid):
     message = _("Invalid value for octavia_lb_algorithm: %(octavia_lb_algorithm)s.")
-
-
-class InvalidLabelValue(exception.Invalid):
-    message = _(
-        "Invalid value for label %(label)s: %(value)s. Expected one of: %(allowed)s."
-    )

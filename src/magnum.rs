@@ -55,6 +55,7 @@ pub struct ClusterLabels {
     /// Controls --feature-gates=Topology=... on the csi-provisioner container.
     /// Set to "false" when the Cinder AZ and the Nova compute AZ don't match.
     /// Note: OpenStack labels are always strings, so this accepts "true"/"false".
+    /// Any value other than "false" keeps topology enabled.
     #[builder(default="true".to_owned())]
     #[pyo3(default="true".to_owned())]
     pub cinder_csi_topology: String,
@@ -127,9 +128,10 @@ impl ClusterLabels {
     }
 
     /// Returns true if topology awareness is enabled for the Cinder CSI
-    /// provisioner. Parses the string label value "true"/"false" to a boolean.
+    /// provisioner. Only an explicit "false" disables it, so an unexpected
+    /// value keeps the default behaviour.
     pub fn is_cinder_csi_topology_enabled(&self) -> bool {
-        self.cinder_csi_topology.eq_ignore_ascii_case("true")
+        !self.cinder_csi_topology.eq_ignore_ascii_case("false")
     }
 
     pub fn get_cloud_provider_tag(&self) -> String {

@@ -592,35 +592,3 @@ def test_tpool_wrap_eventlet_not_imported(mocker):
     sys.modules.pop("eventlet.patcher", None)
 
     assert utils.tpool_wrap(mock.sentinel.obj) is mock.sentinel.obj
-
-
-@pytest.mark.parametrize(
-    "labels",
-    [
-        {},
-        {"cinder_csi_volume_binding_mode": "Immediate"},
-        {"cinder_csi_volume_binding_mode": "WaitForFirstConsumer"},
-        {"cinder_csi_topology": "true"},
-        {"cinder_csi_topology": "False"},
-    ],
-)
-def test_validate_cinder_csi_labels(context, labels):
-    cluster = magnum_test_utils.get_test_cluster(context, labels=labels)
-
-    utils.validate_cinder_csi_labels(cluster)
-
-
-@pytest.mark.parametrize(
-    "labels",
-    [
-        {"cinder_csi_volume_binding_mode": "waitforfirstconsumer"},
-        {"cinder_csi_volume_binding_mode": "Delayed"},
-        {"cinder_csi_topology": "yes"},
-        {"cinder_csi_topology": ""},
-    ],
-)
-def test_validate_cinder_csi_labels_invalid(context, labels):
-    cluster = magnum_test_utils.get_test_cluster(context, labels=labels)
-
-    with pytest.raises(exceptions.InvalidLabelValue):
-        utils.validate_cinder_csi_labels(cluster)

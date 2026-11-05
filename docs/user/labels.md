@@ -181,7 +181,8 @@ is often accomplished by deploying a driver on each node.
 * `cinder_csi_topology`
 
    Controls the `--feature-gates=Topology=...` flag on the Cinder CSI
-   provisioner sidecar. Accepts `true` or `false`.
+   provisioner sidecar. Accepts `true` or `false`; any value other than
+   `false` keeps topology enabled.
 
    Set to `false` when the Cinder availability zone names do not match the
    Nova compute availability zone names. Volumes are then created in the
@@ -194,7 +195,8 @@ is often accomplished by deploying a driver on each node.
 * `cinder_csi_volume_binding_mode`
 
    The `volumeBindingMode` for all generated `block-*` StorageClasses.
-   Accepts `Immediate` or `WaitForFirstConsumer`.
+   Accepts `Immediate` or `WaitForFirstConsumer`; any value other than
+   `WaitForFirstConsumer` uses `Immediate`.
 
    The default, `Immediate`, matches the Kubernetes default and the behaviour
    of earlier releases, so deployments with a single availability zone, or

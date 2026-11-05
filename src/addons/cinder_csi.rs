@@ -460,6 +460,24 @@ mod tests {
     }
 
     #[test]
+    fn test_cinder_csi_topology_unknown_value_keeps_default() {
+        let cluster = magnum::Cluster {
+            uuid: "sample-uuid".to_string(),
+            labels: magnum::ClusterLabels::builder()
+                .cinder_csi_topology("ture".to_string())
+                .build(),
+            stack_id: "kube-abcde".to_string().into(),
+            cluster_template: magnum::ClusterTemplate {
+                network_driver: "cilium".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let values: CSIValues = cluster.try_into().expect("failed to create values");
+        assert_eq!(values.csi.provisioner.topology, "true");
+    }
+
+    #[test]
     fn test_cinder_csi_topology_disabled() {
         for label in ["false", "False"] {
             let cluster = magnum::Cluster {

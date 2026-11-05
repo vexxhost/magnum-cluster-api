@@ -302,3 +302,13 @@ class TestCloudProviderClusterResourcesSecretVolumeBindingMode:
             {"cinder_csi_volume_binding_mode": "WaitForFirstConsumer"}
         )
         assert sc["volumeBindingMode"] == "WaitForFirstConsumer"
+
+    def test_label_is_case_insensitive(self):
+        sc = self._get_storage_class(
+            {"cinder_csi_volume_binding_mode": "waitforfirstconsumer"}
+        )
+        assert sc["volumeBindingMode"] == "WaitForFirstConsumer"
+
+    def test_unknown_label_value_falls_back_to_immediate(self):
+        sc = self._get_storage_class({"cinder_csi_volume_binding_mode": "Delayed"})
+        assert sc["volumeBindingMode"] == "Immediate"
