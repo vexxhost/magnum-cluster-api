@@ -196,6 +196,12 @@ is often accomplished by deploying a driver on each node.
    The `volumeBindingMode` for all generated `block-*` StorageClasses.
    Accepts `Immediate` or `WaitForFirstConsumer`.
 
+   The default, `Immediate`, matches the Kubernetes default and the behaviour
+   of earlier releases, so deployments with a single availability zone, or
+   where volumes can be attached across availability zones, need no change.
+   Deployments with multiple availability zones should consider setting
+   `WaitForFirstConsumer`.
+
    With `Immediate`, the volume is created as soon as the PersistentVolumeClaim
    is, in the availability zone of an arbitrary node in the cluster (including
    control plane nodes). With `WaitForFirstConsumer`, the volume is created
