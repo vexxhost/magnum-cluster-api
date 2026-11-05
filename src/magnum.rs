@@ -54,15 +54,10 @@ pub struct ClusterLabels {
 
     /// Controls --feature-gates=Topology=... on the csi-provisioner container.
     /// Set to "false" when the Cinder AZ and the Nova compute AZ don't match.
-    #[builder(default = "true".to_owned())]
-    #[pyo3(default = "true".to_owned())]
+    /// Note: OpenStack labels are always strings, so this accepts "true"/"false".
+    #[builder(default="true".to_owned())]
+    #[pyo3(default="true".to_owned())]
     pub cinder_csi_topology: String,
-
-    /// volumeBindingMode for generated block-* StorageClasses.
-    /// Set to "WaitForFirstConsumer" to defer volume creation until a node is chosen.
-    #[builder(default = "Immediate".to_owned())]
-    #[pyo3(default = "Immediate".to_owned())]
-    pub cinder_csi_volume_binding_mode: String,
 
     /// Enable the use of the Manila CSI driver for the cluster.
     #[builder(default="true".to_owned())]
@@ -129,6 +124,12 @@ impl ClusterLabels {
     /// Parses the string label value "true"/"false" to a boolean.
     pub fn is_cilium_hubble_ui_enabled(&self) -> bool {
         self.cilium_hubble_ui_enabled.eq_ignore_ascii_case("true")
+    }
+
+    /// Returns true if topology awareness is enabled for the Cinder CSI
+    /// provisioner. Parses the string label value "true"/"false" to a boolean.
+    pub fn is_cinder_csi_topology_enabled(&self) -> bool {
+        self.cinder_csi_topology.eq_ignore_ascii_case("true")
     }
 
     pub fn get_cloud_provider_tag(&self) -> String {

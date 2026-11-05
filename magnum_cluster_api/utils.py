@@ -51,6 +51,7 @@ AVAILABLE_SERVER_GROUP_POLICIES = [
     "soft-affinity",
     "soft-anti-affinity",
 ]
+CINDER_CSI_VOLUME_BINDING_MODES = ["Immediate", "WaitForFirstConsumer"]
 CONF = cfg.CONF
 
 
@@ -504,6 +505,8 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
     if (cluster.master_count % 2) == 0:
         raise mcapi_exceptions.ClusterMasterCountEven
 
+    validate_cinder_csi_labels(cluster)
+
     # Check if fixed_network exists
     if cluster.fixed_network:
         if uuidutils.is_uuid_like(cluster.fixed_network):
@@ -529,6 +532,29 @@ def validate_cluster(ctx: context.RequestContext, cluster: magnum_objects.Cluste
             neutron.get_subnet(ctx, cluster.fixed_subnet, source="id", target="name")
         else:
             neutron.get_subnet(ctx, cluster.fixed_subnet, source="name", target="id")
+
+
+def validate_cinder_csi_labels(cluster: magnum_objects.Cluster):
+    """
+    Validate Cinder CSI labels, which are rendered verbatim into the
+    StorageClass and provisioner flags and would otherwise only fail once
+    applied inside the workload cluster.
+    """
+    binding_mode = cluster.labels.get("cinder_csi_volume_binding_mode", "Immediate")
+    if binding_mode not in CINDER_CSI_VOLUME_BINDING_MODES:
+        raise mcapi_exceptions.InvalidLabelValue(
+            label="cinder_csi_volume_binding_mode",
+            value=binding_mode,
+            allowed=", ".join(CINDER_CSI_VOLUME_BINDING_MODES),
+        )
+
+    topology = cluster.labels.get("cinder_csi_topology", "true")
+    if topology.lower() not in ("true", "false"):
+        raise mcapi_exceptions.InvalidLabelValue(
+            label="cinder_csi_topology",
+            value=topology,
+            allowed="true, false",
+        )
 
 
 def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
