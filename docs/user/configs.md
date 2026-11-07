@@ -98,6 +98,11 @@ Options under this group are used for configuring Openstack authentication for C
     **Type**: `string`
     **Default value**: `publicURL`
 
+`workload_endpoint_type`
+
+:   Type of endpoint in Identity service catalog to be used by components running inside the workload clusters, such as the OpenStack cloud controller manager and the Manila CSI driver. If not set, the value of `endpoint_type` is used.
+    **Type**: `string`
+
 `ca_file`
 
 :   Optional CA cert file to use in SSL connections.
