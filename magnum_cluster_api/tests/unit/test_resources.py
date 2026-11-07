@@ -12,7 +12,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from unittest import mock
+
 import pytest
+import yaml
 from magnum.objects import fields
 from magnum.tests.unit.objects import utils
 from openstack.compute.v2 import flavor as sdk_flavor  # type: ignore
@@ -240,3 +243,72 @@ def test_new_machine_deployment_sets_failure_domain(context, mocker):
     md = resources.mutate_machine_deployment(context, cluster, node_group)
 
     assert md["failureDomain"] == "nova"
+
+
+class TestCloudProviderClusterResourcesSecretVolumeBindingMode:
+    @pytest.fixture(autouse=True)
+    def setup(self, context, mocker):
+        self.context = context
+
+        volume_type = mock.MagicMock()
+        volume_type.name = "standard"
+
+        mock_osc = mocker.patch("magnum_cluster_api.clients.get_openstack_api")
+        mock_osc.return_value.list_volume_types.return_value = [volume_type]
+        mock_osc.return_value.get_default_volume_type.return_value.name = "other"
+
+        mocker.patch(
+            "magnum_cluster_api.integrations.cinder.is_enabled", return_value=True
+        )
+        mocker.patch(
+            "magnum_cluster_api.integrations.manila.is_enabled", return_value=False
+        )
+        mocker.patch(
+            "magnum_cluster_api.magnum_cluster_api.Driver"
+            ".get_cloud_provider_cluster_resource_secret_data",
+            return_value={},
+        )
+        mocker.patch(
+            "magnum_cluster_api.magnum_cluster_api.Driver"
+            ".get_cinder_csi_cluster_resource_secret_data",
+            return_value={},
+        )
+        mocker.patch(
+            "magnum_cluster_api.utils.generate_cloud_controller_manager_config",
+            return_value="",
+        )
+        mocker.patch("magnum.common.utils.get_openstack_ca", return_value="")
+
+    def _get_storage_class(self, cluster_labels):
+        cluster = mock.MagicMock()
+        cluster.labels = cluster_labels
+
+        secret = resources.CloudProviderClusterResourcesSecret(
+            self.context,
+            mock.MagicMock(),
+            mock.MagicMock(),
+            cluster,
+        )
+        obj = secret.get_object()
+        sc_yaml = obj["stringData"]["storageclass-block-standard.yaml"]
+        return yaml.safe_load(sc_yaml)
+
+    def test_default_is_immediate(self):
+        sc = self._get_storage_class({})
+        assert sc["volumeBindingMode"] == "Immediate"
+
+    def test_label_overrides_binding_mode(self):
+        sc = self._get_storage_class(
+            {"cinder_csi_volume_binding_mode": "WaitForFirstConsumer"}
+        )
+        assert sc["volumeBindingMode"] == "WaitForFirstConsumer"
+
+    def test_label_is_case_insensitive(self):
+        sc = self._get_storage_class(
+            {"cinder_csi_volume_binding_mode": "waitforfirstconsumer"}
+        )
+        assert sc["volumeBindingMode"] == "WaitForFirstConsumer"
+
+    def test_unknown_label_value_falls_back_to_immediate(self):
+        sc = self._get_storage_class({"cinder_csi_volume_binding_mode": "Delayed"})
+        assert sc["volumeBindingMode"] == "Immediate"
