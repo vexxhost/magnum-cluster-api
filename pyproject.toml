@@ -27,7 +27,7 @@ classifiers = [
 dependencies = [
   "certifi",
   "click>=8.0.4",
-  "diskcache>=5.6.1",
+  "diskcache-community>=5.8.4",
   "eventlet>=0.33.1",
   "haproxyadmin>=0.2.4",
   "kubernetes>=24.2.0",
