@@ -86,8 +86,7 @@ impl ClusterAddon for Addon {
             })?
             .to_owned();
 
-        let content =
-            Self::apply_image_prefix(raw, &self.cluster.labels.container_infra_prefix);
+        let content = Self::apply_image_prefix(raw, &self.cluster.labels.container_infra_prefix);
 
         Ok(btreemap! {
             "calico.yaml".to_owned() => content,
@@ -235,6 +234,7 @@ mod tests {
     #[case("v3.30.1")]
     #[case("v3.30.2")]
     #[case("v3.31.3")]
+    #[case("v3.32.1")]
     fn test_calico_addon_manifests_all_known_versions(#[case] calico_tag: &str) {
         let cluster = make_cluster("calico", calico_tag);
         let addon = Addon::new(cluster);
