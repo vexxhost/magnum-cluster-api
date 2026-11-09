@@ -1,4 +1,4 @@
-from diskcache import Cache  # type: ignore
+from diskcache_community import Cache, SafeDisk  # type: ignore
 
 
 class ServerGroupCache(object):
@@ -10,7 +10,7 @@ class ServerGroupCache(object):
     """
 
     def __init__(self, ttl: int = 300):
-        self._cache = Cache()
+        self._cache = Cache(disk=SafeDisk.with_options(on_error="miss"))
         self._ttl = ttl
 
     def get(self, project_id, server_group_name):

@@ -20,6 +20,7 @@ from unittest import mock
 import pykube
 import pytest
 import responses
+from diskcache_community import Cache, Disk
 from eventlet import tpool  # type: ignore
 from magnum.common import exception
 from magnum.tests.unit.objects import utils as magnum_test_utils  # type: ignore
@@ -592,3 +593,27 @@ def test_tpool_wrap_eventlet_not_imported(mocker):
     sys.modules.pop("eventlet.patcher", None)
 
     assert utils.tpool_wrap(mock.sentinel.obj) is mock.sentinel.obj
+
+
+planted_calls = []
+
+
+def planted():
+    planted_calls.append(True)
+    return "planted-server-group-id"
+
+
+class Planted:
+    def __reduce__(self):
+        return (planted, ())
+
+
+def test_get_server_group_id_ignores_planted_pickle(mocker):
+    with Cache(utils.g_server_group_cache._cache.directory, disk=Disk) as other_writer:
+        other_writer.set(("project-id", "sg"), Planted())
+    osc = mocker.Mock()
+    osc.list_server_groups.return_value = [types.SimpleNamespace(id="sg-id", name="sg")]
+    mocker.patch("magnum_cluster_api.clients.get_openstack_api", return_value=osc)
+
+    assert utils.get_server_group_id(mocker.Mock(), "sg", "project-id") == "sg-id"
+    assert planted_calls == []
