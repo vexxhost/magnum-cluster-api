@@ -178,6 +178,45 @@ is often accomplished by deploying a driver on each node.
 
    Default value: Automatically detected based on `kube_tag` label.
 
+* `cinder_csi_topology`
+
+   Controls the `--feature-gates=Topology=...` flag on the Cinder CSI
+   provisioner sidecar. Accepts `true` or `false`; any value other than
+   `false` keeps topology enabled.
+
+   Set to `false` when the Cinder availability zone names do not match the
+   Nova compute availability zone names. Volumes are then created in the
+   default Cinder availability zone and PersistentVolumes do not receive a
+   `nodeAffinity` constraint, so pods can be scheduled to any node. This
+   requires `[cinder]/cross_az_attach` to be enabled in Nova (the default).
+
+   Default value: `true`
+
+* `cinder_csi_volume_binding_mode`
+
+   The `volumeBindingMode` for all generated `block-*` StorageClasses.
+   Accepts `Immediate` or `WaitForFirstConsumer`; any value other than
+   `WaitForFirstConsumer` uses `Immediate`.
+
+   The default, `Immediate`, matches the Kubernetes default and the behaviour
+   of earlier releases, so deployments with a single availability zone, or
+   where volumes can be attached across availability zones, need no change.
+   Deployments with multiple availability zones should consider setting
+   `WaitForFirstConsumer`.
+
+   With `Immediate`, the volume is created as soon as the PersistentVolumeClaim
+   is, in the availability zone of an arbitrary node in the cluster (including
+   control plane nodes). With `WaitForFirstConsumer`, the volume is created
+   once a pod using it is scheduled, in the availability zone of that pod's
+   node. Use `WaitForFirstConsumer` when the Cinder and Nova availability zone
+   names match and `[cinder]/cross_az_attach` is disabled in Nova, or when
+   node groups are spread across availability zones. PersistentVolumeClaims
+   stay `Pending` until a pod uses them.
+
+   This value is set when the cluster is created.
+
+   Default value: `Immediate`
+
 ### Manila
 
 * `manila_csi_plugin_tag`
@@ -230,6 +269,21 @@ is often accomplished by deploying a driver on each node.
    default list of cipher suites will be used.
 
    Default value: `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305`
+
+* `kubelet_serving_cert_verification_enabled`
+
+   Give every kubelet a serving certificate signed by the cluster CA and make
+   the Kubernetes API server verify it whenever it connects to a kubelet, for
+   example for `kubectl logs`, `exec`, `port-forward` and metrics.  Without this
+   label, kubelets serve a self-signed certificate that the API server doesn't
+   verify.
+
+   The cloud needs a certificate approver set up by its operator, see
+   [Kubelet serving certificate verification](../admin/kubelet-serving-certificates.md).
+
+   This label can only be set when the cluster is created.
+
+   Default value: `false`
 
 * `kube_tag`
 

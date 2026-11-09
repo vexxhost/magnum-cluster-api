@@ -35,6 +35,20 @@ IMAGE_URL = (
     "{{ image_release }}/{{ image_prefix }}-{{ kube_tag }}.qcow2"
 )
 
+# Runs on the newest Kubernetes version with the default CNI, creates the
+# cluster with kubelet serving certificate verification and runs only the
+# tests that reach the kubelet through kube-apiserver.
+KUBELET_SERVING_CERT_VERIFICATION_JOB = (
+    f"{BASE_JOB_NAME}-kubelet-serving-cert-verification"
+)
+KUBELET_SERVING_CERT_VERIFICATION_FOCUS = [
+    "Kubectl logs logs should be able to retrieve and filter logs",
+    "Pods should support remote command execution over websockets",
+    "Pods should support retrieving logs from the container over websockets",
+    "Kubectl Port forwarding With a server listening on localhost "
+    "should support forwarding over websockets",
+]
+
 KUBERNETES_IMAGE_RE = re.compile(r"^.+-v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\.qcow2$")
 
 
@@ -155,7 +169,7 @@ def hydrophone_jobs(release: Release) -> list[dict[str, Any]]:
         f"{VERSIONED_JOB_PREFIX}{version}-{network_driver}"
         for version in release.versions
         for network_driver in NETWORK_DRIVERS
-    ]
+    ] + [KUBELET_SERVING_CERT_VERIFICATION_JOB]
     jobs = [
         {
             "project-template": {
@@ -209,6 +223,19 @@ def hydrophone_jobs(release: Release) -> list[dict[str, Any]]:
                     }
                 }
             )
+
+    jobs.append(
+        {
+            "job": {
+                "name": KUBELET_SERVING_CERT_VERIFICATION_JOB,
+                "parent": f"{VERSIONED_JOB_PREFIX}{release.versions[-1]}-{NETWORK_DRIVERS[0]}",
+                "vars": {
+                    "kubelet_serving_cert_verification": True,
+                    "hydrophone_focus": list(KUBELET_SERVING_CERT_VERIFICATION_FOCUS),
+                },
+            }
+        }
+    )
 
     return jobs
 
@@ -334,6 +361,7 @@ class KubernetesBumpTests(unittest.TestCase):
             [
                 "magnum-cluster-api-hydrophone-v1.33.12-calico",
                 "magnum-cluster-api-hydrophone-v1.33.12-cilium",
+                "magnum-cluster-api-hydrophone-kubelet-serving-cert-verification",
             ],
         )
         self.assertEqual(template["gate"]["jobs"], template["check"]["jobs"])
@@ -356,9 +384,14 @@ class KubernetesBumpTests(unittest.TestCase):
                 "magnum-cluster-api-hydrophone-v1.33.12",
                 "magnum-cluster-api-hydrophone-v1.33.12-calico",
                 "magnum-cluster-api-hydrophone-v1.33.12-cilium",
+                "magnum-cluster-api-hydrophone-kubelet-serving-cert-verification",
             ],
         )
         self.assertEqual(document[2]["job"]["vars"]["image_release"], "2026.05-7")
+        self.assertEqual(
+            document[-1]["job"]["parent"],
+            "magnum-cluster-api-hydrophone-v1.33.12-calico",
+        )
 
     def test_prune_jobs_text_preserves_non_hydrophone_job_format(self) -> None:
         text = dedent(

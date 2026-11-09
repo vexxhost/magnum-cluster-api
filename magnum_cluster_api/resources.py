@@ -18,9 +18,9 @@ import math
 import os
 import types
 import typing
+from importlib import resources as importlib_resources
 
 import certifi
-import pkg_resources
 import pykube  # type: ignore
 import yaml
 from magnum import objects as magnum_objects  # type: ignore
@@ -72,7 +72,7 @@ class ClusterAutoscalerHelmRelease:
             namespace="magnum-system",
             release_name=self.cluster.stack_id,
             chart_ref=os.path.join(
-                pkg_resources.resource_filename("magnum_cluster_api", "charts"),
+                str(importlib_resources.files("magnum_cluster_api") / "charts"),
                 "cluster-autoscaler/",
             ),
             values={
@@ -265,6 +265,15 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
         if cinder.is_enabled(self.cluster):
             volume_types = osc.list_volume_types()
             default_volume_type = osc.get_default_volume_type()
+            # NOTE: Only an explicit "WaitForFirstConsumer" changes the binding
+            #       mode, so an unexpected value keeps the default behaviour
+            #       instead of producing a StorageClass that gets rejected.
+            volume_binding_mode = (
+                "WaitForFirstConsumer"
+                if self.cluster.labels.get("cinder_csi_volume_binding_mode", "").lower()
+                == "waitforfirstconsumer"
+                else "Immediate"
+            )
             data = {
                 **data,
                 **magnum_cluster_api.Driver.get_cinder_csi_cluster_resource_secret_data(
@@ -291,7 +300,7 @@ class CloudProviderClusterResourcesSecret(ClusterBase):
                                 "type": vt.name,
                             },
                             "reclaimPolicy": "Delete",
-                            "volumeBindingMode": "Immediate",
+                            "volumeBindingMode": volume_binding_mode,
                         }
                     )
                     for vt in volume_types
@@ -401,8 +410,8 @@ class LegacyClusterResourcesSecret(ClusterBase):
 
     def get_object(self) -> dict:
         repository = utils.get_cluster_container_infra_prefix(self.cluster)
-        manifests_path = pkg_resources.resource_filename(
-            "magnum_cluster_api", "manifests"
+        manifests_path = str(
+            importlib_resources.files("magnum_cluster_api") / "manifests"
         )
 
         data = magnum_cluster_api.Driver.get_legacy_cluster_resource_secret_data(
@@ -474,8 +483,9 @@ class LegacyClusterResourcesSecret(ClusterBase):
                         namespace="kube-system",
                         release_name="k8s-keystone-auth",
                         chart_ref=os.path.join(
-                            pkg_resources.resource_filename(
-                                "magnum_cluster_api", "charts"
+                            str(
+                                importlib_resources.files("magnum_cluster_api")
+                                / "charts"
                             ),
                             "k8s-keystone-auth/",
                         ),
@@ -851,62 +861,6 @@ def mutate_machine_deployment(
     if failure_domain:
         machine_deployment["failureDomain"] = failure_domain
     return machine_deployment
-
-
-def migrate_machineset_failure_domain(
-    context: context.RequestContext,
-    cluster: magnum_objects.Cluster,
-    node_group: magnum_objects.NodeGroup,
-    pykube_api: pykube.HTTPClient,
-) -> bool:
-    """
-    Migrate MachineSet failureDomain fields to fix Cluster API v1.10+ validation issues.
-
-    This function directly patches MachineSet resources to remove empty string
-    failureDomain values, avoiding rolling updates that would occur
-    if we modified the MachineDeployment spec.
-    """
-    machine_sets = objects.MachineSet.for_node_group(pykube_api, cluster, node_group)
-
-    for ms in machine_sets:
-        # Check if this MachineSet has an empty string failureDomain
-        current_failure_domain = (
-            ms.obj.get("spec", {})
-            .get("template", {})
-            .get("spec", {})
-            .get("failureDomain")
-        )
-
-        if current_failure_domain == "":
-            # Patch the MachineSet to remove failureDomain.
-            # This avoids the validation error without triggering rolling updates
-            ms.obj["spec"]["template"]["spec"].pop("failureDomain", None)
-            ms.update()
-
-
-def migrate_cluster_failure_domain(
-    node_group: magnum_objects.NodeGroup,
-    cluster_resource: objects.Cluster,
-) -> bool:
-    """
-    Migrate Cluster MachineDeployment failureDomain fields to fix Cluster API v1.10+ validation issues.
-
-    This function directly patches the Cluster resource to remove empty string
-    failureDomain values from MachineDeployment specs, avoiding rolling updates.
-    """
-
-    # Get the current machine deployment spec
-    current_md_spec = cluster_resource.get_machine_deployment_spec(node_group.name)
-    current_failure_domain = current_md_spec.get("failureDomain")
-
-    if current_failure_domain == "":
-        # Update the machine deployment spec to remove the failureDomain field
-        # We'll use obj.update() which should handle the field removal properly
-        current_md_spec.pop("failureDomain", None)
-        cluster_resource.set_machine_deployment_spec(node_group.name, current_md_spec)
-
-        # Use obj.update() to apply the change
-        cluster_resource.update()
 
 
 def generate_machine_deployments_for_cluster(
@@ -1302,6 +1256,14 @@ class Cluster(ClusterBase):
                             "name": "enableKeystoneAuth",
                             "value": utils.get_cluster_label_as_bool(
                                 self.cluster, "keystone_auth_enabled", True
+                            ),
+                        },
+                        {
+                            "name": "enableKubeletServingCertificateVerification",
+                            "value": utils.get_cluster_label_as_bool(
+                                self.cluster,
+                                "kubelet_serving_cert_verification_enabled",
+                                False,
                             ),
                         },
                         {

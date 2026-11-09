@@ -22,6 +22,7 @@ export GOPROXY=off
 CAPI_VERSION=${CAPI_VERSION:-v1.13.2}
 CAPO_VERSION=${CAPO_VERSION:-v0.14.4}
 ORC_VERSION=${ORC_VERSION:-v2.2.0}
+CSR_APPROVER_VERSION=${CSR_APPROVER_VERSION:-v0.1.0}
 
 # Install ORC
 kubectl apply -f "https://github.com/k-orc/openstack-resource-controller/releases/download/${ORC_VERSION}/install.yaml"
@@ -30,18 +31,32 @@ kubectl apply -f "https://github.com/k-orc/openstack-resource-controller/release
 sudo curl -Lo /usr/local/bin/clusterctl https://github.com/kubernetes-sigs/cluster-api/releases/download/${CAPI_VERSION}/clusterctl-linux-amd64
 sudo chmod +x /usr/local/bin/clusterctl
 
+# Register `cluster-api-csr-approver` as a clusterctl add-on provider, it
+# approves kubelet serving certificates for clusters created with
+# `kubelet_serving_cert_verification_enabled=true`.
+CLUSTERCTL_CONFIG=$(mktemp --suffix=.yaml)
+cat <<EOF > ${CLUSTERCTL_CONFIG}
+providers:
+  - name: csr-approver
+    type: AddonProvider
+    url: https://github.com/vexxhost/cluster-api-csr-approver/releases/latest/addon-components.yaml
+EOF
+
 # Initialize the `clusterctl` CLI
 export EXP_CLUSTER_RESOURCE_SET=true
 export EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true #Used by the kubeadm bootstrap provider
 export CLUSTER_TOPOLOGY=true
 clusterctl init \
+  --config ${CLUSTERCTL_CONFIG} \
   --core cluster-api:${CAPI_VERSION} \
   --bootstrap kubeadm:${CAPI_VERSION} \
   --control-plane kubeadm:${CAPI_VERSION} \
-  --infrastructure openstack:${CAPO_VERSION}
+  --infrastructure openstack:${CAPO_VERSION} \
+  --addon csr-approver:${CSR_APPROVER_VERSION}
 
 # Wait for components to go up
 kubectl -n capi-kubeadm-bootstrap-system rollout status deploy/capi-kubeadm-bootstrap-controller-manager
 kubectl -n capi-kubeadm-control-plane-system rollout status deploy/capi-kubeadm-control-plane-controller-manager
 kubectl -n capi-system rollout status deploy/capi-controller-manager
 kubectl -n capo-system rollout status deploy/capo-controller-manager
+kubectl -n capi-csr-approver-system rollout status deploy/capi-csr-approver-controller-manager

@@ -9,7 +9,7 @@ import shortuuid
 from magnum import objects as magnum_objects  # type: ignore
 from magnum.common import context as magnum_context  # type: ignore
 from magnum.tests.unit.db import utils  # type: ignore
-from novaclient.v2 import flavors  # type: ignore
+from openstack.compute.v2 import flavor as sdk_flavor  # type: ignore
 from oslo_utils import uuidutils  # type: ignore
 from oslotest import base  # type: ignore
 from tenacity import retry, retry_if_exception_type, stop_after_delay, wait_fixed
@@ -74,14 +74,8 @@ class ResourceBaseTestCase(base.BaseTestCase):
         self.useFixture(
             fixtures.MockPatch(
                 "magnum_cluster_api.utils.lookup_flavor",
-                return_value=flavors.Flavor(
-                    None,
-                    {
-                        "name": "fake-flavor",
-                        "disk": 10,
-                        "ram": 1024,
-                        "vcpus": 1,
-                    },
+                return_value=sdk_flavor.Flavor(
+                    name="fake-flavor", disk=10, ram=1024, vcpus=1
                 ),
             )
         )
