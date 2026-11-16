@@ -132,6 +132,12 @@ class Machine(NamespacedAPIObject):
     kind = "Machine"
 
 
+class MachineSet(NamespacedAPIObject):
+    version = "cluster.x-k8s.io/v1beta1"
+    endpoint = "machinesets"
+    kind = "MachineSet"
+
+
 class OpenStackCluster(NamespacedAPIObject):
     version = "infrastructure.cluster.x-k8s.io/v1beta1"
     endpoint = "openstackclusters"
