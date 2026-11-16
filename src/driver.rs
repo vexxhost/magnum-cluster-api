@@ -327,6 +327,27 @@ impl Driver {
         Ok(())
     }
 
+    /// Remove `failureDomain: ""` (invalid since Cluster API v1.10) from all
+    /// Cluster API objects of a cluster.
+    fn clear_empty_failure_domains(
+        &self,
+        py: Python<'_>,
+        cluster_name: String,
+    ) -> Result<(), kubernetes::Error> {
+        Python::detach(py, || {
+            get_runtime().block_on(async {
+                crate::failure_domains::clear_empty_failure_domains(
+                    &self.client,
+                    &self.namespace,
+                    &cluster_name,
+                )
+                .await?;
+
+                Ok(())
+            })
+        })
+    }
+
     fn resolve_immutable_fields(
         &self,
         py: Python<'_>,
