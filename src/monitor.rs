@@ -1,7 +1,7 @@
 use crate::{
     clients::kubernetes,
     cluster_api::{kubeadmcontrolplane::KubeadmControlPlane, machines::Machine},
-    magnum,
+    magnum, version,
 };
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
 use kube::{api::ListParams, Api};
@@ -179,9 +179,23 @@ impl Monitor {
 
         let health_status_reason = machines.items.to_health_status_reason().into_pyobject(py)?;
         health_status_reason.set_item("api", if kcp.is_ready() { "ok" } else { "nok" })?;
+
+        if let Some(warning) = version_status_warning(&self.cluster.labels.kube_tag) {
+            health_status_reason.set_item("version_status", warning)?;
+        }
+
         data.set_item("health_status_reason", health_status_reason)?;
 
         Ok(data.into())
+    }
+}
+
+/// Returns a version status warning message if the cluster's kube_tag is not
+/// fully supported.  Returns `None` for supported versions.
+fn version_status_warning(kube_tag: &str) -> Option<String> {
+    match version::get_compatibility_status(kube_tag) {
+        version::KubeVersionStatus::Supported => None,
+        status => Some(format!("Kubernetes version {} is {}", kube_tag, status)),
     }
 }
 
@@ -435,6 +449,33 @@ mod tests {
                 "kube-yx7ky-default-worker-srknv-6l6l2.Ready".to_string() => true,
                 "kube-yx7ky-default-worker-7rs4w-wpcdc.Ready".to_string() => false,
             }
+        );
+    }
+
+    #[test]
+    fn test_version_status_warning_supported_returns_none() {
+        assert_eq!(version_status_warning("v1.35.5"), None);
+        assert_eq!(version_status_warning("v1.33.0"), None);
+        assert_eq!(version_status_warning("v1.36.1"), None);
+    }
+
+    #[test]
+    fn test_version_status_warning_unsupported_returns_message() {
+        assert_eq!(
+            version_status_warning("v1.29.0"),
+            Some("Kubernetes version v1.29.0 is unsupported".to_string()),
+        );
+        assert_eq!(
+            version_status_warning("v1.22.0"),
+            Some("Kubernetes version v1.22.0 is unsupported".to_string()),
+        );
+    }
+
+    #[test]
+    fn test_version_status_warning_unparseable_returns_message() {
+        assert_eq!(
+            version_status_warning("invalid"),
+            Some("Kubernetes version invalid is unsupported".to_string()),
         );
     }
 }
