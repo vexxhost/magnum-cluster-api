@@ -15,6 +15,26 @@ jobs:
   cargo:
     uses: vexxhost/github-actions/.github/workflows/cargo.yml@ee90fdf77bca9a1426af5073b44cae27dc0bdaca # main
 
+  # Tests against a real kube-apiserver and etcd (see the `envtest` feature).
+  envtest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+      - uses: step-security/rust-cache@851174d9a2fdc03e0896e02844dcc61d81dd7851 # v2.9.1
+      - run: cargo test --features envtest --lib envtest
+
   build:
     runs-on: ubuntu-24.04${{ matrix.target == 'aarch64' && '-arm' || '' }}
     timeout-minutes: 5
