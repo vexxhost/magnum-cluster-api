@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import sys
 import textwrap
 import types
 from unittest import mock
@@ -19,6 +20,7 @@ from unittest import mock
 import pykube
 import pytest
 import responses
+from eventlet import tpool  # type: ignore
 from magnum.common import exception
 from magnum.tests.unit.objects import utils as magnum_test_utils  # type: ignore
 from openstack.load_balancer.v2 import load_balancer as sdk_load_balancer
@@ -49,18 +51,12 @@ def test_generate_cluster_api_name(mocker):
 def test_get_server_group_id_uses_verified_cache(context, mocker):
     mock_cache = mocker.patch("magnum_cluster_api.utils.g_server_group_cache")
     mock_cache.get.return_value = "server-group-id"
-    nova = types.SimpleNamespace(
-        server_groups=types.SimpleNamespace(
-            list=mocker.Mock(
-                return_value=[
-                    types.SimpleNamespace(name="kube-test", id="server-group-id")
-                ]
-            )
+    osc = types.SimpleNamespace(
+        list_server_groups=mocker.Mock(
+            return_value=[types.SimpleNamespace(name="kube-test", id="server-group-id")]
         )
     )
-    mocker.patch(
-        "magnum_cluster_api.clients.get_openstack_api"
-    ).return_value.nova.return_value = nova
+    mocker.patch("magnum_cluster_api.clients.get_openstack_api").return_value = osc
 
     server_group_id = utils.get_server_group_id(context, "kube-test", "project-id")
 
@@ -634,3 +630,27 @@ def test_wait_for_sdk_loadbalancers_deleted_times_out(mocker):
         utils._wait_for_sdk_loadbalancers_deleted(octavia_client, {"lb-id"})
 
     sleep.assert_called_once_with(1)
+
+
+def test_tpool_wrap_under_eventlet(mocker):
+    mocker.patch("eventlet.patcher.is_monkey_patched", return_value=True)
+
+    wrapped = utils.tpool_wrap(mock.sentinel.obj)
+
+    assert isinstance(wrapped, tpool.Proxy)
+    assert wrapped._obj is mock.sentinel.obj
+
+
+def test_tpool_wrap_eventlet_not_patched(mocker):
+    # A tpool.Proxy without monkey-patching hangs on calls from every native
+    # thread but the first caller, which is how the conductor serves RPC.
+    mocker.patch("eventlet.patcher.is_monkey_patched", return_value=False)
+
+    assert utils.tpool_wrap(mock.sentinel.obj) is mock.sentinel.obj
+
+
+def test_tpool_wrap_eventlet_not_imported(mocker):
+    mocker.patch.dict(sys.modules)
+    sys.modules.pop("eventlet.patcher", None)
+
+    assert utils.tpool_wrap(mock.sentinel.obj) is mock.sentinel.obj
