@@ -122,25 +122,26 @@ jobs:
           # blows up before any assertion can run, masking real regressions.
           uv pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} \
             magnum keystonemiddleware "setuptools<81"
-          # Pass 1 — narrow regression guard scoped to magnum_cluster_api itself.
-          # Importing only the package must NOT pull in pkg_resources (the
-          # legacy resolver does not apply PEP 503 name normalization across
-          # .|_|-, which is what broke against PEP 625-named wheels like
-          # oslo_cache-*.dist-info). This is the bug PR #1001 fixed and the
-          # one we are guarding against.
+          # Pass 1 — reject direct pkg_resources imports by mCAPI. Older
+          # keystonemiddleware releases still import it transitively, so checking
+          # sys.modules would incorrectly fail supported OpenStack releases.
           .venv/bin/python - <<'PY'
-          import sys
+          import builtins
+
+          original_import = builtins.__import__
+
+          def guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
+              importer = (globals or {}).get("__name__", "")
+              if name.split(".", 1)[0] == "pkg_resources" and (
+                  importer == "magnum_cluster_api" or importer.startswith("magnum_cluster_api.")
+              ):
+                  raise AssertionError(f"{importer} must not import pkg_resources")
+              return original_import(name, globals, locals, fromlist, level)
+
+          builtins.__import__ = guarded_import
           import magnum_cluster_api  # must not raise
           import magnum_cluster_api.resources  # the original offender
-          assert "pkg_resources" not in sys.modules, (
-              "magnum_cluster_api must not import pkg_resources — it breaks "
-              "on PEP 625 wheels (e.g. oslo_cache-*.dist-info). Loaded by: "
-              + ", ".join(
-                  m for m, mod in sys.modules.items()
-                  if mod is not None and getattr(mod, "__file__", "") and "pkg_resources" in (getattr(mod, "__file__", "") or "")
-              )
-          )
-          print("OK magnum_cluster_api import is pkg_resources-free")
+          print("OK mCAPI makes no direct pkg_resources imports")
           PY
           # Pass 2 — full entry-point + driver loading. Upstream code (e.g.
           # keystonemiddleware) may legitimately import pkg_resources here;
