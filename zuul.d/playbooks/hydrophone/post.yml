@@ -1,5 +1,26 @@
 - hosts: all
   tasks:
+    - name: Collect workload guest consoles after a failed run
+      when: not (zuul_success | default(false) | bool)
+      ansible.builtin.shell: |
+        diagnostics_dir="{{ zuul_output_dir }}/logs/guest-console"
+        mkdir -p "${diagnostics_dir}"
+        timeout 30s openstack server list --name '^kube-' \
+          -f json -c ID -c Name -c Status \
+          > "${diagnostics_dir}/servers.json" 2>&1 || true
+        server_ids=$(timeout 30s openstack server list --name '^kube-' -f value -c ID) || exit 0
+        while IFS= read -r server_id; do
+          [[ "${server_id}" =~ ^[0-9a-fA-F-]{36}$ ]] || continue
+          timeout 30s openstack console log show --lines 2000 "${server_id}" \
+            > "${diagnostics_dir}/${server_id}.log" 2>&1 || true
+        done <<< "${server_ids}"
+      args:
+        executable: /bin/bash
+      environment:
+        OS_CLOUD: devstack
+      changed_when: false
+      failed_when: false
+
     - name: Copy individual Hydrophone result files
       ansible.builtin.copy:
         src: "{{ zuul.project.src_dir }}/hydrophone-results/{{ item }}"
