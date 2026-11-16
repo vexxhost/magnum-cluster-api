@@ -12,10 +12,13 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from unittest import mock
+
 import pytest
+import yaml
 from magnum.objects import fields
 from magnum.tests.unit.objects import utils
-from novaclient.v2 import flavors  # type: ignore
+from openstack.compute.v2 import flavor as sdk_flavor  # type: ignore
 
 from magnum_cluster_api import resources
 
@@ -64,9 +67,8 @@ def test_generate_machine_deployments_for_cluster_with_deleting_node_group(
     mock_lookup_image.return_value = {"id": "foo", "hw_disk_bus": None}
 
     mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
-    mock_lookup_flavor.return_value = flavors.Flavor(
-        None,
-        {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
+    mock_lookup_flavor.return_value = sdk_flavor.Flavor(
+        name="fake-flavor", disk=10, ram=1024, vcpus=1
     )
 
     mock_ensure_worker_server_group = mocker.patch(
@@ -101,9 +103,8 @@ def test_generate_machine_deployments_with_nodegroup_kubelet_override(context, m
     mock_lookup_image.return_value = {"id": "foo", "hw_disk_bus": None}
 
     mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
-    mock_lookup_flavor.return_value = flavors.Flavor(
-        None,
-        {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
+    mock_lookup_flavor.return_value = sdk_flavor.Flavor(
+        name="fake-flavor", disk=10, ram=1024, vcpus=1
     )
 
     mock_ensure_worker_server_group = mocker.patch(
@@ -190,9 +191,8 @@ class TestExistingMutateMachineDeployment:
         mock_lookup_image.return_value = {"id": "foo"}
 
         mock_lookup_flavor = mocker.patch("magnum_cluster_api.utils.lookup_flavor")
-        mock_lookup_flavor.return_value = flavors.Flavor(
-            None,
-            {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
+        mock_lookup_flavor.return_value = sdk_flavor.Flavor(
+            name="fake-flavor", disk=10, ram=1024, vcpus=1
         )
 
     def _assert_no_mutations(self, md):
@@ -224,7 +224,7 @@ class TestExistingMutateMachineDeployment:
         self._assert_no_mutations(md)
 
         if auto_scaling_enabled:
-            assert md["replicas"] is None
+            assert "replicas" not in md
             assert md["metadata"]["annotations"][
                 resources.AUTOSCALE_ANNOTATION_MIN
             ] == str(self.node_group.min_node_count)
@@ -240,3 +240,153 @@ class TestExistingMutateMachineDeployment:
         else:
             assert md["replicas"] == self.node_group.node_count
             assert md["metadata"]["annotations"] == {}
+
+    def test_mutate_machine_deployment_removes_empty_failure_domain(self, context):
+        md = resources.mutate_machine_deployment(
+            context,
+            self.cluster,
+            self.node_group,
+            {
+                "name": self.node_group.name,
+                "failureDomain": "",
+            },
+        )
+
+        assert "failureDomain" not in md
+
+    def test_mutate_machine_deployment_updates_empty_failure_domain(self, context):
+        self.node_group.labels["availability_zone"] = "nova"
+
+        md = resources.mutate_machine_deployment(
+            context,
+            self.cluster,
+            self.node_group,
+            {
+                "name": self.node_group.name,
+                "failureDomain": "",
+            },
+        )
+
+        assert md["failureDomain"] == "nova"
+
+
+def _patch_new_machine_deployment_dependencies(mocker):
+    mocker.patch("magnum_cluster_api.utils.lookup_image", return_value={"id": "foo"})
+    mocker.patch(
+        "magnum_cluster_api.utils.lookup_flavor",
+        return_value=sdk_flavor.Flavor(name="bm-flavor", disk=0, ram=4096, vcpus=4),
+    )
+    mocker.patch(
+        "magnum_cluster_api.integrations.cinder.get_default_boot_volume_type",
+        return_value="rbd1",
+    )
+    mocker.patch(
+        "magnum_cluster_api.utils.ensure_worker_server_group",
+        return_value="server-group",
+    )
+
+
+def test_new_machine_deployment_omits_unset_failure_domain(context, mocker):
+    cluster = utils.get_test_cluster(context, labels={})
+    node_group = utils.get_test_nodegroup(context, labels={})
+    _patch_new_machine_deployment_dependencies(mocker)
+
+    md = resources.mutate_machine_deployment(context, cluster, node_group)
+
+    assert "failureDomain" not in md
+
+
+def test_new_machine_deployment_omits_replicas_when_autoscaling_enabled(
+    context, mocker
+):
+    cluster = utils.get_test_cluster(context, labels={"auto_scaling_enabled": "true"})
+    node_group = utils.get_test_nodegroup(context, labels={})
+    node_group.min_node_count = 1
+    node_group.max_node_count = 3
+    _patch_new_machine_deployment_dependencies(mocker)
+
+    md = resources.mutate_machine_deployment(context, cluster, node_group)
+
+    assert "replicas" not in md
+
+
+def test_new_machine_deployment_sets_failure_domain(context, mocker):
+    cluster = utils.get_test_cluster(context, labels={})
+    node_group = utils.get_test_nodegroup(
+        context,
+        labels={"availability_zone": "nova"},
+    )
+    _patch_new_machine_deployment_dependencies(mocker)
+
+    md = resources.mutate_machine_deployment(context, cluster, node_group)
+
+    assert md["failureDomain"] == "nova"
+
+
+class TestCloudProviderClusterResourcesSecretVolumeBindingMode:
+    @pytest.fixture(autouse=True)
+    def setup(self, context, mocker):
+        self.context = context
+
+        volume_type = mock.MagicMock()
+        volume_type.name = "standard"
+
+        mock_osc = mocker.patch("magnum_cluster_api.clients.get_openstack_api")
+        mock_osc.return_value.list_volume_types.return_value = [volume_type]
+        mock_osc.return_value.get_default_volume_type.return_value.name = "other"
+
+        mocker.patch(
+            "magnum_cluster_api.integrations.cinder.is_enabled", return_value=True
+        )
+        mocker.patch(
+            "magnum_cluster_api.integrations.manila.is_enabled", return_value=False
+        )
+        mocker.patch(
+            "magnum_cluster_api.magnum_cluster_api.Driver"
+            ".get_cloud_provider_cluster_resource_secret_data",
+            return_value={},
+        )
+        mocker.patch(
+            "magnum_cluster_api.magnum_cluster_api.Driver"
+            ".get_cinder_csi_cluster_resource_secret_data",
+            return_value={},
+        )
+        mocker.patch(
+            "magnum_cluster_api.utils.generate_cloud_controller_manager_config",
+            return_value="",
+        )
+        mocker.patch("magnum.common.utils.get_openstack_ca", return_value="")
+
+    def _get_storage_class(self, cluster_labels):
+        cluster = mock.MagicMock()
+        cluster.labels = cluster_labels
+
+        secret = resources.CloudProviderClusterResourcesSecret(
+            self.context,
+            mock.MagicMock(),
+            mock.MagicMock(),
+            cluster,
+        )
+        obj = secret.get_object()
+        sc_yaml = obj["stringData"]["storageclass-block-standard.yaml"]
+        return yaml.safe_load(sc_yaml)
+
+    def test_default_is_immediate(self):
+        sc = self._get_storage_class({})
+        assert sc["volumeBindingMode"] == "Immediate"
+
+    def test_label_overrides_binding_mode(self):
+        sc = self._get_storage_class(
+            {"cinder_csi_volume_binding_mode": "WaitForFirstConsumer"}
+        )
+        assert sc["volumeBindingMode"] == "WaitForFirstConsumer"
+
+    def test_label_is_case_insensitive(self):
+        sc = self._get_storage_class(
+            {"cinder_csi_volume_binding_mode": "waitforfirstconsumer"}
+        )
+        assert sc["volumeBindingMode"] == "WaitForFirstConsumer"
+
+    def test_unknown_label_value_falls_back_to_immediate(self):
+        sc = self._get_storage_class({"cinder_csi_volume_binding_mode": "Delayed"})
+        assert sc["volumeBindingMode"] == "Immediate"
