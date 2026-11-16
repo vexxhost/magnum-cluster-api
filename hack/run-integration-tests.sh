@@ -90,6 +90,12 @@ for i in {1..240}; do
   fi
 done
 
+if [[ ${CLUSTER_STATUS} != *"CREATE_COMPLETE"* ]]; then
+  echo "Timed out waiting for cluster creation (last status: ${CLUSTER_STATUS})"
+  openstack coe cluster show k8s-cluster || true
+  exit 1
+fi
+
 # Get the cluster configuration file
 eval $(openstack coe cluster config k8s-cluster)
 
