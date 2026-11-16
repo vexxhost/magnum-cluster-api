@@ -107,7 +107,7 @@ class TestDriver:
         cluster_resource = objects.Cluster.for_magnum_cluster(self.api, self.cluster)
         assert cluster_resource.observed_generation != current_observed_generation
 
-        self.cluster.save.assert_not_called()
+        self.cluster.save.assert_called_once()
 
     def test_upgrade_cluster_to_same_version(
         self, kube_tag, context, ubuntu_driver, cluster_template
@@ -165,7 +165,7 @@ class TestDriver:
             *self.cluster.nodegroups,
         )
 
-        self.cluster.save.assert_not_called()
+        self.cluster.save.assert_called_once()
 
     def test_create_node_group(
         self, mock_validate_nodegroup, context, ubuntu_driver, cluster_template
