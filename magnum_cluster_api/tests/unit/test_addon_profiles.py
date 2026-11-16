@@ -6,6 +6,7 @@
 #
 #      http://www.apache.org/licenses/LICENSE-2.0
 
+import dataclasses
 import datetime
 import hashlib
 import json
@@ -418,6 +419,15 @@ def test_selection_requires_dependencies_to_be_explicit(profile_a, profile_b):
         addon_profiles._selection(
             (PROFILE_B,), {PROFILE_A: profile_a, PROFILE_B: profile_b}
         )
+
+
+def test_capability_requirements_are_validated(profile_a):
+    profile = dataclasses.replace(profile_a, requires_capabilities=(CAPABILITY,))
+    selection = addon_profiles._selection((PROFILE_A,), {PROFILE_A: profile})
+
+    addon_profiles.validate_capabilities(selection, {CAPABILITY})
+    with pytest.raises(exception.Invalid, match="missing capability"):
+        addon_profiles.validate_capabilities(selection, set())
 
 
 def test_snapshot_is_canonical_and_round_trips(selection, capi_cluster):
