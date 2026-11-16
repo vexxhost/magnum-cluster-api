@@ -26,8 +26,9 @@ use kube::CustomResourceExt;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-const KUBEADM_PATCHES_DIRECTORY: &str = "/etc/kubernetes/kubeadm-patches";
-const KUBE_APISERVER_PATCH_FILE: &str = "/etc/kubernetes/kubeadm-patches/kube-apiserver0+json.yaml";
+// Share kubeadm's single patch directory with kubelet serving verification.
+const KUBEADM_PATCHES_DIRECTORY: &str = "/etc/kubernetes/patches";
+const KUBE_APISERVER_PATCH_FILE: &str = "/etc/kubernetes/patches/kube-apiserver0+json.yaml";
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 #[allow(dead_code)]
@@ -122,6 +123,62 @@ mod tests {
     use k8s_openapi::api::core::v1::Pod;
     use pretty_assertions::assert_eq;
     use std::fs::File;
+
+    #[test]
+    fn test_keystone_and_kubelet_patches_share_directory_in_either_order() {
+        use crate::features::kubelet_serving_certificate_verification;
+
+        let mut values = default_values();
+        values.enable_keystone_auth = true;
+        values.enable_kubelet_serving_certificate_verification = true;
+
+        for keystone_first in [true, false] {
+            let mut resources = TestClusterResources::new();
+            let keystone = Feature {}.patches();
+            let kubelet = kubelet_serving_certificate_verification::Feature {}.patches();
+            let patches = if keystone_first {
+                [keystone, kubelet].concat()
+            } else {
+                [kubelet, keystone].concat()
+            };
+            resources.apply_patches(&patches, &values);
+
+            let config = resources
+                .kubeadm_control_plane_template
+                .spec
+                .template
+                .spec
+                .kubeadm_config_spec;
+            let init_directory = config
+                .init_configuration
+                .unwrap()
+                .patches
+                .unwrap()
+                .directory
+                .unwrap();
+            let join_directory = config
+                .join_configuration
+                .unwrap()
+                .patches
+                .unwrap()
+                .directory
+                .unwrap();
+            assert_eq!(init_directory, join_directory);
+
+            let files = config.files.unwrap();
+            for filename in [
+                "kube-apiserver0+json.yaml",
+                "kubeletconfiguration0+strategic.json",
+            ] {
+                assert!(
+                    files
+                        .iter()
+                        .any(|file| file.path == format!("{init_directory}/{filename}")),
+                    "kubeadm cannot discover {filename} in {init_directory}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn test_disabled() {
