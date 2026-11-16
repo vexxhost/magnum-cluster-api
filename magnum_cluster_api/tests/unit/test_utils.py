@@ -621,6 +621,9 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
             return list(lookup_results.values())
 
         cli.list_flavors.side_effect = _list
+        cli.compute.return_value.fetch_flavor_extra_specs.side_effect = (
+            lambda flavor: flavor
+        )
         # lookup_flavor matches by name or id
         for name, flavor in lookup_results.items():
             flavor.name = name
@@ -670,6 +673,24 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
                 "bm-worker": self._flavor(self._baremetal_extra_specs("BM_GPU")),
             }
         )
+        utils.validate_baremetal_flavors(cli, cluster)
+
+    def test_validator_fetches_specs_missing_from_flavor_list(self):
+        cluster = self._cluster("bm")
+        cli = self._client(
+            {
+                "bm-master": sdk_flavor.Flavor(),
+                "bm-worker": sdk_flavor.Flavor(),
+            }
+        )
+        cli.compute.return_value.fetch_flavor_extra_specs.side_effect = lambda flavor: (
+            sdk_flavor.Flavor(
+                id=flavor.id,
+                name=flavor.name,
+                extra_specs=self._baremetal_extra_specs(),
+            )
+        )
+
         utils.validate_baremetal_flavors(cli, cluster)
 
     def test_validator_rejects_virtual_master_flavor(self):

@@ -559,6 +559,9 @@ def validate_baremetal_flavor(
         return
 
     flavor = lookup_flavor(cli, flavor_ref)
+    if flavor is not None and not flavor.extra_specs:
+        # Nova before microversion 2.61 omits extra_specs from flavor lists.
+        flavor = cli.compute().fetch_flavor_extra_specs(flavor)
     if flavor is None or not _is_baremetal_flavor(flavor):
         raise exception.InvalidParameterValue(
             err=(
