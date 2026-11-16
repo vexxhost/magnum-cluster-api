@@ -1,0 +1,22 @@
+apiVersion: apiserver.config.k8s.io/v1beta1
+kind: AuthorizationConfiguration
+authorizers:
+  - type: Node
+    name: node
+  - type: RBAC
+    name: rbac
+  - type: Webhook
+    name: keystone
+    webhook:
+      authorizedTTL: 5m
+      unauthorizedTTL: 30s
+      timeout: 3s
+      subjectAccessReviewVersion: v1beta1
+      matchConditionSubjectAccessReviewVersion: v1
+      failurePolicy: NoOpinion
+      matchConditions:
+        - expression: "!request.user.startsWith('system:')"
+        - expression: "!('kubeadm:cluster-admins' in request.groups)"
+      connectionInfo:
+        type: KubeConfigFile
+        kubeConfigFile: /etc/kubernetes/webhooks/webhookconfig.yaml

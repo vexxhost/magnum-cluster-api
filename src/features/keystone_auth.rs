@@ -29,6 +29,9 @@ use serde_json::json;
 // Share kubeadm's single patch directory with kubelet serving verification.
 const KUBEADM_PATCHES_DIRECTORY: &str = "/etc/kubernetes/patches";
 const KUBE_APISERVER_PATCH_FILE: &str = "/etc/kubernetes/patches/kube-apiserver0+json.yaml";
+const AUTHORIZATION_CONFIG_FILE: &str = "/etc/kubernetes/webhooks/authorization-config.yaml";
+const AUTHORIZATION_CONFIG: &str =
+    include_str!("../../data/keystone-auth/authorization-config.yaml");
 
 #[derive(Serialize, Deserialize, ClusterFeatureValues)]
 #[allow(dead_code)]
@@ -66,24 +69,30 @@ impl ClusterFeaturePatches for Feature {
                                     path: PointerBuf::parse("/spec/containers/0/command/-").unwrap(),
                                     value: "--authentication-token-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml".into(),
                                 }),
-                                PatchOperation::Add(AddOperation {
-                                    path: PointerBuf::parse("/spec/containers/0/command/-").unwrap(),
-                                    value: "--authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml".into(),
-                                }),
-                                // Keep Node/RBAC as fallbacks while enabling the webhook authorizer.
-                                // Replacing kubeadm's default flag avoids pflag StringSliceVar
-                                // duplicate-mode startup failures. Test the expected value first so
-                                // a future kubeadm command-order change fails instead of replacing
-                                // an unrelated argument.
+                                // kubeadm needs a Forbidden response to bootstrap admin RBAC.
+                                // The structured configuration skips the Keystone webhook for
+                                // native Kubernetes identities while retaining Node and RBAC.
                                 PatchOperation::Test(TestOperation {
                                     path: PointerBuf::parse("/spec/containers/0/command/3").unwrap(),
                                     value: "--authorization-mode=Node,RBAC".into(),
                                 }),
                                 PatchOperation::Replace(ReplaceOperation {
                                     path: PointerBuf::parse("/spec/containers/0/command/3").unwrap(),
-                                    value: "--authorization-mode=Node,RBAC,Webhook".into(),
+                                    value: format!("--authorization-config={AUTHORIZATION_CONFIG_FILE}").into(),
                                 }),
                             ]).unwrap()),
+                            ..Default::default()
+                        })),
+                        ..Default::default()
+                    },
+                    ClusterClassPatchesDefinitionsJsonPatches {
+                        op: "add".into(),
+                        path: "/spec/template/spec/kubeadmConfigSpec/files/-".into(),
+                        value: Some(json!(KubeadmControlPlaneTemplateTemplateSpecKubeadmConfigSpecFiles {
+                            path: AUTHORIZATION_CONFIG_FILE.into(),
+                            permissions: Some("0644".into()),
+                            owner: Some("root:root".into()),
+                            content: Some(AUTHORIZATION_CONFIG.into()),
                             ..Default::default()
                         })),
                         ..Default::default()
@@ -245,7 +254,7 @@ mod tests {
         let patch: json_patch::Patch =
             serde_yaml::from_str(file.content.as_ref().unwrap()).expect("patch should be set");
         assert_eq!(
-            patch.0.get(2),
+            patch.0.get(1),
             Some(&PatchOperation::Test(TestOperation {
                 path: PointerBuf::parse("/spec/containers/0/command/3").unwrap(),
                 value: "--authorization-mode=Node,RBAC".into(),
@@ -258,12 +267,34 @@ mod tests {
             .clone()
             .expect("command should be set");
         assert!(args.contains(&"--authentication-token-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml".to_string()));
-        assert!(args.contains(
-            &"--authorization-webhook-config-file=/etc/kubernetes/webhooks/webhookconfig.yaml"
-                .to_string()
-        ));
-        assert!(args.contains(&"--authorization-mode=Node,RBAC,Webhook".to_string()));
-        assert!(!args.contains(&"--authorization-mode=Node,RBAC".to_string()));
+        assert!(args.contains(&format!(
+            "--authorization-config={AUTHORIZATION_CONFIG_FILE}"
+        )));
+        assert!(!args
+            .iter()
+            .any(|arg| arg.starts_with("--authorization-mode=")));
+        assert!(!args
+            .iter()
+            .any(|arg| arg.starts_with("--authorization-webhook-")));
+
+        let authorization_file = files
+            .iter()
+            .find(|file| file.path == AUTHORIZATION_CONFIG_FILE)
+            .expect("authorization configuration should be written before kubeadm");
+        let authorization: serde_json::Value =
+            serde_yaml::from_str(authorization_file.content.as_ref().unwrap()).unwrap();
+        assert_eq!(authorization["kind"], "AuthorizationConfiguration");
+        assert_eq!(authorization["authorizers"][0]["type"], "Node");
+        assert_eq!(authorization["authorizers"][1]["type"], "RBAC");
+        assert_eq!(authorization["authorizers"][2]["type"], "Webhook");
+        assert_eq!(
+            authorization["authorizers"][2]["webhook"]["failurePolicy"],
+            "NoOpinion"
+        );
+        assert_eq!(
+            authorization["authorizers"][2]["webhook"]["connectionInfo"]["kubeConfigFile"],
+            "/etc/kubernetes/webhooks/webhookconfig.yaml"
+        );
 
         let init_patches = resources
             .kubeadm_control_plane_template

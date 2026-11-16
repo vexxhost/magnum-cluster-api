@@ -234,6 +234,19 @@ is often accomplished by deploying a driver on each node.
 
 ## Kubernetes
 
+* `keystone_auth_enabled`
+
+   Enable Keystone token authentication and authorization on the Kubernetes API
+   server. Native kubeadm patches configure initial and joined control-plane
+   nodes, using structured authorization supported by Kubernetes 1.30 and later.
+
+   Node and RBAC authorization run before the Keystone webhook. Native
+   Kubernetes identities and the kubeadm administrator group skip the Keystone
+   webhook and still require Node or RBAC permission. This allows kubeadm to
+   create its initial administrator role binding before the webhook starts.
+
+   Default value: `true`
+
 * `api_server_cert_sans`
 
    Specify the additional Subject Alternative Names (SANs) for the Kubernetes API Server,
