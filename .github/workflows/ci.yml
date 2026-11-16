@@ -15,6 +15,26 @@ jobs:
   cargo:
     uses: vexxhost/github-actions/.github/workflows/cargo.yml@ee90fdf77bca9a1426af5073b44cae27dc0bdaca # main
 
+  # Tests against a real kube-apiserver and etcd (see the `envtest` feature).
+  envtest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+      - uses: step-security/rust-cache@851174d9a2fdc03e0896e02844dcc61d81dd7851 # v2.9.1
+      - run: cargo test --features envtest --lib envtest
+
   build:
     runs-on: ubuntu-24.04${{ matrix.target == 'aarch64' && '-arm' || '' }}
     timeout-minutes: 5
@@ -125,6 +145,10 @@ jobs:
           # keystonemiddleware) may legitimately import pkg_resources here;
           # we only care that the driver actually resolves.
           .venv/bin/python - <<'PY'
+          import os
+          from pathlib import Path
+          from tempfile import TemporaryDirectory
+
           from magnum.drivers.common import driver
           import magnum_cluster_api.driver  # must not raise
 
@@ -135,7 +159,31 @@ jobs:
           # Driver.definition_map must be populated — this is what
           # instantiates each driver class and fails in production when
           # pkg_resources cannot resolve a PEP 625 oslo_cache-*.dist-info.
-          definition_map = driver.Driver.get_drivers()
+          # Driver constructors configure their real Python and Rust Kubernetes
+          # clients. A local configuration is sufficient: loading the drivers
+          # must not require a running management cluster or runner credentials.
+          with TemporaryDirectory() as temp_dir:
+              kubeconfig = Path(temp_dir) / "config"
+              kubeconfig.write_text("""\
+          apiVersion: v1
+          kind: Config
+          current-context: smoke
+          clusters:
+            - name: smoke
+              cluster:
+                server: http://127.0.0.1:9
+          contexts:
+            - name: smoke
+              context:
+                cluster: smoke
+                user: smoke
+          users:
+            - name: smoke
+              user:
+                token: smoke
+          """)
+              os.environ["KUBECONFIG"] = str(kubeconfig)
+              definition_map = driver.Driver.get_drivers()
           assert definition_map, "Driver.get_drivers() returned empty definition_map"
           assert ("vm", "ubuntu", "kubernetes") in definition_map, (
               "expected (vm, ubuntu, kubernetes) cluster_api driver in "
