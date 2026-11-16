@@ -23,6 +23,8 @@ spec:
       serviceAccount: csi-cinder-node-sa
       hostNetwork: true
       dnsPolicy: {{ .Values.csi.plugin.nodePlugin.dnsPolicy }}
+      securityContext:
+        {{- toYaml .Values.csi.plugin.nodePlugin.podSecurityContext | nindent 8 }}
       containers:
         - name: node-driver-registrar
           securityContext:
@@ -96,11 +98,16 @@ spec:
             {{- tpl . $ | trim | nindent 12 }}
             {{- end }}
             {{- end }}
+            {{- if .Values.csi.plugin.nodePlugin.extraArgs }}
+            {{- with .Values.csi.plugin.nodePlugin.extraArgs }}
+            {{- tpl . $ | trim | nindent 12 }}
+            {{- end }}
+            {{- end }}
           env:
             - name: CSI_ENDPOINT
               value: unix://csi/csi.sock
             - name: CLOUD_CONFIG
-              value: /etc/kubernetes/{{ .Values.secret.filename }}
+              value: /etc/config/{{ .Values.secret.filename }}
             {{- if .Values.csi.plugin.extraEnv }}
               {{- toYaml .Values.csi.plugin.extraEnv | nindent 12 }}
             {{- end }}
@@ -158,7 +165,7 @@ spec:
         {{- else if .Values.secret.hostMount }}
         - name: cloud-config
           hostPath:
-            path: /etc/kubernetes
+            path: /etc/config
         {{- end }}
         {{- with .Values.csi.plugin.volumes }}
           {{- toYaml . | nindent 8 }}
