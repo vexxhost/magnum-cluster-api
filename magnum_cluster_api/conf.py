@@ -33,7 +33,16 @@ auto_scaling_opts = [
         "image_repository",
         default="registry.k8s.io/autoscaling",
         help="Image repository for the cluster auto-scaler.",
-    )
+    ),
+    cfg.DictOpt(
+        "node_selector",
+        default={"openstack-control-plane": "enabled"},
+        help=_(
+            "Node selector labels for the cluster auto-scaler pods. "
+            "This allows customizing which nodes the auto-scaler pods "
+            "are scheduled on."
+        ),
+    ),
 ]
 
 
