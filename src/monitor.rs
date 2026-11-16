@@ -3,13 +3,24 @@ use crate::{
     cluster_api::{kubeadmcontrolplane::KubeadmControlPlane, machines::Machine},
     magnum,
 };
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::{Condition, LabelSelector};
 use kube::{api::ListParams, Api};
 use maplit::btreemap;
 use pyo3::{create_exception, exceptions::PyException, prelude::*, types::PyDict};
 use pyo3_async_runtimes::tokio::get_runtime;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use thiserror::Error;
+
+const MAX_HEALTH_REASON_LENGTH: usize = 512;
+
+fn find_condition<'a>(
+    conditions: Option<&'a [Condition]>,
+    condition_type: &str,
+) -> Option<&'a Condition> {
+    conditions?
+        .iter()
+        .find(|condition| condition.type_ == condition_type)
+}
 
 trait KubeadmControlPlaneExt {
     fn is_ready(&self) -> bool;
@@ -19,37 +30,71 @@ impl KubeadmControlPlaneExt for KubeadmControlPlane {
     fn is_ready(&self) -> bool {
         self.status
             .as_ref()
-            .and_then(|status| status.conditions.as_ref())
-            .and_then(|conditions| {
-                conditions
-                    .iter()
-                    .find(|condition| condition.type_ == "Available")
-                    .map(|condition| condition.status == "True")
+            .and_then(|status| {
+                status
+                    .v1beta2
+                    .as_ref()
+                    .and_then(|v1beta2| find_condition(v1beta2.conditions.as_deref(), "Available"))
+                    .or_else(|| find_condition(status.conditions.as_deref(), "Available"))
             })
+            .map(|condition| condition.status == "True")
             .unwrap_or(false)
     }
 }
 
 trait MachineExt {
+    fn ready_condition(&self) -> Option<&Condition>;
     fn is_ready(&self) -> bool;
+    fn status_reason(&self) -> Option<String>;
 }
 
 impl MachineExt for Machine {
+    fn ready_condition(&self) -> Option<&Condition> {
+        self.status.as_ref().and_then(|status| {
+            status
+                .v1beta2
+                .as_ref()
+                .and_then(|v1beta2| find_condition(v1beta2.conditions.as_deref(), "Ready"))
+                .or_else(|| find_condition(status.conditions.as_deref(), "Ready"))
+                .or_else(|| find_condition(status.conditions.as_deref(), "NodeHealthy"))
+        })
+    }
+
     fn is_ready(&self) -> bool {
-        self.status
-            .as_ref()
-            .and_then(|status| status.conditions.as_ref())
-            .and_then(|conditions| {
-                conditions
-                    .iter()
-                    .find(|condition| condition.type_ == "NodeHealthy")
-                    .map(|condition| condition.status == "True")
-            })
+        self.ready_condition()
+            .map(|condition| condition.status == "True")
             .unwrap_or(false)
+    }
+
+    fn status_reason(&self) -> Option<String> {
+        let condition = self.ready_condition()?;
+        if condition.status == "True" {
+            return None;
+        }
+
+        let reason = condition.reason.trim();
+        let message = condition.message.trim();
+        let detail = match (reason.is_empty(), message.is_empty()) {
+            (false, false) => format!("{reason}: {message}"),
+            (false, true) => reason.to_string(),
+            (true, false) => message.to_string(),
+            (true, true) => return None,
+        };
+
+        if detail.chars().count() <= MAX_HEALTH_REASON_LENGTH {
+            return Some(detail);
+        }
+
+        let mut truncated = detail
+            .chars()
+            .take(MAX_HEALTH_REASON_LENGTH - 3)
+            .collect::<String>();
+        truncated.push_str("...");
+        Some(truncated)
     }
 }
 
-struct MachineHealthStatusReason(HashMap<String, bool>);
+struct MachineHealthStatusReason(BTreeMap<String, String>);
 
 impl<'py> IntoPyObject<'py> for MachineHealthStatusReason {
     type Target = PyDict;
@@ -59,9 +104,8 @@ impl<'py> IntoPyObject<'py> for MachineHealthStatusReason {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let dict = PyDict::new(py);
 
-        for (name, ready) in self.0 {
-            let ready = if ready { "True" } else { "False" };
-            dict.set_item(name, ready).unwrap();
+        for (name, value) in self.0 {
+            dict.set_item(name, value)?;
         }
 
         Ok(dict)
@@ -74,18 +118,27 @@ trait MachineListExt {
 
 impl MachineListExt for [Machine] {
     fn to_health_status_reason(&self) -> MachineHealthStatusReason {
-        MachineHealthStatusReason(
-            self.iter()
-                .filter_map(|machine| {
-                    machine
-                        .spec
-                        .infrastructure_ref
-                        .name
-                        .as_ref()
-                        .map(|name| (format!("{}.Ready", name), machine.is_ready()))
-                })
-                .collect(),
-        )
+        let mut status = BTreeMap::new();
+
+        for machine in self {
+            let Some(name) = machine.spec.infrastructure_ref.name.as_ref() else {
+                continue;
+            };
+
+            let is_ready = machine.is_ready();
+            status.insert(
+                format!("{name}.Ready"),
+                if is_ready { "True" } else { "False" }.to_string(),
+            );
+
+            if !is_ready {
+                if let Some(reason) = machine.status_reason() {
+                    status.insert(format!("{name}.Reason"), reason);
+                }
+            }
+        }
+
+        MachineHealthStatusReason(status)
     }
 }
 
@@ -189,16 +242,17 @@ impl Monitor {
 mod tests {
     use super::*;
     use crate::cluster_api::{
-        kubeadmcontrolplane::KubeadmControlPlaneStatus,
-        machines::{MachineSpec, MachineStatus},
+        kubeadmcontrolplane::{KubeadmControlPlaneStatus, KubeadmControlPlaneStatusV1beta2},
+        machines::{MachineSpec, MachineStatus, MachineStatusV1beta2},
     };
     use k8s_openapi::{
         api::core::v1::ObjectReference,
         apimachinery::pkg::apis::meta::v1::{Condition, Time},
     };
     use kube::api::ObjectMeta;
-    use maplit::hashmap;
+    use maplit::{btreemap, hashmap};
     use pretty_assertions::assert_eq;
+    use std::collections::HashMap;
 
     fn build_conditions(conditions: HashMap<&str, &str>) -> Option<Vec<Condition>> {
         Some(
@@ -217,6 +271,17 @@ mod tests {
         .filter(|vec| !vec.is_empty())
     }
 
+    fn build_condition(type_: &str, status: &str, reason: &str, message: &str) -> Condition {
+        Condition {
+            type_: type_.to_string(),
+            status: status.to_string(),
+            last_transition_time: Time(k8s_openapi::jiff::Timestamp::now()),
+            message: message.to_string(),
+            reason: reason.to_string(),
+            observed_generation: None,
+        }
+    }
+
     #[test]
     fn test_kcp_is_ready_when_available_condition_is_true() {
         let kcp = KubeadmControlPlane {
@@ -230,6 +295,27 @@ mod tests {
         };
 
         assert!(kcp.is_ready());
+    }
+
+    #[test]
+    fn test_kcp_prefers_v1beta2_available_condition() {
+        let kcp = KubeadmControlPlane {
+            status: Some(KubeadmControlPlaneStatus {
+                conditions: build_conditions(hashmap! {
+                    "Available" => "True",
+                }),
+                v1beta2: Some(KubeadmControlPlaneStatusV1beta2 {
+                    conditions: build_conditions(hashmap! {
+                        "Available" => "False",
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        assert_eq!(kcp.is_ready(), false);
     }
 
     #[test]
@@ -336,6 +422,72 @@ mod tests {
     }
 
     #[test]
+    fn test_machine_prefers_v1beta2_ready_condition() {
+        let machine = Machine {
+            status: Some(MachineStatus {
+                conditions: build_conditions(hashmap! {
+                    "Ready" => "True",
+                    "NodeHealthy" => "True",
+                }),
+                v1beta2: Some(MachineStatusV1beta2 {
+                    conditions: Some(vec![build_condition(
+                        "Ready",
+                        "False",
+                        "FloatingIPError",
+                        "floating ip pool not found",
+                    )]),
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        assert_eq!(machine.is_ready(), false);
+        assert_eq!(
+            machine.status_reason(),
+            Some("FloatingIPError: floating ip pool not found".to_string())
+        );
+    }
+
+    #[test]
+    fn test_machine_falls_back_to_legacy_ready_condition() {
+        let machine = Machine {
+            status: Some(MachineStatus {
+                conditions: build_conditions(hashmap! {
+                    "Ready" => "True",
+                    "NodeHealthy" => "False",
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        assert_eq!(machine.is_ready(), true);
+    }
+
+    #[test]
+    fn test_machine_status_reason_is_bounded_by_characters() {
+        let machine = Machine {
+            status: Some(MachineStatus {
+                v1beta2: Some(MachineStatusV1beta2 {
+                    conditions: Some(vec![build_condition(
+                        "Ready",
+                        "False",
+                        "WaitingForInfrastructure",
+                        &"界".repeat(MAX_HEALTH_REASON_LENGTH),
+                    )]),
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let reason = machine.status_reason().unwrap();
+        assert_eq!(reason.chars().count(), MAX_HEALTH_REASON_LENGTH);
+        assert!(reason.ends_with("..."));
+    }
+
+    #[test]
     fn test_machine_is_not_ready_when_unhealthy() {
         let machine = Machine {
             status: Some(MachineStatus {
@@ -418,8 +570,13 @@ mod tests {
                     ..Default::default()
                 },
                 status: Some(MachineStatus {
-                    conditions: build_conditions(hashmap! {
-                        "NodeHealthy" => "False",
+                    v1beta2: Some(MachineStatusV1beta2 {
+                        conditions: Some(vec![build_condition(
+                            "Ready",
+                            "False",
+                            "FloatingIPError",
+                            "floating ip pool not found",
+                        )]),
                     }),
                     ..Default::default()
                 }),
@@ -431,9 +588,11 @@ mod tests {
 
         assert_eq!(
             health_status_reason.0,
-            hashmap! {
-                "kube-yx7ky-default-worker-srknv-6l6l2.Ready".to_string() => true,
-                "kube-yx7ky-default-worker-7rs4w-wpcdc.Ready".to_string() => false,
+            btreemap! {
+                "kube-yx7ky-default-worker-srknv-6l6l2.Ready".to_string() => "True".to_string(),
+                "kube-yx7ky-default-worker-7rs4w-wpcdc.Ready".to_string() => "False".to_string(),
+                "kube-yx7ky-default-worker-7rs4w-wpcdc.Reason".to_string() =>
+                    "FloatingIPError: floating ip pool not found".to_string(),
             }
         );
     }

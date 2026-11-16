@@ -239,6 +239,20 @@ pub struct MachineStatus {
     /// E.g. Pending, Running, Terminating, Failed etc.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub phase: Option<String>,
+    /// v1beta2 groups all the fields that will be added or modified in Machine's status with the V1Beta2 version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub v1beta2: Option<MachineStatusV1beta2>,
+}
+
+/// v1beta2 groups all the fields that will be added or modified in Machine's status with the V1Beta2 version.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, JsonSchema)]
+pub struct MachineStatusV1beta2 {
+    /// conditions represents the observations of a Machine's current state.
+    /// Known condition types are Available, Ready, UpToDate, BootstrapConfigReady,
+    /// InfrastructureReady, NodeHealthy, HealthCheckSucceeded, OwnerRemediated,
+    /// Deleting and Paused.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conditions: Option<Vec<Condition>>,
 }
 
 /// MachineAddress contains information for the node's address.
