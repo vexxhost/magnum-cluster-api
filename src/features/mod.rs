@@ -64,6 +64,7 @@ pub mod image_repository;
 pub mod images;
 pub mod keystone_auth;
 pub mod machine_ports;
+pub mod kubelet_serving_certificate_verification;
 pub mod networks;
 pub mod openid_connect;
 pub mod operating_system;
