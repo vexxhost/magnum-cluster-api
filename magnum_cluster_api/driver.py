@@ -76,6 +76,8 @@ class BaseDriver(driver.Driver):
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
+        utils.validate_kube_version(utils.get_kube_tag(cluster))
+
         # NOTE(mnaser): We want to set the `stack_id` as early as possible to
         #               make sure we can use it in the cluster creation.
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
@@ -348,6 +350,7 @@ class BaseDriver(driver.Driver):
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
+        utils.validate_kube_version(utils.get_kube_tag(cluster))
         utils.validate_cluster(context, cluster)
         self._clear_empty_failure_domains(cluster)
 
@@ -406,6 +409,8 @@ class BaseDriver(driver.Driver):
         #              The Magnum Cluster API does not have this limitation in this case
         #              we ignore the `nodegroup` parameter and upgrade the entire cluster
         #              at once.
+        utils.validate_kube_version(cluster_template.labels["kube_tag"])
+
         cluster.cluster_template_id = cluster_template.uuid
         cluster.labels["kube_tag"] = cluster_template.labels["kube_tag"]
 
@@ -485,6 +490,7 @@ class BaseDriver(driver.Driver):
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
+        utils.validate_kube_version(utils.get_kube_tag(cluster))
         utils.validate_nodegroup(nodegroup)
         utils.ensure_worker_server_group(
             ctx=context, cluster=cluster, node_group=nodegroup
@@ -635,6 +641,7 @@ class BaseDriver(driver.Driver):
         cluster: magnum_objects.Cluster,
         nodegroup: magnum_objects.NodeGroup,
     ):
+        utils.validate_kube_version(utils.get_kube_tag(cluster))
         utils.validate_nodegroup(nodegroup)
 
         cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
