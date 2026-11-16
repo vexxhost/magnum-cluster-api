@@ -14,14 +14,15 @@
 
 from unittest import TestCase, mock
 
+from kubernetes.config.config_exception import ConfigException
 from oslo_utils import uuidutils
 
-from magnum_cluster_api.sync import ClusterLock
+from magnum_cluster_api.sync import ClusterLock, _load_kubernetes_client
 
 
-@mock.patch("kubernetes.config.load_config")
 class ClusterLockTestCase(TestCase):
-    def test_cluster_lock_init_with_no_expire(self, mock_load_config):
+    @mock.patch("magnum_cluster_api.sync._load_kubernetes_client")
+    def test_cluster_lock_init_with_no_expire(self, mock_load_kubernetes_client):
         cluster_id = uuidutils.generate_uuid()
 
         lock = ClusterLock(cluster_id)
@@ -29,8 +30,10 @@ class ClusterLockTestCase(TestCase):
         self.assertEqual(lock.lock_name, "cluster-%s" % cluster_id)
         self.assertEqual(lock.k8s_namespace, "magnum-system")
         self.assertEqual(lock.expire, ClusterLock.DEFAULT_EXPIRE)
+        self.assertIs(lock.client, mock_load_kubernetes_client.return_value)
 
-    def test_cluster_lock_init_with_expire(self, mock_load_config):
+    @mock.patch("magnum_cluster_api.sync._load_kubernetes_client")
+    def test_cluster_lock_init_with_expire(self, mock_load_kubernetes_client):
         cluster_id = uuidutils.generate_uuid()
         expire = 60
 
@@ -39,3 +42,38 @@ class ClusterLockTestCase(TestCase):
         self.assertEqual(lock.lock_name, "cluster-%s" % cluster_id)
         self.assertEqual(lock.k8s_namespace, "magnum-system")
         self.assertEqual(lock.expire, expire)
+        self.assertIs(lock.client, mock_load_kubernetes_client.return_value)
+
+    @mock.patch("magnum_cluster_api.sync.kubernetes_client.CoordinationV1Api")
+    @mock.patch("magnum_cluster_api.sync.kubernetes_config.load_config")
+    @mock.patch("magnum_cluster_api.sync.kubernetes_config.load_incluster_config")
+    def test_load_kubernetes_client_uses_incluster_config(
+        self,
+        mock_load_incluster_config,
+        mock_load_config,
+        mock_coordination_v1_api,
+    ):
+        client = _load_kubernetes_client()
+
+        mock_load_incluster_config.assert_called_once_with()
+        mock_load_config.assert_not_called()
+        mock_coordination_v1_api.assert_called_once_with()
+        self.assertIs(client, mock_coordination_v1_api.return_value)
+
+    @mock.patch("magnum_cluster_api.sync.kubernetes_client.CoordinationV1Api")
+    @mock.patch("magnum_cluster_api.sync.kubernetes_config.load_config")
+    @mock.patch("magnum_cluster_api.sync.kubernetes_config.load_incluster_config")
+    def test_load_kubernetes_client_falls_back_to_kubeconfig(
+        self,
+        mock_load_incluster_config,
+        mock_load_config,
+        mock_coordination_v1_api,
+    ):
+        mock_load_incluster_config.side_effect = ConfigException("not in a pod")
+
+        client = _load_kubernetes_client()
+
+        mock_load_incluster_config.assert_called_once_with()
+        mock_load_config.assert_called_once_with()
+        mock_coordination_v1_api.assert_called_once_with()
+        self.assertIs(client, mock_coordination_v1_api.return_value)

@@ -45,7 +45,7 @@ def context():
 
 @pytest.fixture(scope="session")
 def mock_cluster_lock(session_mocker):
-    session_mocker.patch("kubernetes.config.load_config")
+    session_mocker.patch("magnum_cluster_api.sync._load_kubernetes_client")
     session_mocker.patch("magnum_cluster_api.sync.ClusterLock.acquire")
     session_mocker.patch("magnum_cluster_api.sync.ClusterLock.release")
 
@@ -61,7 +61,40 @@ def mock_validate_nodegroup(session_mocker):
 
 
 @pytest.fixture()
-def ubuntu_driver(mock_cluster_lock):
+def mock_rust_driver(mocker):
+    rust_driver = mocker.MagicMock()
+    rust_driver.resolve_immutable_fields.side_effect = (
+        lambda cluster_name, labels, variables: variables
+    )
+    mocker.patch(
+        "magnum_cluster_api.driver.magnum_cluster_api.Driver",
+        return_value=rust_driver,
+    )
+    return rust_driver
+
+
+@pytest.fixture()
+def mock_kube_client(mocker):
+    kube_client = mocker.MagicMock()
+    mocker.patch(
+        "magnum_cluster_api.driver.magnum_cluster_api.KubeClient",
+        return_value=kube_client,
+    )
+    return kube_client
+
+
+@pytest.fixture()
+def ubuntu_driver(
+    mock_cluster_lock,
+    mocker,
+    pykube_api,
+    mock_rust_driver,
+    mock_kube_client,
+):
+    mocker.patch(
+        "magnum_cluster_api.driver.clients.get_pykube_api",
+        return_value=pykube_api,
+    )
     yield driver.UbuntuDriver()
 
 
