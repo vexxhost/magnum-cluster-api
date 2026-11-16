@@ -104,15 +104,16 @@ def mock_osc(session_mocker, image):
 
     # Others
     mock_clients.url_for.return_value = "http://fake_url"
+    mock_nova_client = mock_clients.nova.return_value
+    mock_nova_client.server_groups.list.return_value = []
+    mock_nova_client.server_groups.create.return_value.id = uuidutils.generate_uuid()
 
     return mock_clients
 
 
-@pytest.fixture(scope="session")
-def mock_get_server_group(session_mocker):
-    mock_get_server_group = session_mocker.patch(
-        "magnum_cluster_api.utils.get_server_group_id"
-    )
+@pytest.fixture
+def mock_get_server_group(mocker):
+    mock_get_server_group = mocker.patch("magnum_cluster_api.utils.get_server_group_id")
     mock_get_server_group.return_value = uuidutils.generate_uuid()
 
 

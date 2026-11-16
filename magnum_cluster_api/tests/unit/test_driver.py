@@ -97,6 +97,7 @@ def test_update_cluster_status_without_capi_conditions(
 @pytest.mark.parametrize(
     "auto_healing_enabled", [True, False], ids=lambda x: f"auto_healing_enabled={x}"
 )
+@pytest.mark.usefixtures("mock_get_server_group")
 class TestDriver:
     @pytest.fixture(autouse=True)
     def setup(
