@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 import string
+import sys
 import textwrap
 import time
 import typing
@@ -28,7 +29,7 @@ from magnum import objects as magnum_objects  # type: ignore
 from magnum.api import attr_validator  # type: ignore
 from magnum.common import context, exception, neutron, octavia  # type: ignore
 from magnum.common import utils as magnum_utils
-from novaclient.v2 import flavors  # type: ignore
+from openstack.compute.v2 import flavor as sdk_flavor  # type: ignore
 from openstack.load_balancer.v2 import (
     load_balancer as sdk_load_balancer,  # type: ignore
 )
@@ -54,6 +55,40 @@ CONF = cfg.CONF
 
 
 g_server_group_cache = ServerGroupCache()
+
+
+_T = typing.TypeVar("_T")
+
+
+def concurrency_mode_threading() -> bool:
+    """Return True when Magnum runs on native threads instead of eventlet.
+
+    Magnum 2026.1 and older monkey-patch their services with eventlet, while
+    2026.2 dropped eventlet and runs on native threads. This driver supports
+    both, and it does not own the patching, so it reads eventlet's patcher
+    state. If eventlet was never imported, nothing has been patched, and
+    eventlet is not imported here either.
+    """
+    patcher = sys.modules.get("eventlet.patcher")
+    return patcher is None or not patcher.is_monkey_patched("thread")
+
+
+def tpool_wrap(obj: _T) -> _T:
+    """Keep blocking calls on obj from stalling the conductor.
+
+    Under eventlet, a blocking call made on the hub stops every green thread,
+    so obj is wrapped in tpool.Proxy and its methods run on eventlet's native
+    thread pool. On native threads obj is returned unchanged: tpool delivers
+    results through the hub of the thread that first used the pool, so a call
+    from any other native thread would never return. This matches
+    nova.utils.tpool_wrap and cinder.utils.tpool_wrap.
+    """
+    if concurrency_mode_threading():
+        return obj
+
+    from eventlet import tpool  # type: ignore
+
+    return typing.cast(_T, tpool.Proxy(obj))
 
 
 def get_cluster_api_cloud_config_secret_name(cluster: magnum_objects.Cluster) -> str:
@@ -208,6 +243,17 @@ def get_cluster_container_infra_prefix(cluster: magnum_objects.Cluster) -> str:
 
 def get_cluster_floating_ip_disabled(cluster: magnum_objects.Cluster) -> bool:
     return not get_cluster_label_as_bool(cluster, "master_lb_floating_ip_enabled", True)
+
+
+def get_cluster_managed_security_groups_enabled(
+    cluster: magnum_objects.Cluster,
+) -> bool:
+    server_type = getattr(cluster.cluster_template, "server_type", "vm")
+    return get_cluster_label_as_bool(
+        cluster,
+        "managed_security_groups_enabled",
+        server_type != "bm",
+    )
 
 
 def generate_containerd_config(
@@ -463,7 +509,9 @@ def format_event_message(event: pykube.Event):
     )
 
 
-def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
+def lookup_flavor(
+    cli: clients.OpenStackClients, flavor: str | None
+) -> sdk_flavor.Flavor | None:
     """Lookup a flavor either by name or id."""
 
     if flavor is None:
@@ -475,27 +523,55 @@ def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
     raise exception.FlavorNotFound(flavor=flavor)
 
 
-def _is_baremetal_flavor(flavor: flavors.Flavor) -> bool:
-    """Return True if ``flavor`` is backed by an Ironic resource class.
+def _is_baremetal_flavor(flavor: sdk_flavor.Flavor) -> bool:
+    """Return True if ``flavor`` satisfies Nova's Ironic flavor contract.
 
-    A flavor is considered baremetal-backed when it advertises a custom
-    Placement resource class through its extra-specs, i.e. a key of the
-    form ``resources:CUSTOM_<NAME>`` set to ``"1"``.  Nova's Ironic
-    driver requires this convention so the scheduler routes the request
-    to the Ironic compute service rather than to a libvirt/KVM
-    hypervisor.  Standard virtual flavors (``m1.small``, etc.) typically
-    have empty extra-specs and will return False.
+    Ironic flavors must request exactly one unit of a custom Placement
+    resource class and suppress the standard VCPU, memory, and disk
+    inventories.  Without the zero-valued standard resources, Placement
+    can reject the request or incorrectly consider non-Ironic providers.
     """
-    try:
-        extra_specs = flavor.get_keys()
-    except Exception:
-        # Fall back to the cached attribute when the flavor object was
-        # built from a list response that did not eagerly resolve keys.
-        extra_specs = getattr(flavor, "extra_specs", {}) or {}
-    for key, value in extra_specs.items():
-        if key.startswith("resources:CUSTOM_") and str(value) == "1":
-            return True
-    return False
+    extra_specs = flavor.extra_specs or {}
+    has_custom_resource = any(
+        key.startswith("resources:CUSTOM_") and str(value) == "1"
+        for key, value in extra_specs.items()
+    )
+    standard_resources_disabled = all(
+        str(extra_specs.get(key)) == "0"
+        for key in (
+            "resources:VCPU",
+            "resources:MEMORY_MB",
+            "resources:DISK_GB",
+        )
+    )
+    return has_custom_resource and standard_resources_disabled
+
+
+def validate_baremetal_flavor(
+    cli: clients.OpenStackClients,
+    cluster: magnum_objects.Cluster,
+    role: str,
+    flavor_ref: str,
+) -> None:
+    """Validate one flavor used by a bare-metal cluster or node group."""
+    server_type = getattr(cluster.cluster_template, "server_type", "vm")
+    if server_type != "bm" or not flavor_ref:
+        return
+
+    flavor = lookup_flavor(cli, flavor_ref)
+    if flavor is not None and not flavor.extra_specs:
+        # Nova before microversion 2.61 omits extra_specs from flavor lists.
+        flavor = cli.compute().fetch_flavor_extra_specs(flavor)
+    if flavor is None or not _is_baremetal_flavor(flavor):
+        raise exception.InvalidParameterValue(
+            err=(
+                f"server_type=bm requires {role}={flavor_ref!r} to be "
+                "backed by Ironic (Nova flavor extra-specs must contain "
+                "resources:CUSTOM_<RESOURCE_CLASS>=1 and set "
+                "resources:VCPU=0, resources:MEMORY_MB=0, and "
+                "resources:DISK_GB=0)."
+            )
+        )
 
 
 def validate_baremetal_flavors(
@@ -517,8 +593,8 @@ def validate_baremetal_flavors(
 
     This validator looks up both flavors and raises
     ``InvalidParameterValue`` when either one is missing the
-    ``resources:CUSTOM_*=1`` extra-spec that Nova's Ironic driver
-    requires.  It is a no-op for ``server_type=vm`` templates.
+    complete Nova/Ironic Placement contract.  It is a no-op for
+    ``server_type=vm`` templates.
     """
     server_type = getattr(cluster.cluster_template, "server_type", "vm")
     if server_type != "bm":
@@ -528,19 +604,7 @@ def validate_baremetal_flavors(
         ("master_flavor_id", cluster.master_flavor_id),
         ("flavor_id", cluster.flavor_id),
     ):
-        if not flavor_ref:
-            continue
-        flavor = lookup_flavor(cli, flavor_ref)
-        if flavor is None or not _is_baremetal_flavor(flavor):
-            raise exception.InvalidParameterValue(
-                err=(
-                    f"server_type=bm requires {role}={flavor_ref!r} to be "
-                    "backed by Ironic (Nova flavor extra-specs must contain "
-                    "a resources:CUSTOM_<RESOURCE_CLASS>=1 entry); the "
-                    "resolved flavor advertises no custom resource class, "
-                    "which would route the server to a virtual hypervisor."
-                )
-            )
+        validate_baremetal_flavor(cli, cluster, role, flavor_ref)
 
 
 def lookup_image(cli: clients.OpenStackClients, image_ref: str) -> dict:
@@ -599,8 +663,24 @@ def validate_nodegroup_name(nodegroup: magnum_objects.NodeGroup):
         raise mcapi_exceptions.MachineInvalidName(name=nodegroup.name)
 
 
-def validate_nodegroup(nodegroup: magnum_objects.NodeGroup):
+def validate_nodegroup(
+    nodegroup: magnum_objects.NodeGroup,
+    ctx: context.RequestContext | None = None,
+    cluster: magnum_objects.Cluster | None = None,
+):
     validate_nodegroup_name(nodegroup)
+
+    if (
+        ctx is not None
+        and cluster is not None
+        and getattr(cluster.cluster_template, "server_type", "vm") == "bm"
+    ):
+        validate_baremetal_flavor(
+            clients.get_openstack_api(ctx),
+            cluster,
+            f"nodegroup {nodegroup.name!r} flavor_id",
+            nodegroup.flavor_id,
+        )
 
 
 def get_operating_system(cluster: magnum_objects.Cluster):

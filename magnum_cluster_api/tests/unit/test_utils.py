@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import sys
 import textwrap
 import types
 from unittest import mock
@@ -19,8 +20,10 @@ from unittest import mock
 import pykube
 import pytest
 import responses
+from eventlet import tpool  # type: ignore
 from magnum.common import exception
 from magnum.tests.unit.objects import utils as magnum_test_utils  # type: ignore
+from openstack.compute.v2 import flavor as sdk_flavor
 from openstack.load_balancer.v2 import load_balancer as sdk_load_balancer
 from oslo_serialization import base64, jsonutils
 from oslo_utils import uuidutils
@@ -684,10 +687,16 @@ class TestValidateClusterFixedNetwork(base.BaseTestCase):
 
 
 class TestValidateBaremetalFlavors(base.BaseTestCase):
+    def _baremetal_extra_specs(self, resource_class="BAREMETAL"):
+        return {
+            f"resources:CUSTOM_{resource_class}": "1",
+            "resources:VCPU": "0",
+            "resources:MEMORY_MB": "0",
+            "resources:DISK_GB": "0",
+        }
+
     def _flavor(self, extra_specs):
-        flavor = mock.Mock()
-        flavor.get_keys.return_value = extra_specs
-        return flavor
+        return sdk_flavor.Flavor(extra_specs=extra_specs)
 
     def _cluster(self, server_type, master="bm-master", worker="bm-worker"):
         cluster = mock.Mock()
@@ -703,6 +712,7 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
             return list(lookup_results.values())
 
         cli.list_flavors.side_effect = _list
+        cli.compute.return_value.fetch_flavor_extra_specs.side_effect = lambda flavor: flavor
         # lookup_flavor matches by name or id
         for name, flavor in lookup_results.items():
             flavor.name = name
@@ -710,8 +720,18 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
         return cli
 
     def test_is_baremetal_flavor_true_for_custom_resource_class(self):
-        flavor = self._flavor({"resources:CUSTOM_BAREMETAL": "1"})
+        flavor = self._flavor(self._baremetal_extra_specs())
         self.assertTrue(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_false_without_standard_resource_zeros(self):
+        flavor = self._flavor({"resources:CUSTOM_BAREMETAL": "1"})
+        self.assertFalse(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_false_with_standard_resource_request(self):
+        extra_specs = self._baremetal_extra_specs()
+        extra_specs["resources:VCPU"] = "1"
+        flavor = self._flavor(extra_specs)
+        self.assertFalse(utils._is_baremetal_flavor(flavor))
 
     def test_is_baremetal_flavor_false_for_empty_extra_specs(self):
         flavor = self._flavor({})
@@ -721,10 +741,12 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
         flavor = self._flavor({"hw:cpu_policy": "dedicated"})
         self.assertFalse(utils._is_baremetal_flavor(flavor))
 
-    def test_is_baremetal_flavor_falls_back_to_extra_specs_attr(self):
-        flavor = mock.Mock(extra_specs={"resources:CUSTOM_GPU": "1"})
-        flavor.get_keys.side_effect = RuntimeError("not loaded")
+    def test_is_baremetal_flavor_accepts_sdk_extra_specs(self):
+        flavor = sdk_flavor.Flavor(extra_specs=self._baremetal_extra_specs("BM_GPU"))
         self.assertTrue(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_false_without_extra_specs(self):
+        self.assertFalse(utils._is_baremetal_flavor(sdk_flavor.Flavor()))
 
     def test_validator_noop_for_vm_template(self):
         cluster = self._cluster("vm")
@@ -736,10 +758,28 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
         cluster = self._cluster("bm")
         cli = self._client(
             {
-                "bm-master": self._flavor({"resources:CUSTOM_BAREMETAL": "1"}),
-                "bm-worker": self._flavor({"resources:CUSTOM_BM_GPU": "1"}),
+                "bm-master": self._flavor(self._baremetal_extra_specs()),
+                "bm-worker": self._flavor(self._baremetal_extra_specs("BM_GPU")),
             }
         )
+        utils.validate_baremetal_flavors(cli, cluster)
+
+    def test_validator_fetches_specs_missing_from_flavor_list(self):
+        cluster = self._cluster("bm")
+        cli = self._client(
+            {
+                "bm-master": sdk_flavor.Flavor(),
+                "bm-worker": sdk_flavor.Flavor(),
+            }
+        )
+        cli.compute.return_value.fetch_flavor_extra_specs.side_effect = lambda flavor: (
+            sdk_flavor.Flavor(
+                id=flavor.id,
+                name=flavor.name,
+                extra_specs=self._baremetal_extra_specs(),
+            )
+        )
+
         utils.validate_baremetal_flavors(cli, cluster)
 
     def test_validator_rejects_virtual_master_flavor(self):
@@ -747,7 +787,7 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
         cli = self._client(
             {
                 "m1.small": self._flavor({}),
-                "bm-worker": self._flavor({"resources:CUSTOM_BAREMETAL": "1"}),
+                "bm-worker": self._flavor(self._baremetal_extra_specs()),
             }
         )
         with pytest.raises(exception.InvalidParameterValue) as excinfo:
@@ -759,10 +799,53 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
         cluster = self._cluster("bm", master="bm-master", worker="m1.small")
         cli = self._client(
             {
-                "bm-master": self._flavor({"resources:CUSTOM_BAREMETAL": "1"}),
+                "bm-master": self._flavor(self._baremetal_extra_specs()),
                 "m1.small": self._flavor({}),
             }
         )
         with pytest.raises(exception.InvalidParameterValue) as excinfo:
             utils.validate_baremetal_flavors(cli, cluster)
         assert "flavor_id" in str(excinfo.value)
+
+    def test_nodegroup_validator_rejects_virtual_flavor_override(self):
+        cluster = self._cluster("bm")
+        nodegroup = mock.Mock(name="gpu", flavor_id="m1.small")
+        nodegroup.name = "gpu"
+        cli = self._client({"m1.small": self._flavor({})})
+
+        with mock.patch(
+            "magnum_cluster_api.utils.clients.get_openstack_api",
+            return_value=cli,
+        ):
+            with pytest.raises(exception.InvalidParameterValue) as excinfo:
+                utils.validate_nodegroup(
+                    nodegroup,
+                    ctx=mock.sentinel.context,
+                    cluster=cluster,
+                )
+
+        assert "nodegroup 'gpu' flavor_id" in str(excinfo.value)
+
+
+def test_tpool_wrap_under_eventlet(mocker):
+    mocker.patch("eventlet.patcher.is_monkey_patched", return_value=True)
+
+    wrapped = utils.tpool_wrap(mock.sentinel.obj)
+
+    assert isinstance(wrapped, tpool.Proxy)
+    assert wrapped._obj is mock.sentinel.obj
+
+
+def test_tpool_wrap_eventlet_not_patched(mocker):
+    # A tpool.Proxy without monkey-patching hangs on calls from every native
+    # thread but the first caller, which is how the conductor serves RPC.
+    mocker.patch("eventlet.patcher.is_monkey_patched", return_value=False)
+
+    assert utils.tpool_wrap(mock.sentinel.obj) is mock.sentinel.obj
+
+
+def test_tpool_wrap_eventlet_not_imported(mocker):
+    mocker.patch.dict(sys.modules)
+    sys.modules.pop("eventlet.patcher", None)
+
+    assert utils.tpool_wrap(mock.sentinel.obj) is mock.sentinel.obj
