@@ -712,7 +712,9 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
             return list(lookup_results.values())
 
         cli.list_flavors.side_effect = _list
-        cli.compute.return_value.fetch_flavor_extra_specs.side_effect = lambda flavor: flavor
+        cli.compute.return_value.fetch_flavor_extra_specs.side_effect = (
+            lambda flavor: flavor
+        )
         # lookup_flavor matches by name or id
         for name, flavor in lookup_results.items():
             flavor.name = name
