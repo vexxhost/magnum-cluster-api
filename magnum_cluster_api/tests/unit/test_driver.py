@@ -22,12 +22,16 @@ import responses
 from heatclient import exc  # type: ignore
 from magnum.objects import fields  # type: ignore
 from magnum.tests.unit.objects import utils  # type: ignore
-from novaclient.v2 import flavors  # type: ignore
+from openstack.compute.v2 import flavor as sdk_flavor  # type: ignore
 from oslo_serialization import base64, jsonutils  # type: ignore
 from oslo_utils import uuidutils  # type: ignore
 from responses import matchers
 
 from magnum_cluster_api import driver, objects, resources
+
+
+def test_base_driver_does_not_need_trust():
+    assert driver.BaseDriver.needs_trust is False
 
 
 def test_debian_driver_provides():
@@ -36,6 +40,55 @@ def test_debian_driver_provides():
     assert debian_driver.provides == [
         {"server_type": "vm", "os": "debian", "coe": "kubernetes"},
     ]
+
+
+@pytest.mark.parametrize(
+    "cluster_status",
+    [
+        fields.ClusterStatus.CREATE_IN_PROGRESS,
+        fields.ClusterStatus.UPDATE_IN_PROGRESS,
+    ],
+)
+@pytest.mark.parametrize(
+    "capi_cluster_obj",
+    [{}, {"status": {}}],
+    ids=["without-status", "with-empty-status"],
+)
+def test_update_cluster_status_without_capi_conditions(
+    mocker,
+    context,
+    requests_mock,
+    mock_rust_driver,
+    ubuntu_driver,
+    cluster_obj,
+    cluster_status,
+    capi_cluster_obj,
+):
+    cluster_obj.status = cluster_status
+    cluster_obj.refresh = mocker.MagicMock()
+    ubuntu_driver._kube_client = mocker.MagicMock()
+
+    mocker.patch.object(
+        ubuntu_driver,
+        "update_cluster_control_plane_status",
+        return_value=cluster_obj.default_ng_master,
+    )
+    mocker.patch.object(ubuntu_driver, "update_nodegroups_status", return_value=[])
+    mocker.patch("magnum_cluster_api.clients.get_openstack_api")
+    capi_cluster = mocker.Mock(obj=capi_cluster_obj)
+    mocker.patch(
+        "magnum_cluster_api.resources.Cluster"
+    ).return_value.get_or_none.return_value = capi_cluster
+    mocker.patch.object(
+        ubuntu_driver, "_get_cluster_status_reason", return_value="CAPI pending"
+    )
+
+    ubuntu_driver.update_cluster_status(context, cluster_obj)
+
+    capi_cluster.reload.assert_called_once_with()
+    assert cluster_obj.status == cluster_status
+    assert cluster_obj.status_reason == "CAPI pending"
+    cluster_obj.save.assert_called_once_with()
 
 
 @pytest.mark.parametrize(
@@ -79,9 +132,8 @@ class TestDriver:
 
         mocker.patch(
             "magnum_cluster_api.utils.lookup_flavor",
-            return_value=flavors.Flavor(
-                None,
-                {"name": "fake-flavor", "disk": 10, "ram": 1024, "vcpus": 1},
+            return_value=sdk_flavor.Flavor(
+                name="fake-flavor", disk=10, ram=1024, vcpus=1
             ),
         )
 
@@ -210,26 +262,6 @@ class TestDriver:
                 ),
             ],
             json=json,
-        )
-
-    def _response_for_machine_sets(self, deployment_name):
-        return responses.Response(
-            responses.GET,
-            "http://localhost/apis/%s/namespaces/%s/%s"
-            % (
-                objects.MachineSet.version,
-                "magnum-system",
-                objects.MachineSet.endpoint,
-            ),
-            match=[
-                matchers.query_param_matcher(
-                    {
-                        "labelSelector": "cluster.x-k8s.io/cluster-name=%s,topology.cluster.x-k8s.io/deployment-name=%s"
-                        % (self.cluster.stack_id, deployment_name)
-                    }
-                ),
-            ],
-            json={"items": []},
         )
 
     def test_create_cluster(
@@ -478,7 +510,17 @@ class TestDriver:
                 )
             )
 
-    def test_create_nodegroup(self, context, ubuntu_driver, requests_mock):
+    @pytest.fixture
+    def clear_empty_failure_domains(self, mock_rust_driver):
+        clear_empty_failure_domains = (
+            mock_rust_driver.return_value.clear_empty_failure_domains
+        )
+        clear_empty_failure_domains.reset_mock()
+        return clear_empty_failure_domains
+
+    def test_create_nodegroup(
+        self, context, clear_empty_failure_domains, ubuntu_driver, requests_mock
+    ):
         self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
         self.node_group.status = fields.ClusterStatus.CREATE_IN_PROGRESS
 
@@ -497,7 +539,11 @@ class TestDriver:
 
             ubuntu_driver.create_nodegroup(context, self.cluster, self.node_group)
 
-    def test_update_nodegroup(self, context, ubuntu_driver, requests_mock):
+        clear_empty_failure_domains.assert_called_once_with(self.cluster.stack_id)
+
+    def test_update_nodegroup(
+        self, context, clear_empty_failure_domains, ubuntu_driver, requests_mock
+    ):
         with requests_mock as rsps:
             self.setup_node_group_tests(
                 rsps,
@@ -517,10 +563,10 @@ class TestDriver:
                     ),
                 ],
             )
-            rsps.add(self._response_for_machine_sets(self.node_group.name))
 
             ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
 
+        clear_empty_failure_domains.assert_called_once_with(self.cluster.stack_id)
         self._assert_node_group_status(fields.ClusterStatus.UPDATE_IN_PROGRESS)
 
     def test_update_nodegroup_with_multiple_node_groups(
@@ -563,14 +609,13 @@ class TestDriver:
                     ),
                 ],
             )
-            rsps.add(self._response_for_machine_sets(self.node_group.name))
 
             ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
 
         self._assert_node_group_status(fields.ClusterStatus.UPDATE_IN_PROGRESS)
 
     def test_delete_nodegroup_with_multiple_node_groups(
-        self, context, ubuntu_driver, requests_mock
+        self, context, clear_empty_failure_domains, ubuntu_driver, requests_mock
     ):
         self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
         self.node_group.status = fields.ClusterStatus.DELETE_IN_PROGRESS
@@ -607,6 +652,7 @@ class TestDriver:
 
             ubuntu_driver.delete_nodegroup(context, self.cluster, self.node_group)
 
+        clear_empty_failure_domains.assert_called_once_with(self.cluster.stack_id)
         assert self.node_group.status == fields.ClusterStatus.DELETE_IN_PROGRESS
         self.node_group.save.assert_called_once()
 
