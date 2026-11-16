@@ -37,7 +37,8 @@ jobs:
 
   build:
     runs-on: ubuntu-24.04${{ matrix.target == 'aarch64' && '-arm' || '' }}
-    timeout-minutes: 5
+    # Cold manylinux wheel builds can exceed five minutes before caches fill.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -114,6 +115,87 @@ jobs:
       - run: |
           uv venv
           uv pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} ./*.whl
+      - name: Smoke-test driver import and entry-point loading
+        run: |
+          # setuptools provides pkg_resources, which keystonemiddleware
+          # still imports unconditionally. Without it the driver import
+          # blows up before any assertion can run, masking real regressions.
+          uv pip install --constraint https://releases.openstack.org/constraints/upper/${{ matrix.openstack-version }} \
+            magnum keystonemiddleware "setuptools<81"
+          # Pass 1 — reject direct pkg_resources imports by mCAPI. Older
+          # keystonemiddleware releases still import it transitively, so checking
+          # sys.modules would incorrectly fail supported OpenStack releases.
+          .venv/bin/python - <<'PY'
+          import builtins
+
+          original_import = builtins.__import__
+
+          def guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
+              importer = (globals or {}).get("__name__", "")
+              if name.split(".", 1)[0] == "pkg_resources" and (
+                  importer == "magnum_cluster_api" or importer.startswith("magnum_cluster_api.")
+              ):
+                  raise AssertionError(f"{importer} must not import pkg_resources")
+              return original_import(name, globals, locals, fromlist, level)
+
+          builtins.__import__ = guarded_import
+          import magnum_cluster_api  # must not raise
+          import magnum_cluster_api.resources  # the original offender
+          print("OK mCAPI makes no direct pkg_resources imports")
+          PY
+          # Pass 2 — full entry-point + driver loading. Upstream code (e.g.
+          # keystonemiddleware) may legitimately import pkg_resources here;
+          # we only care that the driver actually resolves.
+          .venv/bin/python - <<'PY'
+          import os
+          from pathlib import Path
+          from tempfile import TemporaryDirectory
+
+          from magnum.drivers.common import driver
+          import magnum_cluster_api.driver  # must not raise
+
+          eps = list(driver.Driver.load_entry_points())
+          ep_names = sorted(ep.name for ep, _ in eps)
+          assert any("cluster_api" in n for n in ep_names), ep_names
+
+          # Driver.definition_map must be populated — this is what
+          # instantiates each driver class and fails in production when
+          # pkg_resources cannot resolve a PEP 625 oslo_cache-*.dist-info.
+          # Driver constructors configure their real Python and Rust Kubernetes
+          # clients. A local configuration is sufficient: loading the drivers
+          # must not require a running management cluster or runner credentials.
+          with TemporaryDirectory() as temp_dir:
+              kubeconfig = Path(temp_dir) / "config"
+              kubeconfig.write_text("""\
+          apiVersion: v1
+          kind: Config
+          current-context: smoke
+          clusters:
+            - name: smoke
+              cluster:
+                server: http://127.0.0.1:9
+          contexts:
+            - name: smoke
+              context:
+                cluster: smoke
+                user: smoke
+          users:
+            - name: smoke
+              user:
+                token: smoke
+          """)
+              os.environ["KUBECONFIG"] = str(kubeconfig)
+              definition_map = driver.Driver.get_drivers()
+          assert definition_map, "Driver.get_drivers() returned empty definition_map"
+          assert ("vm", "ubuntu", "kubernetes") in definition_map, (
+              "expected (vm, ubuntu, kubernetes) cluster_api driver in "
+              "definition_map, got: %s" % sorted(definition_map)
+          )
+
+          print("OK entry_points=%d definitions=%d" % (len(eps), len(definition_map)))
+          print("  entry_points:", ep_names)
+          print("  definitions :", sorted(definition_map))
+          PY
 
   pre-commit:
     runs-on: ubuntu-latest
