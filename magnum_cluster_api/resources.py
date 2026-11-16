@@ -1080,6 +1080,12 @@ class Cluster(ClusterBase):
                             ),
                         },
                         {
+                            "name": "bootstrapStatusEnabled",
+                            "value": utils.get_cluster_label_as_bool(
+                                self.cluster, "bootstrap_status_enabled", True
+                            ),
+                        },
+                        {
                             "name": "clusterIdentityRefName",
                             "value": utils.get_cluster_api_cloud_config_secret_name(
                                 self.cluster
