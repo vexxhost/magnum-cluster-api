@@ -2,6 +2,8 @@
     - [Getting Started](user/getting-started.md)
     - user/*.md
 - Administrator Guide
-    - admin/*.md
+    - [Introduction](admin/intro.md)
+    - [Authentication](admin/authentication.md)
+    - [Troubleshooting](admin/troubleshooting.md)
 - Developer Guide
     - developer/*.md
