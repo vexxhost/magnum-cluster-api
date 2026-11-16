@@ -391,6 +391,137 @@ class TestDriver:
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
 
+    def test_create_cluster_persists_template_labels_for_sparse_cluster_labels(
+        self,
+        requests_mock,
+        context,
+        ubuntu_driver,
+        cluster_template,
+        mock_validate_cluster,
+        mock_rust_driver,
+        mocker,
+    ):
+        self.cluster.labels = {"smoke": "test"}
+        cluster_template.labels = {
+            "kube_tag": "v1.34.3",
+            "octavia_provider": "amphorav2",
+        }
+        mocker.patch.object(ubuntu_driver, "_create_cluster")
+        mocker.patch(
+            "magnum_cluster_api.utils.generate_cluster_api_name",
+            return_value="kube-test",
+        )
+
+        ubuntu_driver.create_cluster(context, self.cluster, 60)
+
+        assert self.cluster.labels == {
+            "smoke": "test",
+            "kube_tag": "v1.34.3",
+            "octavia_provider": "amphorav2",
+        }
+        assert self.cluster.save.call_count == 2
+
+    def test_create_cluster_passes_filled_labels_to_rust_driver(
+        self,
+        requests_mock,
+        context,
+        ubuntu_driver,
+        cluster_template,
+        mock_validate_cluster,
+        mocker,
+    ):
+        captured_labels = {}
+
+        def capture_labels(cluster):
+            captured_labels.update(cluster.labels)
+
+        self.cluster.labels = {"audit_log_enabled": "true"}
+        self.cluster.labels_skipped = {
+            "fixed_subnet_cidr": "192.168.24.0/24",
+            "kube_tag": "v1.34.3",
+            "octavia_provider": "ovn",
+        }
+        cluster_template.labels = {"kube_tag": "v1.30.0"}
+        ubuntu_driver.rust_driver = mock.MagicMock()
+        ubuntu_driver.rust_driver.create_cluster.side_effect = capture_labels
+        mocker.patch.object(ubuntu_driver, "_create_cluster")
+        mocker.patch(
+            "magnum_cluster_api.utils.generate_cluster_api_name",
+            return_value="kube-test",
+        )
+
+        ubuntu_driver.create_cluster(context, self.cluster, 60)
+
+        ubuntu_driver.rust_driver.create_cluster.assert_called_once_with(self.cluster)
+        assert captured_labels == {
+            "audit_log_enabled": "true",
+            "fixed_subnet_cidr": "192.168.24.0/24",
+            "kube_tag": "v1.34.3",
+            "octavia_provider": "ovn",
+        }
+
+    def test_delete_cluster_passes_filled_labels_to_rust_driver(
+        self,
+        requests_mock,
+        context,
+        ubuntu_driver,
+        cluster_template,
+        mocker,
+    ):
+        captured_labels = {}
+
+        def capture_labels(cluster):
+            captured_labels.update(cluster.labels)
+
+        self.cluster.stack_id = "kube-test"
+        self.cluster.labels = {"audit_log_enabled": "true"}
+        self.cluster.labels_skipped = {
+            "fixed_subnet_cidr": "192.168.24.0/24",
+            "kube_tag": "v1.34.3",
+            "octavia_provider": "ovn",
+        }
+        cluster_template.labels = {"kube_tag": "v1.30.0"}
+        ubuntu_driver._kube_client = mock.MagicMock()
+        ubuntu_driver.rust_driver = mock.MagicMock()
+        ubuntu_driver.rust_driver.delete_cluster.side_effect = capture_labels
+        mocker.patch("magnum_cluster_api.utils.delete_loadbalancers")
+        mocker.patch("magnum_cluster_api.resources.Cluster")
+        mocker.patch("magnum_cluster_api.resources.ClusterAutoscalerHelmRelease")
+
+        ubuntu_driver.delete_cluster(context, self.cluster)
+
+        ubuntu_driver.rust_driver.delete_cluster.assert_called_once_with(self.cluster)
+        assert captured_labels == {
+            "audit_log_enabled": "true",
+            "fixed_subnet_cidr": "192.168.24.0/24",
+            "kube_tag": "v1.34.3",
+            "octavia_provider": "ovn",
+        }
+
+    def test_delete_cluster_skips_octavia_cleanup_when_disabled(
+        self,
+        context,
+        requests_mock,
+        mock_rust_driver,
+        ubuntu_driver,
+        cluster_template,
+        mocker,
+    ):
+        self.cluster.stack_id = "kube-test"
+        self.cluster.labels = {"octavia_enabled": "false"}
+        cluster_template.labels = {}
+        ubuntu_driver._kube_client = mock.MagicMock()
+        ubuntu_driver.rust_driver = mock.MagicMock()
+        delete_loadbalancers = mocker.patch(
+            "magnum_cluster_api.utils.delete_loadbalancers"
+        )
+        mocker.patch("magnum_cluster_api.resources.Cluster")
+        mocker.patch("magnum_cluster_api.resources.ClusterAutoscalerHelmRelease")
+
+        ubuntu_driver.delete_cluster(context, self.cluster)
+
+        delete_loadbalancers.assert_not_called()
+
     def setup_node_group_tests(self, rsps, before, after=None):
         rsps.add(
             self._response_for_cluster_with_machine_deployments(*before),
