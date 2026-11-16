@@ -23,6 +23,7 @@ import responses
 from eventlet import tpool  # type: ignore
 from magnum.common import exception
 from magnum.tests.unit.objects import utils as magnum_test_utils  # type: ignore
+from openstack.compute.v2 import flavor as sdk_flavor
 from openstack.load_balancer.v2 import load_balancer as sdk_load_balancer
 from oslo_serialization import base64, jsonutils
 from oslo_utils import uuidutils
@@ -568,6 +569,173 @@ def test_wait_for_sdk_loadbalancers_deleted_times_out(mocker):
         utils._wait_for_sdk_loadbalancers_deleted(octavia_client, {"lb-id"})
 
     sleep.assert_called_once_with(1)
+
+
+class TestGetDefaultBootVolumeSize(base.BaseTestCase):
+    def _cluster(self, server_type):
+        cluster = mock.Mock()
+        cluster.cluster_template = mock.Mock(server_type=server_type)
+        return cluster
+
+    def test_vm_returns_passed_default(self):
+        cluster = self._cluster("vm")
+        self.assertEqual(20, utils.get_default_boot_volume_size(cluster, 20))
+
+    def test_bm_returns_zero(self):
+        cluster = self._cluster("bm")
+        self.assertEqual(0, utils.get_default_boot_volume_size(cluster, 20))
+
+    def test_bm_ignores_nonzero_default(self):
+        cluster = self._cluster("bm")
+        self.assertEqual(0, utils.get_default_boot_volume_size(cluster, 100))
+
+    def test_missing_server_type_attr_falls_back_to_vm(self):
+        cluster = mock.Mock()
+        cluster.cluster_template = object()  # no server_type attr
+        self.assertEqual(20, utils.get_default_boot_volume_size(cluster, 20))
+
+
+class TestValidateBaremetalFlavors(base.BaseTestCase):
+    def _baremetal_extra_specs(self, resource_class="BAREMETAL"):
+        return {
+            f"resources:CUSTOM_{resource_class}": "1",
+            "resources:VCPU": "0",
+            "resources:MEMORY_MB": "0",
+            "resources:DISK_GB": "0",
+        }
+
+    def _flavor(self, extra_specs):
+        return sdk_flavor.Flavor(extra_specs=extra_specs)
+
+    def _cluster(self, server_type, master="bm-master", worker="bm-worker"):
+        cluster = mock.Mock()
+        cluster.cluster_template = mock.Mock(server_type=server_type)
+        cluster.master_flavor_id = master
+        cluster.flavor_id = worker
+        return cluster
+
+    def _client(self, lookup_results):
+        cli = mock.Mock()
+
+        def _list():
+            return list(lookup_results.values())
+
+        cli.list_flavors.side_effect = _list
+        cli.compute.return_value.fetch_flavor_extra_specs.side_effect = (
+            lambda flavor: flavor
+        )
+        # lookup_flavor matches by name or id
+        for name, flavor in lookup_results.items():
+            flavor.name = name
+            flavor.id = name
+        return cli
+
+    def test_is_baremetal_flavor_true_for_custom_resource_class(self):
+        flavor = self._flavor(self._baremetal_extra_specs())
+        self.assertTrue(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_false_without_standard_resource_zeros(self):
+        flavor = self._flavor({"resources:CUSTOM_BAREMETAL": "1"})
+        self.assertFalse(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_false_with_standard_resource_request(self):
+        extra_specs = self._baremetal_extra_specs()
+        extra_specs["resources:VCPU"] = "1"
+        flavor = self._flavor(extra_specs)
+        self.assertFalse(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_false_for_empty_extra_specs(self):
+        flavor = self._flavor({})
+        self.assertFalse(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_false_for_unrelated_extra_specs(self):
+        flavor = self._flavor({"hw:cpu_policy": "dedicated"})
+        self.assertFalse(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_accepts_sdk_extra_specs(self):
+        flavor = sdk_flavor.Flavor(extra_specs=self._baremetal_extra_specs("BM_GPU"))
+        self.assertTrue(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_false_without_extra_specs(self):
+        self.assertFalse(utils._is_baremetal_flavor(sdk_flavor.Flavor()))
+
+    def test_validator_noop_for_vm_template(self):
+        cluster = self._cluster("vm")
+        cli = mock.Mock()
+        utils.validate_baremetal_flavors(cli, cluster)
+        cli.list_flavors.assert_not_called()
+
+    def test_validator_passes_when_both_flavors_are_baremetal(self):
+        cluster = self._cluster("bm")
+        cli = self._client(
+            {
+                "bm-master": self._flavor(self._baremetal_extra_specs()),
+                "bm-worker": self._flavor(self._baremetal_extra_specs("BM_GPU")),
+            }
+        )
+        utils.validate_baremetal_flavors(cli, cluster)
+
+    def test_validator_fetches_specs_missing_from_flavor_list(self):
+        cluster = self._cluster("bm")
+        cli = self._client(
+            {
+                "bm-master": sdk_flavor.Flavor(),
+                "bm-worker": sdk_flavor.Flavor(),
+            }
+        )
+        cli.compute.return_value.fetch_flavor_extra_specs.side_effect = lambda flavor: (
+            sdk_flavor.Flavor(
+                id=flavor.id,
+                name=flavor.name,
+                extra_specs=self._baremetal_extra_specs(),
+            )
+        )
+
+        utils.validate_baremetal_flavors(cli, cluster)
+
+    def test_validator_rejects_virtual_master_flavor(self):
+        cluster = self._cluster("bm", master="m1.small", worker="bm-worker")
+        cli = self._client(
+            {
+                "m1.small": self._flavor({}),
+                "bm-worker": self._flavor(self._baremetal_extra_specs()),
+            }
+        )
+        with pytest.raises(exception.InvalidParameterValue) as excinfo:
+            utils.validate_baremetal_flavors(cli, cluster)
+        assert "master_flavor_id" in str(excinfo.value)
+        assert "m1.small" in str(excinfo.value)
+
+    def test_validator_rejects_virtual_worker_flavor(self):
+        cluster = self._cluster("bm", master="bm-master", worker="m1.small")
+        cli = self._client(
+            {
+                "bm-master": self._flavor(self._baremetal_extra_specs()),
+                "m1.small": self._flavor({}),
+            }
+        )
+        with pytest.raises(exception.InvalidParameterValue) as excinfo:
+            utils.validate_baremetal_flavors(cli, cluster)
+        assert "flavor_id" in str(excinfo.value)
+
+    def test_nodegroup_validator_rejects_virtual_flavor_override(self):
+        cluster = self._cluster("bm")
+        nodegroup = mock.Mock(name="gpu", flavor_id="m1.small")
+        nodegroup.name = "gpu"
+        cli = self._client({"m1.small": self._flavor({})})
+
+        with mock.patch(
+            "magnum_cluster_api.utils.clients.get_openstack_api",
+            return_value=cli,
+        ):
+            with pytest.raises(exception.InvalidParameterValue) as excinfo:
+                utils.validate_nodegroup(
+                    nodegroup,
+                    ctx=mock.sentinel.context,
+                    cluster=cluster,
+                )
+
+        assert "nodegroup 'gpu' flavor_id" in str(excinfo.value)
 
 
 def test_tpool_wrap_under_eventlet(mocker):
