@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 import string
+import sys
 import textwrap
 import time
 import typing
@@ -28,7 +29,7 @@ from magnum import objects as magnum_objects  # type: ignore
 from magnum.api import attr_validator  # type: ignore
 from magnum.common import context, exception, neutron, octavia  # type: ignore
 from magnum.common import utils as magnum_utils
-from novaclient.v2 import flavors  # type: ignore
+from openstack.compute.v2 import flavor as sdk_flavor  # type: ignore
 from openstack.load_balancer.v2 import (
     load_balancer as sdk_load_balancer,  # type: ignore
 )
@@ -54,6 +55,40 @@ CONF = cfg.CONF
 
 
 g_server_group_cache = ServerGroupCache()
+
+
+_T = typing.TypeVar("_T")
+
+
+def concurrency_mode_threading() -> bool:
+    """Return True when Magnum runs on native threads instead of eventlet.
+
+    Magnum 2026.1 and older monkey-patch their services with eventlet, while
+    2026.2 dropped eventlet and runs on native threads. This driver supports
+    both, and it does not own the patching, so it reads eventlet's patcher
+    state. If eventlet was never imported, nothing has been patched, and
+    eventlet is not imported here either.
+    """
+    patcher = sys.modules.get("eventlet.patcher")
+    return patcher is None or not patcher.is_monkey_patched("thread")
+
+
+def tpool_wrap(obj: _T) -> _T:
+    """Keep blocking calls on obj from stalling the conductor.
+
+    Under eventlet, a blocking call made on the hub stops every green thread,
+    so obj is wrapped in tpool.Proxy and its methods run on eventlet's native
+    thread pool. On native threads obj is returned unchanged: tpool delivers
+    results through the hub of the thread that first used the pool, so a call
+    from any other native thread would never return. This matches
+    nova.utils.tpool_wrap and cinder.utils.tpool_wrap.
+    """
+    if concurrency_mode_threading():
+        return obj
+
+    from eventlet import tpool  # type: ignore
+
+    return typing.cast(_T, tpool.Proxy(obj))
 
 
 def get_cluster_api_cloud_config_secret_name(cluster: magnum_objects.Cluster) -> str:
@@ -474,7 +509,9 @@ def format_event_message(event: pykube.Event):
     )
 
 
-def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
+def lookup_flavor(
+    cli: clients.OpenStackClients, flavor: str | None
+) -> sdk_flavor.Flavor | None:
     """Lookup a flavor either by name or id."""
 
     if flavor is None:
@@ -486,7 +523,7 @@ def lookup_flavor(cli: clients.OpenStackClients, flavor: str) -> flavors.Flavor:
     raise exception.FlavorNotFound(flavor=flavor)
 
 
-def _is_baremetal_flavor(flavor: flavors.Flavor) -> bool:
+def _is_baremetal_flavor(flavor: sdk_flavor.Flavor) -> bool:
     """Return True if ``flavor`` satisfies Nova's Ironic flavor contract.
 
     Ironic flavors must request exactly one unit of a custom Placement
@@ -494,12 +531,7 @@ def _is_baremetal_flavor(flavor: flavors.Flavor) -> bool:
     inventories.  Without the zero-valued standard resources, Placement
     can reject the request or incorrectly consider non-Ironic providers.
     """
-    try:
-        extra_specs = flavor.get_keys()
-    except Exception:
-        # Fall back to the cached attribute when the flavor object was
-        # built from a list response that did not eagerly resolve keys.
-        extra_specs = getattr(flavor, "extra_specs", {}) or {}
+    extra_specs = flavor.extra_specs or {}
     has_custom_resource = any(
         key.startswith("resources:CUSTOM_") and str(value) == "1"
         for key, value in extra_specs.items()

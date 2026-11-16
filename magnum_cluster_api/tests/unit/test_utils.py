@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import sys
 import textwrap
 import types
 from unittest import mock
@@ -19,8 +20,10 @@ from unittest import mock
 import pykube
 import pytest
 import responses
+from eventlet import tpool  # type: ignore
 from magnum.common import exception
 from magnum.tests.unit.objects import utils as magnum_test_utils  # type: ignore
+from openstack.compute.v2 import flavor as sdk_flavor
 from openstack.load_balancer.v2 import load_balancer as sdk_load_balancer
 from oslo_serialization import base64, jsonutils
 from oslo_utils import uuidutils
@@ -602,9 +605,7 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
         }
 
     def _flavor(self, extra_specs):
-        flavor = mock.Mock()
-        flavor.get_keys.return_value = extra_specs
-        return flavor
+        return sdk_flavor.Flavor(extra_specs=extra_specs)
 
     def _cluster(self, server_type, master="bm-master", worker="bm-worker"):
         cluster = mock.Mock()
@@ -648,10 +649,12 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
         flavor = self._flavor({"hw:cpu_policy": "dedicated"})
         self.assertFalse(utils._is_baremetal_flavor(flavor))
 
-    def test_is_baremetal_flavor_falls_back_to_extra_specs_attr(self):
-        flavor = mock.Mock(extra_specs=self._baremetal_extra_specs("BM_GPU"))
-        flavor.get_keys.side_effect = RuntimeError("not loaded")
+    def test_is_baremetal_flavor_accepts_sdk_extra_specs(self):
+        flavor = sdk_flavor.Flavor(extra_specs=self._baremetal_extra_specs("BM_GPU"))
         self.assertTrue(utils._is_baremetal_flavor(flavor))
+
+    def test_is_baremetal_flavor_false_without_extra_specs(self):
+        self.assertFalse(utils._is_baremetal_flavor(sdk_flavor.Flavor()))
 
     def test_validator_noop_for_vm_template(self):
         cluster = self._cluster("vm")
@@ -712,3 +715,27 @@ class TestValidateBaremetalFlavors(base.BaseTestCase):
                 )
 
         assert "nodegroup 'gpu' flavor_id" in str(excinfo.value)
+
+
+def test_tpool_wrap_under_eventlet(mocker):
+    mocker.patch("eventlet.patcher.is_monkey_patched", return_value=True)
+
+    wrapped = utils.tpool_wrap(mock.sentinel.obj)
+
+    assert isinstance(wrapped, tpool.Proxy)
+    assert wrapped._obj is mock.sentinel.obj
+
+
+def test_tpool_wrap_eventlet_not_patched(mocker):
+    # A tpool.Proxy without monkey-patching hangs on calls from every native
+    # thread but the first caller, which is how the conductor serves RPC.
+    mocker.patch("eventlet.patcher.is_monkey_patched", return_value=False)
+
+    assert utils.tpool_wrap(mock.sentinel.obj) is mock.sentinel.obj
+
+
+def test_tpool_wrap_eventlet_not_imported(mocker):
+    mocker.patch.dict(sys.modules)
+    sys.modules.pop("eventlet.patcher", None)
+
+    assert utils.tpool_wrap(mock.sentinel.obj) is mock.sentinel.obj
