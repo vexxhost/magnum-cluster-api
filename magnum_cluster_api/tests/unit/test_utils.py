@@ -15,7 +15,6 @@
 import sys
 import textwrap
 import types
-from types import SimpleNamespace
 from unittest import mock
 
 import pykube
@@ -34,9 +33,7 @@ from magnum_cluster_api import exceptions, utils
 
 def _mock_server_group_members_limit(mocker, limit):
     osc = mocker.patch("magnum_cluster_api.clients.get_openstack_api").return_value
-    osc.nova.return_value.limits.get.return_value.absolute = [
-        SimpleNamespace(name="maxServerGroupMembers", value=limit),
-    ]
+    osc.get_server_group_members_quota_limit.return_value = limit
     return osc
 
 
@@ -129,9 +126,7 @@ def test_validate_controlplane_server_group_members_quota_uses_project_for_admin
 
     utils.validate_controlplane_server_group_members_quota(context, cluster)
 
-    osc.nova.return_value.limits.get.assert_called_once_with(
-        tenant_id=cluster.project_id
-    )
+    osc.get_server_group_members_quota_limit.assert_called_once_with(cluster.project_id)
 
 
 def test_generate_cluster_api_name(mocker):

@@ -536,10 +536,8 @@ def _get_server_group_members_quota_limit(
     cluster: magnum_objects.Cluster,
 ) -> typing.Optional[int]:
     osc = clients.get_openstack_api(ctx)
-    tenant_id = cluster.project_id if ctx.is_admin else None
-    limits = osc.nova().limits.get(tenant_id=tenant_id)
-    absolute_limits = {limit.name: limit.value for limit in limits.absolute}
-    return absolute_limits.get("maxServerGroupMembers")
+    project_id = cluster.project_id if ctx.is_admin else None
+    return osc.get_server_group_members_quota_limit(project_id)
 
 
 def _validate_server_group_members_quota(
@@ -557,7 +555,7 @@ def _validate_server_group_members_quota(
     )
 
 
-def _get_node_group_server_group_members(
+def get_node_group_server_group_members(
     cluster: magnum_objects.Cluster,
     node_group: magnum_objects.NodeGroup,
 ) -> int:
@@ -584,7 +582,7 @@ def validate_cluster_server_group_members_quota(
         _validate_server_group_members_quota(
             limit=limit,
             server_group_name=f"{cluster.stack_id}-{node_group.name}",
-            requested=_get_node_group_server_group_members(cluster, node_group),
+            requested=get_node_group_server_group_members(cluster, node_group),
         )
 
 
@@ -613,7 +611,7 @@ def validate_nodegroup_server_group_members_quota(
     _validate_server_group_members_quota(
         limit=limit,
         server_group_name=f"{cluster.stack_id}-{node_group.name}",
-        requested=_get_node_group_server_group_members(cluster, node_group),
+        requested=get_node_group_server_group_members(cluster, node_group),
     )
 
 

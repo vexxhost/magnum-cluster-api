@@ -141,6 +141,10 @@ class OpenStackClients(clients.OpenStackClients):
     def delete_server_group(self, server_group_id):
         self.compute().delete_server_group(server_group_id, ignore_missing=True)
 
+    def get_server_group_members_quota_limit(self, project_id=None):
+        limits_kwargs = {"tenant_id": project_id} if project_id else {}
+        return self.compute().get_limits(**limits_kwargs).absolute.server_group_members
+
     def list_load_balancers(self):
         octavia = self.octavia()
         if self._is_callable(octavia, "load_balancers"):
