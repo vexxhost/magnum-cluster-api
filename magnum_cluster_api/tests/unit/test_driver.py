@@ -27,7 +27,7 @@ from oslo_serialization import base64, jsonutils  # type: ignore
 from oslo_utils import uuidutils  # type: ignore
 from responses import matchers
 
-from magnum_cluster_api import driver, objects, resources
+from magnum_cluster_api import driver, exceptions, objects, resources
 
 
 def test_base_driver_does_not_need_trust():
@@ -40,6 +40,241 @@ def test_debian_driver_provides():
     assert debian_driver.provides == [
         {"server_type": "vm", "os": "debian", "coe": "kubernetes"},
     ]
+
+
+def test_create_cluster_validates_quota_before_creating_capi_resources(context, mocker):
+    cluster = mocker.Mock()
+    cluster.save = mocker.Mock()
+
+    ubuntu_driver = driver.UbuntuDriver.__new__(driver.UbuntuDriver)
+    ubuntu_driver.k8s_api = mocker.Mock()
+    ubuntu_driver.rust_driver = mocker.Mock()
+    ubuntu_driver._create_cluster = mocker.Mock(return_value="created")
+
+    order = []
+    mocker.patch(
+        "magnum_cluster_api.utils.generate_cluster_api_name",
+        return_value="kube-test",
+    )
+    mocker.patch(
+        "magnum_cluster_api.utils.validate_cluster",
+        side_effect=lambda *_args: order.append("validate_cluster"),
+    )
+    mocker.patch(
+        "magnum_cluster_api.utils.validate_cluster_server_group_members_quota",
+        side_effect=lambda *_args: order.append("validate_quota"),
+    )
+    ubuntu_driver.rust_driver.create_cluster.side_effect = lambda *_args: order.append(
+        "create_capi_resources"
+    )
+    ubuntu_driver._create_cluster.side_effect = lambda *_args: order.append(
+        "create_openstack_resources"
+    )
+
+    ubuntu_driver.create_cluster(context, cluster, 60)
+
+    assert cluster.stack_id == "kube-test"
+    assert order == [
+        "validate_cluster",
+        "validate_quota",
+        "create_capi_resources",
+        "create_openstack_resources",
+    ]
+
+
+def test_create_cluster_stops_before_capi_resources_when_quota_exceeded(
+    context, mocker
+):
+    cluster = mocker.Mock()
+    cluster.save = mocker.Mock()
+
+    ubuntu_driver = driver.UbuntuDriver.__new__(driver.UbuntuDriver)
+    ubuntu_driver.k8s_api = mocker.Mock()
+    ubuntu_driver.rust_driver = mocker.Mock()
+    ubuntu_driver._create_cluster = mocker.Mock()
+
+    mocker.patch(
+        "magnum_cluster_api.utils.generate_cluster_api_name",
+        return_value="kube-test",
+    )
+    mocker.patch("magnum_cluster_api.utils.validate_cluster")
+    mocker.patch(
+        "magnum_cluster_api.utils.validate_cluster_server_group_members_quota",
+        side_effect=exceptions.ServerGroupMembersQuotaExceeded(
+            server_group_name="kube-test-default-worker",
+            requested=3,
+            limit=2,
+        ),
+    )
+
+    with pytest.raises(exceptions.ServerGroupMembersQuotaExceeded):
+        ubuntu_driver.create_cluster(context, cluster, 60)
+
+    ubuntu_driver.rust_driver.create_cluster.assert_not_called()
+    ubuntu_driver._create_cluster.assert_not_called()
+
+
+def test_create_nodegroup_validates_quota_before_creating_server_group(context, mocker):
+    cluster = mocker.Mock()
+    cluster.uuid = "cluster-test"
+    nodegroup = mocker.Mock()
+
+    ubuntu_driver = driver.UbuntuDriver.__new__(driver.UbuntuDriver)
+    ubuntu_driver.k8s_api = mocker.Mock()
+    ubuntu_driver.rust_driver = mocker.Mock()
+
+    cluster_resource = mocker.Mock()
+    cluster_resource.obj = {
+        "spec": {"topology": {"workers": {"machineDeployments": []}}},
+    }
+    mocker.patch(
+        "magnum_cluster_api.objects.Cluster.for_magnum_cluster",
+        return_value=cluster_resource,
+    )
+    mocker.patch(
+        "magnum_cluster_api.resources.mutate_machine_deployment",
+        return_value={"name": "default-worker"},
+    )
+    mocker.patch("magnum_cluster_api.utils.kube_apply_patch")
+    mocker.patch("magnum_cluster_api.utils.validate_nodegroup")
+
+    order = []
+    mocker.patch(
+        "magnum_cluster_api.utils.validate_nodegroup_server_group_members_quota",
+        side_effect=lambda *_args: order.append("validate_quota"),
+    )
+    mocker.patch(
+        "magnum_cluster_api.utils.ensure_worker_server_group",
+        side_effect=lambda **_kwargs: order.append("ensure_server_group"),
+    )
+    mocker.patch("magnum_cluster_api.sync.ClusterLock.acquire")
+    mocker.patch("magnum_cluster_api.sync.ClusterLock.release")
+
+    ubuntu_driver.create_nodegroup(context, cluster, nodegroup)
+
+    assert order == ["validate_quota", "ensure_server_group"]
+
+
+def test_resize_cluster_validates_worker_quota_before_updating_nodegroup(
+    context, mocker
+):
+    cluster = mocker.Mock()
+    cluster.uuid = "cluster-test"
+    cluster.labels = {}
+    nodegroup = mocker.Mock()
+    nodegroup.role = "worker"
+    nodegroup.name = "default-worker"
+    nodegroup.node_count = 3
+
+    ubuntu_driver = driver.UbuntuDriver.__new__(driver.UbuntuDriver)
+    ubuntu_driver.k8s_api = mocker.Mock()
+
+    cluster_resource = mocker.Mock()
+    cluster_resource.get_machine_deployment_spec.return_value = {"replicas": 2}
+    mocker.patch(
+        "magnum_cluster_api.objects.Cluster.for_magnum_cluster",
+        return_value=cluster_resource,
+    )
+
+    order = []
+    mocker.patch("magnum_cluster_api.utils.validate_cluster")
+    mocker.patch(
+        "magnum_cluster_api.utils.validate_nodegroup_server_group_members_quota",
+        side_effect=lambda *_args: order.append("validate_quota"),
+    )
+    ubuntu_driver._clear_empty_failure_domains = mocker.Mock(
+        side_effect=lambda *_args: order.append("clear_failure_domains")
+    )
+    ubuntu_driver._update_nodegroup = mocker.Mock(
+        side_effect=lambda *_args: order.append("update_nodegroup")
+    )
+    mocker.patch("magnum_cluster_api.sync.ClusterLock.acquire")
+    mocker.patch("magnum_cluster_api.sync.ClusterLock.release")
+
+    ubuntu_driver.resize_cluster(context, cluster, None, 3, [], nodegroup)
+
+    assert order == ["validate_quota", "clear_failure_domains", "update_nodegroup"]
+
+
+def test_resize_cluster_does_not_validate_worker_quota_when_scaling_down(
+    context, mocker
+):
+    cluster = mocker.Mock()
+    cluster.uuid = "cluster-test"
+    cluster.labels = {}
+    nodegroup = mocker.Mock()
+    nodegroup.role = "worker"
+    nodegroup.name = "default-worker"
+    nodegroup.node_count = 2
+
+    ubuntu_driver = driver.UbuntuDriver.__new__(driver.UbuntuDriver)
+    ubuntu_driver.k8s_api = mocker.Mock()
+
+    cluster_resource = mocker.Mock()
+    cluster_resource.get_machine_deployment_spec.return_value = {"replicas": 3}
+    mocker.patch(
+        "magnum_cluster_api.objects.Cluster.for_magnum_cluster",
+        return_value=cluster_resource,
+    )
+    mocker.patch("magnum_cluster_api.utils.validate_cluster")
+    validate_quota = mocker.patch(
+        "magnum_cluster_api.utils.validate_nodegroup_server_group_members_quota"
+    )
+    ubuntu_driver._clear_empty_failure_domains = mocker.Mock()
+    ubuntu_driver._update_nodegroup = mocker.Mock()
+    mocker.patch("magnum_cluster_api.sync.ClusterLock.acquire")
+    mocker.patch("magnum_cluster_api.sync.ClusterLock.release")
+
+    ubuntu_driver.resize_cluster(context, cluster, None, 2, [], nodegroup)
+
+    validate_quota.assert_not_called()
+
+
+def test_update_nodegroup_validates_autoscaler_maximum_before_mutating_cluster(
+    context, mocker
+):
+    cluster = mocker.Mock()
+    cluster.uuid = "cluster-test"
+    cluster.labels = {"auto_scaling_enabled": "True"}
+    nodegroup = mocker.Mock()
+    nodegroup.role = "worker"
+    nodegroup.name = "default-worker"
+    nodegroup.min_node_count = 1
+    nodegroup.max_node_count = 5
+
+    ubuntu_driver = driver.UbuntuDriver.__new__(driver.UbuntuDriver)
+    ubuntu_driver.k8s_api = mocker.Mock()
+
+    cluster_resource = mocker.Mock()
+    cluster_resource.get_machine_deployment_spec.return_value = {
+        "metadata": {
+            "annotations": {
+                resources.AUTOSCALE_ANNOTATION_MAX: "3",
+            }
+        }
+    }
+    mocker.patch(
+        "magnum_cluster_api.objects.Cluster.for_magnum_cluster",
+        return_value=cluster_resource,
+    )
+
+    order = []
+    mocker.patch(
+        "magnum_cluster_api.utils.validate_nodegroup_server_group_members_quota",
+        side_effect=lambda *_args: order.append("validate_quota"),
+    )
+    ubuntu_driver._clear_empty_failure_domains = mocker.Mock(
+        side_effect=lambda *_args: order.append("clear_failure_domains")
+    )
+    ubuntu_driver._update_nodegroup = mocker.Mock(
+        side_effect=lambda *_args: order.append("update_nodegroup")
+    )
+    mocker.patch("magnum_cluster_api.sync.ClusterLock.acquire")
+    mocker.patch("magnum_cluster_api.sync.ClusterLock.release")
+
+    ubuntu_driver.update_nodegroup(context, cluster, nodegroup)
+
+    assert order == ["validate_quota", "clear_failure_domains", "update_nodegroup"]
 
 
 @pytest.mark.parametrize(
@@ -391,10 +626,14 @@ class TestDriver:
         assert self.cluster.status == fields.ClusterStatus.CREATE_IN_PROGRESS
         self.cluster.save.assert_called_once()
 
-    def setup_node_group_tests(self, rsps, before, after=None):
+    def setup_node_group_tests(self, rsps, before, after=None, preflight=False):
         rsps.add(
             self._response_for_cluster_with_machine_deployments(*before),
         )
+        if preflight:
+            rsps.add(
+                self._response_for_cluster_with_machine_deployments(*before),
+            )
         if after:
             rsps.add(
                 self._response_for_cluster_with_machine_deployments(
@@ -412,7 +651,13 @@ class TestDriver:
         return clear_empty_failure_domains
 
     def test_create_nodegroup(
-        self, context, clear_empty_failure_domains, ubuntu_driver, requests_mock
+        self,
+        context,
+        clear_empty_failure_domains,
+        mock_osc,
+        mock_get_server_group,
+        ubuntu_driver,
+        requests_mock,
     ):
         self.cluster.status = fields.ClusterStatus.UPDATE_IN_PROGRESS
         self.node_group.status = fields.ClusterStatus.CREATE_IN_PROGRESS
@@ -435,7 +680,13 @@ class TestDriver:
         clear_empty_failure_domains.assert_called_once_with(self.cluster.stack_id)
 
     def test_update_nodegroup(
-        self, context, clear_empty_failure_domains, ubuntu_driver, requests_mock
+        self,
+        context,
+        clear_empty_failure_domains,
+        mock_osc,
+        mock_get_server_group,
+        ubuntu_driver,
+        requests_mock,
     ):
         with requests_mock as rsps:
             self.setup_node_group_tests(
@@ -455,6 +706,7 @@ class TestDriver:
                         },
                     ),
                 ],
+                preflight=True,
             )
 
             ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)
@@ -463,7 +715,7 @@ class TestDriver:
         self._assert_node_group_status(fields.ClusterStatus.UPDATE_IN_PROGRESS)
 
     def test_update_nodegroup_with_multiple_node_groups(
-        self, context, ubuntu_driver, requests_mock
+        self, context, mock_osc, mock_get_server_group, ubuntu_driver, requests_mock
     ):
         with requests_mock as rsps:
             self.setup_node_group_tests(
@@ -501,6 +753,7 @@ class TestDriver:
                         },
                     ),
                 ],
+                preflight=True,
             )
 
             ubuntu_driver.update_nodegroup(context, self.cluster, self.node_group)

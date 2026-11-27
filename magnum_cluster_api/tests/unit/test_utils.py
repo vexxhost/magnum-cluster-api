@@ -31,6 +31,104 @@ from oslotest import base
 from magnum_cluster_api import exceptions, utils
 
 
+def _mock_server_group_members_limit(mocker, limit):
+    osc = mocker.patch("magnum_cluster_api.clients.get_openstack_api").return_value
+    osc.get_server_group_members_quota_limit.return_value = limit
+    return osc
+
+
+def _get_cluster_with_worker(context, mocker, master_count=1, worker_count=1):
+    cluster = magnum_test_utils.get_test_cluster(
+        context,
+        labels={},
+    )
+    cluster.stack_id = "kube-test"
+
+    master = magnum_test_utils.get_test_nodegroup(
+        context,
+        name="default-master",
+        role="master",
+        node_count=master_count,
+        labels={},
+    )
+    worker = magnum_test_utils.get_test_nodegroup(
+        context,
+        name="default-worker",
+        role="worker",
+        node_count=worker_count,
+        labels={},
+    )
+    mocker.patch("magnum.objects.NodeGroup.list", return_value=[master, worker])
+
+    return cluster, worker
+
+
+def test_validate_cluster_server_group_members_quota_allows_limit(context, mocker):
+    cluster, _worker = _get_cluster_with_worker(context, mocker, worker_count=2)
+    _mock_server_group_members_limit(mocker, 2)
+
+    utils.validate_cluster_server_group_members_quota(context, cluster)
+
+
+def test_validate_cluster_server_group_members_quota_raises_for_control_plane(
+    context, mocker
+):
+    cluster, _worker = _get_cluster_with_worker(context, mocker, master_count=3)
+    _mock_server_group_members_limit(mocker, 2)
+
+    with pytest.raises(exceptions.ServerGroupMembersQuotaExceeded) as exc:
+        utils.validate_cluster_server_group_members_quota(context, cluster)
+
+    assert "kube-test" in str(exc.value)
+    assert "requested 3" in str(exc.value).lower()
+
+
+def test_validate_cluster_server_group_members_quota_raises_for_worker(context, mocker):
+    cluster, _worker = _get_cluster_with_worker(context, mocker, worker_count=3)
+    _mock_server_group_members_limit(mocker, 2)
+
+    with pytest.raises(exceptions.ServerGroupMembersQuotaExceeded) as exc:
+        utils.validate_cluster_server_group_members_quota(context, cluster)
+
+    assert "kube-test-default-worker" in str(exc.value)
+    assert "requested 3" in str(exc.value).lower()
+
+
+def test_validate_nodegroup_server_group_members_quota_uses_autoscaler_max(
+    context, mocker
+):
+    cluster, worker = _get_cluster_with_worker(context, mocker, worker_count=1)
+    cluster.labels["auto_scaling_enabled"] = "True"
+    worker.max_node_count = 5
+    _mock_server_group_members_limit(mocker, 3)
+
+    with pytest.raises(exceptions.ServerGroupMembersQuotaExceeded) as exc:
+        utils.validate_nodegroup_server_group_members_quota(context, cluster, worker)
+
+    assert "requested 5" in str(exc.value).lower()
+
+
+def test_validate_nodegroup_server_group_members_quota_ignores_unlimited_quota(
+    context, mocker
+):
+    cluster, worker = _get_cluster_with_worker(context, mocker, worker_count=100)
+    _mock_server_group_members_limit(mocker, -1)
+
+    utils.validate_nodegroup_server_group_members_quota(context, cluster, worker)
+
+
+def test_validate_controlplane_server_group_members_quota_uses_project_for_admin(
+    context, mocker
+):
+    cluster, _worker = _get_cluster_with_worker(context, mocker)
+    context.is_admin = True
+    osc = _mock_server_group_members_limit(mocker, 10)
+
+    utils.validate_controlplane_server_group_members_quota(context, cluster)
+
+    osc.get_server_group_members_quota_limit.assert_called_once_with(cluster.project_id)
+
+
 def test_generate_cluster_api_name(mocker):
     mock_cluster_exists = mocker.patch("magnum_cluster_api.utils.cluster_exists")
     mock_cluster_exists.return_value = False

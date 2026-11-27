@@ -81,9 +81,10 @@ class BaseDriver(driver.Driver):
         cluster.stack_id = utils.generate_cluster_api_name(self.k8s_api)
         cluster.save()
 
-        self.rust_driver.create_cluster(cluster)
-
         utils.validate_cluster(context, cluster)
+        utils.validate_cluster_server_group_members_quota(context, cluster)
+
+        self.rust_driver.create_cluster(cluster)
 
         return self._create_cluster(context, cluster)
 
@@ -349,6 +350,9 @@ class BaseDriver(driver.Driver):
         blocking the Magnum API.
         """
         utils.validate_cluster(context, cluster)
+        self._validate_nodegroup_server_group_members_quota_increase(
+            context, cluster, nodegroup
+        )
         self._clear_empty_failure_domains(cluster)
 
         if nodes_to_remove:
@@ -486,6 +490,7 @@ class BaseDriver(driver.Driver):
         blocking the Magnum API.
         """
         utils.validate_nodegroup(nodegroup)
+        utils.validate_nodegroup_server_group_members_quota(context, cluster, nodegroup)
         utils.ensure_worker_server_group(
             ctx=context, cluster=cluster, node_group=nodegroup
         )
@@ -626,8 +631,50 @@ class BaseDriver(driver.Driver):
         This method is called asynchonously by the Magnum API, therefore it will not be
         blocking the Magnum API.
         """
+        self._validate_nodegroup_server_group_members_quota_increase(
+            context, cluster, nodegroup
+        )
         self._clear_empty_failure_domains(cluster)
         self._update_nodegroup(context, cluster, nodegroup)
+
+    def _validate_nodegroup_server_group_members_quota_increase(
+        self,
+        context,
+        cluster: magnum_objects.Cluster,
+        nodegroup: magnum_objects.NodeGroup,
+    ):
+        cluster_resource = objects.Cluster.for_magnum_cluster(self.k8s_api, cluster)
+
+        if nodegroup.role == "master":
+            current_count = cluster_resource.obj["spec"]["topology"]["controlPlane"][
+                "replicas"
+            ]
+            if nodegroup.node_count > current_count:
+                utils.validate_controlplane_server_group_members_quota(
+                    context, cluster, requested=nodegroup.node_count
+                )
+            return
+
+        current_md_spec = cluster_resource.get_machine_deployment_spec(nodegroup.name)
+        if utils.get_auto_scaling_enabled(cluster):
+            current_members = int(
+                current_md_spec.get("metadata", {})
+                .get("annotations", {})
+                .get(
+                    resources.AUTOSCALE_ANNOTATION_MAX,
+                    current_md_spec.get("replicas", 0),
+                )
+            )
+        else:
+            current_members = current_md_spec.get("replicas", 0)
+
+        requested_members = utils.get_node_group_server_group_members(
+            cluster, nodegroup
+        )
+        if requested_members > current_members:
+            utils.validate_nodegroup_server_group_members_quota(
+                context, cluster, nodegroup
+            )
 
     def _update_nodegroup(
         self,

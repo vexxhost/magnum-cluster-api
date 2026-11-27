@@ -266,6 +266,34 @@ def test_compute_ignores_magnum_nova_client(mocker):
     )
 
 
+def test_get_server_group_members_quota_limit(mocker):
+    absolute_limits = types.SimpleNamespace(server_group_members=10)
+    compute = types.SimpleNamespace(
+        get_limits=mocker.Mock(
+            return_value=types.SimpleNamespace(absolute=absolute_limits)
+        )
+    )
+    osc = make_openstack_clients(mocker, compute=compute)
+
+    assert osc.get_server_group_members_quota_limit("project-id") == 10
+
+    compute.get_limits.assert_called_once_with(tenant_id="project-id")
+
+
+def test_get_server_group_members_quota_limit_for_context_project(mocker):
+    absolute_limits = types.SimpleNamespace(server_group_members=10)
+    compute = types.SimpleNamespace(
+        get_limits=mocker.Mock(
+            return_value=types.SimpleNamespace(absolute=absolute_limits)
+        )
+    )
+    osc = make_openstack_clients(mocker, compute=compute)
+
+    assert osc.get_server_group_members_quota_limit() == 10
+
+    compute.get_limits.assert_called_once_with()
+
+
 def test_load_balancers_legacy(mocker):
     octavia = types.SimpleNamespace(
         load_balancer_list=mocker.Mock(
